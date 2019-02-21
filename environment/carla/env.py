@@ -10,18 +10,31 @@ import os
 import glob
 import sys
 
+CARLA_PATH = os.environ.get("CARLA_PATH")
+if CARLA_PATH == None:
+    raise ValueError("Set $CARLA_PATH to directory that contains CarlaUE4.sh")
+
 try:
-    from carla.client import CarlaClient
-    from carla.sensor import Camera
-    from carla.settings import CarlaSettings
-    from carla.planner.planner import Planner
+    sys.path.append(glob.glob(CARLA_PATH+'/**/*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
+try:
+    import carla
 except Exception as e:
     print("Failed to import Carla")
     raise e
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
+# TODO: Split into server specific and client specific
 DEFAULT_ENV = {
+    "server_path" : CARLA_PATH,
+    "server_binary" : CARLA_PATH + '/CarlaUE4.sh',
+    "server_process" : None,
     # X Rendering Resolution
     "render_res_x" : 400,
     # Y Rendering Resolution
@@ -30,7 +43,8 @@ DEFAULT_ENV = {
     "x_res" : 84,
     # Input Y Res (Default set to Atari)
     "y_res" : 84,
-    "server_port" : 2000,
+    "server_fps" : 10,
+    "server_port" : None,
     "city_name" : "Town01",
     "frame_skip": 1, 
     "enable_planner" : True,
@@ -93,6 +107,7 @@ class CarlaEnv(gym.Env):
         self.config = config
         self.server_port = config["server_port"]
         self.city_name = config["city_name"]
+        # TODO: Check planner API from 0.9
         if self.config["enable_planner"]:
             self.planner = Planner(self.city_name)
         
