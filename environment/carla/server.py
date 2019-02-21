@@ -1,31 +1,43 @@
 import os
 import signal
 import subprocess
+import random
 
-    
+
 class CarlaServer():
-    def __init__(self, port):
-        self.port = port
+    def __init__(self, config=None):
+        print("Launching CARLA server...")
+        self.config = config
+        self.server_port = config['server_port']
+        self.server_binary = config['server_binary']
+        self.render_res_x = config['render_res_x']
+        self.render_res_y = config['render_res_y']
+        self.server_fps = config['server_fps']
+        self.live_carla_processes = set()
+        # TODO: Check for empty ports
+        if not self.server_port:
+            self.server_port = random.randint(10000, 60000)
+        else:
+            pass
         
-        carla_path = os.environ.get("CARLA_PATH")
-        if os.environ.get("CARLA_PATH") == None:
-            raise ValueError("Set $CARLA_PATH to dir that contains CarlaUE4.sh")
-            
-        devnull = open(os.devnull, 'w')
-        
-        os.environ["SDL_VIDEODRIVER"] = "offscreen"
-        
-        # Clean up specified port (kill all processes)
-        cmd = "kill -kill $(lsof -t -i :{})".format(port)
-        subprocess.Popen(cmd, stderr=devnull, shell=True).wait()
-        
-        # Launch server at specified port
-        cmd = ["{}CarlaUE4.sh".format(carla_path), "-carla-server", 
-               "-world-port={}".format(port), "-benchmark --fps=10"]
-        self.process = subprocess.Popen(
-            cmd, stderr=devnull, stdout=devnull, preexec_fn=os.setsid)
-        print("[Server started] at port {}".format(port))
-       
+        launch_command = [
+                self.server_binary, self.config['city_name'], "-windowed",
+                "-ResX={}".format(self.render_res_x), "-ResY={}".format(self.render_res_y),
+                "-carla-server", "-benchmark", "-fps={}".format(self.server_fps),
+                "-carla-world-port={}".format(self.server_port), "SDL_VIDEODRIVER=offscreen",
+                "SDL_HINT_CUDA_DEVICE=0"
+            ]
+
+        self.server_process = subprocess.Popen(launch_command,
+            preexec_fn=os.setsid,
+            stdout=open(os.devnull, "w"))
+    
+    def __del__(self):
+        if self.server_process:
+            pgid = os.getpgid(self.server_process.pid)
+            os.killpg(pgid, signal.SIGKILL)
+            self.server_port = None
+            self.server_process = None
+    
     def close(self):
-        os.killpg(self.process.pid, signal.SIGKILL)
-        print("[Server killed] at port {}".format(self.port))
+        self.__del__()
