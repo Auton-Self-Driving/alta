@@ -13,6 +13,13 @@ import traceback
 import random
 import server
 
+from agents.navigation.agent import *
+from agents.navigation.local_planner import LocalPlanner
+from agents.navigation.local_planner import compute_connection, RoadOption
+from agents.navigation.global_route_planner import GlobalRoutePlanner
+from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from agents.tools.misc import vector
+
 RETRIES_ON_ERROR=5
 
 CARLA_PATH = os.environ.get("CARLA_PATH")
@@ -117,9 +124,7 @@ class CarlaEnv(gym.Env):
         self.server_port = config["server_port"]
         self.city_name = config["city_name"]
         # TODO: Check planner API from 0.9
-        # if self.config["enable_planner"]:
-        #     self.planner = Planner(self.city_name)
-        
+
         if config["discrete_actions"]:
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
         
@@ -133,6 +138,9 @@ class CarlaEnv(gym.Env):
 
         self.episode_id = None
         self.client = None
+        self.vehicle_actor = None
+        self.world = None
+        self._map = None
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = 0
@@ -145,6 +153,12 @@ class CarlaEnv(gym.Env):
         self.scenario = None
         self.start_pos = None
         self.end_pos = None
+        #Agent defaults (for planner)
+        self._proximity_threshold = 10.0
+        self._local_planner = None
+        self._hop_resolution = 2.0
+        self._current_plan = None
+
 
     def spawn_client(self, hostname='localhost', port_number=None):
         
@@ -207,18 +221,19 @@ class CarlaEnv(gym.Env):
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+        self.client = carla.Client(hostname, port_number)
 
-        client = carla.Client(hostname, port_number)
+        self.world = self.client.get_world()
+        self._map = self.world.get_map()
 
-        world = client.get_world()
-        blueprint_library = world.get_blueprint_library()
+        blueprint_library = self.world.get_blueprint_library()
         try:
             vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
         
         #Returns a list of carla.libcarla.Transform
-        spawn_points = world.get_map().get_spawn_points()
+        spawn_points = self.world.get_map().get_spawn_points()
         #carla.libcarla.Transform has attributes location, rotation
         spawn_point = random.choice(spawn_points)
         
@@ -233,14 +248,99 @@ class CarlaEnv(gym.Env):
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
-            log_id = str(episode_measurements['episode_id'])+str(datetime.datetime.now())
-            client.start_recorder(log_id, self.vehicle_actor)
+            log_id = str(episode_measurements['episode_id'])
+            self.client.start_recorder(log_id, self.vehicle_actor)
+
+        #Attach planner to vehicle actor
+        #TODO: Check how to give steering as input to PID? Target speed is present as input
+        if self.config["enable_planner"]:
+            self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
+            self.set_destination(location=self.destination)
+                
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
         #     spawn_point.location, self.start_coord,
         #     self.scenario["end_pos_id"], self.end_coord))
 
+    def set_destination(self,location):
+        start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
+        end_waypoint = self._map.get_waypoint(
+            carla.Location(location[0], location[1], location[2]))
+        solution = []
 
+        # Setting up global router
+        dao = GlobalRoutePlannerDAO(self.vehicle_actor.get_world().get_map())
+        grp = GlobalRoutePlanner(dao)
+        grp.setup()
+
+        # Obtain route plan
+        x1 = start_waypoint.transform.location.x
+        y1 = start_waypoint.transform.location.y
+        x2 = end_waypoint.transform.location.x
+        y2 = end_waypoint.transform.location.y
+        route = grp.plan_route((x1, y1), (x2, y2))
+
+        current_waypoint = start_waypoint
+        route.append(RoadOption.VOID)
+        for action in route:
+
+            #   Generate waypoints to next junction
+            wp_choice = current_waypoint.next(self._hop_resolution)
+            while len(wp_choice) == 1:
+                current_waypoint = wp_choice[0]
+                solution.append((current_waypoint, RoadOption.LANEFOLLOW))
+                wp_choice = current_waypoint.next(self._hop_resolution)
+
+                #   Stop at destination
+                if current_waypoint.transform.location.distance(
+                    end_waypoint.transform.location) < self._hop_resolution: break
+            if action == RoadOption.VOID: break
+
+            #   Select appropriate path at the junction
+            if len(wp_choice) > 1:
+
+                # Current heading vector
+                current_transform = current_waypoint.transform
+                current_location = current_transform.location
+                projected_location = current_location + \
+                    carla.Location(
+                        x=math.cos(math.radians(current_transform.rotation.yaw)),
+                        y=math.sin(math.radians(current_transform.rotation.yaw)))
+                v_current = vector(current_location, projected_location)
+                direction = 0
+                if action == RoadOption.LEFT:
+                    direction = 1
+                elif action == RoadOption.RIGHT:
+                    direction = -1
+                elif action == RoadOption.STRAIGHT:
+                    direction = 0
+                select_criteria = float('inf')
+
+                #   Choose correct path
+                for wp_select in wp_choice:
+                    v_select = vector(
+                        current_location, wp_select.transform.location)
+                    cross = float('inf')
+                    if direction == 0:
+                        cross = abs(np.cross(v_current, v_select)[-1])
+                    else:
+                        cross = direction*np.cross(v_current, v_select)[-1]
+                    if cross < select_criteria:
+                        select_criteria = cross
+                        current_waypoint = wp_select
+
+                #   Generate all waypoints within the junction
+                #   along selected path
+                solution.append((current_waypoint, action))
+                current_waypoint = current_waypoint.next(self._hop_resolution)[0]
+                while current_waypoint.is_intersection:
+                    solution.append((current_waypoint, action))
+                    current_waypoint = current_waypoint.next(self._hop_resolution)[0]
+
+        assert solution
+
+        self._current_plan = solution
+        self._local_planner.set_global_plan(self._current_plan)
 
     def _read_data(self):
         pass
