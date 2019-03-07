@@ -12,6 +12,7 @@ import sys
 import traceback
 import random
 import server
+import queue
 
 from agents.navigation.agent import *
 from agents.navigation.local_planner import LocalPlanner
@@ -73,7 +74,7 @@ DEFAULT_ENV = {
     "num_pedestrians" : 0,
     "max_steps" : 1000,
     "next_command": None,
-    "verbose": True
+    "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
     "sensors": ["r"]
 }
@@ -101,7 +102,7 @@ DISCRETE_ACTIONS = {
 
 episode_measurements = {
     "episode_id": None,
-    "step": None,
+    "num_steps": None,
     "location": None,
     "velocity": None,
     "distance_to_goal": None
@@ -118,6 +119,7 @@ CARLA_LOGS = os.path.expanduser("~/CARLA_LOGS/"+str(datetime.now()))
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
         self.config = config
+        self.episode_measurements = episode_measurements
         self.server_port = config["server_port"]
         self.city_name = config["city_name"]
         # TODO: Check planner API from 0.9
@@ -155,13 +157,15 @@ class CarlaEnv(gym.Env):
         self._local_planner = None
         self._hop_resolution = 2.0
         self._current_plan = None
+        self._image_queue = None
+        self.destination = None
 
     def spawn_client(self, hostname='localhost', port_number=None):
         return client
 
     def step(self, action):
         try:
-            obs = self.step_(action)
+            obs = self._step(action)
             return obs
         except Exception:
             print("Error during step, terminating episode early",
@@ -200,8 +204,9 @@ class CarlaEnv(gym.Env):
         #     gear=0
         # )
         self.vehicle_actor.apply_control(control)
+        self.location = self.vehicle_actor.get_location()
 
-        sensor_image, episode_measurements = self._read_data()
+        sensor_image = self._read_data()
     
     def reset(self):
         error = None
@@ -218,6 +223,7 @@ class CarlaEnv(gym.Env):
         raise error           
 
     def _reset(self):
+        #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
@@ -240,14 +246,18 @@ class CarlaEnv(gym.Env):
         #carla.libcarla.Transform has attributes location, rotation
         spawn_point = random.choice(spawn_points)
         
-        self.vehicle_actor = world.spawn_actor(vehicle_bp, spawn_point)
+        self.vehicle_actor = self._world.spawn_actor(vehicle_bp, spawn_point)
+        self.location = self.vehicle_actor.get_location()
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
         sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
-        self.camera_actor = world.spawn_actor(camera, camera_transform, attach_to=vehicle_actor)
+        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=vehicle_actor)
+        self._image_queue = queue.Queue()
+        #Register callback to put images in the queue
+        self.camera_actor.listen(_w)
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
@@ -266,6 +276,11 @@ class CarlaEnv(gym.Env):
         #     self.scenario["end_pos_id"], self.end_coord))
 
     def set_destination(self,location):
+        """Generate waypoints and feed into local + global planner
+        Parameters
+        ----------
+        location: Final destination waypoint
+        """
         start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
         end_waypoint = self._map.get_waypoint(
             carla.Location(location[0], location[1], location[2]))
@@ -345,8 +360,25 @@ class CarlaEnv(gym.Env):
         self._current_plan = solution
         self._local_planner.set_global_plan(self._current_plan)
 
+    def _write_data(self, sensor_data):
+        print("Received image from sensor at:", self.location)
+        self._image_queue.put(sensor_data)
+
     def _read_data(self):
-        pass
+        #TODO: Read data in from sensor callback and then call preprocess function
+        #sensor data is Image object for all sensors (besides LIDAR)
+        sensor_data = self._image_queue.get()
+        print("Read image from queue at:", self.location)
+        im_data = sensor_data.raw_data
+        im_width = sensor_data.width
+        im_height = sensor_data.height
+        fov = sensor_data.fov
+        im_processed = self._preprocess(image)
+        return im_processed
+    
+    def _preprocess(image):
+        #TODO: Add preprocessing steps here
+        return image
 
 # ==============================================================================
 # -- CollisionSensor -----------------------------------------------------------
