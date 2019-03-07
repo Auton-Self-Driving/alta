@@ -14,6 +14,7 @@ import random
 import server
 import queue
 import json
+import numpy as np
 
 from agents.navigation.agent import *
 from agents.navigation.local_planner import LocalPlanner
@@ -105,7 +106,7 @@ episode_measurements = {
     "episode_id": None,
     "num_steps": None,
     "location": None,
-    "velocity": None,
+    "forward_speed": None,
     "distance_to_goal": None
     # collision_vehicles
     # collision_pedestrians
@@ -216,11 +217,14 @@ class CarlaEnv(gym.Env):
         self.vehicle_actor.apply_control(control)
         self.location = self.vehicle_actor.get_location()
 
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
+
         sensor_image = self._read_data()
 
         self.episode_measurements['num_steps'] = self.num_steps
 
-        reward = self.compute_reward(self.prev_measurement, self.episode_measurements)
+        reward = self._compute_reward(name='corl2017', prev_measurement=self.prev_measurement,
+        cur_measurement=self.episode_measurements)
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
@@ -305,14 +309,14 @@ class CarlaEnv(gym.Env):
         #TODO: Check how to give steering as input to PID? Target speed is present as input
         if self.config["enable_planner"]:
             self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
-            self.set_destination(location=self.destination)
+            self._set_destination(location=self.destination)
                 
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
         #     spawn_point.location, self.start_coord,
         #     self.scenario["end_pos_id"], self.end_coord))
 
-    def set_destination(self,location):
+    def _set_destination(self,location):
         """Generate waypoints and feed into local + global planner
         Parameters
         ----------
@@ -413,9 +417,46 @@ class CarlaEnv(gym.Env):
         im_processed = self._preprocess(image)
         return im_processed
     
-    def _preprocess(image):
+    def _preprocess(self, image):
         #TODO: Add preprocessing steps here
         return image
+
+    def _compute_reward(self, name, prev_measurement, cur_measurement):
+        #TODO: Add dict functionality to call other reward functions
+        reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
+        return reward
+
+    def _compute_reward_corl2017(self, prev, current):
+        reward = 0.0
+
+        cur_dist = current["distance_to_goal"]
+
+        prev_dist = prev["distance_to_goal"]
+
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+        # Distance travelled toward the goal in m
+        reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
+
+        # Change in speed (km/h)
+        reward += 0.05 * (current["forward_speed"] - prev["forward_speed"])
+
+        # New collision damage
+        reward -= .00002 * (
+            current["collision_vehicles"] + current["collision_pedestrians"] +
+            current["collision_other"] - prev["collision_vehicles"] -
+            prev["collision_pedestrians"] - prev["collision_other"])
+
+        # New sidewalk intersection
+        reward -= 2 * (
+            current["intersection_offroad"] - prev["intersection_offroad"])
+
+        # New opposite lane intersection
+        reward -= 2 * (
+            current["intersection_otherlane"] - prev["intersection_otherlane"])
+
+        return reward
 
 # ==============================================================================
 # -- CollisionSensor -----------------------------------------------------------
