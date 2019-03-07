@@ -66,7 +66,7 @@ DEFAULT_ENV = {
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions" : True,
+    "discrete_actions" : False,
     # Number of frames stacked together
     "framestack" : 1,
     "num_vehicles" : 0,
@@ -100,14 +100,11 @@ DISCRETE_ACTIONS = {
 }
 
 episode_measurements = {
-    # episode ID
-    # num_steps
-    # x location
-    # y location
-    # x orientation
-    # y orientation
-    # forward speed
-    # distance to goal
+    "episode_id": None,
+    "step": None,
+    "location": None,
+    "velocity": None,
+    "distance_to_goal": None
     # collision_vehicles
     # collision_pedestrians
     # collision_other
@@ -139,7 +136,7 @@ class CarlaEnv(gym.Env):
         self.episode_id = None
         self.client = None
         self.vehicle_actor = None
-        self.world = None
+        self._world = None
         self._map = None
         self.num_steps = 0
         self.total_reward = 0
@@ -159,9 +156,7 @@ class CarlaEnv(gym.Env):
         self._hop_resolution = 2.0
         self._current_plan = None
 
-
     def spawn_client(self, hostname='localhost', port_number=None):
-        
         return client
 
     def step(self, action):
@@ -173,6 +168,14 @@ class CarlaEnv(gym.Env):
         traceback.format_exc())
 
     def _step(self, action):
+        #TODO: Add other vehicle + traffic light check methods
+        #NOTE: Only mapping to one action for now (target speed)
+        speed = action
+
+        self._local_planner.set_speed(speed)
+        
+        control = self._local_planner.run_step()
+
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
         throttle = float(np.clip(action[0], 0, 1))
@@ -183,21 +186,22 @@ class CarlaEnv(gym.Env):
 
         #Print actions
         if self.config['verbose']:
-            print("steer", steer, "throttle", throttle, "brake", brake,
-                  "reverse", reverse)
+            print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
+                  "reverse", control.reverse)
         
         #Send action to agent
-        control = carla.VehicleControl(
-            throttle=throttle,
-            steer=steer,
-            brake=brake,
-            hand_brake=False,
-            reverse=False
-            manual_gear_shift=False,
-            gear=0
-        )
-
+        # control = carla.VehicleControl(
+        #     throttle=throttle,
+        #     steer=steer,
+        #     brake=brake,
+        #     hand_brake=False,
+        #     reverse=False
+        #     manual_gear_shift=False,
+        #     gear=0
+        # )
         self.vehicle_actor.apply_control(control)
+
+        sensor_image, episode_measurements = self._read_data()
     
     def reset(self):
         error = None
@@ -211,8 +215,7 @@ class CarlaEnv(gym.Env):
                 print("Error during reset: {}".format(traceback.format_exc()))
                 del(CarlaServer)
                 error = e
-        raise error
-                
+        raise error           
 
     def _reset(self):
         self.num_steps = 0
@@ -223,17 +226,17 @@ class CarlaEnv(gym.Env):
         self.measurements_file = None
         self.client = carla.Client(hostname, port_number)
 
-        self.world = self.client.get_world()
-        self._map = self.world.get_map()
+        self._world = self.client.get_world()
+        self._map = self._world.get_map()
 
-        blueprint_library = self.world.get_blueprint_library()
+        blueprint_library = self._world.get_blueprint_library()
         try:
             vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
         
         #Returns a list of carla.libcarla.Transform
-        spawn_points = self.world.get_map().get_spawn_points()
+        spawn_points = self._world.get_map().get_spawn_points()
         #carla.libcarla.Transform has attributes location, rotation
         spawn_point = random.choice(spawn_points)
         
