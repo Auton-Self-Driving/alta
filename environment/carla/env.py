@@ -92,7 +92,7 @@ DISCRETE_ACTIONS = {
     # Left
     3: [0.0, -0.5],
     # Right
-    4: [-0.5, 0.0],
+    4: [0.0, 0.5],
     # Forward left
     5: [1.0, -0.5],
     # Forward right
@@ -120,6 +120,7 @@ episode_measurements = {
 CARLA_LOGS = os.path.expanduser("~/CARLA_LOGS/"+str(datetime.now()))
 
 class CarlaEnv(gym.Env):
+    #TODO: Add render function (imported from gym)
     def __init__(self, config=DEFAULT_ENV):
         self.config = config
         self.CarlaServer = None
@@ -163,6 +164,7 @@ class CarlaEnv(gym.Env):
         self._current_plan = None
         self._image_queue = None
         self.destination = None
+        self.server_process = None
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -266,7 +268,7 @@ class CarlaEnv(gym.Env):
                 print("Error during reset: {}".format(traceback.format_exc()))
                 del(self.CarlaServer)
                 error = e
-        raise error           
+        raise error          
 
     def _reset(self):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
@@ -300,10 +302,10 @@ class CarlaEnv(gym.Env):
         sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=vehicle_actor)
+        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self._image_queue = queue.Queue()
         #Register callback to put images in the queue
-        self.camera_actor.listen(_w)
+        self.camera_actor.listen(self._write_data)
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
