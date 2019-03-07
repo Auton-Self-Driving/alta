@@ -13,6 +13,7 @@ import traceback
 import random
 import server
 import queue
+import json
 
 from agents.navigation.agent import *
 from agents.navigation.local_planner import LocalPlanner
@@ -180,19 +181,28 @@ class CarlaEnv(gym.Env):
         
         control = self._local_planner.run_step()
 
-        if(self.config['discrete_actions']):
-            action = DISCRETE_ACTIONS[int(action)]
-        throttle = float(np.clip(action[0], 0, 1))
-        brake = float(np.abs(np.clip(action[0], -1, 0)))
-        steer = float(np.clip(action[1], -1, 1))
-        reverse = False
-        hand_brake = False
+        # if(self.config['discrete_actions']):
+        #     action = DISCRETE_ACTIONS[int(action)]
+        #     throttle = float(np.clip(action[0], 0, 1))
+        #     brake = float(np.abs(np.clip(action[0], -1, 0)))
+        #     steer = float(np.clip(action[1], -1, 1))
+        #     reverse = False
+        #     hand_brake = False
 
         #Print actions
         if self.config['verbose']:
             print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
                   "reverse", control.reverse)
-        
+
+        #Store control for this step
+        self.episode_measurements['control'] = {
+            'steer': control.steer,
+            'throttle': control.throttle,
+            'brake': control.brake,
+            'reverse': control.reverse,
+            'hand_brake': control.hand_brake
+        }
+
         #Send action to agent
         # control = carla.VehicleControl(
         #     throttle=throttle,
@@ -207,6 +217,33 @@ class CarlaEnv(gym.Env):
         self.location = self.vehicle_actor.get_location()
 
         sensor_image = self._read_data()
+
+        self.episode_measurements['num_steps'] = self.num_steps
+
+        reward = self.compute_reward(self.prev_measurement, self.episode_measurements)
+        self.total_reward += reward
+        self.episode_measurements['reward'] = reward
+        self.episode_measurements['total_reward'] = self.total_reward
+        #TODO: Define scenario file for consistent testing across episodes
+        done = (self.num_steps > self.config['max_steps'])
+        self.episode_measurements['done'] = done
+        self.prev_measurement = self.episode_measurements
+
+        if CARLA_LOGS:
+            if not self.measurements_log:
+                self.measurements_log = open(os.path.join(CARLA_LOGS,
+                "measurements_{}.json".format(self.episode_id)), "w")
+            self.measurements_log.write(json.dumps(episode_measurements))
+            self.measurements_log.write("\n")
+
+            if done:
+                self.measurements_log.close()
+                self.measurements_file = None
+        #Only increment step after writing log (successful)
+        self.num_steps += 1
+
+        return (sensor_image, reward,
+        done, self.episode_measurements)
     
     def reset(self):
         error = None
