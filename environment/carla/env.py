@@ -38,11 +38,11 @@ except Exception as e:
     raise e
 
 from agents.navigation.agent import *
-fromcagents.navigation.local_planner import LocalPlanner
-from carla.agents.navigation.local_planner import compute_connection, RoadOption
-from carla.agents.navigation.global_route_planner import GlobalRoutePlanner
-from carla.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from carla.agents.tools.misc import vector
+from agents.navigation.local_planner import LocalPlanner
+from agents.navigation.local_planner import compute_connection, RoadOption
+from agents.navigation.global_route_planner import GlobalRoutePlanner
+from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from agents.tools.misc import vector
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -66,7 +66,8 @@ DEFAULT_ENV = {
     "enable_planner" : True,
     "reward_function" : 'stub',
     "save_images_to_disk" : False,
-    "record_sim": True,
+    "record_sim": False,
+    "write_data": False,
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
@@ -79,7 +80,8 @@ DEFAULT_ENV = {
     "next_command": None,
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
-    "sensors": ["r"]
+    "target_speed": 20,
+    "sensors": ["sensor.camera.rgb"]
 }
 
 DISCRETE_ACTIONS = {
@@ -92,7 +94,7 @@ DISCRETE_ACTIONS = {
     # Left
     3: [0.0, -0.5],
     # Right
-    4: [-0.5, 0.0],
+    4: [0.0, 0.5],
     # Forward left
     5: [1.0, -0.5],
     # Forward right
@@ -163,6 +165,9 @@ class CarlaEnv(gym.Env):
         self._current_plan = None
         self._image_queue = None
         self.destination = None
+        self.server_process = None
+        self.CarlaServer = None
+        self.target_speed = config['target_speed']
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -294,16 +299,18 @@ class CarlaEnv(gym.Env):
         
         self.vehicle_actor = self._world.spawn_actor(vehicle_bp, spawn_point)
         self.location = self.vehicle_actor.get_location()
+        print('Spawned vehicle actor at', self.location)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
         sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=vehicle_actor)
+        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self._image_queue = queue.Queue()
         #Register callback to put images in the queue
-        self.camera_actor.listen(_w)
+        if(self.config['write_data']):
+            self.camera_actor.listen(self._write_data)
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
@@ -312,8 +319,10 @@ class CarlaEnv(gym.Env):
 
         #Attach planner to vehicle actor
         #TODO: Check how to give steering as input to PID? Target speed is present as input
+        #TODO: Clean up destination init (pass in a location)
         if self.config["enable_planner"]:
             self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
+            self.destination = random.choice(spawn_points).location 
             self._set_destination(location=self.destination)
                 
         # Get start and end positions (to figure out when to end the episode)
@@ -329,7 +338,7 @@ class CarlaEnv(gym.Env):
         """
         start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
         end_waypoint = self._map.get_waypoint(
-            carla.Location(location[0], location[1], location[2]))
+            carla.Location(location.x, location.y, location.z))
         solution = []
 
         # Setting up global router
@@ -462,3 +471,7 @@ class CarlaEnv(gym.Env):
             current["intersection_otherlane"] - prev["intersection_otherlane"])
 
         return reward
+
+if __name__ == "__main__":
+    env = CarlaEnv()
+    env.reset()
