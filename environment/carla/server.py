@@ -37,8 +37,9 @@ class CarlaServer():
 
         if self.server_process:
             print("Launched server at port:", self.server_port)
-        time.sleep(20)
+
         print('Waiting for server to finish setting up')
+        time.sleep(20)
     
     def __del__(self):
         if self.server_process:

@@ -130,16 +130,17 @@ class CarlaEnv(gym.Env):
         self.city_name = config["city_name"]
         # TODO: Check planner API from 0.9
 
-        if config["discrete_actions"]:
-            self.action_space = Discrete(len(DISCRETE_ACTIONS))
+        # if config["discrete_actions"]:
+        #     self.action_space = Discrete(len(DISCRETE_ACTIONS))
         
-        image_space = Box(
-            low=0,
-            high=255,
-            shape=(config["y_res"], 
-            config["x_res"],
-            3 * config["framestack"])
-        )
+        # 
+        # image_space = Box(
+        #     low=0,
+        #     high=255,
+        #     shape=(config["y_res"], 
+        #     config["x_res"],
+        #     3 * config["framestack"])
+        # )
 
         self.episode_id = None
         self.client = None
@@ -168,6 +169,22 @@ class CarlaEnv(gym.Env):
         self.server_process = None
         self.CarlaServer = None
         self.target_speed = config['target_speed']
+        self.actor_list = []
+        self.image_data = None
+
+        # Start Carla Server
+        serverStarted = False
+        serverStartRetries = 0
+        while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+            try:
+                self.CarlaServer = server.CarlaServer(config=self.config)
+                serverStarted = True
+            except Exception as e:
+                print("Error in starting carla server : {}".format(traceback.format_exc()))
+                self.CarlaServer.close()
+                error = e
+                serverStartRetries += 1
+
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -260,27 +277,33 @@ class CarlaEnv(gym.Env):
         done, self.episode_measurements)
     
     def reset(self):
-        error = None
-        for _ in range(RETRIES_ON_ERROR):
+        return self._reset()
+
+    def destroy_all_existing_actors(self):
+        
+        # Delete all existing actors
+        for actor in self.actor_list:
             try:
-                if not self.server_process:
-                    self.CarlaServer = server.CarlaServer(config=self.config)
-                    self.server_process = self.CarlaServer.server_process
-                return self._reset()
+                actor.destroy()
             except Exception as e:
-                print("Error during reset: {}".format(traceback.format_exc()))
-                del(self.CarlaServer)
-                error = e
-        raise error           
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+            
+
 
     def _reset(self):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
+        
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+        
+        # Destroy 
+        self.destroy_all_existing_actors()
+        
+        # Create new client
         self.client =  self._spawn_client()
 
         self._world = self.client.get_world()
@@ -298,6 +321,8 @@ class CarlaEnv(gym.Env):
         spawn_point = random.choice(spawn_points)
         
         self.vehicle_actor = self._world.spawn_actor(vehicle_bp, spawn_point)
+        self.actor_list.append(self.vehicle_actor)
+
         self.location = self.vehicle_actor.get_location()
         print('Spawned vehicle actor at', self.location)
 
@@ -307,10 +332,13 @@ class CarlaEnv(gym.Env):
         camera = blueprint_library.find(sensor)
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
-        self._image_queue = queue.Queue()
+        self.actor_list.append(self.camera_actor)
+
+        #self._image_queue = queue.Queue()
+        
         #Register callback to put images in the queue
         if(self.config['write_data']):
-            self.camera_actor.listen(self._write_data)
+            self.camera_actor.listen(self._save_sensor_data)
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
@@ -418,6 +446,9 @@ class CarlaEnv(gym.Env):
     def _write_data(self, sensor_data):
         print("Received image from sensor at:", self.location)
         self._image_queue.put(sensor_data)
+
+    def _save_sensor_data(self, sensor_data):
+        self.image_data = sensor_data
 
     def _read_data(self):
         #TODO: Read data in from sensor callback and then call preprocess function
