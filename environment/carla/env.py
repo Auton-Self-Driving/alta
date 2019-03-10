@@ -17,13 +17,6 @@ import json
 import numpy as np
 import math
 
-from agents.navigation.agent import *
-from agents.navigation.local_planner import LocalPlanner
-from agents.navigation.local_planner import compute_connection, RoadOption
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from agents.tools.misc import vector
-
 RETRIES_ON_ERROR=5
 
 CARLA_PATH = os.environ.get("CARLA_PATH")
@@ -43,6 +36,13 @@ try:
 except Exception as e:
     print("Failed to import Carla")
     raise e
+
+from agents.navigation.agent import *
+from agents.navigation.local_planner import LocalPlanner
+from agents.navigation.local_planner import compute_connection, RoadOption
+from agents.navigation.global_route_planner import GlobalRoutePlanner
+from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from agents.tools.misc import vector
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -66,6 +66,7 @@ DEFAULT_ENV = {
     "enable_planner" : True,
     "reward_function" : 'stub',
     "save_images_to_disk" : False,
+    "write_data": False,
     "record_sim": True,
     # Print measurements to screen
     "print_obs" : True,
@@ -79,7 +80,7 @@ DEFAULT_ENV = {
     "next_command": None,
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
-    "sensors": ["r"]
+    "sensors": ["sensor.camera.rgb"]
 }
 
 DISCRETE_ACTIONS = {
@@ -123,6 +124,7 @@ class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
         self.config = config
         self.CarlaServer = None
+        self.server_process = None
         self.episode_measurements = episode_measurements
         self.server_port = config["server_port"]
         self.city_name = config["city_name"]
@@ -261,7 +263,7 @@ class CarlaEnv(gym.Env):
                 if not self.server_process:
                     self.CarlaServer = server.CarlaServer(config=self.config)
                     self.server_process = self.CarlaServer.server_process
-                return self._reset()
+                    return self._reset()
             except Exception as e:
                 print("Error during reset: {}".format(traceback.format_exc()))
                 del(self.CarlaServer)
@@ -294,16 +296,18 @@ class CarlaEnv(gym.Env):
         
         self.vehicle_actor = self._world.spawn_actor(vehicle_bp, spawn_point)
         self.location = self.vehicle_actor.get_location()
+        print("Spawned actor at", self.location)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
-        #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][0]
+        #Attach a sensor to the vehicle        sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=vehicle_actor)
+        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
+        print("Attached camera to the actor")
         self._image_queue = queue.Queue()
         #Register callback to put images in the queue
-        self.camera_actor.listen(_w)
+        if(self.config['write_data']):
+            self.camera_actor.listen(_write_data)
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
@@ -462,3 +466,11 @@ class CarlaEnv(gym.Env):
             current["intersection_otherlane"] - prev["intersection_otherlane"])
 
         return reward
+
+if __name__ == '__main__':
+    try:
+        carla_env = CarlaEnv()
+        carla_env.reset()
+    except Exception as e:
+        print(e)
+
