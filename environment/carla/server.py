@@ -42,15 +42,15 @@ class CarlaServer():
         time.sleep(20)
     
     def __del__(self):
+        self.close()
+    
+    def close(self):
         if self.server_process:
             pgid = os.getpgid(self.server_process.pid)
             os.killpg(pgid, signal.SIGKILL)
             self.server_port = None
             self.server_process = None
             print("Killed server process")
-    
-    def close(self):
-        self.__del__()
 
 
 if __name__ == "__main__":

@@ -280,7 +280,7 @@ class CarlaEnv(gym.Env):
         return self._reset()
 
     def destroy_all_existing_actors(self):
-        
+
         # Delete all existing actors
         for actor in self.actor_list:
             try:
@@ -502,6 +502,15 @@ class CarlaEnv(gym.Env):
             current["intersection_otherlane"] - prev["intersection_otherlane"])
 
         return reward
+
+    def close(self):
+        self.destroy_all_existing_actors()
+
+        if not self.CarlaServer is None:
+            self.CarlaServer.close()
+
+    def __del__(self):
+        self.close()
 
 if __name__ == "__main__":
     env = CarlaEnv()
