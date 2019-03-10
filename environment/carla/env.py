@@ -282,12 +282,12 @@ class CarlaEnv(gym.Env):
     def destroy_all_existing_actors(self):
 
         # Delete all existing actors
-        for actor in self.actor_list:
+        for _ in range(len(self.actor_list)):
             try:
+                actor = self.actor_list.pop()
                 actor.destroy()
             except Exception as e:
-                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
-            
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))  
 
 
     def _reset(self):
@@ -302,7 +302,7 @@ class CarlaEnv(gym.Env):
         
         # Destroy 
         self.destroy_all_existing_actors()
-        
+
         # Create new client
         self.client =  self._spawn_client()
 
