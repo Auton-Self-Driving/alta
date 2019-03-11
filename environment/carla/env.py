@@ -43,6 +43,7 @@ from agents.navigation.local_planner import compute_connection, RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from agents.tools.misc import vector
+import sensors 
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -112,9 +113,7 @@ episode_measurements = {
     "location": None,
     "forward_speed": None,
     "distance_to_goal": None
-    # collision_vehicles
-    # collision_pedestrians
-    # collision_other
+    "collisions": 0
     # intersection_offroad
     # intersection_otherlane
     # next_command
@@ -370,7 +369,10 @@ class CarlaEnv(gym.Env):
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
-
+        
+        self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
+        self.actor_list.append(self.collision_sensor.sensor)
+        
         #self._image_queue = queue.Queue()
         
         #Register callback to put images in the queue
@@ -506,7 +508,8 @@ class CarlaEnv(gym.Env):
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
         #TODO: Add dict functionality to call other reward functions
-        reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
+        #reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
+        reward = 0
         return reward
 
     def _compute_reward_corl2017(self, prev, current):

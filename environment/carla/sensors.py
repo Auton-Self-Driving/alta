@@ -13,17 +13,7 @@ import random
 import re
 import sys
 import weakref
-
-# ==============================================================================
-# -- find carla module ---------------------------------------------------------
-# ==============================================================================
-try:
-    sys.path.append(glob.glob('**/carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-except IndexError:
-    pass
+import carla
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -48,11 +38,11 @@ def get_actor_display_name(actor, truncate=250):
 
 
 class CollisionSensor(object):
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor):
         self.sensor = None
+        self.num_collisions = 0
         self._history = []
         self._parent = parent_actor
-        self._hud = hud
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
@@ -73,12 +63,13 @@ class CollisionSensor(object):
         if not self:
             return
         actor_type = get_actor_display_name(event.other_actor)
-        self._hud.notification('Collision with %r' % actor_type)
-        impulse = event.normal_impulse
-        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
-        self._history.append((event.frame_number, intensity))
-        if len(self._history) > 4000:
-            self._history.pop(0)
+        self.num_collisions += 1
+        #print('Collision with %r, id = %d' % (actor_type, event.other_actor.id))
+        #impulse = event.normal_impulse
+        #intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+        #self._history.append((event.frame_number, intensity))
+        #if len(self._history) > 4000:
+        #    self._history.pop(0)
 
 
 # ==============================================================================
