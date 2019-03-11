@@ -76,12 +76,13 @@ DEFAULT_ENV = {
     "framestack" : 1,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
-    "max_steps" : 1000,
+    "max_steps" : 10,
     "next_command": None,
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
-    "sensors": ["sensor.camera.rgb"]
+    "sensors": ["sensor.camera.rgb"],
+    "action_type": "merged_gas"
 }
 
 DISCRETE_ACTIONS = {
@@ -203,11 +204,13 @@ class CarlaEnv(gym.Env):
     def _step(self, action):
         #TODO: Add other vehicle + traffic light check methods
         #NOTE: Only mapping to one action for now (target speed)
-        speed = action
 
-        self._local_planner.set_speed(speed)
+        control = self.get_control(action)
+
+        # speed = action
+        # self._local_planner.set_speed(speed)
         
-        control = self._local_planner.run_step()
+        # control = self._local_planner.run_step()
 
         # if(self.config['discrete_actions']):
         #     action = DISCRETE_ACTIONS[int(action)]
@@ -231,22 +234,14 @@ class CarlaEnv(gym.Env):
             'hand_brake': control.hand_brake
         }
 
-        #Send action to agent
-        # control = carla.VehicleControl(
-        #     throttle=throttle,
-        #     steer=steer,
-        #     brake=brake,
-        #     hand_brake=False,
-        #     reverse=False
-        #     manual_gear_shift=False,
-        #     gear=0
-        # )
-        self.vehicle_actor.apply_control(control)
+        for _ in range(self.config["frame_skip"]):
+            self.vehicle_actor.apply_control(control)
+        
         self.location = self.vehicle_actor.get_location()
 
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
 
-        sensor_image = self._read_data()
+        sensor_image = self.image_data.raw_data
 
         self.episode_measurements['num_steps'] = self.num_steps
 
@@ -273,9 +268,51 @@ class CarlaEnv(gym.Env):
         #Only increment step after writing log (successful)
         self.num_steps += 1
 
+        print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
+        print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+        
         return (sensor_image, reward,
         done, self.episode_measurements)
     
+    def get_control(self, action):
+        """ Get Control object for Carla from action
+        Input:
+            - action: tuple containing (steer, throttle, brake) in [-1, 1]
+        Output: 
+            - control: Control object for Carla
+        """
+        steer = action[0]
+        gas = action[1]
+        brake = action[2]
+
+        if self.config["action_type"] is "merged_gas":
+            if gas < 0:
+                throttle = 0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0
+        else:
+            throttle = gas
+
+        # Avoid fake braking (from Codevilla conditional imitation learning code)
+        # Needed for imitation learning agent to succeed on benchmarks, should not 
+        # be used with RL agents
+        #if (brake < 0.1) or (brake < acc):
+        #    brake = 0.0
+
+        control = carla.VehicleControl(
+            throttle=throttle,
+            steer=steer,
+            brake=brake,
+            hand_brake=False,
+            reverse=False,
+            manual_gear_shift=False,
+            gear=0
+        )
+
+        return control
+
     def reset(self):
         return self._reset()
 
@@ -453,6 +490,7 @@ class CarlaEnv(gym.Env):
     def _read_data(self):
         #TODO: Read data in from sensor callback and then call preprocess function
         #sensor data is Image object for all sensors (besides LIDAR)
+        
         sensor_data = self._image_queue.get()
         print("Read image from queue at:", self.location)
         im_data = sensor_data.raw_data
@@ -502,6 +540,11 @@ class CarlaEnv(gym.Env):
             current["intersection_otherlane"] - prev["intersection_otherlane"])
 
         return reward
+
+    def printInfo(self):
+        print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
+        print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+        
 
     def close(self):
         self.destroy_all_existing_actors()
