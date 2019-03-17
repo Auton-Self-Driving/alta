@@ -83,7 +83,8 @@ DEFAULT_ENV = {
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb"],
-    "action_type": "merged_gas"
+    "action_type": "merged_gas",
+    "sensor_tick": '1.0'
 }
 
 DISCRETE_ACTIONS = {
@@ -366,6 +367,7 @@ class CarlaEnv(gym.Env):
         #Attach a sensor to the vehicle
         sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
+        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
