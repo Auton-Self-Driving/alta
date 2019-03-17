@@ -105,3 +105,13 @@ venv.bak/
 
 # vscode prefs
 .vscode/*
+
+CachedExtensions/*
+User/*
+dependencies/*
+globalStorage/*
+languagepacks.json
+machineid
+rapid_render.json
+self-signed.cert
+self-signed.key

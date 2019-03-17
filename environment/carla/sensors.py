@@ -95,8 +95,9 @@ class LaneInvasionSensor(object):
         self = weak_self()
         if not self:
             return
-        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
-        self._hud.notification('Crossed line %s' % ' and '.join(text))
+        self.num_collisions += 1
+        # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+        # self._hud.notification('Crossed line %s' % ' and '.join(text))
 
 # ==============================================================================
 # -- GnssSensor --------------------------------------------------------

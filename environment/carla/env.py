@@ -112,7 +112,7 @@ episode_measurements = {
     "num_steps": None,
     "location": None,
     "forward_speed": None,
-    "distance_to_goal": None
+    "distance_to_goal": None,
     "collisions": 0
     # intersection_offroad
     # intersection_otherlane
@@ -372,6 +372,9 @@ class CarlaEnv(gym.Env):
         
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
+
+        self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
+        self.actor_list.append(self.lane_invasion_sensor.sensor)
         
         #self._image_queue = queue.Queue()
         
