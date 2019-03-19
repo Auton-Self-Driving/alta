@@ -81,6 +81,7 @@ class LaneInvasionSensor(object):
     def __init__(self, parent_actor):
         self.sensor = None
         self._parent = parent_actor
+        self.num_laneintersections = 0
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.lane_detector')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
@@ -94,7 +95,8 @@ class LaneInvasionSensor(object):
         self = weak_self()
         if not self:
             return
-        self.num_collisions += 1
+        # TODO : Handle case of lane invasion for dashed vs solid lane markings
+        self.num_laneintersections += 1
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
 

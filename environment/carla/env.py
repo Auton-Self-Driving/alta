@@ -16,6 +16,7 @@ import queue
 import json
 import numpy as np
 import math
+import copy
 
 RETRIES_ON_ERROR=5
 
@@ -84,7 +85,11 @@ DEFAULT_ENV = {
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb"],
     "action_type": "merged_gas",
-    "sensor_tick": '1.0'
+    "sensor_tick": '1.0',
+    "dist_for_success" : 2.0,
+    "max_offlane_steps" : 5,
+    "max_static_steps" : 20,
+    "log_measurements_to_file": False
 }
 
 DISCRETE_ACTIONS = {
@@ -112,9 +117,12 @@ episode_measurements = {
     "episode_id": None,
     "num_steps": None,
     "location": None,
-    "forward_speed": None,
+    "speed": None,
     "distance_to_goal": None,
-    "collisions": 0
+    "num_collisions": 0,
+    "num_laneintersections": 0,
+    "static_steps": 0,
+    "offlane_steps": 0
     # intersection_offroad
     # intersection_otherlane
     # next_command
@@ -152,7 +160,7 @@ class CarlaEnv(gym.Env):
         self._map = None
         self.num_steps = 0
         self.total_reward = 0
-        self.prev_measurement = 0
+        self.prev_measurement = None
         self.prev_image = 0
         # File to log measurements to
         self.measurements_log = None
@@ -239,13 +247,17 @@ class CarlaEnv(gym.Env):
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
         
-        self.location = self.vehicle_actor.get_location()
-
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
-
+        self.num_steps += 1
+        self.episode_measurements['num_steps'] = self.num_steps
+        
         sensor_image = self.image_data.raw_data
 
-        self.episode_measurements['num_steps'] = self.num_steps
+        # Set state variables for reward calculation
+        self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        self.location = self.vehicle_actor.get_location()
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
+        self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
         reward = self._compute_reward(name=self.config['reward_function'], prev_measurement=self.prev_measurement,
         cur_measurement=self.episode_measurements)
@@ -253,11 +265,13 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
         #TODO: Define scenario file for consistent testing across episodes
-        done = (self.num_steps > self.config['max_steps'])
-        self.episode_measurements['done'] = done
-        self.prev_measurement = self.episode_measurements
 
-        if CARLA_LOGS:
+        done = self._compute_done_condition()
+        
+        self.episode_measurements['done'] = done
+        self.prev_measurement = copy.deepcopy(self.episode_measurements)
+
+        if self.config["log_measurements_to_file"] and CARLA_LOGS:
             if not self.measurements_log:
                 self.measurements_log = open(os.path.join(CARLA_LOGS,
                 "measurements_{}.json".format(self.episode_id)), "a")
@@ -268,8 +282,7 @@ class CarlaEnv(gym.Env):
                 self.measurements_log.close()
                 self.measurements_file = None
         #Only increment step after writing log (successful)
-        self.num_steps += 1
-
+        
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
         
@@ -404,6 +417,21 @@ class CarlaEnv(gym.Env):
         #     spawn_point.location, self.start_coord,
         #     self.scenario["end_pos_id"], self.end_coord))
 
+        # Set state variables for reward calculation
+        self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        self.location = self.vehicle_actor.get_location()
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
+        self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
+
+        self.prev_measurement = copy.deepcopy(self.episode_measurements)
+        
+
+    def getSpeedFromVelocity(self, velocity):
+
+        speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
+        return speed
+
     def _set_destination(self,location):
         """Generate waypoints and feed into local + global planner
         Parameters
@@ -515,41 +543,60 @@ class CarlaEnv(gym.Env):
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
         #TODO: Add dict functionality to call other reward functions
-        #reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
-        reward = 0
+        reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_corl2017(self, prev, current):
-        reward = 0.0
-
+        
         cur_dist = current["distance_to_goal"]
-
         prev_dist = prev["distance_to_goal"]
 
         if self.config["verbose"]:
             print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
         # Distance travelled toward the goal in m
-        reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        self.episode_measurements["distance_reward"] = distance_reward
 
         # Change in speed (km/h)
-        reward += 0.05 * (current["forward_speed"] - prev["forward_speed"])
+        speed_reward = 0.05 * (current["speed"] - prev["speed"])
+        self.episode_measurements["speed_reward"] = speed_reward
 
-        # New collision damage
-        reward -= .00002 * (
-            current["collision_vehicles"] + current["collision_pedestrians"] +
-            current["collision_other"] - prev["collision_vehicles"] -
-            prev["collision_pedestrians"] - prev["collision_other"])
+        # Collision damage
+        collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+        self.episode_measurements["collision_reward"] = collision_reward
 
         # New sidewalk intersection
-        reward -= 2 * (
-            current["intersection_offroad"] - prev["intersection_offroad"])
+        lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
 
-        # New opposite lane intersection
-        reward -= 2 * (
-            current["intersection_otherlane"] - prev["intersection_otherlane"])
+        reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
 
+        # Update state variables
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        
+        if current["speed"] <= 0:
+            self.episode_measurements["static_steps"] += 1
+        
+        print("Reward")
+        print(distance_reward, speed_reward, collision_reward, lane_intersection_reward)
+        
         return reward
+
+    def _compute_done_condition(self):
+
+        # This is to be called after reward computation.
+
+        # Episode termination conditions
+        success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
+        offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
+        static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
+        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
+        done = success or collision or offlane or static or maxStepsTaken
+
+        return done
 
     def printInfo(self):
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
