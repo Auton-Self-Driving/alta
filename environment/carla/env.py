@@ -68,7 +68,7 @@ DEFAULT_ENV = {
     "reward_function" : 'stub',
     "save_images_to_disk" : False,
     "record_sim": False,
-    "write_data": False,
+    "write_data": True,
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
@@ -121,6 +121,8 @@ episode_measurements = {
 }
 
 CARLA_LOGS = os.path.expanduser("~/CARLA_LOGS/"+str(datetime.now()))
+if not os.path.exists(CARLA_LOGS):
+    os.makedirs(CARLA_LOGS)
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
@@ -258,8 +260,8 @@ class CarlaEnv(gym.Env):
         if CARLA_LOGS:
             if not self.measurements_log:
                 self.measurements_log = open(os.path.join(CARLA_LOGS,
-                "measurements_{}.json".format(self.episode_id)), "w")
-            self.measurements_log.write(json.dumps(episode_measurements))
+                "measurements_{}.json".format(self.episode_id)), "a")
+            self.measurements_log.write(json.dumps(self.episode_measurements))
             self.measurements_log.write("\n")
 
             if done:
