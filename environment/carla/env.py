@@ -89,7 +89,8 @@ DEFAULT_ENV = {
     "dist_for_success" : 2.0,
     "max_offlane_steps" : 5,
     "max_static_steps" : 20,
-    "log_measurements_to_file": False
+    "log_measurements_to_file": False,
+    "train_config": None
 }
 
 DISCRETE_ACTIONS = {
@@ -196,6 +197,24 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
 
+        if(self.config['train_config'] == 'baselines'):
+            self.action_space = Discrete(len(DISCRETE_ACTIONS))
+            image_space = Box(
+            0,
+            255,
+            shape=(self.config["y_res"], self.config["x_res"],
+                    3 * self.config["framestack"]),
+            dtype=np.uint8)
+            # observation space is image and vector of measurements
+            # vector of measurements is: 
+            # current speed, distance to goal, damage from collisions, 
+            # current high-level command by planner, in one-hot encoding.  
+            self.observation_space = Tuple(
+            [
+                image_space,
+                # Discrete(len(COMMANDS_ENUM)),  # next_command
+                Box(0, 1024.0, shape=(2, ), dtype=np.float32)
+            ])
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -285,9 +304,16 @@ class CarlaEnv(gym.Env):
         
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+
+        # current speed, distance to goal
+        # current high-level command (excluded for now)
+        if(self.config['train_config'] == 'baselines'):
+            obs = (sensor_image, [self.episode_measurements['forward_speed'], 
+            self.episode_measurements['distance_to_goal']], reward, done, self.episode_measurements)
+        else:
+            obs = (sensor_image, reward, done, self.episode_measurements)
         
-        return (sensor_image, reward,
-        done, self.episode_measurements)
+        return obs
     
     def get_control(self, action):
         """ Get Control object for Carla from action
