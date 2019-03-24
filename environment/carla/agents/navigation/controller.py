@@ -14,7 +14,7 @@ import math
 import numpy as np
 
 import carla
-from agents.tools.misc import distance_vehicle, get_speed
+from environment.carla.agents.tools.misc import distance_vehicle, get_speed
 
 class VehiclePIDController():
     """

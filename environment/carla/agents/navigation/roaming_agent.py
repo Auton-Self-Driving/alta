@@ -12,8 +12,8 @@ The agent also responds to traffic lights. """
 from enum import Enum
 
 import carla
-from agents.navigation.agent import *
-from agents.navigation.local_planner import LocalPlanner
+from environment.carla.agents.navigation.agent import *
+from environment.carla.agents.navigation.local_planner import LocalPlanner
 
 
 class RoamingAgent(Agent):

@@ -11,12 +11,14 @@ import glob
 import sys
 import traceback
 import random
-import server
 import queue
 import json
 import numpy as np
 import math
 import copy
+import cv2
+
+import environment.carla.server as server
 
 RETRIES_ON_ERROR=5
 
@@ -25,7 +27,7 @@ if CARLA_PATH == None:
     raise ValueError("Set $CARLA_PATH to directory that contains CarlaUE4.sh")
 
 try:
-    sys.path.append(glob.glob(CARLA_PATH+'/**/*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob(CARLA_PATH+'/PythonAPI/%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
@@ -38,13 +40,13 @@ except Exception as e:
     print("Failed to import Carla")
     raise e
 
-from agents.navigation.agent import *
-from agents.navigation.local_planner import LocalPlanner
-from agents.navigation.local_planner import compute_connection, RoadOption
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from agents.tools.misc import vector
-import sensors 
+from environment.carla.agents.navigation.agent import *
+from environment.carla.agents.navigation.local_planner import LocalPlanner
+from environment.carla.agents.navigation.local_planner import compute_connection, RoadOption
+from environment.carla.agents.navigation.global_route_planner import GlobalRoutePlanner
+from environment.carla.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla.agents.tools.misc import vector
+import environment.carla.sensors 
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -90,7 +92,7 @@ DEFAULT_ENV = {
     "max_offlane_steps" : 5,
     "max_static_steps" : 20,
     "log_measurements_to_file": False,
-    "train_config": None
+    "train_config": 'baselines'
 }
 
 DISCRETE_ACTIONS = {
@@ -209,12 +211,13 @@ class CarlaEnv(gym.Env):
             # vector of measurements is: 
             # current speed, distance to goal, damage from collisions, 
             # current high-level command by planner, in one-hot encoding.  
-            self.observation_space = Tuple(
-            [
-                image_space,
-                # Discrete(len(COMMANDS_ENUM)),  # next_command
-                Box(0, 1024.0, shape=(2, ), dtype=np.float32)
-            ])
+            # self.observation_space = Tuple(
+            # [
+            #     image_space,
+            #     # Discrete(len(COMMANDS_ENUM)),  # next_command
+            #     Box(0, 1024.0, shape=(2, ), dtype=np.float32)
+            # ])
+            self.observation_space = image_space
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -270,6 +273,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_steps'] = self.num_steps
         
         sensor_image = self.image_data.raw_data
+        
+        sensor_image = self._preprocess(sensor_image)
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
@@ -564,8 +569,13 @@ class CarlaEnv(gym.Env):
         return im_processed
     
     def _preprocess(self, image):
-        #TODO: Add preprocessing steps here
-        return image
+        data = image.data.reshape(self.config["render_res_y"],
+                                    self.config["render_res_x"], 3)
+        data = cv2.resize(
+            data, (self.config["x_res"], self.config["y_res"]),
+            interpolation=cv2.INTER_AREA)
+        data = (data.astype(np.float32) - 128) / 128
+        return data
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
         #TODO: Add dict functionality to call other reward functions

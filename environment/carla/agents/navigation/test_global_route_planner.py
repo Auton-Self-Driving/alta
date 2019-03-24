@@ -3,9 +3,9 @@ import unittest
 
 import carla
 
-from global_route_planner import GlobalRoutePlanner
-from global_route_planner import NavEnum
-from global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla.agents.navigation.global_route_planner import GlobalRoutePlanner
+from environment.carla.agents.navigation.global_route_planner import NavEnum
+from environment.carla.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 
 
 class Test_GlobalRoutePlanner(unittest.TestCase):
