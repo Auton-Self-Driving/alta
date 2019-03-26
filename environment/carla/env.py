@@ -17,6 +17,7 @@ import numpy as np
 import math
 import copy
 import cv2
+import collections
 
 import environment.carla.server as server
 
@@ -66,7 +67,7 @@ DEFAULT_ENV = {
     "server_fps" : 10,
     "server_port" : None,
     "city_name" : "Town01",
-    "frame_skip": 1, 
+    "frame_skip": 1,
     "enable_planner" : True,
     "reward_function" : 'stub',
     "save_images_to_disk" : False,
@@ -78,6 +79,7 @@ DEFAULT_ENV = {
     "discrete_actions" : True,
     # Number of frames stacked together
     "framestack" : 1,
+    "grayscale" : False,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
     "max_steps" : 200,
@@ -146,12 +148,11 @@ class CarlaEnv(gym.Env):
 
         # if config["discrete_actions"]:
         #     self.action_space = Discrete(len(DISCRETE_ACTIONS))
-        
-        # 
+        #
         # image_space = Box(
         #     low=0,
         #     high=255,
-        #     shape=(config["y_res"], 
+        #     shape=(config["y_res"],
         #     config["x_res"],
         #     3 * config["framestack"])
         # )
@@ -178,7 +179,7 @@ class CarlaEnv(gym.Env):
         self._local_planner = None
         self._hop_resolution = 2.0
         self._current_plan = None
-        self._image_queue = None
+        self._image_queue = collections.deque(maxlen=self.config['framestack'])
         self.server_process = None
         self.CarlaServer = None
         self.target_speed = config['target_speed']
@@ -187,6 +188,13 @@ class CarlaEnv(gym.Env):
         # Set default source and destination points (in _reset function)
         self.source_point = None
         self.destination_point = None
+
+        # Compute number of channels in sensor image
+        # We use this later in the preprocess step to reshape the data
+        if(self.config['grayscale']):
+            self.im_channels = 1
+        else:
+            self.im_channels = 3
 
         # Start Carla Server
         serverStarted = False
@@ -210,9 +218,9 @@ class CarlaEnv(gym.Env):
                     3 * self.config["framestack"]),
             dtype=np.uint8)
             # observation space is image and vector of measurements
-            # vector of measurements is: 
-            # current speed, distance to goal, damage from collisions, 
-            # current high-level command by planner, in one-hot encoding.  
+            # vector of measurements is:
+            # current speed, distance to goal, damage from collisions,
+            # current high-level command by planner, in one-hot encoding.
             # self.observation_space = Tuple(
             # [
             #     image_space,
@@ -243,7 +251,6 @@ class CarlaEnv(gym.Env):
 
         # speed = action
         # self._local_planner.set_speed(speed)
-        
         # control = self._local_planner.run_step()
 
         if(self.config['discrete_actions']):
@@ -253,7 +260,7 @@ class CarlaEnv(gym.Env):
             steer = float(np.clip(action[1], -1, 1))
             reverse = False
             hand_brake = False
-        
+
             control = carla.VehicleControl(
                 throttle=throttle,
                 steer=steer,
@@ -280,12 +287,12 @@ class CarlaEnv(gym.Env):
 
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
-        
+
         self.num_steps += 1
         self.episode_measurements['num_steps'] = self.num_steps
 
-        sensor_image = np.array(self.image_data)
-        sensor_image = self._preprocess(sensor_image)
+        # Read in preprocessed image
+        sensor_image = self._read_data()
 
         # print('-'*50)
         # print('In step. Read sensor image of type:', type(sensor_image))
@@ -306,7 +313,7 @@ class CarlaEnv(gym.Env):
         #TODO: Define scenario file for consistent testing across episodes
 
         done = self._compute_done_condition()
-        
+
         self.episode_measurements['done'] = done
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
@@ -321,7 +328,7 @@ class CarlaEnv(gym.Env):
                 self.measurements_log.close()
                 self.measurements_file = None
         #Only increment step after writing log (successful)
-        
+
         #TODO: badcast errors in carla-3.5egg file
         # print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         # print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
@@ -329,18 +336,17 @@ class CarlaEnv(gym.Env):
         # current speed, distance to goal
         # current high-level command (excluded for now)
         if(self.config['train_config'] == 'baselines'):
-            obs = ((sensor_image, [self.episode_measurements['speed'], 
+            obs = ((sensor_image, [self.episode_measurements['speed'],
             self.episode_measurements['distance_to_goal']]), reward, done, self.episode_measurements)
         else:
             obs = (sensor_image, reward, done, self.episode_measurements)
-        
         return obs
-    
+
     def get_control(self, action):
         """ Get Control object for Carla from action
         Input:
             - action: tuple containing (steer, throttle, brake) in [-1, 1]
-        Output: 
+        Output:
             - control: Control object for Carla
         """
         steer = action[0]
@@ -358,7 +364,7 @@ class CarlaEnv(gym.Env):
             throttle = gas
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
-        # Needed for imitation learning agent to succeed on benchmarks, should not 
+        # Needed for imitation learning agent to succeed on benchmarks, should not
         # be used with RL agents
         #if (brake < 0.1) or (brake < acc):
         #    brake = 0.0
@@ -386,20 +392,18 @@ class CarlaEnv(gym.Env):
                 actor = self.actor_list.pop()
                 actor.destroy()
             except Exception as e:
-                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))  
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
 
     def _reset(self):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
-        
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
-        
-        # Destroy 
+        # Destroy
         self.destroy_all_existing_actors()
 
         # Create new client
@@ -413,14 +417,12 @@ class CarlaEnv(gym.Env):
             vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
-        
         #Returns a list of carla.libcarla.Transform
         spawn_points = self._world.get_map().get_spawn_points()
         #carla.libcarla.Transform has attributes location, rotation
         spawn_point = random.choice(spawn_points)
         if(not self.source_point):
             self.source_point = spawn_point
-        
         self.vehicle_actor = self._world.spawn_actor(vehicle_bp, self.source_point)
         self.actor_list.append(self.vehicle_actor)
 
@@ -435,21 +437,19 @@ class CarlaEnv(gym.Env):
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
-        
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
 
         self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
         self.actor_list.append(self.lane_invasion_sensor.sensor)
-        
-        #self._image_queue = queue.Queue()
-        
-        #Register callback to put images in the queue
+        # Register callback to put images in the queue
+        # Prefer to write raw data (of type 'memoryview') since we won't use all data
+        # written to memory (hence typecasting before would be waste of compute)
         if(self.config['write_data']):
-            self.camera_actor.listen(lambda image: self._save_sensor_data(image.raw_data))
+            self.camera_actor.listen(lambda image: self._write_data(image.raw_data))
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
-        elif(self.config['record_sim']):
+        if(self.config['record_sim']):
             log_id = str(episode_measurements['episode_id'])
             self.client.start_recorder(log_id, self.vehicle_actor)
 
@@ -461,7 +461,6 @@ class CarlaEnv(gym.Env):
             if(not self.destination_point):
                 self.destination_point = random.choice(spawn_points).location
             self._set_destination(location=self.destination_point)
-                
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
         #     spawn_point.location, self.start_coord,
@@ -572,30 +571,53 @@ class CarlaEnv(gym.Env):
 
     def _write_data(self, sensor_data):
         # print("Received image from sensor at:", self.location)
-        self._image_queue.put(sensor_data)
+        if(self.config['framestack'] == 1):
+            self._save_sensor_data(sensor_data)
+        else:
+            self._image_queue.append(sensor_data)
 
     def _save_sensor_data(self, sensor_data):
         self.image_data = sensor_data
 
+    def _read_sensor_data(self):
+        return np.array(self.image_data)
+
     def _read_data(self):
         #TODO: Read data in from sensor callback and then call preprocess function
         #sensor data is Image object for all sensors (besides LIDAR)
-        
-        sensor_data = self._image_queue.get()
-        # print("Read image from queue at:", self.location)
-        im_data = sensor_data.raw_data
-        im_width = sensor_data.width
-        im_height = sensor_data.height
-        fov = sensor_data.fov
-        im_processed = self._preprocess(im_data)
-        return im_processed
-    
+
+        if(self.config['framestack'] == 1):
+            sensor_data = self._read_sensor_data()
+            im_processed = self._preprocess(sensor_data)
+            return im_processed
+        else:
+            data_array = []
+            # Use this loop since the callback is continuously writing into the queue
+            # hence we only read in 'framestack' number of images
+            for _ in range(self.config['framestack']):
+                # This would append in reverse order? Would this make a difference?
+                # Original Atari DQN paper is unclear on order of stacking
+                data_array.append(np.array(self._image_queue.pop()))
+            #Compute ndims (to compute which axis to stack along)
+            ndim = len(data_array[0].shape)
+            # Stack all the images along last axis
+            stacked_image = np.concatenate((data_array[:]), axis=ndim)
+            # sensor_data = self._image_queue.get()
+            # print("Read image from queue at:", self.location)
+            # im_data = sensor_data.raw_data
+            # im_width = sensor_data.width
+            # im_height = sensor_data.height
+            # fov = sensor_data.fov
+            im_processed = self._preprocess(stacked_image)
+            return im_processed
+
     def _preprocess(self, image):
         # print('-'*50)
         # print('Received of sensor data of type:',type(image))
         # print('-'*50)
         data = image.reshape(self.config["render_res_y"],
-                                    self.config["render_res_x"], 3)
+                                    self.config["render_res_x"],
+                                    self.im_channels * self.config['framestack'])
         data = cv2.resize(
             data, (self.config["x_res"], self.config["y_res"]),
             interpolation=cv2.INTER_AREA)
@@ -608,7 +630,6 @@ class CarlaEnv(gym.Env):
         return reward
 
     def _compute_reward_corl2017(self, prev, current):
-        
         cur_dist = current["distance_to_goal"]
         prev_dist = prev["distance_to_goal"]
 
@@ -636,13 +657,10 @@ class CarlaEnv(gym.Env):
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
-        
         if current["speed"] <= 0:
             self.episode_measurements["static_steps"] += 1
-        
         print("Reward")
         print(distance_reward, speed_reward, collision_reward, lane_intersection_reward)
-        
         return reward
 
     def _compute_done_condition(self):
@@ -661,7 +679,6 @@ class CarlaEnv(gym.Env):
     def printInfo(self):
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
-        
 
     def close(self):
         self.destroy_all_existing_actors()
