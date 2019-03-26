@@ -46,7 +46,7 @@ from environment.carla.agents.navigation.local_planner import compute_connection
 from environment.carla.agents.navigation.global_route_planner import GlobalRoutePlanner
 from environment.carla.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from environment.carla.agents.tools.misc import vector
-import environment.carla.sensors 
+import environment.carla.sensors as sensors
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -56,9 +56,9 @@ DEFAULT_ENV = {
     "server_binary" : CARLA_PATH + '/CarlaUE4.sh',
     "server_process" : None,
     # X Rendering Resolution
-    "render_res_x" : 400,
+    "render_res_x" : 800,
     # Y Rendering Resolution
-    "render_res_y" : 300,
+    "render_res_y" : 800,
     # Input X Res (Default set to Atari)
     "x_res" : 84,
     # Input Y Res (Default set to Atari)
@@ -75,12 +75,12 @@ DEFAULT_ENV = {
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions" : False,
+    "discrete_actions" : True,
     # Number of frames stacked together
     "framestack" : 1,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
-    "max_steps" : 10,
+    "max_steps" : 200,
     "next_command": None,
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -179,12 +179,14 @@ class CarlaEnv(gym.Env):
         self._hop_resolution = 2.0
         self._current_plan = None
         self._image_queue = None
-        self.destination = None
         self.server_process = None
         self.CarlaServer = None
         self.target_speed = config['target_speed']
         self.actor_list = []
         self.image_data = None
+        # Set default source and destination points (in _reset function)
+        self.source_point = None
+        self.destination_point = None
 
         # Start Carla Server
         serverStarted = False
@@ -237,20 +239,30 @@ class CarlaEnv(gym.Env):
         #TODO: Add other vehicle + traffic light check methods
         #NOTE: Only mapping to one action for now (target speed)
 
-        control = self.get_control(action)
+        # control = self.get_control(action)
 
         # speed = action
         # self._local_planner.set_speed(speed)
         
         # control = self._local_planner.run_step()
 
-        # if(self.config['discrete_actions']):
-        #     action = DISCRETE_ACTIONS[int(action)]
-        #     throttle = float(np.clip(action[0], 0, 1))
-        #     brake = float(np.abs(np.clip(action[0], -1, 0)))
-        #     steer = float(np.clip(action[1], -1, 1))
-        #     reverse = False
-        #     hand_brake = False
+        if(self.config['discrete_actions']):
+            action = DISCRETE_ACTIONS[int(action)]
+            throttle = float(np.clip(action[0], 0, 1))
+            brake = float(np.abs(np.clip(action[0], -1, 0)))
+            steer = float(np.clip(action[1], -1, 1))
+            reverse = False
+            hand_brake = False
+        
+            control = carla.VehicleControl(
+                throttle=throttle,
+                steer=steer,
+                brake=brake,
+                hand_brake=False,
+                reverse=False,
+                manual_gear_shift=False,
+                gear=0
+            )
 
         #Print actions
         if self.config['verbose']:
@@ -271,16 +283,19 @@ class CarlaEnv(gym.Env):
         
         self.num_steps += 1
         self.episode_measurements['num_steps'] = self.num_steps
-        
-        sensor_image = self.image_data.raw_data
-        
+
+        sensor_image = np.array(self.image_data)
         sensor_image = self._preprocess(sensor_image)
+
+        # print('-'*50)
+        # print('In step. Read sensor image of type:', type(sensor_image))
+        # print('-'*50)
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_point)
         self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
         reward = self._compute_reward(name=self.config['reward_function'], prev_measurement=self.prev_measurement,
@@ -307,14 +322,15 @@ class CarlaEnv(gym.Env):
                 self.measurements_file = None
         #Only increment step after writing log (successful)
         
-        print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
-        print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+        #TODO: badcast errors in carla-3.5egg file
+        # print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
+        # print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
         # current speed, distance to goal
         # current high-level command (excluded for now)
         if(self.config['train_config'] == 'baselines'):
-            obs = (sensor_image, [self.episode_measurements['forward_speed'], 
-            self.episode_measurements['distance_to_goal']], reward, done, self.episode_measurements)
+            obs = ((sensor_image, [self.episode_measurements['speed'], 
+            self.episode_measurements['distance_to_goal']]), reward, done, self.episode_measurements)
         else:
             obs = (sensor_image, reward, done, self.episode_measurements)
         
@@ -402,12 +418,14 @@ class CarlaEnv(gym.Env):
         spawn_points = self._world.get_map().get_spawn_points()
         #carla.libcarla.Transform has attributes location, rotation
         spawn_point = random.choice(spawn_points)
+        if(not self.source_point):
+            self.source_point = spawn_point
         
-        self.vehicle_actor = self._world.spawn_actor(vehicle_bp, spawn_point)
+        self.vehicle_actor = self._world.spawn_actor(vehicle_bp, self.source_point)
         self.actor_list.append(self.vehicle_actor)
 
         self.location = self.vehicle_actor.get_location()
-        print('Spawned vehicle actor at', self.location)
+        # print('Spawned vehicle actor at', self.location)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -428,7 +446,7 @@ class CarlaEnv(gym.Env):
         
         #Register callback to put images in the queue
         if(self.config['write_data']):
-            self.camera_actor.listen(self._save_sensor_data)
+            self.camera_actor.listen(lambda image: self._save_sensor_data(image.raw_data))
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         elif(self.config['record_sim']):
@@ -440,8 +458,9 @@ class CarlaEnv(gym.Env):
         #TODO: Clean up destination init (pass in a location)
         if self.config["enable_planner"]:
             self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
-            self.destination = random.choice(spawn_points).location 
-            self._set_destination(location=self.destination)
+            if(not self.destination_point):
+                self.destination_point = random.choice(spawn_points).location
+            self._set_destination(location=self.destination_point)
                 
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
@@ -452,11 +471,14 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination)
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_point)
         self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
+        #TODO: fix bug with no sensor_image. empty image for now
+        sensor_image = np.zeros(shape=(self.config["render_res_y"],self.config["render_res_x"], 3))
+        obs = self._preprocess(sensor_image)
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
-        
+        return obs
 
     def getSpeedFromVelocity(self, velocity):
 
@@ -549,7 +571,7 @@ class CarlaEnv(gym.Env):
         self._local_planner.set_global_plan(self._current_plan)
 
     def _write_data(self, sensor_data):
-        print("Received image from sensor at:", self.location)
+        # print("Received image from sensor at:", self.location)
         self._image_queue.put(sensor_data)
 
     def _save_sensor_data(self, sensor_data):
@@ -560,7 +582,7 @@ class CarlaEnv(gym.Env):
         #sensor data is Image object for all sensors (besides LIDAR)
         
         sensor_data = self._image_queue.get()
-        print("Read image from queue at:", self.location)
+        # print("Read image from queue at:", self.location)
         im_data = sensor_data.raw_data
         im_width = sensor_data.width
         im_height = sensor_data.height
@@ -569,7 +591,10 @@ class CarlaEnv(gym.Env):
         return im_processed
     
     def _preprocess(self, image):
-        data = image.data.reshape(self.config["render_res_y"],
+        # print('-'*50)
+        # print('Received of sensor data of type:',type(image))
+        # print('-'*50)
+        data = image.reshape(self.config["render_res_y"],
                                     self.config["render_res_x"], 3)
         data = cv2.resize(
             data, (self.config["x_res"], self.config["y_res"]),
@@ -626,12 +651,11 @@ class CarlaEnv(gym.Env):
 
         # Episode termination conditions
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
-        offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
-        static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
+        # static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
+        # collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
-        done = success or collision or offlane or static or maxStepsTaken
-
+        done = success or maxStepsTaken
         return done
 
     def printInfo(self):
