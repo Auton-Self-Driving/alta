@@ -24,7 +24,8 @@ import environment.carla.server as server
 
 from scipy.misc import imsave
 
-SENSOR_LOG_DIR = '/home/shubhand/export/'
+# Keeping this for now (since we may need to log images later)
+# SENSOR_LOG_DIR = '/../../misc/logs'
 
 RETRIES_ON_ERROR=5
 
@@ -154,17 +155,6 @@ class CarlaEnv(gym.Env):
         self.city_name = config["city_name"]
         # TODO: Check planner API from 0.9
 
-        # if config["discrete_actions"]:
-        #     self.action_space = Discrete(len(DISCRETE_ACTIONS))
-        #
-        # image_space = Box(
-        #     low=0,
-        #     high=255,
-        #     shape=(config["y_res"],
-        #     config["x_res"],
-        #     3 * config["framestack"])
-        # )
-
         self.episode_id = None
         self.client = None
         self.vehicle_actor = None
@@ -190,7 +180,7 @@ class CarlaEnv(gym.Env):
         self._image_queue = collections.deque(maxlen=self.config['framestack'])
         self.server_process = None
         self.CarlaServer = None
-        self.target_speed = config['target_speed']
+        self.target_speed = self.config['target_speed']
         self.actor_list = []
         self.image_data = None
         # Set default source and destination points (in _reset function)
@@ -256,8 +246,6 @@ class CarlaEnv(gym.Env):
         #TODO: Add other vehicle + traffic light check methods
         #NOTE: Only mapping to one action for now (target speed)
 
-        # control = self.get_control(action)
-
         # speed = action
         # self._local_planner.set_speed(speed)
         # control = self._local_planner.run_step()
@@ -279,6 +267,8 @@ class CarlaEnv(gym.Env):
                 manual_gear_shift=False,
                 gear=0
             )
+        else:
+            control = self.get_control(action)
 
         #Print actions
         if self.config['verbose']:
@@ -487,7 +477,7 @@ class CarlaEnv(gym.Env):
         print('-'*50)
         print('Waiting for sensor to initialize')
         print('-'*50)
-        time.sleep(5)
+        time.sleep(2)
 
         #TODO: fix bug with no sensor_image. empty image for now
         x_res = int(self.config["sensor_x_res"])
@@ -613,10 +603,8 @@ class CarlaEnv(gym.Env):
             data_array = []
             # Use this loop since the callback is continuously writing into the queue
             # hence we only read in 'framestack' number of images
-            for _ in range(self.config['framestack']):
-                # This would append in reverse order? Would this make a difference?
-                # Original Atari DQN paper is unclear on order of stacking
-                data_array.append(np.array(self._image_queue.pop()))
+            # Original Atari DQN paper is unclear on order of stacking
+            data_array = list(copy.deepcopy(self._image_queue))
             #Compute ndims (to compute which axis to stack along)
             ndim = len(data_array[0].shape)
             # Stack all the images along last axis
@@ -631,6 +619,8 @@ class CarlaEnv(gym.Env):
             return im_processed
 
     def _preprocess(self, image):
+        # NOTE: Keep the following print statements. The sensor returns data of type 'memoryview'.
+        # NOTE: We may need these statements later when integrating different types of sensors.
         # print('-'*50)
         # print('Received of sensor data of type:',type(image))
         # print('-'*50)
@@ -645,6 +635,8 @@ class CarlaEnv(gym.Env):
         data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
         # imsave(SENSOR_LOG_DIR+str(self.num_steps)+'.png', data)
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        # TODO: Need to check better forms of normalization.
+        # TODO: Add a config flag for normalization
         data = (data.astype(np.float32) - 128) / 128
         return data
 
@@ -697,6 +689,7 @@ class CarlaEnv(gym.Env):
         # static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
         # collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
+        # done = success or collision or offlane or static or maxStepsTaken
         done = success or maxStepsTaken
         return done
 

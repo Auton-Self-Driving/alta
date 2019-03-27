@@ -116,4 +116,8 @@ rapid_render.json
 self-signed.cert
 self-signed.key
 Workspaces/
-misc/logs/
+
+# don't track sensor images
+misc/logs/*png
+misc/logs/*jpg
+misc/logs/*jpeg
