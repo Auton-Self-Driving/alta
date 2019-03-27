@@ -18,8 +18,13 @@ import math
 import copy
 import cv2
 import collections
+import time
 
 import environment.carla.server as server
+
+from scipy.misc import imsave
+
+SENSOR_LOG_DIR = '/home/shubhand/export/'
 
 RETRIES_ON_ERROR=5
 
@@ -56,10 +61,13 @@ DEFAULT_ENV = {
     "server_path" : CARLA_PATH,
     "server_binary" : CARLA_PATH + '/CarlaUE4.sh',
     "server_process" : None,
-    # X Rendering Resolution
+    # X Rendering Resolution (NOTE: Doesn't change anything! Link to Issue #17)
     "render_res_x" : 800,
-    # Y Rendering Resolution
+    # Y Rendering Resolution (NOTE: Doesn't change anything! Link to Issue #17)
     "render_res_y" : 800,
+    # Note data type here is string (since that is what the blueprint attribute set API requires)
+    "sensor_x_res" : '800',
+    "sensor_y_res" : '800',
     # Input X Res (Default set to Atari)
     "x_res" : 84,
     # Input Y Res (Default set to Atari)
@@ -194,7 +202,8 @@ class CarlaEnv(gym.Env):
         if(self.config['grayscale']):
             self.im_channels = 1
         else:
-            self.im_channels = 3
+            # BGRA array is returned by RGB sensor
+            self.im_channels = 4
 
         # Start Carla Server
         serverStarted = False
@@ -433,6 +442,8 @@ class CarlaEnv(gym.Env):
         #Attach a sensor to the vehicle
         sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
+        camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
@@ -473,9 +484,17 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_point)
         self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
+        print('-'*50)
+        print('Waiting for sensor to initialize')
+        print('-'*50)
+        time.sleep(5)
+
         #TODO: fix bug with no sensor_image. empty image for now
-        sensor_image = np.zeros(shape=(self.config["render_res_y"],self.config["render_res_x"], 3))
-        obs = self._preprocess(sensor_image)
+        x_res = int(self.config["sensor_x_res"])
+        y_res = int(self.config["sensor_y_res"])
+        #sensor_image = np.zeros(shape=(x_res, y_res, self.im_channels))
+        #TODO: Change this to return the full measurement vector (like the step function)
+        obs = self._read_data()
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
         return obs
 
@@ -615,12 +634,17 @@ class CarlaEnv(gym.Env):
         # print('-'*50)
         # print('Received of sensor data of type:',type(image))
         # print('-'*50)
-        data = image.reshape(self.config["render_res_y"],
-                                    self.config["render_res_x"],
-                                    self.im_channels * self.config['framestack'])
-        data = cv2.resize(
-            data, (self.config["x_res"], self.config["y_res"]),
-            interpolation=cv2.INTER_AREA)
+        print('-'*50)
+        print('Received of sensor data of shape:',image.shape)
+        print('-'*50)
+        # sensor_x_res is a str (reason mentioned near definition). reshape requires int
+        x_res =int(self.config["sensor_x_res"])
+        y_res =int(self.config["sensor_y_res"])
+        data = image.reshape(x_res, y_res, self.im_channels * self.config['framestack'])
+        # Convert from BGRA to RGB image
+        data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
+        # imsave(SENSOR_LOG_DIR+str(self.num_steps)+'.png', data)
+        data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
         data = (data.astype(np.float32) - 128) / 128
         return data
 

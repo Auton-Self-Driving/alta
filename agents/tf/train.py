@@ -25,6 +25,8 @@ from gym import wrappers
 
 from models import CoRLModel
 
+import matplotlib.pyplot as plt
+
 if __name__ == '__main__':
     with U.make_session():
         # Create the environment
