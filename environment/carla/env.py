@@ -21,6 +21,7 @@ import collections
 import time
 
 import environment.carla.server as server
+import environment.carla.scenarios as scenarios
 
 from scipy.misc import imsave
 
@@ -184,8 +185,8 @@ class CarlaEnv(gym.Env):
         self.actor_list = []
         self.image_data = None
         # Set default source and destination points (in _reset function)
-        self.source_point = None
-        self.destination_point = None
+        self.source_transform = None
+        self.destination_transform = None
 
         # Compute number of channels in sensor image
         # We use this later in the preprocess step to reshape the data
@@ -301,7 +302,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_point)
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
         reward = self._compute_reward(name=self.config['reward_function'], prev_measurement=self.prev_measurement,
@@ -309,7 +310,6 @@ class CarlaEnv(gym.Env):
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
-        #TODO: Define scenario file for consistent testing across episodes
 
         done = self._compute_done_condition()
 
@@ -416,13 +416,21 @@ class CarlaEnv(gym.Env):
             vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
-        #Returns a list of carla.libcarla.Transform
-        spawn_points = self._world.get_map().get_spawn_points()
-        #carla.libcarla.Transform has attributes location, rotation
-        spawn_point = random.choice(spawn_points)
-        if(not self.source_point):
-            self.source_point = spawn_point
-        self.vehicle_actor = self._world.spawn_actor(vehicle_bp, self.source_point)
+
+        # Set source and destination based on scenario
+        # Currently scenarios are defined only for Town01
+        if self.config["city_name"] == "Town01":
+            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01()
+        else:
+
+            # Set source and destination at random spawn points
+            # get_spawn_points() returns a list of carla.libcarla.Transform
+            # which has attributes location and rotation
+
+            spawn_points = self._world.get_map().get_spawn_points()
+            self.source_transform, self.destination_transform = random.choice(spawn_points), random.choice(spawn_points)
+
+        self.vehicle_actor = self._world.spawn_actor(vehicle_bp, self.source_transform)
         self.actor_list.append(self.vehicle_actor)
 
         self.location = self.vehicle_actor.get_location()
@@ -459,9 +467,7 @@ class CarlaEnv(gym.Env):
         #TODO: Clean up destination init (pass in a location)
         if self.config["enable_planner"]:
             self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
-            if(not self.destination_point):
-                self.destination_point = random.choice(spawn_points).location
-            self._set_destination(location=self.destination_point)
+            self._set_destination(location=self.destination_transform.location)
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
         #     spawn_point.location, self.start_coord,
@@ -471,7 +477,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_point)
+        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
 
         print('-'*50)
