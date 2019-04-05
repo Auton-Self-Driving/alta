@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 
-from environment.carla.env import CarlaEnv
+from environment.carla_9_4.env import CarlaEnv
 
 import itertools
 import numpy as np
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     with U.make_session():
         # Create the environment
         env = CarlaEnv()
-        env = wrappers.Monitor(env, '/tmp/deepq')
+        env = wrappers.Monitor(env, '/tmp/deepq', force=True)
         print('-'*50)
         print('Launched environment!')
         print('-'*50)
@@ -61,12 +61,14 @@ if __name__ == '__main__':
         obs = env.reset()
         for t in itertools.count():
             # Take action and update exploration to the newest value
-            action = act(obs, update_eps=exploration.value(t))[0]
-            new_obs, rew, done, _ = env.step(action)
+            action = act(obs["image"], update_eps=exploration.value(t))[0]
+            new_obs, rew, done, step_info = env.step(action)
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
-            replay_buffer.add(obs, action, rew, new_obs[0], float(done))
-            obs = new_obs[0]
+            rew = float(rew[0, 0])
+            done = bool(done[0, 0])
+            replay_buffer.add(obs["image"], action, rew, new_obs["image"], float(done))
+            obs = new_obs
 
             episode_rewards[-1] += rew
             if done:

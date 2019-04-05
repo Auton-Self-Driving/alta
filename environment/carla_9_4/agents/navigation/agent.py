@@ -13,7 +13,7 @@ The agent also responds to traffic lights. """
 from enum import Enum
 
 import carla
-from environment.carla.agents.tools.misc import is_within_distance_ahead, compute_magnitude_angle
+from environment.carla_9_4.agents.tools.misc import is_within_distance_ahead, compute_magnitude_angle
 
 class AgentState(Enum):
     """

@@ -4,7 +4,7 @@ import subprocess
 import random
 import time
 
-CARLA_PATH = os.environ.get("CARLA_PATH")
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
 
 class CarlaServer():
     def __init__(self, config=None):
@@ -55,8 +55,8 @@ class CarlaServer():
 
 if __name__ == "__main__":
     DEFAULT_ENV = {
-    "server_path" : CARLA_PATH,
-    "server_binary" : CARLA_PATH + '/CarlaUE4.sh',
+    "server_path" : CARLA_9_4_PATH,
+    "server_binary" : CARLA_9_4_PATH + '/CarlaUE4.sh',
     "server_process" : None,
     # X Rendering Resolution
     "render_res_x" : 400,

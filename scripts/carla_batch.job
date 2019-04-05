@@ -1,0 +1,47 @@
+#! /bin/bash
+#SBATCH -N 1
+#SBATCH -p GPU-AI
+#SBATCH --ntasks-per-node 8
+#SBATCH --gres=gpu:volta32:9
+#SBATCH -t 48:00:00
+
+trap "kill $(jobs -p)" EXIT
+
+#echo commands to stdout
+set -x
+
+#move to working directory
+# this job assumes:
+# - all input data is stored in this directory 
+# - all output should be stored in this directory 
+cd /pylon5/cc5fpsp/tanmaya/carla-rl/branch2
+
+gpu=0
+port=3100
+env="Carla-8-2"
+for alr in 5e-3 1e-4 5e-4
+do
+    for clr in 5e-3 1e-4 5e-4
+    do
+        CUDA_VISIBLE_DEVICES=$gpu python train.py \
+        --algo DDPG \
+        --actor-lr $alr \
+        --critic-lr $clr \
+        --dropout-rate 0.0 \
+        --pretrained none \
+        --carla-port $port \
+        --env-name $env \
+        --start-steps 0 \
+        --max-steps 300000 \
+        --batch-size 256 \
+        --log-interval 100 \
+        --log-dir logs/$env/03_10 \
+        --save-dir weights/$env/03_10 \
+        --discount 0.99 \
+        --file-name DDPG-ALR$alr-CLR$clr-wo-dropout > port$port.txt 2>&1 &
+        gpu=$(((gpu+1) % 9))
+        port=$((port + 10))
+    done
+done
+
+wait

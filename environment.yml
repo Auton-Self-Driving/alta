@@ -1,7 +1,7 @@
 name: carla9.4_py35
 channels:
-  - cogsci
   - soumith
+  - cogsci
   - anaconda
   - conda-forge
   - defaults

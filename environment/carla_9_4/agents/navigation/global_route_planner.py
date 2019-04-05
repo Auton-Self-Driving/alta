@@ -12,7 +12,7 @@ import numpy as np
 import networkx as nx
 
 import carla
-from environment.carla.agents.navigation.local_planner import RoadOption
+from environment.carla_9_4.agents.navigation.local_planner import RoadOption
 
 
 class GlobalRoutePlanner(object):
