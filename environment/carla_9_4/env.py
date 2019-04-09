@@ -78,7 +78,7 @@ DEFAULT_ENV = {
     "city_name" : "Town01",
     "frame_skip": 1,
     "enable_planner" : True,
-    "reward_function" : 'stub',
+    "reward_function" : 'corl',
     "save_images_to_disk" : False,
     "record_sim": False,
     "write_data": True,
@@ -155,14 +155,14 @@ class CarlaEnv(gym.Env):
         if self.config["algo"] == "DQN":
             self.config["x_res"] = 84
             self.config["y_res"] = 84
-            self.config["reward_function"] = "stub"
+            self.config["reward_function"] = "corl"
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"
         elif self.config["algo"] == "DDPG":
             self.config["x_res"] = 200
             self.config["y_res"] = 84
-            self.config["reward_function"] = ""
+            self.config["reward_function"] = "cirl"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "torch"
             self.config["action_type"] = "merged_gas"
@@ -349,16 +349,6 @@ class CarlaEnv(gym.Env):
         # print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         # print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
-        # current speed, distance to goal
-        # current high-level command (excluded for now)
-
-
-        # if(self.config['train_config'] == 'baselines'):
-        #     obs = ((sensor_image, [self.episode_measurements['speed'],
-        #     self.episode_measurements['distance_to_goal']]), reward, done, self.episode_measurements)
-        # else:
-        #     obs = (sensor_image, reward, done, self.episode_measurements)
-        
         obs = {}
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
@@ -443,6 +433,7 @@ class CarlaEnv(gym.Env):
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+
         # Destroy
         self.destroy_all_existing_actors()
 
@@ -632,7 +623,6 @@ class CarlaEnv(gym.Env):
         self._local_planner.set_global_plan(self._current_plan)
 
     def _write_data(self, sensor_data):
-        # print("Received image from sensor at:", self.location)
         if(self.config['framestack'] == 1):
             self._save_sensor_data(sensor_data)
         else:
@@ -680,7 +670,8 @@ class CarlaEnv(gym.Env):
         # Convert from BGRA to RGB image
         image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
         if self.config["algo"] == "DDPG":
-            image = image[115:510, :]  # Cut top and bottom
+            # Cut top and bottom
+            image = image[115:510, :]
 
 
         image = cv2.resize(image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
@@ -691,11 +682,68 @@ class CarlaEnv(gym.Env):
         return image
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
-        #TODO: Add dict functionality to call other reward functions
-        reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
+        if name == 'corl':
+            reward = self._compute_reward_corl(prev_measurement, cur_measurement)
+        elif name == 'cirl':
+            reward = self._compute_reward_cirl(prev_measurement, cur_measurement)
         return reward
 
-    def _compute_reward_corl2017(self, prev, current):
+    def _compute_reward_cirl(self, prev, current):
+        # 1) Abnormal steer penalty
+        """
+        if (control.steer > 0) and (directions == 3):
+            # Turn right when should go left
+            steer_reward = -15
+        elif (control.steer < 0) and (directions == 4):
+            # Turn left when should go right
+            steer_reward = -15
+        elif (abs(control.steer) > 0.2) and (directions in [0, 2, 5]):
+            # Turn when should go straight
+            # TODO: directions 0, 2 could mean follow lane that is turning
+            steer_reward = -20
+        else:
+            steer_reward = 0
+        """
+        steer_reward = 0
+        self.episode_measurements["steer_reward"] = steer_reward
+
+        # 2) Collision penalty
+        no_collisions = (current["num_collisions"] - prev["num_collisions"])
+        collision = no_collisions > 0
+        collision_reward = -30 if collision else 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # 3) Sidewalk and opposite lane overlap penalty
+        no_lane_intersections = (current["num_laneintersections"] - prev["num_laneintersections"])
+        lane_change = no_lane_intersections > 0
+        lane_intersection_reward = -30 if lane_change else 0
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        # 4) Speed reward (in km/h)
+        #TODO: Incorporate directions once planner is ready. Default assumed to go straight.
+        # converted to km/h
+        speed = current["speed"] * 3.6
+        speed_reward = speed if (speed < 30) else (60 - speed)
+        # if directions in [0, 2]:
+        #     # If following lane or going straight, limit speed to 30km/h
+        #     speed_reward = speed if (speed < 30) else (60 - speed)
+        # else:
+        #     # If approaching intersection, limit speed to 20km/h
+        #     speed_reward = speed if (speed < 20) else (40 - speed)
+        self.episode_measurements["speed_reward"] = speed_reward
+
+        # Total reward (approximately scaled to [0, 1] range)
+        reward = steer_reward + collision_reward + lane_intersection_reward + speed_reward
+        reward /= 30
+
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+
+        return reward
+
+    def _compute_reward_corl(self, prev, current):
         cur_dist = current["distance_to_goal"]
         prev_dist = prev["distance_to_goal"]
 
@@ -723,15 +771,11 @@ class CarlaEnv(gym.Env):
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
-        if current["speed"] <= 0:
+        if current["speed"] == 0:
             self.episode_measurements["static_steps"] += 1
-        # print("Reward")
-        # print(distance_reward, speed_reward, collision_reward, lane_intersection_reward)
         return reward
 
     def _compute_done_condition(self):
-
-        # This is to be called after reward computation.
 
         # Episode termination conditions
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]

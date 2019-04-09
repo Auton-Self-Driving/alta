@@ -172,14 +172,19 @@ def sample_and_train(args):
             #     #writer.add_histogram('grads/' + k, v, total_steps)
             #     writer.add_scalar(
             #         'grad_norms/' + k, np.linalg.norm(v), total_steps)
-            for key in dict_keys:
-                writer.add_scalar('step/' + key, v, total_steps)
-            # for k, v in step_info.items():
-            #     writer.add_scalar('step/' + k, v, total_steps)
+            if not stop_environment:
+                if args.env_name == "Carla-9-4":
+                    for key in dict_keys:
+                        if key in step_info:
+                            writer.add_scalar('step/' + key, step_info[key], total_steps)
+                elif args.env_name == "Carla-8-2":
+                    for k, v in step_info.items():
+                        writer.add_scalar('step/' + k, v, total_steps)
         if done and not stop_environment:
+            print(total_steps)
             writer.add_scalar('episode/train_reward', episode_reward, total_steps)
             writer.add_scalar('episode/train_length', episode_steps, total_steps)
-            if args.env_name == "Carla-8-2":
+            if "Carla" in args.env_name:
                 writer.add_scalar(
                     'episode/dist_to_target', obs["dist_to_target"].item(), total_steps)
                 writer.add_scalar('episodes/success',
@@ -289,6 +294,7 @@ def sample_and_train(args):
             # Sample and train on elements from replay buffer
             # Calling the inner train() function
             train(stop_environment=True)
+            total_steps += 1
         
                 
 if __name__ == "__main__":   
