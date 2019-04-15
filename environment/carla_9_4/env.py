@@ -293,6 +293,8 @@ class CarlaEnv(gym.Env):
 
         #TODO: Increment steps inside of frame_skip?
 
+        #TODO: Increment steps inside of frame_skip?
+
         for _ in range(self.config["frame_skip"]):
             self._world.tick()
             timestamp = self._world.wait_for_tick()
