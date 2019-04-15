@@ -24,7 +24,10 @@ from baselines.common.schedules import LinearSchedule
 
 from gym import wrappers
 
+from datetime import datetime
+
 from models import CoRLModel
+# from atari_model import AtariModel
 
 import matplotlib.pyplot as plt
 
@@ -61,6 +64,9 @@ if __name__ == '__main__':
 
         episode_rewards = [0.0]
         obs = env.reset()
+        print('-'*50)
+        print('Received observation of shape:', obs.shape)
+        print('-'*50)
         for t in itertools.count():
             # Take action and update exploration to the newest value
             action = act(obs["image"], update_eps=exploration.value(t))[0]
