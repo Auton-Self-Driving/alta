@@ -89,11 +89,11 @@ DEFAULT_ENV = {
     "discrete_actions": True,
 
     # Number of frames stacked together
-    "framestack" : 1,
-    "grayscale" : False,
+    "framestack" : 4,
+    "grayscale" : True,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
-    "max_steps" : 1000,
+    "max_steps" : 400,
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
