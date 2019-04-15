@@ -36,7 +36,7 @@ if __name__ == '__main__':
         # Create the environment
         config = ConfigManager(algo="DQN")
         env = CarlaEnv(config.config)
-        env = wrappers.Monitor(env, '/tmp/deepq', force=True)
+        env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
         print('-'*50)
         print('Launched environment!')
         print('-'*50)
