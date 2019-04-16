@@ -2,8 +2,8 @@
 
 trap "kill 0" EXIT
 
-env="Carla-8-2"    
-CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
+env="Carla-9-4"    
+CUDA_VISIBLE_DEVICES=0 python ../train/torch/train.py \
         --algo DDPG \
         --actor-lr 3e-5 \
         --critic-lr 3e-5 \
@@ -17,8 +17,8 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --fixed-replay \
         --batch-size 256 \
         --log-interval 100 \
-        --log-dir ../logs/$env/04_01 \
-        --save-dir ../weights/$env/04_01 \
+        --log-dir ../logs/$env/04_08 \
+        --save-dir ../weights/$env/04_08 \
         --discount 0.99 \
         --file-name DDPG-ALR3e-5-CLR3e-5-wo-dropout-fixed-replay-100k
 

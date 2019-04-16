@@ -94,7 +94,7 @@ DEFAULT_ENV = {
     "num_pedestrians" : 0,
     "max_steps" : 1000,
     "next_command": None,
-    "verbose": True,
+    "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb"],
@@ -105,8 +105,6 @@ DEFAULT_ENV = {
     "max_static_steps" : 100,
     "log_measurements_to_file": False,
     "train_config": 'baselines',
-    # "algo" : "DQN",
-    "algo" : "DDPG"
 }
 
 DISCRETE_ACTIONS = {
@@ -151,26 +149,13 @@ if not os.path.exists(CARLA_LOGS):
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
-        self.config = config
-        if self.config["algo"] == "DQN":
-            self.config["x_res"] = 84
-            self.config["y_res"] = 84
-            self.config["reward_function"] = "corl"
-            self.config["discrete_actions"] = True
-            self.config["train_config"] = "baselines"
-            self.config["action_type"] = "sep_gas"
-        elif self.config["algo"] == "DDPG":
-            self.config["x_res"] = 200
-            self.config["y_res"] = 84
-            self.config["reward_function"] = "cirl"
-            self.config["discrete_actions"] = False
-            self.config["train_config"] = "torch"
-            self.config["action_type"] = "merged_gas"
-
+        self.config = DEFAULT_ENV
+        self._update_config(config)
+        
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
-        self.server_port = config["server_port"]
-        self.city_name = config["city_name"]
+        self.server_port = self.config["server_port"]
+        self.city_name = self.config["city_name"]
         # TODO: Check planner API from 0.9
 
         self.episode_id = None
@@ -246,6 +231,10 @@ class CarlaEnv(gym.Env):
             # ])
             self.observation_space = image_space
 
+    def _update_config(self, config):
+        for key, val in config.items():
+            self.config[key] = val
+
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
@@ -267,7 +256,6 @@ class CarlaEnv(gym.Env):
         # speed = action
         # self._local_planner.set_speed(speed)
         # control = self._local_planner.run_step()
-        info = {}
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
             throttle = float(np.clip(action[0], 0, 1))
@@ -403,7 +391,6 @@ class CarlaEnv(gym.Env):
             gear=0)
 
         return control
-
 
     def reset(self):
         return self._reset()
@@ -640,8 +627,6 @@ class CarlaEnv(gym.Env):
 
         if(self.config['framestack'] == 1):
             sensor_data = self._read_sensor_data()
-            im_processed = self._preprocess(sensor_data)
-            return im_processed
         else:
             data_array = []
             # Use this loop since the callback is continuously writing into the queue
@@ -651,17 +636,20 @@ class CarlaEnv(gym.Env):
             #Compute ndims (to compute which axis to stack along)
             ndim = len(data_array[0].shape)
             # Stack all the images along last axis
-            stacked_image = np.concatenate((data_array[:]), axis=ndim)
+            sensor_data = np.concatenate((data_array[:]), axis=ndim)
             # sensor_data = self._image_queue.get()
             # print("Read image from queue at:", self.location)
             # im_data = sensor_data.raw_data
             # im_width = sensor_data.width
             # im_height = sensor_data.height
             # fov = sensor_data.fov
-            im_processed = self._preprocess(stacked_image)
-            return im_processed
+        if self.config["algo"] == "DDPG":
+            im_processed = self._preprocess2(sensor_data)
+        else:
+            im_processed = self._preprocess1(sensor_data)
+        return im_processed
 
-    def _preprocess(self, image):
+    def _preprocess1(self, image):
         # sensor_x_res is a str (reason mentioned near definition). reshape requires int
         x_res =int(self.config["sensor_x_res"])
         y_res =int(self.config["sensor_y_res"])
@@ -669,12 +657,29 @@ class CarlaEnv(gym.Env):
         
         # Convert from BGRA to RGB image
         image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
-        if self.config["algo"] == "DDPG":
-            # Cut top and bottom
-            image = image[115:510, :]
-
 
         image = cv2.resize(image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        # TODO: Need to check better forms of normalization.
+        # TODO: Add a config flag for normalization
+        # image = (image.astype(np.float32) - 128) / 128
+        image = image / 255.0
+        return image
+
+    def _preprocess2(self, image):
+        # Cropped preprocessing. 
+        # sensor_x_res is a str (reason mentioned near definition). reshape requires int
+        x_res = int(self.config["sensor_x_res"])
+        y_res = int(self.config["sensor_y_res"])
+        image = image.reshape(
+            x_res, y_res, self.im_channels * self.config['framestack'])
+
+        # Convert from BGRA to RGB image
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+        # Cut from top and bottom
+        image = image[115:510, :]
+
+        image = cv2.resize(
+            image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
         # TODO: Need to check better forms of normalization.
         # TODO: Add a config flag for normalization
         # image = (image.astype(np.float32) - 128) / 128
@@ -796,7 +801,8 @@ class CarlaEnv(gym.Env):
             termination_state = 'max_steps'
         else:
             termination_state = 'none'
-        print("Termination State: {}".format(termination_state))
+        if self.config["verbose"]:
+            print("Termination State: {}".format(termination_state))
 
         self.episode_measurements['termination_state'] = termination_state
 

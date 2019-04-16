@@ -32,8 +32,10 @@ def make_env_and_agent(args):
                 env = CarlaEnv82(port=args.carla_port)
             elif args.env_name == "Carla-9-4":
                 from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
+                from environment.carla_9_4.config import ConfigManager
+                config = ConfigManager(algo=args.algo)
                 print("Using Carla 0.9.4 version environment")
-                env = CarlaEnv94()
+                env = CarlaEnv94(config.config)
             
             if args.pretrained == "none":
                 if args.cnn_size == "Large":
@@ -76,11 +78,15 @@ def make_env_and_agent(args):
         
         if "Carla" in args.env_name:
             if args.env_name == "Carla-8-2":
+                from environment.carla_8_2 import CarlaEnv as CarlaEnv82
                 print("Using Carla 0.8.2 version environment")
                 env = CarlaEnv82(port=args.carla_port)
             elif args.env_name == "Carla-9-4":
+                from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
+                from environment.carla_9_4.config import ConfigManager
+                config = ConfigManager(algo=args.algo)
                 print("Using Carla 0.9.4 version environment")
-                env = CarlaEnv94()
+                env = CarlaEnv94(config.config)
             
             cnn = DrivingSmallCNN(args.batch_norm)
             actor = DrivingDeterministicPolicy()

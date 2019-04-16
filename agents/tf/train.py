@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 
 from environment.carla_9_4.env import CarlaEnv
+from environment.carla_9_4.config import ConfigManager
 
 import itertools
 import numpy as np
@@ -30,7 +31,8 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     with U.make_session():
         # Create the environment
-        env = CarlaEnv()
+        config = ConfigManager(algo="DQN")
+        env = CarlaEnv(config.config)
         env = wrappers.Monitor(env, '/tmp/deepq', force=True)
         print('-'*50)
         print('Launched environment!')
