@@ -121,3 +121,7 @@ Workspaces/
 misc/logs/*png
 misc/logs/*jpg
 misc/logs/*jpeg
+.DS_Store
+._.DS_Store
+._*.py
+._*.md

@@ -20,8 +20,8 @@ import cv2
 import collections
 import time
 
-import environment.carla.server as server
-import environment.carla.scenarios as scenarios
+import environment.carla_9_4.scenarios as scenarios
+import environment.carla_9_4.server as server
 
 from scipy.misc import imsave
 
@@ -30,12 +30,12 @@ from scipy.misc import imsave
 
 RETRIES_ON_ERROR=5
 
-CARLA_PATH = os.environ.get("CARLA_PATH")
-if CARLA_PATH == None:
-    raise ValueError("Set $CARLA_PATH to directory that contains CarlaUE4.sh")
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+if CARLA_9_4_PATH == None:
+    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
 
 try:
-    sys.path.append(glob.glob(CARLA_PATH+'/PythonAPI/%d.%d-%s.egg' % (
+    sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
@@ -48,20 +48,20 @@ except Exception as e:
     print("Failed to import Carla")
     raise e
 
-from environment.carla.agents.navigation.agent import *
-from environment.carla.agents.navigation.local_planner import LocalPlanner
-from environment.carla.agents.navigation.local_planner import compute_connection, RoadOption
-from environment.carla.agents.navigation.global_route_planner import GlobalRoutePlanner
-from environment.carla.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from environment.carla.agents.tools.misc import vector
-import environment.carla.sensors as sensors
+from environment.carla_9_4.agents.navigation.agent import *
+from environment.carla_9_4.agents.navigation.local_planner import LocalPlanner
+from environment.carla_9_4.agents.navigation.local_planner import compute_connection, RoadOption
+from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
+from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla_9_4.agents.tools.misc import vector
+import environment.carla_9_4.sensors as sensors
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
 # TODO: Split into server specific and client specific
 DEFAULT_ENV = {
-    "server_path" : CARLA_PATH,
-    "server_binary" : CARLA_PATH + '/CarlaUE4.sh',
+    "server_path" : CARLA_9_4_PATH,
+    "server_binary" : CARLA_9_4_PATH + '/CarlaUE4.sh',
     "server_process" : None,
     # X Rendering Resolution (NOTE: Doesn't change anything! Link to Issue #17)
     "render_res_x" : 800,
@@ -71,40 +71,41 @@ DEFAULT_ENV = {
     "sensor_x_res" : '800',
     "sensor_y_res" : '800',
     # Input X Res (Default set to Atari)
-    "x_res" : 84,
+    "x_res": 224,
     # Input Y Res (Default set to Atari)
-    "y_res" : 84,
+    "y_res": 224,
     "server_fps" : 10,
     "server_port" : None,
     "city_name" : "Town01",
     "frame_skip": 1,
     "enable_planner" : True,
-    "reward_function" : 'stub',
+    "reward_function" : 'corl',
     "save_images_to_disk" : False,
     "record_sim": False,
     "write_data": True,
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions" : True,
+    "discrete_actions": True,
+
     # Number of frames stacked together
     "framestack" : 1,
     "grayscale" : False,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
-    "max_steps" : 200,
+    "max_steps" : 1000,
     "next_command": None,
-    "verbose": True,
+    "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb"],
     "action_type": "merged_gas",
     "sensor_tick": '1.0',
     "dist_for_success" : 2.0,
-    "max_offlane_steps" : 5,
-    "max_static_steps" : 20,
+    "max_offlane_steps" : 20,
+    "max_static_steps" : 100,
     "log_measurements_to_file": False,
-    "train_config": 'baselines'
+    "train_config": 'baselines',
 }
 
 DISCRETE_ACTIONS = {
@@ -149,11 +150,13 @@ if not os.path.exists(CARLA_LOGS):
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
-        self.config = config
+        self.config = DEFAULT_ENV
+        self._update_config(config)
+        
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
-        self.server_port = config["server_port"]
-        self.city_name = config["city_name"]
+        self.server_port = self.config["server_port"]
+        self.city_name = self.config["city_name"]
         # TODO: Check planner API from 0.9
 
         self.episode_id = None
@@ -229,6 +232,10 @@ class CarlaEnv(gym.Env):
             # ])
             self.observation_space = image_space
 
+    def _update_config(self, config):
+        for key, val in config.items():
+            self.config[key] = val
+
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
@@ -250,7 +257,6 @@ class CarlaEnv(gym.Env):
         # speed = action
         # self._local_planner.set_speed(speed)
         # control = self._local_planner.run_step()
-
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
             throttle = float(np.clip(action[0], 0, 1))
@@ -277,13 +283,11 @@ class CarlaEnv(gym.Env):
                   "reverse", control.reverse)
 
         #Store control for this step
-        self.episode_measurements['control'] = {
-            'steer': control.steer,
-            'throttle': control.throttle,
-            'brake': control.brake,
-            'reverse': control.reverse,
-            'hand_brake': control.hand_brake
-        }
+        self.episode_measurements['control_steer'] = control.steer
+        self.episode_measurements['control_throttle'] = control.throttle
+        self.episode_measurements['control_brake'] = control.brake
+        self.episode_measurements['control_reverse'] = control.reverse
+        self.episode_measurements['control_hand_brake'] = control.hand_brake
 
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
@@ -303,10 +307,11 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
-        self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
+        self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        reward = self._compute_reward(name=self.config['reward_function'], prev_measurement=self.prev_measurement,
-        cur_measurement=self.episode_measurements)
+        reward = self._compute_reward(name=self.config['reward_function'], 
+                                    prev_measurement=self.prev_measurement, 
+                                    cur_measurement=self.episode_measurements)
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
@@ -332,14 +337,21 @@ class CarlaEnv(gym.Env):
         # print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         # print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
-        # current speed, distance to goal
-        # current high-level command (excluded for now)
-        if(self.config['train_config'] == 'baselines'):
-            obs = ((sensor_image, [self.episode_measurements['speed'],
-            self.episode_measurements['distance_to_goal']]), reward, done, self.episode_measurements)
-        else:
-            obs = (sensor_image, reward, done, self.episode_measurements)
-        return obs
+        obs = {}
+        #TODO: Get branch_idx from planner and set accordingly.
+        branch_idx = 1
+
+        obs['image'] = sensor_image
+        obs['speed'] = np.expand_dims(
+            np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
+        obs['dist_to_target'] = np.array(
+            [self.episode_measurements['distance_to_goal']])
+        obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
+
+        reward = np.expand_dims(np.array([reward]), axis=0)
+        done = np.expand_dims(np.array([done]), axis=0)
+
+        return obs, reward, done, self.episode_measurements
 
     def get_control(self, action):
         """ Get Control object for Carla from action
@@ -348,20 +360,21 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        steer = action[0]
-        gas = action[1]
-        brake = action[2]
-
-        if self.config["action_type"] is "merged_gas":
+        action = action.flatten()
+        if self.config["action_type"] is "sep_gas":
+            steer = float(action[0])
+            throttle = float(action[1])
+            brake = float(action[2])
+        elif self.config["action_type"] is "merged_gas":
+            steer = float(action[0])
+            gas = float(action[1])
             if gas < 0:
-                throttle = 0
+                throttle = 0.0
                 brake = abs(gas)
             else:
                 throttle = gas
-                brake = 0
-        else:
-            throttle = gas
-
+                brake = 0.0
+        
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
         # be used with RL agents
@@ -375,8 +388,7 @@ class CarlaEnv(gym.Env):
             hand_brake=False,
             reverse=False,
             manual_gear_shift=False,
-            gear=0
-        )
+            gear=0)
 
         return control
 
@@ -393,15 +405,22 @@ class CarlaEnv(gym.Env):
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
+    def clear_episode_measurements(self):
+        for key, val in self.episode_measurements.items():
+            self.episode_measurements[key] = 0
 
     def _reset(self):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
+
+        self.clear_episode_measurements()
+
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+
         # Destroy
         self.destroy_all_existing_actors()
 
@@ -478,7 +497,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
-        self.episode_measurements['speed'] = self.getSpeedFromVelocity(self.vehicle_actor.get_velocity())
+        self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
         print('-'*50)
         print('Waiting for sensor to initialize')
@@ -486,15 +505,27 @@ class CarlaEnv(gym.Env):
         time.sleep(2)
 
         #TODO: fix bug with no sensor_image. empty image for now
-        x_res = int(self.config["sensor_x_res"])
-        y_res = int(self.config["sensor_y_res"])
+        # x_res = int(self.config["sensor_x_res"])
+        # y_res = int(self.config["sensor_y_res"])
         #sensor_image = np.zeros(shape=(x_res, y_res, self.im_channels))
         #TODO: Change this to return the full measurement vector (like the step function)
-        obs = self._read_data()
+
+        obs = {}
+        #TODO: Get branch_idx from planner and set accordingly. 
+        branch_idx = 1
+
+        image = self._read_data()
+
+        obs['image'] = image
+        obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
+        obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
+        obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
+        
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
+
         return obs
 
-    def getSpeedFromVelocity(self, velocity):
+    def get_speed_from_velocity(self, velocity):
 
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
@@ -585,7 +616,6 @@ class CarlaEnv(gym.Env):
         self._local_planner.set_global_plan(self._current_plan)
 
     def _write_data(self, sensor_data):
-        # print("Received image from sensor at:", self.location)
         if(self.config['framestack'] == 1):
             self._save_sensor_data(sensor_data)
         else:
@@ -603,8 +633,6 @@ class CarlaEnv(gym.Env):
 
         if(self.config['framestack'] == 1):
             sensor_data = self._read_sensor_data()
-            im_processed = self._preprocess(sensor_data)
-            return im_processed
         else:
             data_array = []
             # Use this loop since the callback is continuously writing into the queue
@@ -614,44 +642,119 @@ class CarlaEnv(gym.Env):
             #Compute ndims (to compute which axis to stack along)
             ndim = len(data_array[0].shape)
             # Stack all the images along last axis
-            stacked_image = np.concatenate((data_array[:]), axis=ndim)
+            sensor_data = np.concatenate((data_array[:]), axis=ndim)
             # sensor_data = self._image_queue.get()
             # print("Read image from queue at:", self.location)
             # im_data = sensor_data.raw_data
             # im_width = sensor_data.width
             # im_height = sensor_data.height
             # fov = sensor_data.fov
-            im_processed = self._preprocess(stacked_image)
-            return im_processed
+        if self.config["algo"] == "DDPG":
+            im_processed = self._preprocess2(sensor_data)
+        else:
+            im_processed = self._preprocess1(sensor_data)
+        return im_processed
 
-    def _preprocess(self, image):
-        # NOTE: Keep the following print statements. The sensor returns data of type 'memoryview'.
-        # NOTE: We may need these statements later when integrating different types of sensors.
-        # print('-'*50)
-        # print('Received of sensor data of type:',type(image))
-        # print('-'*50)
-        print('-'*50)
-        print('Received of sensor data of shape:',image.shape)
-        print('-'*50)
+    def _preprocess1(self, image):
         # sensor_x_res is a str (reason mentioned near definition). reshape requires int
         x_res =int(self.config["sensor_x_res"])
         y_res =int(self.config["sensor_y_res"])
-        data = image.reshape(x_res, y_res, self.im_channels * self.config['framestack'])
+        image = image.reshape(x_res, y_res, self.im_channels * self.config['framestack'])
+        
         # Convert from BGRA to RGB image
-        data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
-        # imsave(SENSOR_LOG_DIR+str(self.num_steps)+'.png', data)
-        data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+
+        image = cv2.resize(image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
         # TODO: Need to check better forms of normalization.
         # TODO: Add a config flag for normalization
-        data = (data.astype(np.float32) - 128) / 128
-        return data
+        # image = (image.astype(np.float32) - 128) / 128
+        image = image / 255.0
+        return image
+
+    def _preprocess2(self, image):
+        # Cropped preprocessing. 
+        # sensor_x_res is a str (reason mentioned near definition). reshape requires int
+        x_res = int(self.config["sensor_x_res"])
+        y_res = int(self.config["sensor_y_res"])
+        image = image.reshape(
+            x_res, y_res, self.im_channels * self.config['framestack'])
+
+        # Convert from BGRA to RGB image
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+        # Cut from top and bottom
+        image = image[115:510, :]
+
+        image = cv2.resize(
+            image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        # TODO: Need to check better forms of normalization.
+        # TODO: Add a config flag for normalization
+        # image = (image.astype(np.float32) - 128) / 128
+        image = image / 255.0
+        return image
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
-        #TODO: Add dict functionality to call other reward functions
-        reward = self._compute_reward_corl2017(prev_measurement, cur_measurement)
+        if name == 'corl':
+            reward = self._compute_reward_corl(prev_measurement, cur_measurement)
+        elif name == 'cirl':
+            reward = self._compute_reward_cirl(prev_measurement, cur_measurement)
         return reward
 
-    def _compute_reward_corl2017(self, prev, current):
+    def _compute_reward_cirl(self, prev, current):
+        # 1) Abnormal steer penalty
+        """
+        if (control.steer > 0) and (directions == 3):
+            # Turn right when should go left
+            steer_reward = -15
+        elif (control.steer < 0) and (directions == 4):
+            # Turn left when should go right
+            steer_reward = -15
+        elif (abs(control.steer) > 0.2) and (directions in [0, 2, 5]):
+            # Turn when should go straight
+            # TODO: directions 0, 2 could mean follow lane that is turning
+            steer_reward = -20
+        else:
+            steer_reward = 0
+        """
+        steer_reward = 0
+        self.episode_measurements["steer_reward"] = steer_reward
+
+        # 2) Collision penalty
+        no_collisions = (current["num_collisions"] - prev["num_collisions"])
+        collision = no_collisions > 0
+        collision_reward = -30 if collision else 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # 3) Sidewalk and opposite lane overlap penalty
+        no_lane_intersections = (current["num_laneintersections"] - prev["num_laneintersections"])
+        lane_change = no_lane_intersections > 0
+        lane_intersection_reward = -30 if lane_change else 0
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        # 4) Speed reward (in km/h)
+        #TODO: Incorporate directions once planner is ready. Default assumed to go straight.
+        # converted to km/h
+        speed = current["speed"] * 3.6
+        speed_reward = speed if (speed < 30) else (60 - speed)
+        # if directions in [0, 2]:
+        #     # If following lane or going straight, limit speed to 30km/h
+        #     speed_reward = speed if (speed < 30) else (60 - speed)
+        # else:
+        #     # If approaching intersection, limit speed to 20km/h
+        #     speed_reward = speed if (speed < 20) else (40 - speed)
+        self.episode_measurements["speed_reward"] = speed_reward
+
+        # Total reward (approximately scaled to [0, 1] range)
+        reward = steer_reward + collision_reward + lane_intersection_reward + speed_reward
+        reward /= 30
+
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+
+        return reward
+
+    def _compute_reward_corl(self, prev, current):
         cur_dist = current["distance_to_goal"]
         prev_dist = prev["distance_to_goal"]
 
@@ -679,24 +782,37 @@ class CarlaEnv(gym.Env):
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
-        if current["speed"] <= 0:
+        if current["speed"] == 0:
             self.episode_measurements["static_steps"] += 1
-        print("Reward")
-        print(distance_reward, speed_reward, collision_reward, lane_intersection_reward)
         return reward
 
     def _compute_done_condition(self):
 
-        # This is to be called after reward computation.
-
         # Episode termination conditions
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
-        # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
-        # static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        # collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
+        static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
+        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
-        # done = success or collision or offlane or static or maxStepsTaken
-        done = success or maxStepsTaken
+
+        if success:
+            termination_state = 'success'
+        elif collision:
+            termination_state = 'collision'
+        elif offlane:
+            termination_state = 'offlane'
+        elif static:
+            termination_state = 'static'
+        elif maxStepsTaken:
+            termination_state = 'max_steps'
+        else:
+            termination_state = 'none'
+        if self.config["verbose"]:
+            print("Termination State: {}".format(termination_state))
+
+        self.episode_measurements['termination_state'] = termination_state
+
+        done = success or collision or offlane or static or maxStepsTaken
         return done
 
     def printInfo(self):
