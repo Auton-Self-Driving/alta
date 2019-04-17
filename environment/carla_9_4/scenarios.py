@@ -1,5 +1,21 @@
 """ Scenarios file for different road paths """
 
+import os
+import glob
+import sys
+
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+if CARLA_9_4_PATH == None:
+    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+try:
+    sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
 from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
