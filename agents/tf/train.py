@@ -18,6 +18,7 @@ import baselines.common.tf_util as U
 
 # from baselines import logger
 from baselines import deepq
+from baselines.deepq.deepq import ActWrapper
 from baselines.deepq.replay_buffer import ReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
@@ -26,8 +27,8 @@ from gym import wrappers
 
 from datetime import datetime
 
-# from models import CoRLModel
-from atari_model import AtariModel
+from models import CoRLModel
+# from atari_model import AtariModel
 
 import matplotlib.pyplot as plt
 
@@ -52,6 +53,13 @@ if __name__ == '__main__':
             gamma=0.95,
             double_q=True
         )
+
+        act_params = {
+                'make_obs_ph': lambda name: ObservationInput(env.observation_space, name=name),
+                'q_func': AtariModel,
+                'num_actions': env.action_space.n
+                }
+
         print('-'*50)
         print('Built model!')
         print('-'*50)
@@ -70,7 +78,7 @@ if __name__ == '__main__':
         print('-'*50)
         print('Received observation of shape:', obs.shape)
         print('-'*50)
-
+        num_episodes = 0
         for t in itertools.count():
             # Take action and update exploration to the newest value
             action = act(obs["image"], update_eps=exploration.value(t))[0]
@@ -82,20 +90,31 @@ if __name__ == '__main__':
             replay_buffer.add(obs["image"], action, rew, new_obs["image"], float(done))
             logger.log_scalar('distance_to_goal', eps_measurements['distance_to_goal'], t)
             obs = new_obs
+            # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
 
             episode_rewards[-1] += rew
             if done:
-                logger.log_scalar('total_reward', eps_measurements['total_reward'], t)
+                num_episodes += 1
+                print('-'*50)
+                print('Timesteps:', t)
+                print('-'*50)
+                logger.log_scalar('distance_to_goal', eps_measurements['distance_to_goal'], num_episodes)
+                logger.log_scalar('total_reward', eps_measurements['total_reward'], num_episodes)
                 obs = env.reset()
                 episode_rewards.append(0)
 
-            is_solved = t > 100 and eps_measurements['distance_to_goal'] < 2.0
+            is_solved = (eps_measurements['distance_to_goal'] < 2.0)
             if is_solved:
                 # Show off the result
                 # env.render()
                 print('-'*50)
                 print('Solved!')
                 print('-'*50)
+                print('-'*50)
+                print('Saving model (completed goal)!')
+                print('-'*50)
+                wrapped_act = ActWrapper(act, act_params)
+                wrapped_act.save('/media/hdd/shubhand/tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
                 break
             else:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
@@ -107,6 +126,11 @@ if __name__ == '__main__':
                     # print('-'*50)
                 # Update target network periodically.
                 if t % 1000 == 0:
+                    print('-'*50)
+                    print('Saving model (checkpoint)!')
+                    print('-'*50)
+                    wrapped_act = ActWrapper(act, act_params)
+                    wrapped_act.save('/media/hdd/shubhand/tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
                     update_target()
 
             # if done and len(episode_rewards) % 10 == 0:
