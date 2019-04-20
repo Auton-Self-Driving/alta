@@ -1,3 +1,4 @@
+import os
 import shutil
 import numpy as np
 import torch
@@ -19,6 +20,12 @@ def silent_remove(*directories):
             shutil.rmtree(d)
         except FileNotFoundError:
             pass
+
+# Create directory if not existing
+def silent_add(*directories):
+    for d in directories:
+        if not os.path.exists(d):
+            os.makedirs(d)
 
 def to_numpy(tensor):
     return tensor.cpu().data.numpy()

@@ -209,6 +209,13 @@ def sample_and_train(args):
             agent.save(save_file)
     
     def validate():
+        # Define as non local variables to update local copy
+        nonlocal success_val_episodes
+        nonlocal collision_val_episodes
+        nonlocal offlane_val_episodes
+        nonlocal static_val_episodes
+        nonlocal max_steps_val_episodes
+
         obs = env.reset()
         if args.env_name == "Carla-9-4":
             obs = convert_observation(obs)
@@ -243,6 +250,8 @@ def sample_and_train(args):
                 offlane_val_episodes += 1
             elif termination_state is 'static':
                 static_val_episodes += 1
+            elif termination_state is 'max_steps':
+                max_steps_val_episodes += 1
             del step_info["termination_state"]
 
         writer.add_scalar('episodes/val/reward', episode_reward, total_steps)
@@ -260,6 +269,9 @@ def sample_and_train(args):
                             static_val_episodes, total_steps)
             writer.add_scalar('episodes/val/max_steps',
                             max_steps_val_episodes, total_steps)
+
+    # Ensure log_dir and save_dir are present
+    silent_add(args.log_dir, args.save_dir)
 
     # Remove log and save files if they exist
     log_file = os.path.join(args.log_dir, args.file_name)
@@ -285,6 +297,7 @@ def sample_and_train(args):
         
     total_steps = 0
     val_steps = 0
+    val_step_interval = args.val_steps
 
     # Episode termination state count for Carla
     success_episodes = 0
@@ -302,8 +315,9 @@ def sample_and_train(args):
     
     while total_steps < args.max_steps:
         if total_steps > val_steps:
+            print("Validating DDPG networks!!!")
             validate()
-            val_steps += 1000
+            val_steps += val_step_interval
 
         # Start new episode
         if not args.fixed_replay or total_steps <= args.replay_size:
@@ -399,6 +413,8 @@ if __name__ == "__main__":
                         help='Fix replay buffer')
     parser.add_argument('--start-steps', default=0, type=int,
                         help='number of random steps to aid exploration')
+    parser.add_argument('--val-steps', default=1000, type=int,
+                        help='Validation step size')
     parser.add_argument('--max-steps', default=1e6, type=int,
                         help='number of environment steps to train')
     parser.add_argument('--max-grad-norm', default=10, type=float,
