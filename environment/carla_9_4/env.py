@@ -149,9 +149,12 @@ if not os.path.exists(CARLA_LOGS):
     os.makedirs(CARLA_LOGS)
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV):
+    def __init__(self, config=DEFAULT_ENV, port=None):
         self.config = DEFAULT_ENV
         self._update_config(config)
+
+        if port is not None:
+            self.config["server_port"] = port
         
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
