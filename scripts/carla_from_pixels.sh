@@ -17,8 +17,8 @@ CUDA_VISIBLE_DEVICES=0 python ../train/torch/train.py \
         --fixed-replay \
         --batch-size 256 \
         --log-interval 100 \
-        --log-dir ../logs/$env/04_08 \
-        --save-dir ../weights/$env/04_08 \
+        --log-dir ../logs/$env/04_19 \
+        --save-dir ../weights/$env/04_19 \
         --discount 0.99 \
         --file-name DDPG-ALR3e-5-CLR3e-5-wo-dropout-fixed-replay-100k
 

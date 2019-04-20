@@ -35,7 +35,7 @@ def make_env_and_agent(args):
                 from environment.carla_9_4.config import ConfigManager
                 config = ConfigManager(algo=args.algo)
                 print("Using Carla 0.9.4 version environment")
-                env = CarlaEnv94(config.config)
+                env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.pretrained == "none":
                 if args.cnn_size == "Large":
@@ -86,7 +86,7 @@ def make_env_and_agent(args):
                 from environment.carla_9_4.config import ConfigManager
                 config = ConfigManager(algo=args.algo)
                 print("Using Carla 0.9.4 version environment")
-                env = CarlaEnv94(config.config)
+                env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             cnn = DrivingSmallCNN(args.batch_norm)
             actor = DrivingDeterministicPolicy()
@@ -188,24 +188,79 @@ def sample_and_train(args):
                         writer.add_scalar('step/' + k, v, total_steps)
         if done and not stop_environment:
             print(total_steps)
-            writer.add_scalar('episode/train_reward', episode_reward, total_steps)
-            writer.add_scalar('episode/train_length', episode_steps, total_steps)
+            writer.add_scalar('episodes/train/reward', episode_reward, total_steps)
+            writer.add_scalar('episodes/train/length', episode_steps, total_steps)
             if "Carla" in args.env_name:
                 writer.add_scalar(
-                    'episode/dist_to_target', obs["dist_to_target"].item(), total_steps)
-                writer.add_scalar('episodes/success',
+                    'episodes/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
+                writer.add_scalar('episodes/train/success',
                                 success_episodes, total_steps)
-                writer.add_scalar('episodes/collision',
+                writer.add_scalar('episodes/train/collision',
                                 collision_episodes, total_steps)
-                writer.add_scalar('episodes/offlane',
+                writer.add_scalar('episodes/train/offlane',
                                 offlane_episodes, total_steps)
-                writer.add_scalar('episodes/static',
+                writer.add_scalar('episodes/train/static',
                                 static_episodes, total_steps)
+                writer.add_scalar('episodes/train/max_steps',
+                                max_steps_episodes, total_steps)
 
         # Save weights
         if total_steps % args.save_interval == 0:
             agent.save(save_file)
     
+    def validate():
+        obs = env.reset()
+        if args.env_name == "Carla-9-4":
+            obs = convert_observation(obs)
+        done = False
+        episode_reward = 0
+        episode_steps = 0
+
+        while not done:
+            action, _ = agent.get_action(obs, eval_mode=True)
+
+            if args.env_name == "Carla-9-4":
+                next_obs, reward, done, step_info = env.step(
+                    to_numpy(action))
+                next_obs = convert_observation(next_obs)
+                reward = from_numpy(reward)
+                done = from_numpy(done)
+            else:
+                next_obs, reward, done, step_info = env.step(action)
+
+            episode_steps += 1
+            episode_reward += reward.item()
+
+            obs = next_obs
+
+            # Update global episode termination state count for Carla
+            termination_state = step_info["termination_state"]
+            if termination_state is 'success':
+                success_val_episodes += 1
+            elif termination_state is 'collision':
+                collision_val_episodes += 1
+            elif termination_state is 'offlane':
+                offlane_val_episodes += 1
+            elif termination_state is 'static':
+                static_val_episodes += 1
+            del step_info["termination_state"]
+
+        writer.add_scalar('episodes/val/reward', episode_reward, total_steps)
+        writer.add_scalar('episodes/val/length', episode_steps, total_steps)
+        if "Carla" in args.env_name:
+            writer.add_scalar(
+                'episodes/val/dist_to_target', obs["dist_to_target"].item(), total_steps)
+            writer.add_scalar('episodes/val/success',
+                            success_val_episodes, total_steps)
+            writer.add_scalar('episodes/val/collision',
+                            collision_val_episodes, total_steps)
+            writer.add_scalar('episodes/val/offlane',
+                            offlane_val_episodes, total_steps)
+            writer.add_scalar('episodes/val/static',
+                            static_val_episodes, total_steps)
+            writer.add_scalar('episodes/val/max_steps',
+                            max_steps_val_episodes, total_steps)
+
     # Remove log and save files if they exist
     log_file = os.path.join(args.log_dir, args.file_name)
     save_file = os.path.join(args.save_dir, args.file_name)
@@ -229,6 +284,7 @@ def sample_and_train(args):
     memory = ReplayMemory(args.replay_size)
         
     total_steps = 0
+    val_steps = 0
 
     # Episode termination state count for Carla
     success_episodes = 0
@@ -236,8 +292,19 @@ def sample_and_train(args):
     offlane_episodes = 0
     static_episodes = 0
     max_steps_episodes = 0
+
+    # Validation Episode termination state count for Carla
+    success_val_episodes = 0
+    collision_val_episodes = 0
+    offlane_val_episodes = 0
+    static_val_episodes = 0
+    max_steps_val_episodes = 0
     
     while total_steps < args.max_steps:
+        if total_steps > val_steps:
+            validate()
+            val_steps += 1000
+
         # Start new episode
         if not args.fixed_replay or total_steps <= args.replay_size:
             obs = env.reset()
@@ -286,6 +353,8 @@ def sample_and_train(args):
                     offlane_episodes += 1
                 elif termination_state is 'static':
                     static_episodes += 1
+                elif termination_state is 'max_steps':
+                    max_steps_episodes += 1
                 del step_info["termination_state"]
                 
                 # Push transition to memory
