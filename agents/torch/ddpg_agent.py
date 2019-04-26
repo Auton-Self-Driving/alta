@@ -43,8 +43,8 @@ class DDPGAgent(Agent):
         self.critic_params = self.curr_nets["critic"].parameters()
         
         if "cnn" in self.curr_nets:
-            self.actor_params = chain(
-                self.actor_params, self.curr_nets["cnn"].parameters())
+            # self.actor_params = chain(
+            #     self.actor_params, self.curr_nets["cnn"].parameters())
             self.critic_params = chain(
                 self.critic_params, self.curr_nets["cnn"].parameters())
             
