@@ -8,7 +8,7 @@ class ConfigManager(object):
         if algo == 'DDPG':
             self.config["algo"] = "DDPG"
             self.config["x_res"] = 200
-            self.config["y_res"] = 84
+            self.config["y_res"] = 88
             self.config["reward_function"] = "cirl"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "torch"

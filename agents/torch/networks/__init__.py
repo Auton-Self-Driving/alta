@@ -15,3 +15,5 @@ from .mujoco_qvalue import *
 from .mujoco_statevalue import *
 
 from .pypretrained import Pretrained
+
+from .vae import VAE

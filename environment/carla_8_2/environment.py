@@ -5,6 +5,7 @@ import math
 import time
 from scipy.misc import imresize
 import torch
+from PIL import Image
 
 from carla.client import CarlaClient
 from carla.planner.planner import Planner
@@ -37,6 +38,9 @@ class CarlaEnv(object):
         self.episode_ind = 0
         self.frame_ind = 0
         
+        self.resx = 200 #200
+        self.resy = 88 #88
+
         # Carla server
         self.server = CarlaServer(port)
         time.sleep(5)
@@ -76,6 +80,9 @@ class CarlaEnv(object):
         
         if trial == max_trials:
             print("[Dummy episode failed] at port {}".format(port))
+
+    def _get_image_resolution(self):
+        return (self.resy, self.resx)
 
     def reset(self):
         """ Reset simulator
@@ -374,7 +381,8 @@ class CarlaEnv(object):
         image = image[115:510, :] # Cut top and bottom
         # image = image[37:188, :]  # Cut top and bottom
         # image = imresize(image, (224, 224)) # Resize
-        image = imresize(image, (88, 200))  # Resize
+        image = imresize(image, (self.resy, self.resx))  # Resize
+
         # image = self._center_crop(image, size=(500, 500))
         # image = imresize(image, (224, 224)) # Resize
         image = torch.tensor(image, dtype=torch.float32)

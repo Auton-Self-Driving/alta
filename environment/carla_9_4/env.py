@@ -239,6 +239,9 @@ class CarlaEnv(gym.Env):
         for key, val in config.items():
             self.config[key] = val
 
+    def _get_image_resolution(self):
+        return (self.config['y_res'], self.config['x_res'])
+
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
