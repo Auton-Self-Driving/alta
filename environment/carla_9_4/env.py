@@ -23,6 +23,7 @@ import time
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
 
+import scipy.misc
 from scipy.misc import imsave
 
 # Keeping this for now (since we may need to log images later)
@@ -95,7 +96,7 @@ DEFAULT_ENV = {
     "num_pedestrians" : 0,
     "max_steps" : 400,
     "next_command": None,
-    "verbose": False,
+    "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb"],
@@ -153,7 +154,6 @@ class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV):
         self.config = DEFAULT_ENV
         self._update_config(config)
-        
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
         self.server_port = self.config["server_port"]
@@ -655,6 +655,7 @@ class CarlaEnv(gym.Env):
 
         if(self.config['framestack'] == 1):
             sensor_data = self._read_sensor_data()
+            im_processed = self._preprocess1(sensor_data)
         else:
             data_array = []
             # Use this loop since the callback is continuously writing into the queue
@@ -662,7 +663,7 @@ class CarlaEnv(gym.Env):
             # Original Atari DQN paper is unclear on order of stacking
             _image_queue_snapshot = copy.deepcopy(self._image_queue)
             for image in _image_queue_snapshot:
-                data_array.append(self._preprocess(image))
+                data_array.append(self._preprocess1(image))
             # data_array = list(copy.deepcopy(self._image_queue))
             #Compute ndims (to compute which axis to stack along)
             ndim = self.config['framestack']
@@ -676,10 +677,6 @@ class CarlaEnv(gym.Env):
             # im_width = sensor_data.width
             # im_height = sensor_data.height
             # fov = sensor_data.fov
-        if self.config["algo"] == "DDPG":
-            im_processed = self._preprocess2(sensor_data)
-        else:
-            im_processed = self._preprocess1(sensor_data)
         return im_processed
 
     def _preprocess1(self, image):

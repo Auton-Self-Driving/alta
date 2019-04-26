@@ -47,7 +47,7 @@ if __name__ == '__main__':
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
-            q_func=AtariModel,
+            q_func=CoRLModel,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),
             gamma=0.95,
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
         act_params = {
                 'make_obs_ph': lambda name: ObservationInput(env.observation_space, name=name),
-                'q_func': AtariModel,
+                'q_func': CoRLModel,
                 'num_actions': env.action_space.n
                 }
 
@@ -76,18 +76,18 @@ if __name__ == '__main__':
         episode_rewards = [0.0]
         obs = env.reset()
         print('-'*50)
-        print('Received observation of shape:', obs.shape)
+        print('Received observation of shape:', obs['image'].shape)
         print('-'*50)
         num_episodes = 0
         for t in itertools.count():
             # Take action and update exploration to the newest value
-            action = act(obs["image"], update_eps=exploration.value(t))[0]
+            action = act(obs['image'], update_eps=exploration.value(t))[0]
             new_obs, rew, done, eps_measurements = env.step(action)
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
             rew = float(rew[0, 0])
             done = bool(done[0, 0])
-            replay_buffer.add(obs["image"], action, rew, new_obs["image"], float(done))
+            replay_buffer.add(obs['image'], action, rew, new_obs['image'], float(done))
             logger.log_scalar('distance_to_goal', eps_measurements['distance_to_goal'], t)
             obs = new_obs
             # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
