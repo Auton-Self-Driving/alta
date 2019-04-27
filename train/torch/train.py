@@ -443,6 +443,8 @@ if __name__ == "__main__":
                         help='entropy loss coefficient - SAC')
     parser.add_argument('--policy-l2', default=1e-3, 
                         help=' L2 regularization on policy parameters - SAC')
+    parser.add_argument('--optim', default='Adam',
+                        help='one of "Adam", "RMSprop"')
     
     # Saving and logging parameters
     parser.add_argument('--log-dir', default='logs/', 

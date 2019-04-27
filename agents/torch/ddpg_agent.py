@@ -20,7 +20,8 @@ class DDPGAgent(Agent):
                  critic_lr,
                  target_lr, 
                  discount, 
-                 max_grad_norm):
+                 max_grad_norm,
+                 optim='Adam'):
         super(DDPGAgent, self).__init__()
         
         self.target_lr = target_lr
@@ -48,10 +49,16 @@ class DDPGAgent(Agent):
             self.critic_params = chain(
                 self.critic_params, self.curr_nets["cnn"].parameters())
             
-        self.actor_optim = torch.optim.RMSprop(self.actor_params, lr=actor_lr, 
-                                               eps=1e-5, momentum=0)
-        self.critic_optim = torch.optim.RMSprop(self.critic_params, lr=critic_lr,
-                                             eps=1e-5, momentum=0)
+        if optim is "Adam":
+            self.actor_optim = torch.optim.Adam(self.actor_params, lr=actor_lr,
+                                                    eps=1e-5)
+            self.critic_optim = torch.optim.Adam(self.critic_params, lr=critic_lr,
+                                                    eps=1e-5)
+        elif optim is "RMSprop":
+            self.actor_optim = torch.optim.RMSprop(self.actor_params, lr=actor_lr,
+                                                eps=1e-5, momentum=0)
+            self.critic_optim = torch.optim.RMSprop(self.critic_params, lr=critic_lr,
+                                                    eps=1e-5, momentum=0)
     
     def get_action(self, obs, eval_mode):
         # Set eval mode for batchnorm and dropout

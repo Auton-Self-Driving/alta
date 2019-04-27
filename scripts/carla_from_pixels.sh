@@ -16,6 +16,7 @@ CUDA_VISIBLE_DEVICES=0 python ../train/torch/train.py \
         --replay-size 100000 \
         --fixed-replay \
         --batch-size 256 \
+        --optim "Adam" \
         --log-interval 100 \
         --log-dir ../logs/$env/04_19 \
         --save-dir ../weights/$env/04_19 \
