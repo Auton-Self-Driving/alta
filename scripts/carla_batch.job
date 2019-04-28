@@ -31,10 +31,11 @@ do
     --env-name $env \
     --start-steps 0 \
     --max-steps 300000 \
-    --replay-size 100000 \
+    --replay-size 50000 \
     --fixed-replay \
     --batch-size 256 \
     --optim "Adam" \
+    --action_type "steer_only" \
     --log-interval 100 \
     --log-dir logs/$env/04_19 \
     --save-dir weights/$env/04_19 \

@@ -15,7 +15,7 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
     Output:
         - action: tensor of size (batch_size, 2) in range [-1, 1]
     """
-    def __init__(self):
+    def __init__(self, action_dim=2):
         super(DrivingDeterministicPolicy, self).__init__()
         
         # Fully connected layers for speed input
@@ -41,7 +41,7 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         self.fc = nn.Sequential(
             FcBlock(512, 256),
             FcBlock(256, 256),
-            nn.Linear(256, 2),
+            nn.Linear(256, action_dim),
             nn.Tanh()
         )
 

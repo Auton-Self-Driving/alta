@@ -15,7 +15,7 @@ class DrivingQValue(QValue):
     Output:
         - tensor of size (batch_size, 1)
     """
-    def __init__(self):
+    def __init__(self, action_dim=2):
         super(DrivingQValue, self).__init__()
         
         # Fully connected layers for speed input
@@ -26,7 +26,7 @@ class DrivingQValue(QValue):
         
         # Fully connected layers for action input
         self.fc_action = nn.Sequential(
-            FcBlock(2, 128),
+            FcBlock(action_dim, 128),
             FcBlock(128, 128)
         )
         
@@ -46,7 +46,7 @@ class DrivingQValue(QValue):
         self.fc = nn.Sequential(
             FcBlock(512, 256),
             FcBlock(256, 256),
-            nn.Linear(256, 2),
+            nn.Linear(256, action_dim),
             nn.Tanh()
         )
 

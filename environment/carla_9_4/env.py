@@ -242,7 +242,7 @@ class CarlaEnv(gym.Env):
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
-        client.set_timeout(10.0)
+        client.set_timeout(60.0)
         return client
 
     def step(self, action):
@@ -364,11 +364,12 @@ class CarlaEnv(gym.Env):
             - control: Control object for Carla
         """
         action = action.flatten()
-        if self.config["action_type"] is "sep_gas":
+        
+        if self.config["action_type"] == "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
             brake = float(action[2])
-        elif self.config["action_type"] is "merged_gas":
+        elif self.config["action_type"] == "merged_gas":
             steer = float(action[0])
             gas = float(action[1])
             if gas < 0:
@@ -377,6 +378,10 @@ class CarlaEnv(gym.Env):
             else:
                 throttle = gas
                 brake = 0.0
+        elif self.config["action_type"] == "steer_only":
+            steer = float(action[0])
+            throttle = float(0.5)
+            brake = float(0.0)
         
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
