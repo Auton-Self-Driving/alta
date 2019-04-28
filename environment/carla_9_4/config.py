@@ -1,10 +1,10 @@
 class ConfigManager(object):
-    def __init__(self, algo='DDPG'):
+    def __init__(self, algo='DDPG', action_type="merged_gas"):
         self.config = {}
 
-        self._initialize_config(algo)
-
-    def _initialize_config(self, algo):
+        self._initialize_config(algo, action_type)
+    
+    def _initialize_config(self, algo, action_type):
         if algo == 'DDPG':
             self.config["algo"] = "DDPG"
             self.config["x_res"] = 200
@@ -12,7 +12,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "cirl"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "torch"
-            self.config["action_type"] = "merged_gas"
+            self.config["action_type"] = action_type
         elif algo == 'DQN':
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84

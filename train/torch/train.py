@@ -24,17 +24,27 @@ def make_env_and_agent(args):
     assert args.env_name in ALLOWED_ENVS
     assert args.algo in ALLOWED_ALGOS
     
+    if args.action_type == "sep_gas":
+        action_dim = 3
+    elif args.action_type == "merged_gas":
+        action_dim = 2
+    elif args.action_type == "steer_only":
+        action_dim = 1
+
     if args.algo == "DDPG":
         if "Carla" in args.env_name:
             if args.env_name == "Carla-8-2":
                 from environment.carla_8_2 import CarlaEnv as CarlaEnv82
+                
                 print("Using Carla 0.8.2 version environment")
                 env = CarlaEnv82(port=args.carla_port)
             elif args.env_name == "Carla-9-4":
                 from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
                 from environment.carla_9_4.config import ConfigManager
-                config = ConfigManager(algo=args.algo)
+                
                 print("Using Carla 0.9.4 version environment")
+                config = ConfigManager(
+                    algo=args.algo, action_type=args.action_type)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.pretrained == "none":
@@ -47,12 +57,12 @@ def make_env_and_agent(args):
             else:
                 cnn = Pretrained(model_name=args.pretrained, pre_trained=True)
             print(cnn)
-            actor = DrivingDeterministicPolicy()
-            critic = DrivingQValue()
+            actor = DrivingDeterministicPolicy(action_dim=action_dim)
+            critic = DrivingQValue(action_dim=action_dim)
             
-            noise = OUNoise(mu=torch.zeros(2),
-                            sigma=args.sigma_noise * torch.ones(2),
-                            theta=args.theta_noise * torch.ones(2))
+            noise = OUNoise(mu=torch.zeros(action_dim),
+                            sigma=args.sigma_noise * torch.ones(action_dim),
+                            theta=args.theta_noise * torch.ones(action_dim))
             
         else:
             env = MujocoEnv(args.env_name, pixel_obs=args.pixel_obs)
@@ -79,13 +89,15 @@ def make_env_and_agent(args):
         if "Carla" in args.env_name:
             if args.env_name == "Carla-8-2":
                 from environment.carla_8_2 import CarlaEnv as CarlaEnv82
+                
                 print("Using Carla 0.8.2 version environment")
                 env = CarlaEnv82(port=args.carla_port)
             elif args.env_name == "Carla-9-4":
                 from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
                 from environment.carla_9_4.config import ConfigManager
-                config = ConfigManager(algo=args.algo)
+
                 print("Using Carla 0.9.4 version environment")
+                config = ConfigManager(algo=args.algo)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             cnn = DrivingSmallCNN(args.batch_norm)
@@ -445,6 +457,8 @@ if __name__ == "__main__":
                         help=' L2 regularization on policy parameters - SAC')
     parser.add_argument('--optim', default='Adam',
                         help='one of "Adam", "RMSprop"')
+    parser.add_argument('--action_type', default='merged_gas',
+                        help='one of "sep_gas", "merged_gas", "steer_only"')
     
     # Saving and logging parameters
     parser.add_argument('--log-dir', default='logs/', 
