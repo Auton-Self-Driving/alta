@@ -107,7 +107,8 @@ DEFAULT_ENV = {
     "max_static_steps" : 100,
     "log_measurements_to_file": False,
     "train_config": 'baselines',
-    "sync_mode": True
+    "sync_mode": True,
+    "preprocess_crop_image": True
 }
 
 DISCRETE_ACTIONS = {
@@ -194,10 +195,10 @@ class CarlaEnv(gym.Env):
 
         # Compute number of channels in sensor image
         # We use this later in the preprocess step to reshape the data
+        # im_channels refers to number of channels the agent receives after preprocessing
         if(self.config['grayscale']):
             self.im_channels = 1
         else:
-            # BGRA array is returned by RGB sensor
             self.im_channels = 3
 
         # Start Carla Server
@@ -290,8 +291,6 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['control_brake'] = control.brake
         self.episode_measurements['control_reverse'] = control.reverse
         self.episode_measurements['control_hand_brake'] = control.hand_brake
-
-        #TODO: Increment steps inside of frame_skip?
 
         #TODO: Increment steps inside of frame_skip?
 
@@ -655,7 +654,7 @@ class CarlaEnv(gym.Env):
 
         if(self.config['framestack'] == 1):
             sensor_data = self._read_sensor_data()
-            im_processed = self._preprocess1(sensor_data)
+            im_processed = self._preprocess_core(sensor_data)
         else:
             data_array = []
             # Use this loop since the callback is continuously writing into the queue
@@ -663,63 +662,39 @@ class CarlaEnv(gym.Env):
             # Original Atari DQN paper is unclear on order of stacking
             _image_queue_snapshot = copy.deepcopy(self._image_queue)
             for image in _image_queue_snapshot:
-                data_array.append(self._preprocess1(image))
+                data_array.append(self._preprocess_core(image))
             # data_array = list(copy.deepcopy(self._image_queue))
             #Compute ndims (to compute which axis to stack along)
             ndim = self.config['framestack']
             # Stack all the images along last axis
-            # print('len(data_array)', len(data_array))
-            # print('data_array[0].shape', data_array[0].shape)
             im_processed = np.concatenate((data_array[:]), axis=2)
-            # sensor_data = self._image_queue.get()
-            # print("Read image from queue at:", self.location)
-            # im_data = sensor_data.raw_data
-            # im_width = sensor_data.width
-            # im_height = sensor_data.height
-            # fov = sensor_data.fov
         return im_processed
 
-    def _preprocess1(self, image):
+    def _preprocess_core(self, image):
         # sensor_x_res is a str (reason mentioned near definition). reshape requires int
         x_res =int(self.config["sensor_x_res"])
         y_res =int(self.config["sensor_y_res"])
-        # NOTE: Keep this as 4 (BGRA) since converting to grayscale we do on the client. Stacking is done in _read_data
+        # NOTE: BGRA array is returned by RGB sensor
         data = image.reshape(x_res, y_res, 4)
         # Convert from BGRA to RGB image
         data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
+        
         if(self.config['grayscale']):
             data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
-        # imsave(SENSOR_LOG_DIR+str(self.num_steps)+'.png', data)
+        
+        if(self.config['preprocess_crop_image']):
+            # Cut from top and bottom
+            image = image[115:510, :]
+        
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        
         # The cv2 resize converts to self.config["x_res"], self.config["y_res"]. We need the last channel to framestack later.
         if(self.config['grayscale']):
             data = data.reshape(self.config["x_res"], self.config["y_res"], 1)
-        # TODO: Need to check better forms of normalization.
-        # TODO: Add a config flag for normalization
+        # TODO: Need to check better forms of normalization. Add a config flag for normalization
         # image = (image.astype(np.float32) - 128) / 128
-        data = data / 255.0
+        data = image / 255.0
         return data
-
-    def _preprocess2(self, image):
-        # Cropped preprocessing. 
-        # sensor_x_res is a str (reason mentioned near definition). reshape requires int
-        x_res = int(self.config["sensor_x_res"])
-        y_res = int(self.config["sensor_y_res"])
-        image = image.reshape(
-            x_res, y_res, self.im_channels * self.config['framestack'])
-
-        # Convert from BGRA to RGB image
-        image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
-        # Cut from top and bottom
-        image = image[115:510, :]
-
-        image = cv2.resize(
-            image, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
-        # TODO: Need to check better forms of normalization.
-        # TODO: Add a config flag for normalization
-        # image = (image.astype(np.float32) - 128) / 128
-        image = image / 255.0
-        return image
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
         if name == 'corl':

@@ -9,7 +9,6 @@ import tensorflow.contrib.slim as slim
 from tensorflow.contrib.layers import xavier_initializer
 
 def AtariModel(inputs, num_actions, scope, reuse=False):
-    print('inputs.shape', inputs)
     with tf.variable_scope(scope, reuse=reuse):
         activation = tf.nn.relu
         convs1 = [
