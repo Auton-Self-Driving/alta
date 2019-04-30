@@ -78,8 +78,8 @@ DEFAULT_ENV = {
     "server_fps" : 10,
     "server_port" : None,
     "city_name" : "Town01",
-    "frame_skip": 4,
-    "enable_planner" : True,
+    "frame_skip": 1,
+    "enable_planner" : False,
     "reward_function" : 'corl',
     "save_images_to_disk" : False,
     "record_sim": False,
@@ -711,8 +711,30 @@ class CarlaEnv(gym.Env):
             reward = self._compute_reward_corl(prev_measurement, cur_measurement)
         elif name == 'cirl':
             reward = self._compute_reward_cirl(prev_measurement, cur_measurement)
+        elif name == 'simplest':
+            reward = self._compute_reward_simplest(prev_measurement, cur_measurement)
         return reward
 
+    def _compute_reward_simplest(self, prev, current):
+        
+        # Distance reward
+        distance_reward = 100.0 / (current['distance_to_goal'])
+        self.episode_measurements['distance_reward'] = distance_reward
+        
+        # Steer penalty
+        steer_reward = -50 if abs(current['control_steer']) > 0.3 else 0
+        self.episode_measurements['steer_reward'] = steer_reward
+
+        # Collision penalty
+        no_collisions = (current["num_collisions"] - prev["num_collisions"])
+        collision = no_collisions > 0
+        collision_reward = -50 if collision else 0
+        self.episode_measurements["collision_reward"] = collision_reward
+        
+        reward = distance_reward + steer_reward + collision_reward
+        return reward
+        
+        
     def _compute_reward_cirl(self, prev, current):
         # 1) Abnormal steer penalty
         """
@@ -809,6 +831,10 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
 
+        # Hack - Disabled
+        success = False
+        offlane = False
+        
         if success:
             termination_state = 'success'
         elif collision:
