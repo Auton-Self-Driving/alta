@@ -125,3 +125,7 @@ misc/logs/*jpeg
 ._.DS_Store
 ._*.py
 ._*.md
+
+# don't track log directories
+
+*logs/

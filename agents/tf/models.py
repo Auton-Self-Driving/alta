@@ -25,7 +25,7 @@ def CoRLModel(inputs, num_actions, scope, reuse=False):
             [[2,2], 2]
         ]
         hidden = 3528
-        net = inputs        
+        net = inputs
         out_size, kernel, stride = convs1[0]
         net = slim.conv2d(net, out_size, kernel, stride, scope="conv1/conv3_1")
         out_size, kernel, stride = convs1[1]
@@ -45,8 +45,8 @@ def CoRLModel(inputs, num_actions, scope, reuse=False):
         net = slim.flatten(net, scope="flatten3")
         #--------
         net = slim.fully_connected(
-            net, 
-            hidden, 
+            net,
+            hidden,
             weights_initializer=xavier_initializer(uniform=False),
             activation_fn=activation,
             scope="fc4")
