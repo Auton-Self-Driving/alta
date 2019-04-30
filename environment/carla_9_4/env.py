@@ -108,7 +108,8 @@ DEFAULT_ENV = {
     "log_measurements_to_file": False,
     "train_config": 'baselines',
     "sync_mode": True,
-    "preprocess_crop_image": True
+    # NOTE: crop does not work with framestack yet. need to add.
+    "preprocess_crop_image": False
 }
 
 DISCRETE_ACTIONS = {
@@ -258,7 +259,7 @@ class CarlaEnv(gym.Env):
 
         # speed = action
         # self._local_planner.set_speed(speed)
-        # control = self._local_planner.run_step() 
+        # control = self._local_planner.run_step()
 
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
@@ -316,8 +317,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        reward = self._compute_reward(name=self.config['reward_function'], 
-                                    prev_measurement=self.prev_measurement, 
+        reward = self._compute_reward(name=self.config['reward_function'],
+                                    prev_measurement=self.prev_measurement,
                                     cur_measurement=self.episode_measurements)
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
@@ -381,7 +382,7 @@ class CarlaEnv(gym.Env):
             else:
                 throttle = gas
                 brake = 0.0
-        
+
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
         # be used with RL agents
@@ -524,9 +525,9 @@ class CarlaEnv(gym.Env):
         #TODO: Change this to return the full measurement vector (like the step function)
 
         obs = {}
-        #TODO: Get branch_idx from planner and set accordingly. 
+        #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
-        
+
         print('-'*50)
         print('Initializing environment')
         print('-'*50)
@@ -678,22 +679,22 @@ class CarlaEnv(gym.Env):
         data = image.reshape(x_res, y_res, 4)
         # Convert from BGRA to RGB image
         data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
-        
+
         if(self.config['grayscale']):
             data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
-        
+
         if(self.config['preprocess_crop_image']):
             # Cut from top and bottom
-            image = image[115:510, :]
-        
+            data = data[115:510, :]
+
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
-        
+
         # The cv2 resize converts to self.config["x_res"], self.config["y_res"]. We need the last channel to framestack later.
         if(self.config['grayscale']):
             data = data.reshape(self.config["x_res"], self.config["y_res"], 1)
         # TODO: Need to check better forms of normalization. Add a config flag for normalization
         # image = (image.astype(np.float32) - 128) / 128
-        data = image / 255.0
+        data = data / 255.0
         return data
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
