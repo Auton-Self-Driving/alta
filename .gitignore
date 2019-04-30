@@ -129,4 +129,5 @@ misc/logs/*jpeg
 # don't track log directories
 
 *logs/
+*weights/
 .keep
