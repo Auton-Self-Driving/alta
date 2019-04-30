@@ -3,7 +3,7 @@ class ConfigManager(object):
         self.config = {}
 
         self._initialize_config(algo)
-    
+
     def _initialize_config(self, algo):
         if algo == 'DDPG':
             self.config["algo"] = "DDPG"
@@ -21,7 +21,5 @@ class ConfigManager(object):
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"
-            self.config["framestack"] : 4
-            self.config["grayscale"] : True
-
-
+            self.config["framestack"] = 4
+            self.config["grayscale"] = True
