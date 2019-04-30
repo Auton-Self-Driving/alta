@@ -16,6 +16,7 @@ import tensorflow.contrib.layers as layers
 
 import baselines.common.tf_util as U
 
+# NOTE: not using baselines logger for now
 # from baselines import logger
 from baselines import deepq
 from baselines.deepq.deepq import ActWrapper
@@ -28,18 +29,20 @@ from gym import wrappers
 from datetime import datetime
 
 from models import CoRLModel
-# from atari_model import AtariModel
+from atari_model import AtariModel
 
 import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
 if __name__ == '__main__':
+    MODEL_SAVE_DIR = '/media/hdd/shubhand/'
     with U.make_session():
         # Create the environment
         config = ConfigManager(algo="DQN")
         env = CarlaEnv(config.config)
-        env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
+        # NOTE: not using Monitor for now. integrate later
+        # env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
         logger = tf_log.Logger('./tf-logs/'+str(datetime.now()))
         print('-'*50)
         print('Launched environment!')
@@ -88,7 +91,6 @@ if __name__ == '__main__':
             rew = float(rew[0, 0])
             done = bool(done[0, 0])
             replay_buffer.add(obs['image'], action, rew, new_obs['image'], float(done))
-            logger.log_scalar('distance_to_goal', eps_measurements['distance_to_goal'], t)
             obs = new_obs
             # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
 
@@ -114,7 +116,7 @@ if __name__ == '__main__':
                 print('Saving model (completed goal)!')
                 print('-'*50)
                 wrapped_act = ActWrapper(act, act_params)
-                wrapped_act.save('/media/hdd/shubhand/tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
+                wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
                 break
             else:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
@@ -130,7 +132,7 @@ if __name__ == '__main__':
                     print('Saving model (checkpoint)!')
                     print('-'*50)
                     wrapped_act = ActWrapper(act, act_params)
-                    wrapped_act.save('/media/hdd/shubhand/tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
+                    wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
                     update_target()
 
             # if done and len(episode_rewards) % 10 == 0:
