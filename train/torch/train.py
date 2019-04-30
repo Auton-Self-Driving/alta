@@ -44,7 +44,7 @@ def make_env_and_agent(args):
                 
                 print("Using Carla 0.9.4 version environment")
                 config = ConfigManager(
-                    algo=args.algo, action_type=args.action_type)
+                    algo=args.algo, action_type=args.action_type, reward=args.reward_function)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.pretrained == "none":
@@ -457,8 +457,10 @@ if __name__ == "__main__":
                         help=' L2 regularization on policy parameters - SAC')
     parser.add_argument('--optim', default='Adam',
                         help='one of "Adam", "RMSprop"')
-    parser.add_argument('--action_type', default='merged_gas',
+    parser.add_argument('--action-type', default='merged_gas',
                         help='one of "sep_gas", "merged_gas", "steer_only"')
+    parser.add_argument('--reward-function', default='cirl',
+                        help='one of "simplest", "cirl" or "corl"')
     
     # Saving and logging parameters
     parser.add_argument('--log-dir', default='logs/', 
