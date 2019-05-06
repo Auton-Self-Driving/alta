@@ -100,8 +100,8 @@ if __name__ == '__main__':
                 print('-'*50)
                 print('Timesteps:', t)
                 print('-'*50)
-                logger.log_scalar('distance_to_goal', eps_measurements['distance_to_goal'], num_episodes)
-                logger.log_scalar('total_reward', eps_measurements['total_reward'], num_episodes)
+                logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
                 obs = env.reset()
                 episode_rewards.append(0)
 
@@ -134,10 +134,10 @@ if __name__ == '__main__':
                     wrapped_act = ActWrapper(act, act_params)
                     wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
                     update_target()
+                    print('-'*50)
+                    print('Launching validation step')
+                    print('-'*50)
                     for i in itertools.count():
-                        print('-'*50)
-                        print('Launching validation step')
-                        print('-'*50)
                         # Take action and update exploration to the newest value
                         action = act(obs['image'], update_eps=exploration.value(0))[0]
                         new_obs, rew, done, eps_measurements = env.step(action)
@@ -152,8 +152,8 @@ if __name__ == '__main__':
                             print('-'*50)
                             print('Timesteps:', t)
                             print('-'*50)
-                            logger.log_scalar('distance_to_goal_validation', eps_measurements['distance_to_goal'], num_episodes)
-                            logger.log_scalar('total_reward_validation', eps_measurements['total_reward'], num_episodes)
+                            logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                            logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
                             obs = env.reset()
                             episode_rewards.append(0)
 
