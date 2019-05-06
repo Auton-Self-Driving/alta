@@ -126,7 +126,7 @@ if __name__ == '__main__':
                     # print('-'*50)
                     # print('td_error:', td_error)
                     # print('-'*50)
-                # Update target network periodically.
+                # Update target network periodically, and run validation.
                 if t % 1000 == 0:
                     print('-'*50)
                     print('Saving model (checkpoint)!')
@@ -134,6 +134,28 @@ if __name__ == '__main__':
                     wrapped_act = ActWrapper(act, act_params)
                     wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
                     update_target()
+                    for i in itertools.count():
+                        print('-'*50)
+                        print('Launching validation step')
+                        print('-'*50)
+                        # Take action and update exploration to the newest value
+                        action = act(obs['image'], update_eps=exploration.value(0))[0]
+                        new_obs, rew, done, eps_measurements = env.step(action)
+                        # Store transition in the replay buffer.
+                        # Read only sensor image part of the observation (sensor_image, [measurements_array])
+                        rew = float(rew[0, 0])
+                        done = bool(done[0, 0])
+                        obs = new_obs
+                        # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
+                        episode_rewards[-1] += rew
+                        if done:
+                            print('-'*50)
+                            print('Timesteps:', t)
+                            print('-'*50)
+                            logger.log_scalar('distance_to_goal_validation', eps_measurements['distance_to_goal'], num_episodes)
+                            logger.log_scalar('total_reward_validation', eps_measurements['total_reward'], num_episodes)
+                            obs = env.reset()
+                            episode_rewards.append(0)
 
             # if done and len(episode_rewards) % 10 == 0:
                 # logger.record_tabular("td error", td_error)
