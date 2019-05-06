@@ -93,7 +93,6 @@ if __name__ == '__main__':
             replay_buffer.add(obs['image'], action, rew, new_obs['image'], float(done))
             obs = new_obs
             # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
-
             episode_rewards[-1] += rew
             if done:
                 num_episodes += 1
@@ -127,7 +126,7 @@ if __name__ == '__main__':
                     # print('td_error:', td_error)
                     # print('-'*50)
                 # Update target network periodically, and run validation.
-                if t % 1000 == 0:
+                if(t % 1000 == 0 and t > 0):
                     print('-'*50)
                     print('Saving model (checkpoint)!')
                     print('-'*50)
@@ -137,7 +136,8 @@ if __name__ == '__main__':
                     print('-'*50)
                     print('Launching validation step')
                     print('-'*50)
-                    for i in itertools.count():
+                    validation_done = None
+                    while(validation_done != True):
                         # Take action and update exploration to the newest value
                         action = act(obs['image'], update_eps=exploration.value(0))[0]
                         new_obs, rew, done, eps_measurements = env.step(action)
@@ -147,15 +147,11 @@ if __name__ == '__main__':
                         done = bool(done[0, 0])
                         obs = new_obs
                         # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
-                        episode_rewards[-1] += rew
                         if done:
-                            print('-'*50)
-                            print('Timesteps:', t)
-                            print('-'*50)
                             logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
                             logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
                             obs = env.reset()
-                            episode_rewards.append(0)
+                            validation_done = True
 
             # if done and len(episode_rewards) % 10 == 0:
                 # logger.record_tabular("td error", td_error)
