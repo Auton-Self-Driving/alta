@@ -19,19 +19,20 @@ class DrivingQValue(QValue):
         super(DrivingQValue, self).__init__()
         
         # Fully connected layers for speed input
-        self.fc_speed = nn.Sequential(
-            FcBlock(1, 128),
-            FcBlock(128, 128)
-        )
+        # self.fc_speed = nn.Sequential(
+        #     FcBlock(1, 128),
+        #     FcBlock(128, 128)
+        # )
         
         # Fully connected layers for action input
         self.fc_action = nn.Sequential(
             FcBlock(action_dim, 128),
-            FcBlock(128, 128)
+            # FcBlock(128, 128)
         )
         
         # Fully connected layers to merge image, speed and action features
-        self.fc_merge = FcBlock(512 + 128 + 128, 512)
+        # self.fc_merge = FcBlock(512 + 128 + 128, 512)
+        self.fc_merge = FcBlock(512 + 128, 512)
         
         # Fully connected output branches 
         """
@@ -45,18 +46,20 @@ class DrivingQValue(QValue):
         """
         self.fc = nn.Sequential(
             FcBlock(512, 256),
-            FcBlock(256, 256),
+            # FcBlock(256, 256),
             nn.Linear(256, action_dim),
             nn.Tanh()
         )
 
     def forward(self, obs, action):
         # Process speed and action
-        x1 = self.fc_speed(obs["speed"])
+        # x1 = self.fc_speed(obs["speed"])
         x2 = self.fc_action(action)
         
         # Merge image, speed and action features
-        x = torch.cat((obs["image_features"], x1, x2), dim=1)
+        # x = torch.cat((obs["image_features"], x1, x2), dim=1)
+        # x = torch.cat((obs["image_features"], x2), dim=1)
+        x = torch.cat((obs["measurement_features"], x2), dim=1)
         x = self.fc_merge(x)
         
         """

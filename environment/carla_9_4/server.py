@@ -6,6 +6,8 @@ import time
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
 
+# SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 ./CarlaUE4.sh Town01 -carla-server -benchmark -fps=10 -carla-world-port=3500
+
 class CarlaServer():
     def __init__(self, config=None):
         print("Launching CARLA server...")

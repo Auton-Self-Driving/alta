@@ -16,7 +16,8 @@ from utils import *
 
 
 ALLOWED_ENVS = ["Carla-8-2", "Carla-9-4", "HalfCheetah-v2", "Hopper-v2", "Walker2d-v2", "Ant-v2", 
-                "InvertedPendulum-v2", "InvertedDoublePendulum-v2", "Reacher-v2"]
+                "InvertedPendulum-v2", "InvertedDoublePendulum-v2", "Reacher-v2", "CarRacing-v0", 
+                "Pong-v0"]
 ALLOWED_ALGOS = ["DDPG", "TD3", "SAC"]
 
 
@@ -39,13 +40,16 @@ def make_env_and_agent(args):
                 print("Using Carla 0.8.2 version environment")
                 env = CarlaEnv82(port=args.carla_port)
             elif args.env_name == "Carla-9-4":
-                from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
-                from environment.carla_9_4.config import ConfigManager
+                # from environment.carla_9_4.env import CarlaEnv as CarlaEnv94
+                # from environment.carla_9_4.config import ConfigManager
                 
+                # print("Using Carla 0.9.4 version environment")
+                # config = ConfigManager(
+                #     algo=args.algo, action_type=args.action_type, reward=args.reward_function)
+                # env = CarlaEnv94(config=config.config, port=args.carla_port)
+                from environment.carla_9_4.environment import CarlaEnv as CarlaEnv94
                 print("Using Carla 0.9.4 version environment")
-                config = ConfigManager(
-                    algo=args.algo, action_type=args.action_type, reward=args.reward_function)
-                env = CarlaEnv94(config=config.config, port=args.carla_port)
+                env = CarlaEnv94(ep_len=5000)
             
             if args.pretrained == "none":
                 if args.cnn_size == "Large":
@@ -81,7 +85,10 @@ def make_env_and_agent(args):
             noise = Normal(torch.zeros(env.action_dim), 
                            torch.ones(env.action_dim) * 0.1)
             
-        agent = DDPGAgent(cnn, actor, critic, noise, args.actor_lr, args.critic_lr,
+        # agent = DDPGAgent(cnn, actor, critic, noise, args.actor_lr, args.critic_lr,
+        #                   args.target_lr, args.discount, args.max_grad_norm)
+        net = MeasurementNet()
+        agent = DDPGAgent(net, actor, critic, noise, args.actor_lr, args.critic_lr,
                           args.target_lr, args.discount, args.max_grad_norm)
     
     elif args.algo == "TD3":
@@ -253,18 +260,19 @@ def sample_and_train(args):
             obs = next_obs
 
             # Update global episode termination state count for Carla
-            termination_state = step_info["termination_state"]
-            if termination_state is 'success':
-                success_val_episodes += 1
-            elif termination_state is 'collision':
-                collision_val_episodes += 1
-            elif termination_state is 'offlane':
-                offlane_val_episodes += 1
-            elif termination_state is 'static':
-                static_val_episodes += 1
-            elif termination_state is 'max_steps':
-                max_steps_val_episodes += 1
-            del step_info["termination_state"]
+            if "termination_state" in step_info:
+                termination_state = step_info["termination_state"]
+                if termination_state is 'success':
+                    success_val_episodes += 1
+                elif termination_state is 'collision':
+                    collision_val_episodes += 1
+                elif termination_state is 'offlane':
+                    offlane_val_episodes += 1
+                elif termination_state is 'static':
+                    static_val_episodes += 1
+                elif termination_state is 'max_steps':
+                    max_steps_val_episodes += 1
+                del step_info["termination_state"]
 
         writer.add_scalar('episodes/val/reward', episode_reward, total_steps)
         writer.add_scalar('episodes/val/length', episode_steps, total_steps)
@@ -344,7 +352,7 @@ def sample_and_train(args):
                 # Take a random action to bootstrap exploration
                 if total_steps < args.start_steps:
                     if "Carla" in args.env_name:
-                        action = torch.tensor([[0., 1.]]) 
+                        action = torch.tensor([[0.]]) 
                         
                         action += agent.noise.sample()
                     else:
@@ -352,7 +360,7 @@ def sample_and_train(args):
                     
                 # Or compute action 
                 else:
-                    action, _ = agent.get_action(obs, eval_mode=False)
+                    action, _ = agent.get_action(obs, eval_mode=True)
                 
                 
                 # Take a step in environment    
@@ -370,18 +378,19 @@ def sample_and_train(args):
                 episode_reward += reward.item()
 
                 # Update global episode termination state count for Carla
-                termination_state = step_info["termination_state"]
-                if termination_state is 'success':
-                    success_episodes += 1
-                elif termination_state is 'collision':
-                    collision_episodes += 1
-                elif termination_state is 'offlane':
-                    offlane_episodes += 1
-                elif termination_state is 'static':
-                    static_episodes += 1
-                elif termination_state is 'max_steps':
-                    max_steps_episodes += 1
-                del step_info["termination_state"]
+                if "termination_state" in step_info:
+                    termination_state = step_info["termination_state"]
+                    if termination_state is 'success':
+                        success_episodes += 1
+                    elif termination_state is 'collision':
+                        collision_episodes += 1
+                    elif termination_state is 'offlane':
+                        offlane_episodes += 1
+                    elif termination_state is 'static':
+                        static_episodes += 1
+                    elif termination_state is 'max_steps':
+                        max_steps_episodes += 1
+                    del step_info["termination_state"]
                 
                 # Push transition to memory
                 memory.push((obs, action, reward, next_obs, done))
@@ -449,7 +458,7 @@ if __name__ == "__main__":
                         help='number of critic updates per actor update - TD3, SAC')
     parser.add_argument('--sigma-noise', default=0.05, 
                         help='standard deviation of noise - DDPG, TD3')
-    parser.add_argument('--theta-noise', default=1.0, 
+    parser.add_argument('--theta-noise', default=0.15, 
                         help='mean revert of ounoise - DDPG, TD3')
     parser.add_argument('--entropy-coeff', default=0.2, 
                         help='entropy loss coefficient - SAC')

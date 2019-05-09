@@ -1,18 +1,18 @@
 import copy
 from itertools import chain
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution
 
 from .abstract_agent import Agent
-from .networks import CNN, Pretrained, DeterministicPolicy, QValue
+from .networks import CNN, Pretrained, DeterministicPolicy, QValue, MeasurementNet
 
 
 class DDPGAgent(Agent):
     def __init__(self,
-                 cnn: Optional[CNN], 
+                 cnn: Union[CNN, MeasurementNet, None], 
                  actor: DeterministicPolicy, 
                  critic: QValue, 
                  noise: Distribution,
@@ -70,7 +70,8 @@ class DDPGAgent(Agent):
         with torch.set_grad_enabled(False):
             # Process image input
             if "cnn" in self.curr_nets:
-                obs["image_features"] = self.curr_nets["cnn"](obs["image"])
+                # obs["image_features"] = self.curr_nets["cnn"](obs["image"])
+                obs["measurement_features"] = self.curr_nets["cnn"](obs["orientation"])
                 
             # Compute action
             action = self.curr_nets["actor"](obs).cpu()
@@ -91,8 +92,10 @@ class DDPGAgent(Agent):
         
         # Process image inputs if necessary
         if "cnn" in self.curr_nets:
-            obs["image_features"] = self.curr_nets["cnn"](obs["image"])
-            next_obs["image_features"] = self.targ_nets["cnn"](next_obs["image"])
+            # obs["image_features"] = self.curr_nets["cnn"](obs["image"])
+            # next_obs["image_features"] = self.targ_nets["cnn"](next_obs["image"])
+            obs["measurement_features"] = self.curr_nets["cnn"](obs["orientation"])
+            next_obs["measurement_features"] = self.targ_nets["cnn"](next_obs["orientation"])
 
         # Compute current Q estimate
         current_Q = self.curr_nets["critic"](obs, action)
@@ -119,7 +122,8 @@ class DDPGAgent(Agent):
 
         # Compute actor loss (avoiding gradient w.r.t CNN through obs)
         action = self.curr_nets["actor"](obs)
-        obs["image_features"] = obs["image_features"].detach()
+        # obs["image_features"] = obs["image_features"].detach()
+        obs["measurement_features"] = obs["measurement_features"].detach()
         actor_loss = -self.curr_nets["critic"](obs, action).mean()
 
         # Optimize actor (and cnn)

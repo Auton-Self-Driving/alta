@@ -90,8 +90,8 @@ DEFAULT_ENV = {
     "discrete_actions": True,
 
     # Number of frames stacked together
-    "framestack" : 4,
-    "grayscale" : True,
+    "framestack" : 1,
+    "grayscale" : False,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
     "max_steps" : 400,
@@ -99,7 +99,7 @@ DEFAULT_ENV = {
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
     "target_speed": 20,
-    "sensors": ["sensor.camera.rgb"],
+    "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
     "sensor_tick": '1.0',
     "dist_for_success" : 2.0,
@@ -389,7 +389,7 @@ class CarlaEnv(gym.Env):
                 brake = 0.0
         elif self.config["action_type"] == "steer_only":
             steer = float(action[0])
-            throttle = float(0.5)
+            throttle = float(0.50)
             brake = float(0.0)
         
         # Avoid fake braking (from Codevilla conditional imitation learning code)
@@ -480,11 +480,11 @@ class CarlaEnv(gym.Env):
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][0]
+        sensor = self.config['sensors'][1]
         camera = blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
@@ -834,6 +834,7 @@ class CarlaEnv(gym.Env):
         # Hack - Disabled
         success = False
         offlane = False
+        maxStepsTaken = False
         
         if success:
             termination_state = 'success'

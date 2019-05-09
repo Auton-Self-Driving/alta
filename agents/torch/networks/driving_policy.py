@@ -19,13 +19,13 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         super(DrivingDeterministicPolicy, self).__init__()
         
         # Fully connected layers for speed input
-        self.fc_speed = nn.Sequential(
-            FcBlock(1, 128),
-            FcBlock(128, 128)
-        )
+        # self.fc_speed = nn.Sequential(
+        #     FcBlock(1, 128),
+        #     FcBlock(128, 128)
+        # )
         
         # Fully connected layers to merge image and speed features
-        self.fc_merge = FcBlock(512 + 128, 512)
+        # self.fc_merge = FcBlock(512 + 128, 512)
         
         # Fully connected output branches 
         """
@@ -47,11 +47,15 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
 
     def forward(self, obs):        
         # Process speed
-        x = self.fc_speed(obs["speed"])
+        # x = self.fc_speed(obs["speed"])
         
         # Merge speed and image features
-        x = torch.cat((obs["image_features"], x), dim=1)
-        x = self.fc_merge(x)
+        # x = torch.cat((obs["image_features"], x), dim=1)
+        # x = self.fc_merge(x)
+        
+        # x = obs["image_features"]
+        
+        x = obs["measurement_features"]
         
         """
         # Compute output branches

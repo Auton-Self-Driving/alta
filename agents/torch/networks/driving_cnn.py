@@ -93,14 +93,14 @@ class DrivingSmallestCNN(CNN):
         # Convolutional core
         # in_channels, out_channels, kernel_size, stride
         self.core = nn.Sequential(
-            ConvBlock(3, 16, 3, 2, batch_norm, dropout_rate=dropout_rate),
-            ConvBlock(16, 32, 3, 2, batch_norm, dropout_rate=dropout_rate),
-            ConvBlock(32, 64, 3, 2, batch_norm, dropout_rate=dropout_rate)
+            ConvBlock(3, 16, 5, 3, batch_norm, dropout_rate=dropout_rate),
+            ConvBlock(16, 32, 5, 3, batch_norm, dropout_rate=dropout_rate),
+            ConvBlock(32, 64, 5, 3, batch_norm, dropout_rate=dropout_rate)
         )
 
         # Fully connected layers
         self.fc = nn.Sequential(
-            FcBlock(1024, 512),
+            FcBlock(768, 512),
             FcBlock(512, 512)
         )
 
