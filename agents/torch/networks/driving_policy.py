@@ -39,9 +39,9 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         )
         """
         self.fc = nn.Sequential(
-            FcBlock(512, 256),
-            FcBlock(256, 256),
-            nn.Linear(256, action_dim),
+            FcBlock(128, 128),
+            # FcBlock(256, 256),
+            nn.Linear(128, action_dim),
             nn.Tanh()
         )
 

@@ -4,8 +4,8 @@ trap "kill 0" EXIT
 
 env="Carla-9-4"
 alr=5e-6 #1e-5
-clr=1e-4
-lr=1e-4
+clr=5e-5
+lr=5e-5
 action="steer_only"
 reward="simplest"
 optim="Adam"
@@ -32,6 +32,6 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --log-dir ../logs/$env/04_19 \
         --save-dir ../weights/$env/04_19 \
         --discount 0.99 \
-        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k
+        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k-2
 
 # wait

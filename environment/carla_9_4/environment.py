@@ -250,7 +250,7 @@ class CarlaEnv(Env):
 
         while True:
             try:
-                client = carla.Client('localhost', 7500)
+                client = carla.Client('localhost', 5700)
                 client.set_timeout(60.0)
                 self.world = client.get_world()
                 settings = self.world.get_settings()

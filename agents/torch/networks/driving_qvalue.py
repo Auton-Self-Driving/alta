@@ -32,7 +32,7 @@ class DrivingQValue(QValue):
         
         # Fully connected layers to merge image, speed and action features
         # self.fc_merge = FcBlock(512 + 128 + 128, 512)
-        self.fc_merge = FcBlock(512 + 128, 512)
+        self.fc_merge = FcBlock(128 + 128, 128)
         
         # Fully connected output branches 
         """
@@ -45,9 +45,9 @@ class DrivingQValue(QValue):
         )
         """
         self.fc = nn.Sequential(
-            FcBlock(512, 256),
+            FcBlock(128, 128),
             # FcBlock(256, 256),
-            nn.Linear(256, action_dim),
+            nn.Linear(128, action_dim),
             nn.Tanh()
         )
 
