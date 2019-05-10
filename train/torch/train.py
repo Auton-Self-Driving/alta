@@ -85,10 +85,7 @@ def make_env_and_agent(args):
             noise = Normal(torch.zeros(env.action_dim), 
                            torch.ones(env.action_dim) * 0.1)
             
-        # agent = DDPGAgent(cnn, actor, critic, noise, args.actor_lr, args.critic_lr,
-        #                   args.target_lr, args.discount, args.max_grad_norm)
-        net = MeasurementNet()
-        agent = DDPGAgent(net, actor, critic, noise, args.actor_lr, args.critic_lr,
+        agent = DDPGAgent(cnn, actor, critic, noise, args.actor_lr, args.critic_lr,
                           args.target_lr, args.discount, args.max_grad_norm)
     
     elif args.algo == "TD3":
@@ -352,7 +349,10 @@ def sample_and_train(args):
                 # Take a random action to bootstrap exploration
                 if total_steps < args.start_steps:
                     if "Carla" in args.env_name:
-                        action = torch.tensor([[0.]]) 
+                        if args.action_type == "merged_gas":
+                            action = torch.tensor([[0., 1.]])
+                        elif args.action_type == "steer_only":
+                            action = torch.tensor([[0.]])
                         
                         action += agent.noise.sample()
                     else:
@@ -360,7 +360,8 @@ def sample_and_train(args):
                     
                 # Or compute action 
                 else:
-                    action, _ = agent.get_action(obs, eval_mode=True)
+                    action, _ = agent.get_action(obs, eval_mode=False)
+                    # action, _ = agent.get_action(obs, eval_mode=True) #this worked
                 
                 
                 # Take a step in environment    

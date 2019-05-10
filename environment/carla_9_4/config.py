@@ -16,6 +16,7 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["preprocess_crop_image"] = True
             self.config["max_static_steps"] = 1000
+            self.config["grayscale"] = False
         elif algo == 'DQN':
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84
