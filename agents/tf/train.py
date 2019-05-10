@@ -5,6 +5,8 @@ from __future__ import print_function
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -50,7 +52,7 @@ if __name__ == '__main__':
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
-            q_func=CoRLModel,
+            q_func=AtariModel,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),
             gamma=0.95,
@@ -67,7 +69,7 @@ if __name__ == '__main__':
         print('Built model!')
         print('-'*50)
         # Create the replay buffer
-        replay_buffer = ReplayBuffer(50000)
+        replay_buffer = ReplayBuffer(10000)
         # Create the schedule for exploration starting from 1 (every action is random) down to
         # 0.02 (98% of actions are selected according to values predicted by the model).
         exploration = LinearSchedule(schedule_timesteps=5000, initial_p=1.0, final_p=0.05)
