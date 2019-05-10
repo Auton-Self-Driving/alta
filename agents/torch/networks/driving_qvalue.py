@@ -58,8 +58,7 @@ class DrivingQValue(QValue):
         
         # Merge image, speed and action features
         # x = torch.cat((obs["image_features"], x1, x2), dim=1)
-        # x = torch.cat((obs["image_features"], x2), dim=1)
-        x = torch.cat((obs["measurement_features"], x2), dim=1)
+        x = torch.cat((obs["image_features"], x2), dim=1)
         x = self.fc_merge(x)
         
         """

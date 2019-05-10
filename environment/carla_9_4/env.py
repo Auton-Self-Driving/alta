@@ -90,8 +90,8 @@ DEFAULT_ENV = {
     "discrete_actions": True,
 
     # Number of frames stacked together
-    "framestack" : 1,
-    "grayscale" : False,
+    "framestack" : 4,
+    "grayscale" : True,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
     "max_steps" : 400,
@@ -480,7 +480,7 @@ class CarlaEnv(gym.Env):
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][1]
+        sensor = self.config['sensors'][0]
         camera = blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])

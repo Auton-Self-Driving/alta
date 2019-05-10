@@ -8,7 +8,7 @@ class MujocoEnv(object):
         self.env = gym.make(env_name)
         self.pixel_obs = pixel_obs
         self.state_dim = self.env.observation_space.shape[0]
-        self.action_dim = 6
+        self.action_dim = self.env.action_space.shape[0]
         
     def reset(self):
         obs = self.env.reset()
