@@ -72,9 +72,9 @@ DEFAULT_ENV = {
     "sensor_x_res" : '800',
     "sensor_y_res" : '800',
     # Input X Res (Default set to Atari)
-    "x_res": 224,
+    "x_res": 84,
     # Input Y Res (Default set to Atari)
-    "y_res": 224,
+    "y_res": 84,
     "server_fps" : 10,
     "server_port" : None,
     "city_name" : "Town01",
@@ -702,6 +702,8 @@ class CarlaEnv(gym.Env):
             reward = self._compute_reward_corl(prev_measurement, cur_measurement)
         elif name == 'cirl':
             reward = self._compute_reward_cirl(prev_measurement, cur_measurement)
+        elif name == 'corl2':
+            reward = self._compute_reward_corl2(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_cirl(self, prev, current):
@@ -768,6 +770,38 @@ class CarlaEnv(gym.Env):
 
         # Distance travelled toward the goal in m
         distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        self.episode_measurements["distance_reward"] = distance_reward
+
+        # Change in speed (km/h)
+        speed_reward = 0.05 * (current["speed"] - prev["speed"])
+        self.episode_measurements["speed_reward"] = speed_reward
+
+        # Collision damage
+        collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # New sidewalk intersection
+        lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+
+        # Update state variables
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+        return reward
+
+    def _compute_reward_corl2(self, prev, current):
+        cur_dist = current["distance_to_goal"]
+        # prev_dist = prev["distance_to_goal"]
+
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+        # Distance travelled toward the goal in m
+        distance_reward = np.clip(1/(cur_dist**2), -10.0, 10.0)
         self.episode_measurements["distance_reward"] = distance_reward
 
         # Change in speed (km/h)
