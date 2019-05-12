@@ -78,7 +78,6 @@ if __name__ == '__main__':
         U.initialize()
         update_target()
 
-        episode_rewards = [0.0]
         obs = env.reset()
         print('-'*50)
         print('Received observation of shape:', obs['image'].shape)
@@ -94,8 +93,6 @@ if __name__ == '__main__':
             done = bool(done[0, 0])
             replay_buffer.add(obs['image'], action, rew, new_obs['image'], float(done))
             obs = new_obs
-            # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
-            episode_rewards[-1] += rew
             if done:
                 num_episodes += 1
                 print('-'*50)
@@ -104,29 +101,39 @@ if __name__ == '__main__':
                 logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
                 logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
                 obs = env.reset()
-                episode_rewards.append(0)
-
-            is_solved = (eps_measurements['distance_to_goal'] < 2.0)
-            if is_solved:
-                # Show off the result
-                # env.render()
-                print('-'*50)
-                print('Solved!')
-                print('-'*50)
-                print('-'*50)
-                print('Saving model (completed goal)!')
-                print('-'*50)
-                wrapped_act = ActWrapper(act, act_params)
-                wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
-                break
-            else:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if t > 1000:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(200)
                     td_error = train(obses_t, actions, rewards, obses_tp1, dones, np.ones_like(rewards))
-                    # print('-'*50)
-                    # print('td_error:', td_error)
-                    # print('-'*50)
+                print('-'*50)
+                print('Launching validation step')
+                print('-'*50)
+                validation_done = None
+                while(validation_done != True):
+                    # Take action and update exploration to the newest value
+                    action = act(obs['image'], update_eps=exploration.value(0))[0]
+                    new_obs, rew, done, eps_measurements = env.step(action)
+                    # Store transition in the replay buffer.
+                    # Read only sensor image part of the observation (sensor_image, [measurements_array])
+                    rew = float(rew[0, 0])
+                    done = bool(done[0, 0])
+                    obs = new_obs
+                    # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
+                    if done:
+                        logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                        logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
+                        obs = env.reset()
+                        validation_done = True
+                        is_solved = (eps_measurements['distance_to_goal'] < 2.0)
+                        if is_solved:
+                            print('-'*50)
+                            print('Solved!')
+                            print('-'*50)
+                            print('-'*50)
+                            print('Saving model (completed goal)!')
+                            print('-'*50)
+                            wrapped_act = ActWrapper(act, act_params)
+                            wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
                 # Update target network periodically, and run validation.
                 if(t % 1000 == 0 and t > 0):
                     print('-'*50)
@@ -135,30 +142,3 @@ if __name__ == '__main__':
                     wrapped_act = ActWrapper(act, act_params)
                     wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
                     update_target()
-                    print('-'*50)
-                    print('Launching validation step')
-                    print('-'*50)
-                    validation_done = None
-                    while(validation_done != True):
-                        # Take action and update exploration to the newest value
-                        action = act(obs['image'], update_eps=exploration.value(0))[0]
-                        new_obs, rew, done, eps_measurements = env.step(action)
-                        # Store transition in the replay buffer.
-                        # Read only sensor image part of the observation (sensor_image, [measurements_array])
-                        rew = float(rew[0, 0])
-                        done = bool(done[0, 0])
-                        obs = new_obs
-                        # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
-                        if done:
-                            logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
-                            logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
-                            obs = env.reset()
-                            validation_done = True
-
-            # if done and len(episode_rewards) % 10 == 0:
-                # logger.record_tabular("td error", td_error)
-                # logger.record_tabular("steps", t)
-                # logger.record_tabular("episodes", len(episode_rewards))
-                # logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
-                # logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
-                # logger.dump_tabular()
