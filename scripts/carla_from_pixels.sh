@@ -3,9 +3,9 @@
 trap "kill 0" EXIT
 
 env="Carla-9-4"
-alr=5e-6 #1e-5
-clr=5e-5
-lr=5e-5
+alr=1e-6 #1e-5
+clr=1e-5
+lr=1e-5
 action="steer_only"
 reward="simplest"
 optim="Adam"
