@@ -207,20 +207,36 @@ def sample_and_train(args):
                         writer.add_scalar('step/' + k, v, total_steps)
         if done and not stop_environment:
             print(total_steps)
-            writer.add_scalar('episodes/train/reward', episode_reward, total_steps)
-            writer.add_scalar('episodes/train/length', episode_steps, total_steps)
+            writer.add_scalar('episodes/train/reward', episode_reward, episode_num)
+            writer.add_scalar('episodes/train/length', episode_steps, episode_num)
             if "Carla" in args.env_name:
                 writer.add_scalar(
-                    'episodes/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
+                    'episodes/train/dist_to_target', obs["dist_to_target"].item(), episode_num)
                 writer.add_scalar('episodes/train/success',
-                                success_episodes, total_steps)
+                                success_episodes, episode_num)
                 writer.add_scalar('episodes/train/collision',
-                                collision_episodes, total_steps)
+                                collision_episodes, episode_num)
                 writer.add_scalar('episodes/train/offlane',
-                                offlane_episodes, total_steps)
+                                offlane_episodes, episode_num)
                 writer.add_scalar('episodes/train/static',
-                                static_episodes, total_steps)
+                                static_episodes, episode_num)
                 writer.add_scalar('episodes/train/max_steps',
+                                max_steps_episodes, episode_num)
+
+            writer.add_scalar('timesteps/train/reward', episode_reward, total_steps)
+            writer.add_scalar('timesteps/train/length', episode_steps, total_steps)
+            if "Carla" in args.env_name:
+                writer.add_scalar(
+                    'timesteps/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
+                writer.add_scalar('timesteps/train/success',
+                                success_episodes, total_steps)
+                writer.add_scalar('timesteps/train/collision',
+                                collision_episodes, total_steps)
+                writer.add_scalar('timesteps/train/offlane',
+                                offlane_episodes, total_steps)
+                writer.add_scalar('timesteps/train/static',
+                                static_episodes, total_steps)
+                writer.add_scalar('timesteps/train/max_steps',
                                 max_steps_episodes, total_steps)
 
         # Save weights
@@ -274,21 +290,37 @@ def sample_and_train(args):
                     max_steps_val_episodes += 1
                 del step_info["termination_state"]
 
-        writer.add_scalar('episodes/val/reward', episode_reward, total_steps)
-        writer.add_scalar('episodes/val/length', episode_steps, total_steps)
+        writer.add_scalar('timesteps/val/reward', episode_reward, total_steps)
+        writer.add_scalar('timesteps/val/length', episode_steps, total_steps)
         if "Carla" in args.env_name:
             writer.add_scalar(
-                'episodes/val/dist_to_target', obs["dist_to_target"].item(), total_steps)
-            writer.add_scalar('episodes/val/success',
+                'timesteps/val/dist_to_target', obs["dist_to_target"].item(), total_steps)
+            writer.add_scalar('timesteps/val/success',
                             success_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/collision',
+            writer.add_scalar('timesteps/val/collision',
                             collision_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/offlane',
+            writer.add_scalar('timesteps/val/offlane',
                             offlane_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/static',
+            writer.add_scalar('timesteps/val/static',
                             static_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/max_steps',
+            writer.add_scalar('timesteps/val/max_steps',
                             max_steps_val_episodes, total_steps)
+
+        writer.add_scalar('episodes/val/reward', episode_reward, episode_num)
+        writer.add_scalar('episodes/val/length', episode_steps, episode_num)
+        if "Carla" in args.env_name:
+            writer.add_scalar(
+                'episodes/val/dist_to_target', obs["dist_to_target"].item(), episode_num)
+            writer.add_scalar('episodes/val/success',
+                            success_val_episodes, episode_num)
+            writer.add_scalar('episodes/val/collision',
+                            collision_val_episodes, episode_num)
+            writer.add_scalar('episodes/val/offlane',
+                            offlane_val_episodes, episode_num)
+            writer.add_scalar('episodes/val/static',
+                            static_val_episodes, episode_num)
+            writer.add_scalar('episodes/val/max_steps',
+                            max_steps_val_episodes, episode_num)
 
     # Ensure log_dir and save_dir are present
     silent_add(args.log_dir, args.save_dir)
@@ -332,6 +364,7 @@ def sample_and_train(args):
     offlane_val_episodes = 0
     static_val_episodes = 0
     max_steps_val_episodes = 0
+    episode_num = 0
     
     while total_steps < args.max_steps:
         if total_steps > val_steps:
@@ -347,6 +380,7 @@ def sample_and_train(args):
             done = False
             episode_reward = 0
             episode_steps = 0
+            episode_num += 1
             
             while not done:
                 # Take a random action to bootstrap exploration

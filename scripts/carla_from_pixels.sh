@@ -17,7 +17,7 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --target-lr $lr \
         --dropout-rate 0.0 \
         --pretrained none \
-        --carla-port 6500 \
+        --carla-port 5700 \
         --env-name $env \
         --start-steps 5000 \
         --max-steps 300000 \
@@ -32,6 +32,6 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --log-dir ../logs/$env/04_19 \
         --save-dir ../weights/$env/04_19 \
         --discount 0.99 \
-        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k-2
+        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k-run_episodefixed_1
 
 # wait
