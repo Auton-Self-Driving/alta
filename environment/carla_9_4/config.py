@@ -1,10 +1,10 @@
 class ConfigManager(object):
-    def __init__(self, algo='DDPG', action_type="merged_gas", reward="cirl"):
+    def __init__(self, algo='DDPG', action_type="merged_gas", reward="new", use_segmented=False):
         self.config = {}
 
-        self._initialize_config(algo, action_type, reward)
+        self._initialize_config(algo, action_type, reward, use_segmented)
     
-    def _initialize_config(self, algo, action_type, reward):
+    def _initialize_config(self, algo, action_type, reward, use_segmented):
         if algo == 'DDPG':
             self.config["algo"] = "DDPG"
             self.config["x_res"] = 200
@@ -17,11 +17,13 @@ class ConfigManager(object):
             self.config["preprocess_crop_image"] = True
             self.config["max_static_steps"] = 1000
             self.config["grayscale"] = False
+            self.config["verbose"] = True
+            self.config["segmented"] = use_segmented
         elif algo == 'DQN':
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84
             self.config["y_res"] = 84
-            self.config["reward_function"] = "corl"
+            self.config["reward_function"] = "new"
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"

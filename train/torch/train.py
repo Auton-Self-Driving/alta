@@ -48,8 +48,11 @@ def make_env_and_agent(args):
                 #     algo=args.algo, action_type=args.action_type, reward=args.reward_function)
                 # env = CarlaEnv94(config=config.config, port=args.carla_port)
                 from environment.carla_9_4.environment import CarlaEnv as CarlaEnv94
+                from environment.carla_9_4.config import ConfigManager
                 print("Using Carla 0.9.4 version environment")
-                env = CarlaEnv94(ep_len=5000)
+                config = ConfigManager(
+                    algo=args.algo, action_type=args.action_type, reward=args.reward_function, use_segmented=args.segmented)
+                env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.pretrained == "none":
                 if args.cnn_size == "Large":
@@ -360,8 +363,8 @@ def sample_and_train(args):
                     
                 # Or compute action 
                 else:
-                    action, _ = agent.get_action(obs, eval_mode=False)
-                    # action, _ = agent.get_action(obs, eval_mode=True) #this worked
+                    action, _ = agent.get_action(obs, eval_mode=True)
+                    # action, _ = agent.get_action(obs, eval_mode=False) # Original
                 
                 
                 # Take a step in environment    
@@ -453,6 +456,9 @@ if __name__ == "__main__":
                         help='one of "Large", "Small", "Smallest"')
     parser.add_argument('--batch-norm', action='store_true',
                         help='apply batch normalization only if True')
+    parser.add_argument('--segmented', action='store_true',
+                        help='Use segmented image instead of RGB image')
+    
     
     # Algorithm specific parameters
     parser.add_argument('--policy-interval', default=2, type=int,
@@ -469,8 +475,8 @@ if __name__ == "__main__":
                         help='one of "Adam", "RMSprop"')
     parser.add_argument('--action-type', default='merged_gas',
                         help='one of "sep_gas", "merged_gas", "steer_only"')
-    parser.add_argument('--reward-function', default='cirl',
-                        help='one of "simplest", "cirl" or "corl"')
+    parser.add_argument('--reward-function', default='new',
+                        help='one of "simplest", "new", "cirl" or "corl"')
     
     # Saving and logging parameters
     parser.add_argument('--log-dir', default='logs/', 
