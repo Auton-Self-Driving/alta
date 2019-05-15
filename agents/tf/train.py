@@ -102,36 +102,36 @@ if __name__ == '__main__':
                 logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], t)
                 obs = env.reset()
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                if(t > 1000 and t % 100 == 0):
-                    print('-'*50)
-                    print('Launching validation step')
-                    print('-'*50)
-                    validation_done = None
-                    while(validation_done != True):
-                        # Take action and update exploration to the newest value
-                        action = act(obs['image'], update_eps=exploration.value(0))[0]
-                        new_obs, rew, done, eps_measurements = env.step(action)
-                        # Store transition in the replay buffer.
-                        # Read only sensor image part of the observation (sensor_image, [measurements_array])
-                        rew = float(rew[0, 0])
-                        done = bool(done[0, 0])
-                        obs = new_obs
-                        # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
-                        if done:
-                            logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
-                            logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
-                            obs = env.reset()
-                            validation_done = True
-                            is_solved = (eps_measurements['distance_to_goal'] < 2.0)
-                            if is_solved:
-                                print('-'*50)
-                                print('Solved!')
-                                print('-'*50)
-                                print('-'*50)
-                                print('Saving model (completed goal)!')
-                                print('-'*50)
-                                wrapped_act = ActWrapper(act, act_params)
-                                wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
+            if(t > 1000 and t % 100 == 0):
+                print('-'*50)
+                print('Launching validation step')
+                print('-'*50)
+                validation_done = None
+                while(validation_done != True):
+                    # Take action and update exploration to the newest value
+                    action = act(obs['image'], update_eps=exploration.value(0))[0]
+                    new_obs, rew, done, eps_measurements = env.step(action)
+                    # Store transition in the replay buffer.
+                    # Read only sensor image part of the observation (sensor_image, [measurements_array])
+                    rew = float(rew[0, 0])
+                    done = bool(done[0, 0])
+                    obs = new_obs
+                    # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
+                    if done:
+                        logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                        logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
+                        obs = env.reset()
+                        validation_done = True
+                        is_solved = (eps_measurements['distance_to_goal'] < 2.0)
+                        if is_solved:
+                            print('-'*50)
+                            print('Solved!')
+                            print('-'*50)
+                            print('-'*50)
+                            print('Saving model (completed goal)!')
+                            print('-'*50)
+                            wrapped_act = ActWrapper(act, act_params)
+                            wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
                 # Update target network periodically
                 if(t > 1000):
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(64)
