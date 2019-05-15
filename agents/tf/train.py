@@ -100,11 +100,13 @@ if __name__ == '__main__':
                 print('-'*50)
                 print('Timesteps:', t)
                 print('-'*50)
-                logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], t)
-                logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], t)
+                logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
+                logger.log_scalar('timesteps/train/dist_to_target', eps_measurements['distance_to_goal'], t)
+                logger.log_scalar('timesteps/train/reward', eps_measurements['total_reward'], t)
                 obs = env.reset()
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                if(t > 1000 and num_done % 100 == 0):
+                if(num_done % 10 == 0):
                     print('-'*50)
                     print('Launching validation step')
                     print('-'*50)
@@ -120,8 +122,10 @@ if __name__ == '__main__':
                         obs = new_obs
                         # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
                         if done:
-                            logger.log_scalar('episodes/validation/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
-                            logger.log_scalar('episodes/validation/reward', eps_measurements['total_reward'], num_episodes)
+                            logger.log_scalar('episodes/val/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                            logger.log_scalar('episodes/val/reward', eps_measurements['total_reward'], num_episodes)
+                            logger.log_scalar('timesteps/val/dist_to_target', eps_measurements['distance_to_goal'], t)
+                            logger.log_scalar('timesteps/val/reward', eps_measurements['total_reward'], t)
                             obs = env.reset()
                             validation_done = True
                             is_solved = (eps_measurements['distance_to_goal'] < 2.0)

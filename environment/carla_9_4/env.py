@@ -80,7 +80,7 @@ DEFAULT_ENV = {
     "city_name" : "Town01",
     "frame_skip": 1,
     "enable_planner" : True,
-    "reward_function" : 'corl2',
+    "reward_function" : 'corlT',
     "save_images_to_disk" : False,
     "record_sim": False,
     "write_data": True,
@@ -703,6 +703,8 @@ class CarlaEnv(gym.Env):
             reward = self._compute_reward_cirl(prev_measurement, cur_measurement)
         elif name == 'corl2':
             reward = self._compute_reward_corl2(prev_measurement, cur_measurement)
+        elif name == 'corlT':
+            reward = self._compute_reward_corlT(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_cirl(self, prev, current):
@@ -823,6 +825,36 @@ class CarlaEnv(gym.Env):
         if current["speed"] == 0:
             self.episode_measurements["static_steps"] += 1
         return reward
+    
+    def _compute_reward_corlT(self, prev, current):
+       cur_dist = current["distance_to_goal"]
+       prev_dist = prev["distance_to_goal"]
+
+       # Distance travelled toward the goal in m
+       #distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+       distance_reward = 1/(cur_dist)**0.5
+       self.episode_measurements["distance_reward"] = distance_reward
+
+       # Change in speed (km/h)
+       speed_reward = 0.05 * (current["speed"] - prev["speed"])
+       self.episode_measurements["speed_reward"] = speed_reward
+
+       # Collision damage
+       collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+       self.episode_measurements["collision_reward"] = collision_reward
+
+       # New sidewalk intersection
+       lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+       self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+       reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+
+       # Update state variables
+       if np.absolute(lane_intersection_reward) > 0:
+           self.episode_measurements["offlane_steps"] += 1
+       if current["speed"] == 0:
+           self.episode_measurements["static_steps"] += 1
+       return reward
 
     def _compute_done_condition(self):
 
@@ -832,6 +864,8 @@ class CarlaEnv(gym.Env):
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
+        offlane = False
+        static = False
 
         if success:
             termination_state = 'success'
