@@ -80,7 +80,7 @@ DEFAULT_ENV = {
     "city_name" : "Town01",
     "frame_skip": 4,
     "enable_planner" : True,
-    "reward_function" : 'corl',
+    "reward_function" : 'corl2',
     "save_images_to_disk" : False,
     "record_sim": False,
     "write_data": True,
@@ -120,17 +120,17 @@ DISCRETE_ACTIONS = {
     # Brake
     2: [-0.5, 0.0],
     # Left
-    3: [0.0, -0.2],
+    3: [0.0, -0.25],
     # Right
-    4: [0.0, 0.2],
+    4: [0.0, 0.25],
     # Forward left
-    5: [0.5, -0.2],
+    5: [0.5, -0.25],
     # Forward right
-    6: [0.5, 0.2],
+    6: [0.5, 0.25],
     # Brake left
-    7: [-0.5, -0.2],
+    7: [-0.5, -0.25],
     # Brake right
-    8: [-0.5, 0.2]
+    8: [-0.5, 0.25]
 }
 
 episode_measurements = {
@@ -242,7 +242,7 @@ class CarlaEnv(gym.Env):
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
-        client.set_timeout(10.0)
+        client.set_timeout(40.0)
         return client
 
     def step(self, action):
@@ -296,10 +296,9 @@ class CarlaEnv(gym.Env):
         #TODO: Increment steps inside of frame_skip?
 
         for _ in range(self.config["frame_skip"]):
+            self.vehicle_actor.apply_control(control)
             self._world.tick()
             timestamp = self._world.wait_for_tick()
-            self.vehicle_actor.apply_control(control)
-
         self.num_steps += 1
         self.episode_measurements['num_steps'] = self.num_steps
 

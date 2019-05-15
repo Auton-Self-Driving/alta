@@ -69,10 +69,10 @@ if __name__ == '__main__':
         print('Built model!')
         print('-'*50)
         # Create the replay buffer
-        replay_buffer = ReplayBuffer(20000)
+        replay_buffer = ReplayBuffer(10000)
         # Create the schedule for exploration starting from 1 (every action is random) down to
         # 0.02 (98% of actions are selected according to values predicted by the model).
-        exploration = LinearSchedule(schedule_timesteps=5000, initial_p=1.0, final_p=0.02)
+        exploration = LinearSchedule(schedule_timesteps=10000, initial_p=1.0, final_p=0.02)
 
         # Initialize the parameters and copy them to the target network.
         U.initialize()
@@ -98,13 +98,10 @@ if __name__ == '__main__':
                 print('-'*50)
                 print('Timesteps:', t)
                 print('-'*50)
-                logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
-                logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
+                logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], t)
+                logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], t)
                 obs = env.reset()
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                if(t > 1000):
-                    obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(400)
-                    td_error = train(obses_t, actions, rewards, obses_tp1, dones, np.ones_like(rewards))
                 if(t > 1000 and t % 100 == 0):
                     print('-'*50)
                     print('Launching validation step')
@@ -136,6 +133,9 @@ if __name__ == '__main__':
                                 wrapped_act = ActWrapper(act, act_params)
                                 wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
                 # Update target network periodically
+                if(t > 1000):
+                    obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(64)
+                    td_error = train(obses_t, actions, rewards, obses_tp1, dones, np.ones_like(rewards))
                 if(t % 1000 == 0 and t > 0):
                     print('-'*50)
                     print('Saving model (checkpoint)!')
