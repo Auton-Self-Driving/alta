@@ -6,10 +6,11 @@ env="Carla-9-4"
 alr=1e-5
 clr=1e-4
 lr=1e-4
-action="steer_only"
+action="merged_gas"
 reward="new"
 optim="Adam"
 cnn="Smallest"
+scenarios="left_right_curved"
 CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --algo DDPG \
         --actor-lr $alr \
@@ -32,7 +33,7 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --log-dir ../logs/$env/04_19 \
         --save-dir ../weights/$env/04_19 \
         --discount 0.99 \
-        --file-name testing
-        # --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-rgb-image-fixed-replay-100k
+        --scenarios $scenarios \
+        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-lrcurved-rgb-image-fixed-replay-100k
 
 # wait

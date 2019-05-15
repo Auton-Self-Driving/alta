@@ -51,7 +51,7 @@ def make_env_and_agent(args):
                 from environment.carla_9_4.config import ConfigManager
                 print("Using Carla 0.9.4 version environment")
                 config = ConfigManager(
-                    algo=args.algo, action_type=args.action_type, reward=args.reward_function, use_segmented=args.segmented)
+                    algo=args.algo, scenarios=args.scenarios, action_type=args.action_type, reward=args.reward_function, use_segmented=args.segmented)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.pretrained == "none":
@@ -207,27 +207,44 @@ def sample_and_train(args):
                         writer.add_scalar('step/' + k, v, total_steps)
         if done and not stop_environment:
             print(total_steps)
-            writer.add_scalar('episodes/train/reward', episode_reward, total_steps)
-            writer.add_scalar('episodes/train/length', episode_steps, total_steps)
+            writer.add_scalar('timesteps/train/reward', episode_reward, total_steps)
+            writer.add_scalar('timesteps/train/length', episode_steps, total_steps)
+            writer.add_scalar('episodes/train/reward', episode_reward, episode_id)
+            writer.add_scalar('episodes/train/length', episode_steps, episode_id)
             if "Carla" in args.env_name:
                 writer.add_scalar(
-                    'episodes/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
-                writer.add_scalar('episodes/train/success',
-                                success_episodes, total_steps)
-                writer.add_scalar('episodes/train/collision',
-                                collision_episodes, total_steps)
-                writer.add_scalar('episodes/train/offlane',
-                                offlane_episodes, total_steps)
-                writer.add_scalar('episodes/train/static',
-                                static_episodes, total_steps)
-                writer.add_scalar('episodes/train/max_steps',
-                                max_steps_episodes, total_steps)
+                    'timesteps/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
+                writer.add_scalar(
+                    'episodes/train/dist_to_target', obs["dist_to_target"].item(), episode_id)
+                
+                if "termination_state" in step_info:
+                    writer.add_scalar('timesteps/train/success',
+                                    success_episodes, total_steps)
+                    writer.add_scalar('timesteps/train/collision',
+                                    collision_episodes, total_steps)
+                    # writer.add_scalar('timesteps/train/offlane',
+                    #                 offlane_episodes, total_steps)
+                    # writer.add_scalar('timesteps/train/static',
+                    #                 static_episodes, total_steps)
+                    # writer.add_scalar('timesteps/train/max_steps',
+                    #                 max_steps_episodes, total_steps)
+                    
+                    writer.add_scalar('episodes/train/success',
+                                    success_episodes, episode_id)
+                    writer.add_scalar('episodes/train/collision',
+                                    collision_episodes, episode_id)
+                    # writer.add_scalar('episodes/train/offlane',
+                    #                 offlane_episodes, episode_id)
+                    # writer.add_scalar('episodes/train/static',
+                    #                 static_episodes, episode_id)
+                    # writer.add_scalar('episodes/train/max_steps',
+                    #                 max_steps_episodes, episode_id)
 
         # Save weights
         if total_steps % args.save_interval == 0:
             agent.save(save_file)
     
-    def validate():
+    def validate(unseen=False):
         # Define as non local variables to update local copy
         nonlocal success_val_episodes
         nonlocal collision_val_episodes
@@ -235,7 +252,7 @@ def sample_and_train(args):
         nonlocal static_val_episodes
         nonlocal max_steps_val_episodes
 
-        obs = env.reset()
+        obs = env.reset(unseen=unseen)
         if args.env_name == "Carla-9-4":
             obs = convert_observation(obs)
         done = False
@@ -273,22 +290,42 @@ def sample_and_train(args):
                 elif termination_state is 'max_steps':
                     max_steps_val_episodes += 1
                 del step_info["termination_state"]
-
-        writer.add_scalar('episodes/val/reward', episode_reward, total_steps)
-        writer.add_scalar('episodes/val/length', episode_steps, total_steps)
+        
+        if unseen:
+            val = "unseen_val"
+        else:
+            val = "val"
+        writer.add_scalar('timesteps/{}/reward'.format(val), episode_reward, total_steps)
+        writer.add_scalar('timesteps/{}/length'.format(val), episode_steps, total_steps)
+        writer.add_scalar('episodes/{}/reward'.format(val), episode_reward, episode_id)
+        writer.add_scalar('episodes/{}/length'.format(val), episode_steps, episode_id)
         if "Carla" in args.env_name:
             writer.add_scalar(
-                'episodes/val/dist_to_target', obs["dist_to_target"].item(), total_steps)
-            writer.add_scalar('episodes/val/success',
-                            success_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/collision',
-                            collision_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/offlane',
-                            offlane_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/static',
-                            static_val_episodes, total_steps)
-            writer.add_scalar('episodes/val/max_steps',
-                            max_steps_val_episodes, total_steps)
+                'timesteps/{}/dist_to_target'.format(val), obs["dist_to_target"].item(), total_steps)
+            writer.add_scalar(
+                'episodes/{}/dist_to_target'.format(val), obs["dist_to_target"].item(), episode_id)
+            if "termination_state" in step_info:
+                writer.add_scalar('timesteps/{}/success'.format(val),
+                                success_val_episodes, total_steps)
+                writer.add_scalar('timesteps/{}/collision'.format(val),
+                                collision_val_episodes, total_steps)
+                # writer.add_scalar('timesteps/{}/offlane'.format(val),
+                #                 offlane_val_episodes, total_steps)
+                # writer.add_scalar('timesteps/{}/static'.format(val),
+                #                 static_val_episodes, total_steps)
+                # writer.add_scalar('timesteps/{}/max_steps'.format(val),
+                #                 max_steps_val_episodes, total_steps)
+            
+                writer.add_scalar('episodes/{}/success'.format(val),
+                                success_val_episodes, episode_id)
+                writer.add_scalar('episodes/{}/collision'.format(val),
+                                collision_val_episodes, episode_id)
+                # writer.add_scalar('episodes/{}/offlane'.format(val),
+                #                 offlane_val_episodes, episode_id)
+                # writer.add_scalar('episodes/{}/static'.format(val),
+                #                 static_val_episodes, episode_id)
+                # writer.add_scalar('episodes/{}/max_steps'.format(val),
+                #                 max_steps_val_episodes, episode_id)
 
     # Ensure log_dir and save_dir are present
     silent_add(args.log_dir, args.save_dir)
@@ -316,8 +353,6 @@ def sample_and_train(args):
     memory = ReplayMemory(args.replay_size)
         
     total_steps = 0
-    val_steps = 0
-    val_step_interval = args.val_steps
 
     # Episode termination state count for Carla
     success_episodes = 0
@@ -333,11 +368,16 @@ def sample_and_train(args):
     static_val_episodes = 0
     max_steps_val_episodes = 0
     
+    episode_id = 0
+    
     while total_steps < args.max_steps:
-        if total_steps > val_steps:
+        if (episode_id + 1) % args.val_steps == 0:
             print("Validating DDPG networks!!!")
+            # Validate on same scenario
             validate()
-            val_steps += val_step_interval
+            
+            # Validation on unseen scenario
+            validate(unseen=True)
 
         # Start new episode
         if not args.fixed_replay or total_steps <= args.replay_size:
@@ -347,15 +387,15 @@ def sample_and_train(args):
             done = False
             episode_reward = 0
             episode_steps = 0
-            
+            episode_id += 1
             while not done:
                 # Take a random action to bootstrap exploration
                 if total_steps < args.start_steps:
                     if "Carla" in args.env_name:
                         if args.action_type == "merged_gas":
-                            action = torch.tensor([[0., 1.]])
+                            action = torch.tensor([[0.0, 0.50]])
                         elif args.action_type == "steer_only":
-                            action = torch.tensor([[0.]])
+                            action = torch.tensor([[0.0]])
                         
                         action += agent.noise.sample()
                     else:
@@ -438,7 +478,7 @@ if __name__ == "__main__":
                         help='Fix replay buffer')
     parser.add_argument('--start-steps', default=0, type=int,
                         help='number of random steps to aid exploration')
-    parser.add_argument('--val-steps', default=1000, type=int,
+    parser.add_argument('--val-steps', default=10, type=int,
                         help='Validation step size')
     parser.add_argument('--max-steps', default=1e6, type=int,
                         help='number of environment steps to train')
@@ -477,6 +517,8 @@ if __name__ == "__main__":
                         help='one of "sep_gas", "merged_gas", "steer_only"')
     parser.add_argument('--reward-function', default='new',
                         help='one of "simplest", "new", "cirl" or "corl"')
+    parser.add_argument('--scenarios', default='straight',
+                        help='one of "straight", "right_curved", "left_curved", "left_right_curved"')
     
     # Saving and logging parameters
     parser.add_argument('--log-dir', default='logs/', 

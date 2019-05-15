@@ -1,10 +1,10 @@
 class ConfigManager(object):
-    def __init__(self, algo='DDPG', action_type="merged_gas", reward="new", use_segmented=False):
+    def __init__(self, algo='DDPG', scenarios="straight", action_type="merged_gas", reward="new", use_segmented=False):
         self.config = {}
 
-        self._initialize_config(algo, action_type, reward, use_segmented)
+        self._initialize_config(algo, scenarios, action_type, reward, use_segmented)
     
-    def _initialize_config(self, algo, action_type, reward, use_segmented):
+    def _initialize_config(self, algo, scenarios, action_type, reward, use_segmented):
         if algo == 'DDPG':
             self.config["algo"] = "DDPG"
             self.config["x_res"] = 200
@@ -19,6 +19,7 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["verbose"] = True
             self.config["segmented"] = use_segmented
+            self.config["scenarios"] = scenarios
         elif algo == 'DQN':
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84
@@ -29,3 +30,4 @@ class ConfigManager(object):
             self.config["action_type"] = "sep_gas"
             self.config["framestack"] = 4
             self.config["grayscale"] = True
+            self.config["segmented"] = use_segme

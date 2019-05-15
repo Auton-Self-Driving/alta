@@ -21,7 +21,7 @@ except Exception as e:
     raise e
 
 import logging
-mport traceback
+import traceback
 import random
 import numpy as np
 from gym import Env
@@ -280,9 +280,21 @@ class CarlaEnv(Env):
                 break
             except:
                 print("could not connect. Trying again")
-        self.source_transform, self.destination_transform = get_fixed_short_straight_path_Town01()
+        self._set_scenario()
         self._get_actors()
-        
+    
+    def _set_scenario(self, unseen=False):
+        if self.config["scenarios"] == "straight":
+            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01(unseen)
+        elif self.config["scenarios"] == "left_right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
+        elif self.config["scenarios"] == "right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
+        elif self.config["scenarios"] == "left_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
+        else:
+            raise ValueError("Scenarios Config not set!")
+
     def _clamp_action(self, action, min_val=-0.5, max_val=0.5):
         return np.clip(action, a_min = min_val, a_max = max_val) 
     
@@ -367,7 +379,7 @@ class CarlaEnv(Env):
         obs['orientation'] = np.expand_dims(
 	            self._get_orientation_measurements(), axis=0)
 
-        reward = self._compute_reward(self.config['reward_function'], prev_measurement, cur_measurement):
+        reward = self._compute_reward(self.config['reward_function'], self.prev_measurement, self.episode_measurements)
             
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
@@ -379,8 +391,8 @@ class CarlaEnv(Env):
         self.episode_measurements['done'] = done
         self.prev_measurement = dc(self.episode_measurements)
         info = {}
-        if done:
-            self.reset()
+        # if done:
+        #     self.reset()
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
         
@@ -449,8 +461,7 @@ class CarlaEnv(Env):
             if self.config["segmented"]:
                 caarla_image.convert(cc.CityScapesPalette)
             self.observation_image = dc(get_cv_image(caarla_image))
-
-            self.observation_image = cv2.resize(self.observation_image, (self.config["y_res"], self.config["x_res"]))
+            self.observation_image = cv2.resize(self.observation_image, (self.config["x_res"], self.config["y_res"]))
 
             if caarla_image.frame_number == ts.frame_count:
                 break
@@ -494,7 +505,7 @@ class CarlaEnv(Env):
             a = self.actor_list.pop()
             a.destroy()
 
-    def reset(self):
+    def reset(self, unseen=False):
         self._destroy_actors()
         self._clear_episode_measurements()
         
@@ -504,7 +515,7 @@ class CarlaEnv(Env):
         self._get_actors()
         self._attach_image_queue_to_camera()
         self.frame = None
-        self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01()
+        self._set_scenario(unseen=unseen)
 
         self.episode_measurements['num_collisions'] = self.actor_list[2].num_collisions
         self.episode_measurements['num_laneintersections'] = self.actor_list[3].num_laneintersections
@@ -512,13 +523,14 @@ class CarlaEnv(Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = get_speed_from_velocity(velocity=self.actor_list[0].get_velocity())
 
-        self.prev_measurement = dc(self.episode_measurements)
         obs = {}
         obs['dist_to_target'] = np.array(
             [self.episode_measurements['distance_to_goal']])
         obs['image'] = np.random.random((88, 200, 3))
         obs['orientation'] = np.expand_dims(
 	            self._get_orientation_measurements(), axis=0)
+        self.prev_measurement = dc(self.episode_measurements)
+        
         return obs
         # print("CALLED RESET")
         self._reset()  # THIS CAUSES TROUBLE WITH PPO2
@@ -526,9 +538,11 @@ class CarlaEnv(Env):
     def _is_game_over(self, collision, distance):
         if collision:
             print("Collision: Distance remaining: {}".format(distance))
+            self.episode_measurements['termination_state'] = 'collision'
             return True
         elif distance <= 4.0:
             print("Goal Reached: Distance remaining: {}".format(distance))
+            self.episode_measurements['termination_state'] = 'success'
             return True
         else:
             return False
