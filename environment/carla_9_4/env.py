@@ -78,7 +78,7 @@ DEFAULT_ENV = {
     "server_fps" : 10,
     "server_port" : None,
     "city_name" : "Town01",
-    "frame_skip": 4,
+    "frame_skip": 1,
     "enable_planner" : True,
     "reward_function" : 'corl2',
     "save_images_to_disk" : False,
@@ -90,8 +90,8 @@ DEFAULT_ENV = {
     "discrete_actions": True,
 
     # Number of frames stacked together
-    "framestack" : 4,
-    "grayscale" : True,
+    "framestack" : 1,
+    "grayscale" : False,
     "num_vehicles" : 0,
     "num_pedestrians" : 0,
     "max_steps" : 400,
@@ -102,7 +102,7 @@ DEFAULT_ENV = {
     "sensors": ["sensor.camera.rgb"],
     "action_type": "merged_gas",
     "sensor_tick": '1.0',
-    "dist_for_success" : 2.0,
+    "dist_for_success" : 4.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 100,
     "log_measurements_to_file": False,
@@ -117,20 +117,20 @@ DISCRETE_ACTIONS = {
     0: [0.0, 0.0],
     # Forward
     1: [0.5, 0.0],
-    # Brake
-    2: [-0.5, 0.0],
-    # Left
-    3: [0.0, -0.25],
-    # Right
-    4: [0.0, 0.25],
     # Forward left
-    5: [0.5, -0.25],
+    2: [0.25, -0.3],
+    3: [0.25, -0.1],
     # Forward right
-    6: [0.5, 0.25],
+    4: [0.25, 0.1],
+    5: [0.25, 0.3],
+    # Brake
+    6: [-0.5, 0.0],
     # Brake left
-    7: [-0.5, -0.25],
+    7: [-0.25, -0.3],
+    8: [-0.25, -0.1],
     # Brake right
-    8: [-0.5, 0.25]
+    9: [-0.25, 0.1],
+    10: [-0.25, 0.3]
 }
 
 episode_measurements = {
