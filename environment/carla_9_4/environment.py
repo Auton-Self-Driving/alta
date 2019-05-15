@@ -97,6 +97,22 @@ def paths_straight_Town01():
 
     return paths
 
+def paths_right_turn_Town01():
+
+    paths = [
+        [
+            Transform(Location(x=1.5599950551986694, y=79.32001495361328, z=1.32), Rotation(yaw=-90.00040435791016)),
+            Transform(Location(x=62.12999725341797, y=2.020014524459839, z=1.32), Rotation(yaw=-9.1552734375e-05))
+        ],
+        [
+            Transform(Location(x=65.3499755859375, y=326.9700012207031, z=1.32), Rotation(yaw=179.999755859375)),
+            Transform(Location(x=1.5099804401397705, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
+        ]
+    ]
+    return paths
+
+def get_fixed_right_turn_Town01():
+    return paths_right_turn_Town01()[0]
 
 def get_fixed_short_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
@@ -250,7 +266,7 @@ class CarlaEnv(Env):
 
         while True:
             try:
-                client = carla.Client('localhost', 5700)
+                client = carla.Client('localhost', 9700)
                 client.set_timeout(60.0)
                 self.world = client.get_world()
                 settings = self.world.get_settings()
@@ -259,8 +275,14 @@ class CarlaEnv(Env):
                 break
             except:
                 print("could not connect. Trying again")
-        self.source_transform, self.destination_transform = get_fixed_short_straight_path_Town01()
+        self.source_transform, self.destination_transform = get_fixed_right_turn_Town01()
         self._get_actors()
+
+    def render(self, carla_image, mode='human'):
+        print("in render")
+        cv2.imshow('im', self.observation_image)
+        cv2.waitKey(1)
+        # draw_image(self.display, carla_image)
 
     def step(self, action):
         self.action = action
@@ -376,7 +398,7 @@ class CarlaEnv(Env):
             self.observation_image = dc(get_cv_image(caarla_image))
 
             self.observation_image = cv2.resize(self.observation_image, (self.WIDTH, self.HEIGHT))
-            # self.render(carla_image=caarla_image)
+            #self.render(carla_image=caarla_image)
             # encoded_observation = self.vae_observation(self.observation_image)
 
             if caarla_image.frame_number == ts.frame_count:
@@ -431,7 +453,7 @@ class CarlaEnv(Env):
         self._get_actors()
         self._attach_image_queue_to_camera()
         self.frame = None
-        self.source_transform, self.destination_transform = get_fixed_short_straight_path_Town01()
+        self.source_transform, self.destination_transform = get_fixed_right_turn_Town01()
 
         self.episode_measurements['num_collisions'] = self.actor_list[2].num_collisions
         self.episode_measurements['num_laneintersections'] = self.actor_list[3].num_laneintersections

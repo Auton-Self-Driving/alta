@@ -52,6 +52,20 @@ def paths_straight_Town01():
 
     return paths
 
+
+def paths_right_turn_Town01():
+
+    paths = [
+        [
+            Transform(Location(x=1.5599950551986694, y=79.32001495361328, z=1.32), Rotation(yaw=-90.00040435791016)),
+            Transform(Location(x=62.12999725341797, y=2.020014524459839, z=1.32), Rotation(yaw=-9.1552734375e-05))
+        ],
+        [
+            Transform(Location(x=65.3499755859375, y=326.9700012207031, z=1.32), Rotation(yaw=179.999755859375)),
+            Transform(Location(x=1.5099804401397705, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
+        ]
+    ]
+
 def get_fixed_short_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
     return paths_straight_Town01()[0]
@@ -63,3 +77,6 @@ def get_fixed_long_straight_path_Town01():
 def get_random_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
     return random.choice(paths_straight_Town01())
+
+def get_fixed_right_turn_Town01():
+    return paths_right_turn_Town01()[0]

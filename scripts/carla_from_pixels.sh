@@ -32,6 +32,6 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --log-dir ../logs/$env/04_19 \
         --save-dir ../weights/$env/04_19 \
         --discount 0.99 \
-        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k-run_episodefixed_1
+        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-measurements-only-fixed-replay-100k-run_right_steeronly_1
 
 # wait
