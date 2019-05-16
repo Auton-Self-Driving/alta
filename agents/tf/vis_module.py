@@ -27,11 +27,3 @@ class vis():
     def remove_images(self):
         rm_img_command = ["rm", "-f", "{}/*.png".format(self.images_path)]
         rm_img_process = subprocess.Popen(rm_img_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
-
-    def close(self):
-        if self.server_process:
-            pgid = os.getpgid(self.server_process.pid)
-            os.killpg(pgid, signal.SIGKILL)
-            self.server_port = None
-            self.server_process = None
-            print("Killed server process")

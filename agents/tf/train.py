@@ -26,6 +26,8 @@ from baselines.deepq.replay_buffer import ReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
 
+import vis_module
+
 from gym import wrappers
 
 from datetime import datetime
@@ -39,10 +41,14 @@ import tensorboard_logging as tf_log
 
 if __name__ == '__main__':
     MODEL_SAVE_DIR = '/media/hdd/shubhand/'
+    IMAGES_PATH = MODEL_SAVE_DIR+'alta-logs/images'
+    VIDEO_PATH = MODEL_SAVE_DIR+'alta-logs/videos'
+    FRAME_SKIP = 4
     with U.make_session():
         # Create the environment
         config = ConfigManager(algo="DQN")
         env = CarlaEnv(config.config)
+        vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
         # NOTE: not using Monitor for now. integrate later
         # env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
         logger = tf_log.Logger('./tf-logs/'+str(datetime.now()))
@@ -88,6 +94,7 @@ if __name__ == '__main__':
             # Take action and update exploration to the newest value
             action = act(obs['image'], update_eps=exploration.value(t))[0]
             new_obs, rew, done, eps_measurements = env.step(action)
+            vis_wrapper.save_image(obs['image'], t)
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
             rew = float(rew[0, 0])
@@ -104,6 +111,8 @@ if __name__ == '__main__':
                 logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
                 logger.log_scalar('timesteps/train/dist_to_target', eps_measurements['distance_to_goal'], t)
                 logger.log_scalar('timesteps/train/reward', eps_measurements['total_reward'], t)
+                vis_wrapper.save_video(num_episodes)
+                vis_wrapper.remove_images()
                 obs = env.reset()
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if(num_done % 10 == 0):
