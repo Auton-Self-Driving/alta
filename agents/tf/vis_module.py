@@ -33,3 +33,5 @@ class vis():
         images = glob.glob("{}/*.png".format(self.images_path))
         for image in images:
             os.remove(image)
+        # Reset image idx (ffmpeg starts from index 0)? Bug where there was no video generation past episode 1
+        self.image_idx = 0
