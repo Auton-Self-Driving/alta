@@ -45,6 +45,7 @@ if __name__ == '__main__':
     IMAGES_PATH = MODEL_SAVE_DIR+'alta-logs/images'
     VIDEO_PATH = MODEL_SAVE_DIR+'alta-logs/videos'
     FRAME_SKIP = 4
+    prefix = 'dqn_rgb_lr_5e4_g_95_straight_r1'
     with U.make_session():
         # Create the environment
         config = ConfigManager(algo="DQN")
@@ -52,7 +53,7 @@ if __name__ == '__main__':
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
         # NOTE: not using Monitor for now. integrate later
         # env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
-        logger = tf_log.Logger('./tf-logs/'+str(datetime.now()))
+        logger = tf_log.Logger('./tf-logs/'+ prefix +str(datetime.now()))
         print('-'*50)
         print('Launched environment!')
         print('-'*50)
@@ -121,7 +122,7 @@ if __name__ == '__main__':
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                 if(num_done % 10 == 0):
                     print('-'*50)
-                    print('Launching validation step')
+                    print('Launching validation step on seen')
                     print('-'*50)
                     validation_done = None
                     while(validation_done != True):
@@ -139,18 +140,31 @@ if __name__ == '__main__':
                             logger.log_scalar('episodes/val/reward', eps_measurements['total_reward'], num_episodes)
                             logger.log_scalar('timesteps/val/dist_to_target', eps_measurements['distance_to_goal'], t)
                             logger.log_scalar('timesteps/val/reward', eps_measurements['total_reward'], t)
+                            validation_done = True
+
+                    print('-'*50)
+                    print('Launching validation step on unseen')
+                    print('-'*50)
+                    obs = env.reset(unseen=True)
+                    validation_done = None
+                    while(validation_done != True):
+                        # Take action and update exploration to the newest value
+                        action = act(obs['image'], update_eps=0)[0]
+                        new_obs, rew, done, eps_measurements = env.step(action)
+                        # Store transition in the replay buffer.
+                        # Read only sensor image part of the observation (sensor_image, [measurements_array])
+                        rew = float(rew[0, 0])
+                        done = bool(done[0, 0])
+                        obs = new_obs
+                        # plt.imsave('img'+str(t).zfill(4)+'.png', obs)
+                        if done:
+                            logger.log_scalar('episodes/val_unseen/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
+                            logger.log_scalar('episodes/val_unseen/reward', eps_measurements['total_reward'], num_episodes)
+                            logger.log_scalar('timesteps/val_unseen/dist_to_target', eps_measurements['distance_to_goal'], t)
+                            logger.log_scalar('timesteps/val_unseen/reward', eps_measurements['total_reward'], t)
                             obs = env.reset()
                             validation_done = True
-                            is_solved = (eps_measurements['distance_to_goal'] < 2.0)
-                            if is_solved:
-                                print('-'*50)
-                                print('Solved!')
-                                print('-'*50)
-                                print('-'*50)
-                                print('Saving model (completed goal)!')
-                                print('-'*50)
-                                wrapped_act = ActWrapper(act, act_params)
-                                wrapped_act.save(MODEL_SAVE_DIR+'tf-models/trained/corl-carla-model-'+str(t)+'.pkl')
+
                 # Update target network periodically
                 if(t > 1000):
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(64)
@@ -160,5 +174,5 @@ if __name__ == '__main__':
                     print('Saving model (checkpoint)!')
                     print('-'*50)
                     wrapped_act = ActWrapper(act, act_params)
-                    wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+str(t)+'.pkl')
+                    wrapped_act.save(MODEL_SAVE_DIR+'tf-models/checkpoint/corl-carla-model-'+ prefix +str(t)+'.pkl')
                     update_target()

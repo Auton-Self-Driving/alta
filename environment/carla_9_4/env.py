@@ -109,7 +109,8 @@ DEFAULT_ENV = {
     "train_config": 'baselines',
     "sync_mode": True,
     # NOTE: crop does not work with framestack yet. need to add.
-    "preprocess_crop_image": False
+    "preprocess_crop_image": False,
+    "scenarios" : "straight"
 }
 
 DISCRETE_ACTIONS = {
@@ -360,6 +361,18 @@ class CarlaEnv(gym.Env):
 
         return obs, reward, done, self.episode_measurements
 
+    def _set_scenario(self, unseen=False):
+        if self.config["scenarios"] == "straight":
+            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01(unseen)
+        elif self.config["scenarios"] == "left_right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
+        elif self.config["scenarios"] == "right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
+        elif self.config["scenarios"] == "left_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
+        else:
+            raise ValueError("Scenarios Config not set!")
+
     def get_control(self, action):
         """ Get Control object for Carla from action
         Input:
@@ -399,8 +412,8 @@ class CarlaEnv(gym.Env):
 
         return control
 
-    def reset(self):
-        return self._reset()
+    def reset(self, unseen=False):
+        return self._reset(unseen)
 
     def destroy_all_existing_actors(self):
 
@@ -416,7 +429,7 @@ class CarlaEnv(gym.Env):
         for key, val in self.episode_measurements.items():
             self.episode_measurements[key] = 0
 
-    def _reset(self):
+    def _reset(self, unseen=False):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
 
         self.clear_episode_measurements()
@@ -452,7 +465,7 @@ class CarlaEnv(gym.Env):
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["city_name"] == "Town01":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01()
+            self._set_scenario(unseen=unseen)
         else:
 
             # Set source and destination at random spawn points
