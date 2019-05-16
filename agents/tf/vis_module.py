@@ -10,6 +10,7 @@ class vis():
         self.video_path = video_path
         # Keeps track of internal image ID
         self.image_idx = 0
+        self.create_directories_if_not_exist(images_path, video_path)
 
     def save_image(self, image, step_number):
         if(step_number % self.frame_skip == 0):
@@ -35,3 +36,8 @@ class vis():
             os.remove(image)
         # Reset image idx (ffmpeg starts from index 0)? Bug where there was no video generation past episode 1
         self.image_idx = 0
+
+    def create_directories_if_not_exist(self,*directories):
+        for d in directories:
+            if not os.path.exists(d):
+                os.makedirs(d)

@@ -23,3 +23,4 @@ class ConfigManager(object):
             self.config["action_type"] = "sep_gas"
             self.config["framestack"] = 4
             self.config["grayscale"] = True
+            self.config["scenarios"] = "straight"

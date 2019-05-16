@@ -41,11 +41,12 @@ import matplotlib.pyplot as plt
 import tensorboard_logging as tf_log
 
 if __name__ == '__main__':
-    MODEL_SAVE_DIR = '/media/hdd/shubhand/'
-    IMAGES_PATH = MODEL_SAVE_DIR+'alta-logs/images'
-    VIDEO_PATH = MODEL_SAVE_DIR+'alta-logs/videos'
+    prefix = 'dqn_rgb_lr_5e4_g_95_straight_run1'
+    MODEL_SAVE_DIR = '/media/hdd/hiteshar/'
+    IMAGES_PATH = MODEL_SAVE_DIR+'alta-logs/images/' + prefix
+    VIDEO_PATH = MODEL_SAVE_DIR+'alta-logs/videos/' + prefix
     FRAME_SKIP = 4
-    prefix = 'dqn_rgb_lr_5e4_g_95_straight_r1'
+    
     with U.make_session():
         # Create the environment
         config = ConfigManager(algo="DQN")
