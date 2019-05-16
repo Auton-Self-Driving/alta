@@ -113,7 +113,7 @@ if __name__ == '__main__':
                     validation_done = None
                     while(validation_done != True):
                         # Take action and update exploration to the newest value
-                        action = act(obs['image'], update_eps=exploration.value(0))[0]
+                        action = act(obs['image'], update_eps=0)[0]
                         new_obs, rew, done, eps_measurements = env.step(action)
                         # Store transition in the replay buffer.
                         # Read only sensor image part of the observation (sensor_image, [measurements_array])
