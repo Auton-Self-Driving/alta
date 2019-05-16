@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import subprocess
 import os
+import glob
 
 class vis():
     def __init__(self, images_path, video_path, frame_skip):
@@ -23,7 +24,12 @@ class vis():
         gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p",
         vid_path]
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
+        gen_vid_process.wait()
 
     def remove_images(self):
-        rm_img_command = ["rm", "-f", "{}/*.png".format(self.images_path)]
-        rm_img_process = subprocess.Popen(rm_img_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
+        # rm_img_command = ["rm", "-f", "{}/*.png".format(self.images_path)]
+        # rm_img_process = subprocess.Popen(rm_img_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
+        #TODO: Faster way remove images?
+        images = glob.glob("{}/*.png".format(self.images_path))
+        for image in images:
+            os.remove(image)

@@ -15,6 +15,7 @@ import itertools
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
+import time
 
 import baselines.common.tf_util as U
 
@@ -111,7 +112,10 @@ if __name__ == '__main__':
                 logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
                 logger.log_scalar('timesteps/train/dist_to_target', eps_measurements['distance_to_goal'], t)
                 logger.log_scalar('timesteps/train/reward', eps_measurements['total_reward'], t)
-                vis_wrapper.save_video(num_episodes)
+                print('-'*50)
+                print('Generating video')
+                print('-'*50)
+                vis_wrapper.generate_video(num_episodes)
                 vis_wrapper.remove_images()
                 obs = env.reset()
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
