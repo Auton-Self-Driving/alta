@@ -21,6 +21,6 @@ class ConfigManager(object):
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"
-            self.config["framestack"] = 4
-            self.config["grayscale"] = True
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
             self.config["scenarios"] = "straight"

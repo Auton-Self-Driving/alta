@@ -57,3 +57,27 @@ def CoRLModel(inputs, num_actions, scope, reuse=False):
             activation_fn=None,
             scope="y")
     return net
+
+def MeasurementsModel(inputs, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        activation = tf.nn.relu
+        net = inputs
+        net = slim.fully_connected(
+            net,
+            128,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=activation,
+            scope="fc1")
+        net = slim.fully_connected(
+            net,
+            128,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=activation,
+            scope="fc2")
+        net = slim.fully_connected(
+            net,
+            num_actions,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=None,
+            scope="y")
+    return net

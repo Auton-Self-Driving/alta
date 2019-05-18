@@ -70,28 +70,18 @@ class GlobalPlanner():
             
             dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
             
-            print("i, dot, angle")
-            print(i, dot, angle)
-            print(next_waypoints_angles)
-
             # next_waypoint_found implies the first waypoint with 
             # positive dot product is found
             if not next_waypoint_found:
-                print("next waypoint not found")
                 if dot >= 0:
-                    print( " dot product positive")
                     max_index = i
                     next_waypoint_found = True
                     next_waypoints_angles = [angle]
             else:
-                print("next waypoint is found")
                 if len(next_waypoints_angles) < num_next_waypoints:
-                    print("list has more room")
                     next_waypoints_angles.append(angle)
                 else:
                     break
-        print("Final next_waypoints_angles {0}".format(next_waypoints_angles))
-        print(self._waypoints_queue)
         if max_index > 0:
             for i in range(max_index):
                 self._waypoints_queue.popleft()
@@ -101,7 +91,6 @@ class GlobalPlanner():
         else:
             angle = 0
 
-        print ("Final angle {0}".format(angle))
         return angle
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):

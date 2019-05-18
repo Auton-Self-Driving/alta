@@ -80,7 +80,7 @@ DEFAULT_ENV = {
     "city_name" : "Town01",
     "frame_skip": 1,
     "enable_planner" : True,
-    "reward_function" : 'corlT',
+    "reward_function" : 'corl',
     "save_images_to_disk" : False,
     "record_sim": False,
     "write_data": True,
@@ -558,16 +558,11 @@ class CarlaEnv(gym.Env):
         self.global_planner.set_global_plan(self.trace_route)
         orientation = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         
-        print('-'*50)
-        print("Trace route")
-        print(self.trace_route)
-        print('-'*50)        
-
         obs['image'] = image
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
-        obs['orienation'] = np.expand_dims(orientation, axis=0)
+        obs['orientation'] = np.expand_dims(orientation, axis=0)
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         return obs
@@ -798,7 +793,7 @@ class CarlaEnv(gym.Env):
             print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
         # Distance travelled toward the goal in m
-        distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        distance_reward = 10000 * (prev_dist - cur_dist)
         self.episode_measurements["distance_reward"] = distance_reward
 
         # Change in speed (km/h)
