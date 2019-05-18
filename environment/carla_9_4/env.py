@@ -22,7 +22,7 @@ import time
 
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
-
+import environment.carla_9_4.planner as planner
 import scipy.misc
 from scipy.misc import imsave
 
@@ -49,12 +49,12 @@ except Exception as e:
     print("Failed to import Carla")
     raise e
 
-from environment.carla_9_4.agents.navigation.agent import *
-from environment.carla_9_4.agents.navigation.local_planner import LocalPlanner
-from environment.carla_9_4.agents.navigation.local_planner import compute_connection, RoadOption
-from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
-from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from environment.carla_9_4.agents.tools.misc import vector
+# from environment.carla_9_4.agents.navigation.agent import *
+# from environment.carla_9_4.agents.navigation.local_planner import LocalPlanner
+# from environment.carla_9_4.agents.navigation.local_planner import compute_connection, RoadOption
+# from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
+# from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+# from environment.carla_9_4.agents.tools.misc import vector
 import environment.carla_9_4.sensors as sensors
 
 # Dict storing basic environ config params
@@ -194,6 +194,8 @@ class CarlaEnv(gym.Env):
         # Set default source and destination points (in _reset function)
         self.source_transform = None
         self.destination_transform = None
+        self.global_planner = None
+        self.trace_route = None
 
         # Compute number of channels in sensor image
         # We use this later in the preprocess step to reshape the data
@@ -356,6 +358,7 @@ class CarlaEnv(gym.Env):
             [self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
+        obs['orientation'] = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -510,9 +513,9 @@ class CarlaEnv(gym.Env):
         #Attach planner to vehicle actor
         #TODO: Check how to give steering as input to PID? Target speed is present as input
         #TODO: Clean up destination init (pass in a location)
-        if self.config["enable_planner"]:
-            self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
-            self._set_destination(location=self.destination_transform.location)
+        # if self.config["enable_planner"]:
+        #     self._local_planner = LocalPlanner(self.vehicle_actor, opt_dict={'target_speed' : self.target_speed})
+        #     self._set_destination(location=self.destination_transform.location)
         # Get start and end positions (to figure out when to end the episode)
         # print("Start pos {}, End Pos {}".format(
         #     spawn_point.location, self.start_coord,
@@ -549,10 +552,22 @@ class CarlaEnv(gym.Env):
             timestamp = self._world.wait_for_tick()
         image = self._read_data()
 
+        self.global_planner = planner.GlobalPlanner()
+        self.trace_route  = self.global_planner._trace_route(self._map,
+                                self.source_transform, self.destination_transform)
+        self.global_planner.set_global_plan(self.trace_route)
+        orientation = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        
+        print('-'*50)
+        print("Trace route")
+        print(self.trace_route)
+        print('-'*50)        
+
         obs['image'] = image
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
+        obs['orienation'] = np.expand_dims(orientation, axis=0)
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         return obs
@@ -562,90 +577,90 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def _set_destination(self,location):
-        """Generate waypoints and feed into local + global planner
-        Parameters
-        ----------
-        location: Final destination waypoint
-        """
-        start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
-        end_waypoint = self._map.get_waypoint(
-            carla.Location(location.x, location.y, location.z))
-        solution = []
+    # def _set_destination(self,location):
+    #     """Generate waypoints and feed into local + global planner
+    #     Parameters
+    #     ----------
+    #     location: Final destination waypoint
+    #     """
+    #     start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
+    #     end_waypoint = self._map.get_waypoint(
+    #         carla.Location(location.x, location.y, location.z))
+    #     solution = []
 
-        # Setting up global router
-        dao = GlobalRoutePlannerDAO(self.vehicle_actor.get_world().get_map())
-        grp = GlobalRoutePlanner(dao)
-        grp.setup()
+    #     # Setting up global router
+    #     dao = GlobalRoutePlannerDAO(self.vehicle_actor.get_world().get_map())
+    #     grp = GlobalRoutePlanner(dao)
+    #     grp.setup()
 
-        # Obtain route plan
-        x1 = start_waypoint.transform.location.x
-        y1 = start_waypoint.transform.location.y
-        x2 = end_waypoint.transform.location.x
-        y2 = end_waypoint.transform.location.y
-        route = grp.plan_route((x1, y1), (x2, y2))
+    #     # Obtain route plan
+    #     x1 = start_waypoint.transform.location.x
+    #     y1 = start_waypoint.transform.location.y
+    #     x2 = end_waypoint.transform.location.x
+    #     y2 = end_waypoint.transform.location.y
+    #     route = grp.plan_route((x1, y1), (x2, y2))
 
-        current_waypoint = start_waypoint
-        route.append(RoadOption.VOID)
-        for action in route:
+    #     current_waypoint = start_waypoint
+    #     route.append(RoadOption.VOID)
+    #     for action in route:
 
-            #   Generate waypoints to next junction
-            wp_choice = current_waypoint.next(self._hop_resolution)
-            while len(wp_choice) == 1:
-                current_waypoint = wp_choice[0]
-                solution.append((current_waypoint, RoadOption.LANEFOLLOW))
-                wp_choice = current_waypoint.next(self._hop_resolution)
+    #         #   Generate waypoints to next junction
+    #         wp_choice = current_waypoint.next(self._hop_resolution)
+    #         while len(wp_choice) == 1:
+    #             current_waypoint = wp_choice[0]
+    #             solution.append((current_waypoint, RoadOption.LANEFOLLOW))
+    #             wp_choice = current_waypoint.next(self._hop_resolution)
 
-                #   Stop at destination
-                if current_waypoint.transform.location.distance(
-                    end_waypoint.transform.location) < self._hop_resolution: break
-            if action == RoadOption.VOID: break
+    #             #   Stop at destination
+    #             if current_waypoint.transform.location.distance(
+    #                 end_waypoint.transform.location) < self._hop_resolution: break
+    #         if action == RoadOption.VOID: break
 
-            #   Select appropriate path at the junction
-            if len(wp_choice) > 1:
+    #         #   Select appropriate path at the junction
+    #         if len(wp_choice) > 1:
 
-                # Current heading vector
-                current_transform = current_waypoint.transform
-                current_location = current_transform.location
-                projected_location = current_location + \
-                    carla.Location(
-                        x=math.cos(math.radians(current_transform.rotation.yaw)),
-                        y=math.sin(math.radians(current_transform.rotation.yaw)))
-                v_current = vector(current_location, projected_location)
-                direction = 0
-                if action == RoadOption.LEFT:
-                    direction = 1
-                elif action == RoadOption.RIGHT:
-                    direction = -1
-                elif action == RoadOption.STRAIGHT:
-                    direction = 0
-                select_criteria = float('inf')
+    #             # Current heading vector
+    #             current_transform = current_waypoint.transform
+    #             current_location = current_transform.location
+    #             projected_location = current_location + \
+    #                 carla.Location(
+    #                     x=math.cos(math.radians(current_transform.rotation.yaw)),
+    #                     y=math.sin(math.radians(current_transform.rotation.yaw)))
+    #             v_current = vector(current_location, projected_location)
+    #             direction = 0
+    #             if action == RoadOption.LEFT:
+    #                 direction = 1
+    #             elif action == RoadOption.RIGHT:
+    #                 direction = -1
+    #             elif action == RoadOption.STRAIGHT:
+    #                 direction = 0
+    #             select_criteria = float('inf')
 
-                #   Choose correct path
-                for wp_select in wp_choice:
-                    v_select = vector(
-                        current_location, wp_select.transform.location)
-                    cross = float('inf')
-                    if direction == 0:
-                        cross = abs(np.cross(v_current, v_select)[-1])
-                    else:
-                        cross = direction*np.cross(v_current, v_select)[-1]
-                    if cross < select_criteria:
-                        select_criteria = cross
-                        current_waypoint = wp_select
+    #             #   Choose correct path
+    #             for wp_select in wp_choice:
+    #                 v_select = vector(
+    #                     current_location, wp_select.transform.location)
+    #                 cross = float('inf')
+    #                 if direction == 0:
+    #                     cross = abs(np.cross(v_current, v_select)[-1])
+    #                 else:
+    #                     cross = direction*np.cross(v_current, v_select)[-1]
+    #                 if cross < select_criteria:
+    #                     select_criteria = cross
+    #                     current_waypoint = wp_select
 
-                #   Generate all waypoints within the junction
-                #   along selected path
-                solution.append((current_waypoint, action))
-                current_waypoint = current_waypoint.next(self._hop_resolution)[0]
-                while current_waypoint.is_intersection:
-                    solution.append((current_waypoint, action))
-                    current_waypoint = current_waypoint.next(self._hop_resolution)[0]
+    #             #   Generate all waypoints within the junction
+    #             #   along selected path
+    #             solution.append((current_waypoint, action))
+    #             current_waypoint = current_waypoint.next(self._hop_resolution)[0]
+    #             while current_waypoint.is_intersection:
+    #                 solution.append((current_waypoint, action))
+    #                 current_waypoint = current_waypoint.next(self._hop_resolution)[0]
 
-        assert solution
+    #     assert solution
 
-        self._current_plan = solution
-        self._local_planner.set_global_plan(self._current_plan)
+    #     self._current_plan = solution
+    #     self._local_planner.set_global_plan(self._current_plan)
 
     def _write_data(self, sensor_data):
         if(self.config['framestack'] == 1):

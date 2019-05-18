@@ -13,8 +13,7 @@ The agent also responds to traffic lights. """
 from enum import Enum
 
 import carla
-from agents.tools.misc import is_within_distance_ahead, compute_magnitude_angle
-
+from environment.carla_9_4.agents.tools.misc import is_within_distance_ahead, compute_magnitude_angle
 
 class AgentState(Enum):
     """
@@ -36,11 +35,10 @@ class Agent(object):
         :param vehicle: actor to apply to local planner logic onto
         """
         self._vehicle = vehicle
-        self._proximity_threshold = 10.0  # meters
-        self._local_planner = None
         self._world = self._vehicle.get_world()
         self._map = self._vehicle.get_world().get_map()
         self._last_traffic_light = None
+
 
     def run_step(self, debug=False):
         """
@@ -48,15 +46,14 @@ class Agent(object):
         :return: control
         """
         control = carla.VehicleControl()
-
-        if debug:
-            control.steer = 0.0
-            control.throttle = 0.0
-            control.brake = 0.0
-            control.hand_brake = False
-            control.manual_gear_shift = False
+        control.steer = 0.0
+        control.throttle = 0.0
+        control.brake = 0.0
+        control.hand_brake = False
+        control.manual_gear_shift = False
 
         return control
+
 
     def _is_light_red(self, lights_list):
         """
@@ -70,7 +67,7 @@ class Agent(object):
                  - traffic_light is the object itself or None if there is no
                    red traffic light affecting us
         """
-        if self._map.name == 'Town01' or self._map.name == 'Town02':
+        if self._world.map_name == 'Town01' or self._world.map_name == 'Town02':
             return self._is_light_red_europe_style(lights_list)
         else:
             return self._is_light_red_us_style(lights_list)
@@ -92,14 +89,14 @@ class Agent(object):
         for traffic_light in lights_list:
             object_waypoint = self._map.get_waypoint(traffic_light.get_location())
             if object_waypoint.road_id != ego_vehicle_waypoint.road_id or \
-                    object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+                            object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
                 continue
 
             loc = traffic_light.get_location()
             if is_within_distance_ahead(loc, ego_vehicle_location,
                                         self._vehicle.get_transform().rotation.yaw,
                                         self._proximity_threshold):
-                if traffic_light.state == carla.TrafficLightState.Red:
+                if traffic_light.state == carla.libcarla.TrafficLightState.Red:
                     return (True, traffic_light)
 
         return (False, None)
@@ -122,8 +119,9 @@ class Agent(object):
             # It is too late. Do not block the intersection! Keep going!
             return (False, None)
 
-        if self._local_planner.target_waypoint is not None:
-            if self._local_planner.target_waypoint.is_intersection:
+        if self._local_planner._target_waypoint is not None:
+            if self._local_planner._target_waypoint.is_intersection:
+                potential_lights = []
                 min_angle = 180.0
                 sel_magnitude = 0.0
                 sel_traffic_light = None
@@ -132,20 +130,19 @@ class Agent(object):
                     magnitude, angle = compute_magnitude_angle(loc,
                                                                ego_vehicle_location,
                                                                self._vehicle.get_transform().rotation.yaw)
-                    if magnitude < 60.0 and angle < min(25.0, min_angle):
+                    if magnitude < 80.0 and angle < min(25.0, min_angle):
                         sel_magnitude = magnitude
                         sel_traffic_light = traffic_light
                         min_angle = angle
 
                 if sel_traffic_light is not None:
                     if debug:
-                        print('=== Magnitude = {} | Angle = {} | ID = {}'.format(
-                            sel_magnitude, min_angle, sel_traffic_light.id))
+                        print('=== Magnitude = {} | Angle = {} | ID = {}'.format(sel_magnitude, min_angle, sel_traffic_light.id))
 
                     if self._last_traffic_light is None:
                         self._last_traffic_light = sel_traffic_light
 
-                    if self._last_traffic_light.state == carla.TrafficLightState.Red:
+                    if self._last_traffic_light.state == carla.libcarla.TrafficLightState.Red:
                         return (True, self._last_traffic_light)
                 else:
                     self._last_traffic_light = None
@@ -181,7 +178,7 @@ class Agent(object):
             # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
             if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id or \
-                    target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+                            target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
                 continue
 
             loc = target_vehicle.get_location()
@@ -191,6 +188,7 @@ class Agent(object):
                 return (True, target_vehicle)
 
         return (False, None)
+
 
     def emergency_stop(self):
         """

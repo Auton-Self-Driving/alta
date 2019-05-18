@@ -13,9 +13,8 @@ from collections import deque
 import random
 
 import carla
-from agents.navigation.controller import VehiclePIDController
-from agents.tools.misc import distance_vehicle, draw_waypoints
-
+from environment.carla_9_4.agents.navigation.controller import VehiclePIDController
+from environment.carla_9_4.agents.tools.misc import distance_vehicle, draw_waypoints
 
 class RoadOption(Enum):
     """
@@ -26,8 +25,6 @@ class RoadOption(Enum):
     RIGHT = 2
     STRAIGHT = 3
     LANEFOLLOW = 4
-    CHANGELANELEFT = 5
-    CHANGELANERIGHT = 6
 
 
 class LocalPlanner(object):
@@ -43,7 +40,7 @@ class LocalPlanner(object):
     # total distance)
     MIN_DISTANCE_PERCENTAGE = 0.9
 
-    def __init__(self, vehicle, opt_dict=None):
+    def __init__(self, vehicle, opt_dict={}):
         """
         :param vehicle: actor to apply to local planner logic onto
         :param opt_dict: dictionary of arguments with the following semantics:
@@ -70,27 +67,22 @@ class LocalPlanner(object):
         self._current_waypoint = None
         self._target_road_option = None
         self._next_waypoints = None
-        self.target_waypoint = None
+        self._target_waypoint = None
         self._vehicle_controller = None
         self._global_plan = None
         # queue with tuples of (waypoint, RoadOption)
-        self._waypoints_queue = deque(maxlen=20000)
+        self._waypoints_queue = deque(maxlen=600)
         self._buffer_size = 5
         self._waypoint_buffer = deque(maxlen=self._buffer_size)
 
         # initializing controller
-        self._init_controller(opt_dict)
+        self.init_controller(opt_dict)
 
     def __del__(self):
-        if self._vehicle:
-            self._vehicle.destroy()
+        self._vehicle.destroy()
         print("Destroying ego-vehicle!")
 
-    def reset_vehicle(self):
-        self._vehicle = None
-        print("Resetting ego-vehicle!")
-
-    def _init_controller(self, opt_dict):
+    def init_controller(self, opt_dict):
         """
         Controller initialization.
 
@@ -100,7 +92,7 @@ class LocalPlanner(object):
         # default params
         self._dt = 1.0 / 20.0
         self._target_speed = 20.0  # Km/h
-        self._sampling_radius = self._target_speed * 1 / 3.6  # 1 seconds horizon
+        self._sampling_radius = self._target_speed * 0.5 / 3.6  # 0.5 seconds horizon
         self._min_distance = self._sampling_radius * self.MIN_DISTANCE_PERCENTAGE
         args_lateral_dict = {
             'K_P': 1.95,
@@ -114,32 +106,32 @@ class LocalPlanner(object):
             'dt': self._dt}
 
         # parameters overload
-        if opt_dict:
-            if 'dt' in opt_dict:
-                self._dt = opt_dict['dt']
-            if 'target_speed' in opt_dict:
-                self._target_speed = opt_dict['target_speed']
-            if 'sampling_radius' in opt_dict:
-                self._sampling_radius = self._target_speed * \
-                    opt_dict['sampling_radius'] / 3.6
-            if 'lateral_control_dict' in opt_dict:
-                args_lateral_dict = opt_dict['lateral_control_dict']
-            if 'longitudinal_control_dict' in opt_dict:
-                args_longitudinal_dict = opt_dict['longitudinal_control_dict']
+        if 'dt' in opt_dict:
+            self._dt = opt_dict['dt']
+        if 'target_speed' in opt_dict:
+            self._target_speed = opt_dict['target_speed']
+        if 'sampling_radius' in opt_dict:
+            self._sampling_radius = self._target_speed * \
+                opt_dict['sampling_radius'] / 3.6
+        if 'lateral_control_dict' in opt_dict:
+            args_lateral_dict = opt_dict['lateral_control_dict']
+        if 'longitudinal_control_dict' in opt_dict:
+            args_longitudinal_dict = opt_dict['longitudinal_control_dict']
 
-        self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
+        self._current_waypoint = self._map.get_waypoint(
+            self._vehicle.get_location())
         self._vehicle_controller = VehiclePIDController(self._vehicle,
-                                                       args_lateral=args_lateral_dict,
-                                                       args_longitudinal=args_longitudinal_dict)
+                                                        args_lateral=args_lateral_dict,
+                                                        args_longitudinal=args_longitudinal_dict)
 
         self._global_plan = False
 
         # compute initial waypoints
-        self._waypoints_queue.append((self._current_waypoint.next(self._sampling_radius)[0], RoadOption.LANEFOLLOW))
-
+        self._waypoints_queue.append( (self._current_waypoint.next(self._sampling_radius)[0], RoadOption.LANEFOLLOW))
         self._target_road_option = RoadOption.LANEFOLLOW
         # fill waypoint trajectory queue
         self._compute_next_waypoints(k=200)
+
 
     def set_speed(self, speed):
         """
@@ -171,13 +163,14 @@ class LocalPlanner(object):
                 road_option = RoadOption.LANEFOLLOW
             else:
                 # random choice between the possible options
-                road_options_list = _retrieve_options(
+                road_options_list = retrieve_options(
                     next_waypoints, last_waypoint)
                 road_option = random.choice(road_options_list)
                 next_waypoint = next_waypoints[road_options_list.index(
                     road_option)]
 
             self._waypoints_queue.append((next_waypoint, road_option))
+
 
     def set_global_plan(self, current_plan):
         self._waypoints_queue.clear()
@@ -196,14 +189,15 @@ class LocalPlanner(object):
         """
 
         # not enough waypoints in the horizon? => add more!
-        if not self._global_plan and len(self._waypoints_queue) < int(self._waypoints_queue.maxlen * 0.5):
-            self._compute_next_waypoints(k=100)
+        if len(self._waypoints_queue) < int(self._waypoints_queue.maxlen * 0.5):
+            if not self._global_plan:
+                self._compute_next_waypoints(k=100)
 
         if len(self._waypoints_queue) == 0:
             control = carla.VehicleControl()
             control.steer = 0.0
             control.throttle = 0.0
-            control.brake = 1.0
+            control.brake = 0.0
             control.hand_brake = False
             control.manual_gear_shift = False
 
@@ -221,9 +215,9 @@ class LocalPlanner(object):
         # current vehicle waypoint
         self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
         # target waypoint
-        self.target_waypoint, self._target_road_option = self._waypoint_buffer[0]
+        self._target_waypoint, self._target_road_option = self._waypoint_buffer[0]
         # move using PID controllers
-        control = self._vehicle_controller.run_step(self._target_speed, self.target_waypoint)
+        control = self._vehicle_controller.run_step(self._target_speed, self._target_waypoint)
 
         # purge the queue of obsolete waypoints
         vehicle_transform = self._vehicle.get_transform()
@@ -238,12 +232,12 @@ class LocalPlanner(object):
                 self._waypoint_buffer.popleft()
 
         if debug:
-            draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], self._vehicle.get_location().z + 1.0)
+            draw_waypoints(self._vehicle.get_world(), [self._target_waypoint], self._vehicle.get_location().z + 1.0)
 
         return control
 
 
-def _retrieve_options(list_waypoints, current_waypoint):
+def retrieve_options(list_waypoints, current_waypoint):
     """
     Compute the type of connection between the current active waypoint and the multiple waypoints present in
     list_waypoints. The result is encoded as a list of RoadOption enums.
@@ -259,13 +253,13 @@ def _retrieve_options(list_waypoints, current_waypoint):
         # the beggining of an intersection, therefore the
         # variation in angle is small
         next_next_waypoint = next_waypoint.next(3.0)[0]
-        link = _compute_connection(current_waypoint, next_next_waypoint)
+        link = compute_connection(current_waypoint, next_next_waypoint)
         options.append(link)
 
     return options
 
 
-def _compute_connection(current_waypoint, next_waypoint):
+def compute_connection(current_waypoint, next_waypoint):
     """
     Compute the type of topological connection between an active waypoint (current_waypoint) and a target waypoint
     (next_waypoint).
