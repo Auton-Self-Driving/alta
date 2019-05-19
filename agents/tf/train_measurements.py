@@ -26,6 +26,7 @@ from baselines.deepq.deepq import ActWrapper
 from baselines.deepq.replay_buffer import ReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
+from gym.spaces import Box, Discrete
 
 import vis_module
 
@@ -71,7 +72,7 @@ if __name__ == '__main__':
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(observation_space, name=name),
-            q_func=CoRLModel,
+            q_func=MeasurementsModel,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-6),
             gamma=0.95,
@@ -80,7 +81,7 @@ if __name__ == '__main__':
 
         act_params = {
                 'make_obs_ph': lambda name: ObservationInput(observation_space, name=name),
-                'q_func': CoRLModel,
+                'q_func': MeasurementsModel,
                 'num_actions': env.action_space.n
                 }
 

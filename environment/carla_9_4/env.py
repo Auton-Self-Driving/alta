@@ -358,7 +358,7 @@ class CarlaEnv(gym.Env):
             [self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
-        obs['orientation'] = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        obs['orientation'] = np.expand_dims(np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())]),axis=0)
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -556,13 +556,12 @@ class CarlaEnv(gym.Env):
         self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
-        orientation = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
-        
+
         obs['image'] = image
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
-        obs['orientation'] = np.expand_dims(orientation, axis=0)
+        obs['orientation'] = np.expand_dims(np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())]),axis=0)
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         return obs
