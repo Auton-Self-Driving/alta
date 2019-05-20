@@ -112,27 +112,50 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight"
 }
-
 DISCRETE_ACTIONS = {
     # Coast
-    0: [0.0, 0.0],
+    0: [0.5, -0.5],
     # Forward
-    1: [0.5, 0.0],
-    # Forward left
-    2: [0.25, -0.3],
-    3: [0.25, -0.1],
-    # Forward right
-    4: [0.25, 0.1],
-    5: [0.25, 0.3],
+    1: [0.5, -0.4],
     # Brake
-    6: [-0.5, 0.0],
+    2: [0.5, -0.3],
+    # Left
+    3: [0.5, -0.2],
+    # Right
+    4: [0.5, -0.1],
+    # Forward left
+    5: [0.5, 0.0],
+    # Forward right
+    6: [0.5, 0.1],
     # Brake left
-    7: [-0.25, -0.3],
-    8: [-0.25, -0.1],
+    7: [0.5, 0.2],
     # Brake right
-    9: [-0.25, 0.1],
-    10: [-0.25, 0.3]
+    8: [0.5, 0.3],
+
+    9: [0.5, 0.4],
+    10: [0.5, 0.5]
 }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.0, 0.0],
+#     # Forward
+#     1: [0.5, 0.0],
+#     # Forward left
+#     2: [0.25, -0.3],
+#     3: [0.25, -0.1],
+#     # Forward right
+#     4: [0.25, 0.1],
+#     5: [0.25, 0.3],
+#     # Brake
+#     6: [-0.5, 0.0],
+#     # Brake left
+#     7: [-0.25, -0.3],
+#     8: [-0.25, -0.1],
+#     # Brake right
+#     9: [-0.25, 0.1],
+#     10: [-0.25, 0.3]
+# }
 
 episode_measurements = {
     "episode_id": None,

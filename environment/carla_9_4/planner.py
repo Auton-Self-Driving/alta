@@ -66,6 +66,7 @@ class GlobalPlanner():
         next_waypoints_angles = []
         next_waypoint_found = False
         num_next_waypoints = 5
+        max_index = 0
         for i, (waypoint, _) in enumerate(self._waypoints_queue):
             
             dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
@@ -89,6 +90,7 @@ class GlobalPlanner():
         if next_waypoint_found and len(next_waypoints_angles) > 0:
             angle = np.mean(np.array(next_waypoints_angles))
         else:
+            print("No next waypoint found!")
             angle = 0
 
         return angle

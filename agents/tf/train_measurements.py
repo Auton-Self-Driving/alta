@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_measure_wp_lr_5e6_g_95_straight_corl10000_run1/'
+prefix = 'dqn_measure_wp_lr_5e6_g_95_right_curved_short_corlT_steeronly_exp_5k_run1/'
 
 ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
@@ -54,6 +54,30 @@ if not os.path.exists(TF_MODELS):
 IMAGES_PATH = ALTA_LOGS+prefix+'images/'
 VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 FRAME_SKIP = 4
+
+DISCRETE_ACTIONS = {
+    # Coast
+    0: [0.5, -0.5],
+    # Forward
+    1: [0.5, -0.4],
+    # Brake
+    2: [0.5, -0.3],
+    # Left
+    3: [0.5, -0.2],
+    # Right
+    4: [0.5, -0.1],
+    # Forward left
+    5: [0.5, 0.0],
+    # Forward right
+    6: [0.5, 0.1],
+    # Brake left
+    7: [0.5, 0.2],
+    # Brake right
+    8: [0.5, 0.3],
+
+    9: [0.5, 0.4],
+    10: [0.5, 0.5]
+}
 
 if __name__ == '__main__':
     with U.make_session():
@@ -68,6 +92,7 @@ if __name__ == '__main__':
         print('Launched environment!')
         print('-'*50)
         observation_space = Box(low=-4.0, high=4.0, shape=(1,), dtype=np.float32)
+        action_space = Discrete(len(DISCRETE_ACTIONS))
 
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
@@ -109,6 +134,8 @@ if __name__ == '__main__':
             action = act(obs['orientation'], update_eps=exploration.value(t))[0]
             new_obs, rew, done, eps_measurements = env.step(action)
             vis_wrapper.save_image(obs['image'], t)
+            logger.log_scalar('timesteps/train/orientation', obs['orientation'], t)
+            logger.log_scalar('timesteps/train/throttle', DISCRETE_ACTIONS[action][1], t)
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
             rew = float(rew[0, 0])

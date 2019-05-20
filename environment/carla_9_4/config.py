@@ -17,10 +17,10 @@ class ConfigManager(object):
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84
             self.config["y_res"] = 84
-            self.config["reward_function"] = "corl"
+            self.config["reward_function"] = "corlT"
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["scenarios"] = "straight"
+            self.config["scenarios"] = "right_curved"

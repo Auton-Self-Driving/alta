@@ -186,13 +186,23 @@ def paths_straight_Town01():
     paths = [
        [
            WAYPOINT_DICT[0],
-           WAYPOINT_DICT[8]
+           WAYPOINT_DICT[4]
        ],
        [
-           WAYPOINT_DICT[130],
+           WAYPOINT_DICT[127],
            WAYPOINT_DICT[123]
        ]
     ]
+    # paths = [
+    #    [
+    #        WAYPOINT_DICT[0],
+    #        WAYPOINT_DICT[8]
+    #    ],
+    #    [
+    #        WAYPOINT_DICT[130],
+    #        WAYPOINT_DICT[123]
+    #    ]
+    # ]
     # paths = [
     #     [
     #         Transform(Location(x=12.00, y=2.02002, z=1.32062), Rotation(pitch=0, yaw=-9.15527e-05, roll=0)),
@@ -219,31 +229,63 @@ def paths_straight_Town01():
     return paths
 
 def paths_left_and_right_train():
+    
+    # # Old longer paths
+    # paths = [
+    #     # left
+    #     [
+    #         WAYPOINT_DICT[48],
+    #         WAYPOINT_DICT[37]
+    #     ],
+    #     # right
+    #     [
+    #         WAYPOINT_DICT[38],
+    #         WAYPOINT_DICT[49]
+    #     ]
+    # ]
     paths = [
         # left
         [
-            WAYPOINT_DICT[48],
-            WAYPOINT_DICT[37]
+            WAYPOINT_DICT[44],
+            WAYPOINT_DICT[39]
         ],
         # right
         [
-            WAYPOINT_DICT[38],
-            WAYPOINT_DICT[49]
+            WAYPOINT_DICT[42],
+            WAYPOINT_DICT[47]
         ]
     ]
     return paths
 
 def paths_left_and_right_test():
+    
+    # Old longer paths
+    # paths = [
+    #     # left
+    #     [
+    #         WAYPOINT_DICT[87],
+    #         WAYPOINT_DICT[100]
+    #     ],
+    #     # right
+    #     [
+    #         WAYPOINT_DICT[99],
+    #         WAYPOINT_DICT[86]
+    #     ]
+    # ]
     paths = [
         # left
         [
-            WAYPOINT_DICT[87],
-            WAYPOINT_DICT[100]
+            WAYPOINT_DICT[85],
+            WAYPOINT_DICT[98]
         ],
         # right
         [
-            WAYPOINT_DICT[99],
-            WAYPOINT_DICT[86]
+            WAYPOINT_DICT[94],
+            Transform(Location(x=1.5099804401397705, y=278.81, z=1.32), Rotation(yaw=-90.00029754638672))
+            # Destination is mid of 84 and 86
+            # 84: Transform(Location(x=1.5099804401397705, y=308.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+            # 86: Transform(Location(x=1.5099804401397705, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672)),
+            
         ]
     ]
     return paths
