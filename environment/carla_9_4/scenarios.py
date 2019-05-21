@@ -336,20 +336,12 @@ def paths_left_Town01_train():
             WAYPOINT_DICT[100]
         ],
         [
-            WAYPOINT_DICT[76],
-            WAYPOINT_DICT[63]
+            WAYPOINT_DICT[85],
+            WAYPOINT_DICT[100]
         ],
         [
-            WAYPOINT_DICT[70],
-            WAYPOINT_DICT[66]
-        ],
-        [
-            WAYPOINT_DICT[104],
-            WAYPOINT_DICT[78]
-        ],
-        [
-            WAYPOINT_DICT[106],
-            WAYPOINT_DICT[80]
+            WAYPOINT_DICT[87],
+            WAYPOINT_DICT[98]
         ],
         [
             WAYPOINT_DICT[46],
@@ -362,6 +354,18 @@ def paths_left_Town01_train():
         [
             WAYPOINT_DICT[48],
             WAYPOINT_DICT[37]
+        ],
+        [
+            WAYPOINT_DICT[46],
+            WAYPOINT_DICT[39]
+        ],
+        [
+            WAYPOINT_DICT[44],
+            WAYPOINT_DICT[37]
+        ],
+        [
+            WAYPOINT_DICT[48],
+            WAYPOINT_DICT[39]
         ]
     ]
     return paths
@@ -370,12 +374,12 @@ def paths_left_Town01_test():
     
     paths = [
         [
-            WAYPOINT_DICT[85],
-            WAYPOINT_DICT[100]
+            WAYPOINT_DICT[76],
+            WAYPOINT_DICT[63]
         ],
         [
-            WAYPOINT_DICT[87],
-            WAYPOINT_DICT[98]
+            WAYPOINT_DICT[70],
+            WAYPOINT_DICT[66]
         ],
         [
             WAYPOINT_DICT[76],
@@ -387,23 +391,19 @@ def paths_left_Town01_test():
         ],
         [
             WAYPOINT_DICT[104],
+            WAYPOINT_DICT[78]
+        ],
+        [
+            WAYPOINT_DICT[106],
+            WAYPOINT_DICT[80]
+        ],
+        [
+            WAYPOINT_DICT[104],
             WAYPOINT_DICT[80]
         ],
         [
             WAYPOINT_DICT[106],
             WAYPOINT_DICT[78]
-        ],
-        [
-            WAYPOINT_DICT[46],
-            WAYPOINT_DICT[39]
-        ],
-        [
-            WAYPOINT_DICT[44],
-            WAYPOINT_DICT[37]
-        ],
-        [
-            WAYPOINT_DICT[48],
-            WAYPOINT_DICT[39]
         ]
     ]
     return paths
@@ -420,40 +420,6 @@ def paths_right_Town01_train():
             WAYPOINT_DICT[47]
         ],
         [
-            WAYPOINT_DICT[38],
-            WAYPOINT_DICT[49]
-        ],
-        [
-            WAYPOINT_DICT[79],
-            WAYPOINT_DICT[103]
-        ],
-        [
-            WAYPOINT_DICT[81],
-            WAYPOINT_DICT[105]
-        ],
-        [
-            WAYPOINT_DICT[67],
-            WAYPOINT_DICT[77]
-        ],
-        [
-            WAYPOINT_DICT[64],
-            WAYPOINT_DICT[71]
-        ],
-        [
-            WAYPOINT_DICT[99],
-            WAYPOINT_DICT[86]
-        ],
-        [
-            WAYPOINT_DICT[97],
-            WAYPOINT_DICT[84]
-        ]
-    ]
-    return paths
-
-def paths_right_Town01_test():
-    
-    paths = [
-        [
             WAYPOINT_DICT[42],
             WAYPOINT_DICT[47]
         ],
@@ -463,7 +429,41 @@ def paths_right_Town01_test():
         ],
         [
             WAYPOINT_DICT[38],
+            WAYPOINT_DICT[49]
+        ],
+        [
+            WAYPOINT_DICT[38],
             WAYPOINT_DICT[47]
+        ],
+        [
+            WAYPOINT_DICT[67],
+            WAYPOINT_DICT[77]
+        ],
+        [
+            WAYPOINT_DICT[64],
+            WAYPOINT_DICT[71]
+        ],
+        [
+            WAYPOINT_DICT[67],
+            WAYPOINT_DICT[71]
+        ],
+        [
+            WAYPOINT_DICT[64],
+            WAYPOINT_DICT[77]
+        ]
+    ]
+    return paths
+
+def paths_right_Town01_test():
+    
+    paths = [
+        [
+            WAYPOINT_DICT[79],
+            WAYPOINT_DICT[103]
+        ],
+        [
+            WAYPOINT_DICT[81],
+            WAYPOINT_DICT[105]
         ],
         [
             WAYPOINT_DICT[79],
@@ -474,20 +474,20 @@ def paths_right_Town01_test():
             WAYPOINT_DICT[103]
         ],
         [
-            WAYPOINT_DICT[67],
-            WAYPOINT_DICT[71]
-        ],
-        [
-            WAYPOINT_DICT[64],
-            WAYPOINT_DICT[77]
-        ],
-        [
             WAYPOINT_DICT[99],
             WAYPOINT_DICT[84]
         ],
         [
             WAYPOINT_DICT[97],
             WAYPOINT_DICT[86]
+        ],
+        [
+            WAYPOINT_DICT[99],
+            WAYPOINT_DICT[86]
+        ],
+        [
+            WAYPOINT_DICT[97],
+            WAYPOINT_DICT[84]
         ]
     ]
     return paths
