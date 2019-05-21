@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -41,9 +41,9 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_measure_wp_lr_5e6_g_95_right_curved_short_corlT_steeronly_exp_5k_run1/'
+prefix = 'dqn_measure_wp_lr_5e6_g_9_right_curved_short_corlA_1_correct_steeronly_exp_5k_run1/'
 
-ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
             q_func=MeasurementsModel,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-6),
-            gamma=0.95,
+            gamma=0.9,
             double_q=True
         )
 
