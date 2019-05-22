@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_measure_wp_lr_5e6_g_9_right_curved_short_corlA_1_correct_steeronly_exp_5k_run1/'
+prefix = 'dqn_measure_wp_lr_5e6_g_9_straight_short_corlA_1_correct_steeronly_exp_5k_run1/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):

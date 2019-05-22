@@ -220,6 +220,7 @@ class CarlaEnv(gym.Env):
         self.global_planner = None
         self.trace_route = None
         self.episode_num = 0
+        self.total_steps = 0
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
@@ -334,6 +335,7 @@ class CarlaEnv(gym.Env):
             self._world.tick()
             timestamp = self._world.wait_for_tick()
         self.num_steps += 1
+        self.total_steps +=1
         self.episode_measurements['num_steps'] = self.num_steps
 
         # Read in preprocessed image
@@ -399,8 +401,8 @@ class CarlaEnv(gym.Env):
                 self.episode_num += 1
                 self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
                 self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
-                self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.num_steps)
-                self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.num_steps)
+                self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
         
@@ -439,6 +441,10 @@ class CarlaEnv(gym.Env):
             else:
                 throttle = gas
                 brake = 0.0
+        elif self.config["action_type"] == "steer_only":
+            steer = float(action[0])
+            throttle = float(0.50)
+            brake = float(0.0)
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
@@ -950,6 +956,7 @@ class CarlaEnv(gym.Env):
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
         static = False
+        maxStepsTaken = False
 
         if success:
             termination_state = 'success'
