@@ -177,7 +177,7 @@ if not os.path.exists(CARLA_LOGS):
     os.makedirs(CARLA_LOGS)
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV):
+    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, logger=None):
         self.config = DEFAULT_ENV
         self._update_config(config)
         self.CarlaServer = None
@@ -219,7 +219,10 @@ class CarlaEnv(gym.Env):
         self.destination_transform = None
         self.global_planner = None
         self.trace_route = None
+        self.episode_num = 0
 
+        self.logger = logger
+        self.vis_wrapper = vis_wrapper
         # Compute number of channels in sensor image
         # We use this later in the preprocess step to reshape the data
         # im_channels refers to number of channels the agent receives after preprocessing
@@ -260,6 +263,11 @@ class CarlaEnv(gym.Env):
             #     Box(0, 1024.0, shape=(2, ), dtype=np.float32)
             # ])
             self.observation_space = image_space
+
+        if(self.config['train_config'] == 'PPO'):
+            # Streer, Throttle
+            self.action_space = Box(low=np.array([-0.5, -0.7]), high=np.array([0.5, 0.7]), dtype=np.float32)
+            self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -381,11 +389,22 @@ class CarlaEnv(gym.Env):
             [self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
-        obs['orientation'] = np.expand_dims(np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())]),axis=0)
+        obs['orientation'] = np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())])
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
-        return obs, reward, done, self.episode_measurements
+        if self.config["train_config"] == "PPO":
+            self.vis_wrapper.save_image(obs['image'], self.num_steps)
+            if done:
+                self.episode_num += 1
+                self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
+                self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
+                self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.num_steps)
+                self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.num_steps)
+                self.vis_wrapper.generate_video(self.episode_num)
+                self.vis_wrapper.remove_images()
+        
+        return obs['orientation'], reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
@@ -584,10 +603,10 @@ class CarlaEnv(gym.Env):
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
-        obs['orientation'] = np.expand_dims(np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())]),axis=0)
+        obs['orientation'] = np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        return obs
+        return obs['orientation']
 
     def get_speed_from_velocity(self, velocity):
 

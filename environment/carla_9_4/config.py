@@ -24,3 +24,12 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "right_curved"
+        elif algo == 'PPO':
+            self.config["algo"] = "PPO"
+            self.config["reward_function"] = "corl2"
+            self.config["discrete_actions"] = False
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "merged_gas"
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["scenarios"] = "right_curved"
