@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 from environment.mujoco import MujocoEnv
+from environment import vis_module
 
 from agents.torch import DDPGAgent, TD3Agent, SACAgent, ReplayMemory, OUNoise
 from agents.torch.networks import *
@@ -216,29 +217,9 @@ def sample_and_train(args):
                     'timesteps/train/dist_to_target', obs["dist_to_target"].item(), total_steps)
                 writer.add_scalar(
                     'episodes/train/dist_to_target', obs["dist_to_target"].item(), episode_id)
-                
-                if "termination_state" in step_info:
-                    writer.add_scalar('timesteps/train/success',
-                                    success_episodes, total_steps)
-                    writer.add_scalar('timesteps/train/collision',
-                                    collision_episodes, total_steps)
-                    # writer.add_scalar('timesteps/train/offlane',
-                    #                 offlane_episodes, total_steps)
-                    # writer.add_scalar('timesteps/train/static',
-                    #                 static_episodes, total_steps)
-                    # writer.add_scalar('timesteps/train/max_steps',
-                    #                 max_steps_episodes, total_steps)
-                    
-                    writer.add_scalar('episodes/train/success',
-                                    success_episodes, episode_id)
-                    writer.add_scalar('episodes/train/collision',
-                                    collision_episodes, episode_id)
-                    # writer.add_scalar('episodes/train/offlane',
-                    #                 offlane_episodes, episode_id)
-                    # writer.add_scalar('episodes/train/static',
-                    #                 static_episodes, episode_id)
-                    # writer.add_scalar('episodes/train/max_steps',
-                    #                 max_steps_episodes, episode_id)
+                print("Training Episode Statistics:")
+                print("Success={}, Collision={}, MaxSteps={}".format(
+                        success_episodes, collision_episodes, max_steps_episodes))
 
         # Save weights
         if total_steps % args.save_interval == 0:
@@ -246,11 +227,18 @@ def sample_and_train(args):
     
     def validate(unseen=False):
         # Define as non local variables to update local copy
+        nonlocal val_episode_id
         nonlocal success_val_episodes
         nonlocal collision_val_episodes
         nonlocal offlane_val_episodes
         nonlocal static_val_episodes
         nonlocal max_steps_val_episodes
+        
+        nonlocal success_val_unseen_episodes
+        nonlocal collision_val_unseen_episodes
+        nonlocal offlane_val_unseen_episodes
+        nonlocal static_val_unseen_episodes
+        nonlocal max_steps_val_unseen_episodes
 
         obs = env.reset(unseen=unseen)
         if args.env_name == "Carla-9-4":
@@ -258,6 +246,7 @@ def sample_and_train(args):
         done = False
         episode_reward = 0
         episode_steps = 0
+        val_episode_id += 1
 
         while not done:
             action, _ = agent.get_action(obs, eval_mode=True)
@@ -265,6 +254,7 @@ def sample_and_train(args):
             if args.env_name == "Carla-9-4":
                 next_obs, reward, done, step_info = env.step(
                     to_numpy(action))
+                vis_wrapper.save_image(next_obs['image'], episode_steps)
                 next_obs = convert_observation(next_obs)
                 reward = from_numpy(reward)
                 done = from_numpy(done)
@@ -279,20 +269,35 @@ def sample_and_train(args):
             # Update global episode termination state count for Carla
             if "termination_state" in step_info:
                 termination_state = step_info["termination_state"]
-                if termination_state is 'success':
-                    success_val_episodes += 1
-                elif termination_state is 'collision':
-                    collision_val_episodes += 1
-                elif termination_state is 'offlane':
-                    offlane_val_episodes += 1
-                elif termination_state is 'static':
-                    static_val_episodes += 1
-                elif termination_state is 'max_steps':
-                    max_steps_val_episodes += 1
+                if unseen:
+                    if termination_state is 'success':
+                        success_val_unseen_episodes += 1
+                    elif termination_state is 'collision':
+                        collision_val_unseen_episodes += 1
+                    elif termination_state is 'offlane':
+                        offlane_val_unseen_episodes += 1
+                    elif termination_state is 'static':
+                        static_val_unseen_episodes += 1
+                    elif termination_state is 'max_steps':
+                        max_steps_val_unseen_episodes += 1
+                else:
+                    if termination_state is 'success':
+                        success_val_episodes += 1
+                    elif termination_state is 'collision':
+                        collision_val_episodes += 1
+                    elif termination_state is 'offlane':
+                        offlane_val_episodes += 1
+                    elif termination_state is 'static':
+                        static_val_episodes += 1
+                    elif termination_state is 'max_steps':
+                        max_steps_val_episodes += 1
                 del step_info["termination_state"]
         
+        vis_wrapper.generate_video(val_episode_id)
+        vis_wrapper.remove_images()
+        
         if unseen:
-            val = "unseen_val"
+            val = "val_unseen"
         else:
             val = "val"
         writer.add_scalar('timesteps/{}/reward'.format(val), episode_reward, total_steps)
@@ -304,28 +309,15 @@ def sample_and_train(args):
                 'timesteps/{}/dist_to_target'.format(val), obs["dist_to_target"].item(), total_steps)
             writer.add_scalar(
                 'episodes/{}/dist_to_target'.format(val), obs["dist_to_target"].item(), episode_id)
-            if "termination_state" in step_info:
-                writer.add_scalar('timesteps/{}/success'.format(val),
-                                success_val_episodes, total_steps)
-                writer.add_scalar('timesteps/{}/collision'.format(val),
-                                collision_val_episodes, total_steps)
-                # writer.add_scalar('timesteps/{}/offlane'.format(val),
-                #                 offlane_val_episodes, total_steps)
-                # writer.add_scalar('timesteps/{}/static'.format(val),
-                #                 static_val_episodes, total_steps)
-                # writer.add_scalar('timesteps/{}/max_steps'.format(val),
-                #                 max_steps_val_episodes, total_steps)
-            
-                writer.add_scalar('episodes/{}/success'.format(val),
-                                success_val_episodes, episode_id)
-                writer.add_scalar('episodes/{}/collision'.format(val),
-                                collision_val_episodes, episode_id)
-                # writer.add_scalar('episodes/{}/offlane'.format(val),
-                #                 offlane_val_episodes, episode_id)
-                # writer.add_scalar('episodes/{}/static'.format(val),
-                #                 static_val_episodes, episode_id)
-                # writer.add_scalar('episodes/{}/max_steps'.format(val),
-                #                 max_steps_val_episodes, episode_id)
+            if unseen:
+                print("Unseen Episode Statistics:")
+                print("Success={}, Collision={}, MaxSteps={}".format(
+                    success_val_unseen_episodes, collision_val_unseen_episodes, max_steps_val_unseen_episodes))
+            else:
+                print("Seen Episode Statistics:")
+                print("Success={}, Collision={}, MaxSteps={}".format(
+                    success_val_episodes, collision_val_episodes, max_steps_val_episodes))
+                
 
     # Ensure log_dir and save_dir are present
     silent_add(args.log_dir, args.save_dir)
@@ -341,6 +333,12 @@ def sample_and_train(args):
 
     # Tensorboard summary writer
     writer = SummaryWriter(log_file)
+    
+    # Video Writer
+    image_path = os.path.join(log_file, 'images')
+    video_path = os.path.join(log_file, 'videos')
+    silent_add(image_path, video_path)
+    vis_wrapper = vis_module.vis(image_path, video_path, frame_skip=4)
     
     # Environment and agent
     env, agent = make_env_and_agent(args)
@@ -368,7 +366,14 @@ def sample_and_train(args):
     static_val_episodes = 0
     max_steps_val_episodes = 0
     
+    success_val_unseen_episodes = 0
+    collision_val_unseen_episodes = 0
+    offlane_val_unseen_episodes = 0
+    static_val_unseen_episodes = 0
+    max_steps_val_unseen_episodes = 0
+    
     episode_id = 0
+    val_episode_id = 0
     
     while total_steps < args.max_steps:
         if (episode_id + 1) % args.val_steps == 0:
@@ -403,8 +408,8 @@ def sample_and_train(args):
                     
                 # Or compute action 
                 else:
-                    action, _ = agent.get_action(obs, eval_mode=True)
-                    # action, _ = agent.get_action(obs, eval_mode=False) # Original
+                    # action, _ = agent.get_action(obs, eval_mode=True)
+                    action, _ = agent.get_action(obs, eval_mode=False) # Original
                 
                 
                 # Take a step in environment    
@@ -442,7 +447,8 @@ def sample_and_train(args):
                 obs = next_obs
                 
                 # Calling the inner train() function
-                train()
+                if total_steps > args.batch_size:
+                    train()
         else:
             # Stop updating the replay buffer and stop sampling from environment.
             # Sample and train on elements from replay buffer

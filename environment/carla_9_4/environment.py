@@ -162,6 +162,8 @@ def get_speed_from_velocity(velocity):
     speed = np.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
     return speed
 
+def get_l1_distance(start, end):
+    return np.abs(start.x - end.x) + np.abs(start.y - end.y)
 
 class CollisionSensor(object):
     def __init__(self, parent_actor):
@@ -272,7 +274,7 @@ class CarlaEnv(Env):
         while True:
             try:
                 client = carla.Client('localhost', self.server_port)
-                client.set_timeout(60.0)
+                client.set_timeout(30.0)
                 self.world = client.get_world()
                 settings = self.world.get_settings()
                 settings.synchronous_mode = True
@@ -306,7 +308,8 @@ class CarlaEnv(Env):
             - control: Control object for Carla
         """
         action = action.flatten()
-        self.action = self._clamp_action(action)
+        action = self._clamp_action(action)
+        self.action = action
         
         if self.config["action_type"] == "sep_gas":
             steer = float(action[0])
@@ -367,6 +370,7 @@ class CarlaEnv(Env):
         self.episode_measurements['num_laneintersections'] = self.actor_list[3].num_laneintersections
         self.location = self.actor_list[0].get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
+        # self.episode_measurements['distance_to_goal'] = get_l1_distance(self.location, self.destination_transform.location)
         self.episode_measurements['speed'] = get_speed_from_velocity(velocity=self.actor_list[0].get_velocity())
 
         self.actor_list[0].apply_control(
@@ -387,6 +391,8 @@ class CarlaEnv(Env):
 
         done = self._is_game_over(collision=self.actor_list[2].num_collisions,
                                   distance=self.location.distance(self.destination_transform.location))
+        # done = self._is_game_over(collision=self.actor_list[2].num_collisions,
+        #                           distance=get_l1_distance(self.location, self.destination_transform.location))
 
         self.episode_measurements['done'] = done
         self.prev_measurement = dc(self.episode_measurements)
@@ -511,22 +517,35 @@ class CarlaEnv(Env):
         
         self.total_reward = 0
         self.prev_measurement = None
-        
+        self._set_scenario(unseen=unseen)
+
         self._get_actors()
         self._attach_image_queue_to_camera()
         self.frame = None
-        self._set_scenario(unseen=unseen)
-
+        
+        while get_speed_from_velocity(velocity=self.actor_list[0].get_velocity()) < 1.0:
+            self.vehicle_actor.apply_control(carla.VehicleControl(
+                throttle=0.5,
+                steer=0.0,
+                brake=0.0,
+                hand_brake=False,
+                reverse=False,
+                manual_gear_shift=False,
+                gear=0))
+            self.world.tick()
+            timestamp = self.world.wait_for_tick()
+        
         self.episode_measurements['num_collisions'] = self.actor_list[2].num_collisions
         self.episode_measurements['num_laneintersections'] = self.actor_list[3].num_laneintersections
         self.location = self.actor_list[0].get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
+        # self.episode_measurements['distance_to_goal'] = get_l1_distance(self.location, self.destination_transform.location)
         self.episode_measurements['speed'] = get_speed_from_velocity(velocity=self.actor_list[0].get_velocity())
 
         obs = {}
         obs['dist_to_target'] = np.array(
             [self.episode_measurements['distance_to_goal']])
-        obs['image'] = np.random.random((88, 200, 3))
+        obs['image'] = self._get_observation()
         obs['orientation'] = np.expand_dims(
 	            self._get_orientation_measurements(), axis=0)
         self.prev_measurement = dc(self.episode_measurements)
@@ -544,6 +563,9 @@ class CarlaEnv(Env):
             print("Goal Reached: Distance remaining: {}".format(distance))
             self.episode_measurements['termination_state'] = 'success'
             return True
+        elif self.episode_measurements["static_steps"] > self.config["max_static_steps"]:
+            print("Max Steps exceeded: Distance remaining: {}".format(distance))
+            self.episode_measurements['termination_state'] = 'max_steps'
         else:
             return False
     
@@ -556,6 +578,10 @@ class CarlaEnv(Env):
             reward = self._compute_reward_simplest(prev_measurement, cur_measurement)
         elif name == "new":
             reward = self._compute_reward_new(prev_measurement, cur_measurement)
+        elif name == "new2":
+            reward = self._compute_reward_new2(prev_measurement, cur_measurement)
+        elif name == "corlA":
+            reward = self._compute_reward_corlA(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_simplest(self, prev, current):
@@ -670,8 +696,9 @@ class CarlaEnv(Env):
         prev_dist = prev["distance_to_goal"]
 
         # Distance travelled toward the goal in m
-        #distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
-        distance_reward = 1/(cur_dist)**0.5
+        # distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        # distance_reward = 1/(cur_dist)**0.5
+        distance_reward = 1000 * (prev_dist - cur_dist)
         self.episode_measurements["distance_reward"] = distance_reward
 
         # Change in speed (km/h)
@@ -687,6 +714,93 @@ class CarlaEnv(Env):
         self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
 
         reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+        
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+            print("Rewards: Distance = {}, Speed = {}, Collision = {}, LaneIntersection = {}".format(
+                distance_reward, speed_reward, collision_reward, lane_intersection_reward))
+
+        # Update state variables
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+        return reward
+
+    def _compute_reward_new2(self, prev, current):
+        cur_dist = current["distance_to_goal"]
+        prev_dist = prev["distance_to_goal"]
+
+        # Distance travelled toward the goal in m
+        # distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        distance_reward = 1/(cur_dist)**0.5 + 0.01 * (prev_dist - cur_dist) 
+        # distance_reward = 1000 * 22(prev_dist - cur_dist)
+        self.episode_measurements["distance_reward"] = distance_reward
+
+        # Change in speed (km/h)
+        speed_reward = 0.05 * (current["speed"] - prev["speed"])
+        # speed_reward = 0.5 * current["speed"]
+        self.episode_measurements["speed_reward"] = speed_reward
+
+        # Collision damage
+        no_collisions = (current["num_collisions"] - prev["num_collisions"])
+        collision = no_collisions > 0
+        collision_reward = -1 if collision else 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # New sidewalk intersection
+        lane_intersection_reward = 0
+        # lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+        
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+            print("Rewards: Distance = {}, Speed = {}, Collision = {}, LaneIntersection = {}".format(
+                distance_reward, speed_reward, collision_reward, lane_intersection_reward))
+
+        # Update state variables
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+        return reward
+
+    def _compute_reward_corlA(self, prev, current):
+        cur_dist = current["distance_to_goal"]
+        prev_dist = prev["distance_to_goal"]
+
+        # Distance travelled toward the goal in m
+        # distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        distance_reward = 1/(cur_dist)**0.5 + 0.01 * (prev_dist - cur_dist) 
+        # distance_reward = 1000 * 22(prev_dist - cur_dist)
+        self.episode_measurements["distance_reward"] = distance_reward
+
+        # Change in speed (km/h)
+        speed_reward = 0.05 * (current["speed"] - prev["speed"])
+        # speed_reward = 0.5 * current["speed"]
+        self.episode_measurements["speed_reward"] = speed_reward
+
+        # Collision damage
+        no_collisions = (current["num_collisions"] - prev["num_collisions"])
+        collision = no_collisions > 0
+        collision_reward = -1 if collision else 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # New sidewalk intersection
+        # lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+        no_intersections = (current["num_laneintersections"] - prev["num_laneintersections"])
+        intersection = no_intersections > 0
+        lane_intersection_reward = -1 if intersection else 0
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+        
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+            print("Rewards: Distance = {}, Speed = {}, Collision = {}, LaneIntersection = {}".format(
+                distance_reward, speed_reward, collision_reward, lane_intersection_reward))
 
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:

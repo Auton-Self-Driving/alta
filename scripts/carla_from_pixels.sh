@@ -7,10 +7,10 @@ alr=1e-5
 clr=1e-4
 lr=1e-4
 action="merged_gas"
-reward="new"
+reward="new2"
 optim="Adam"
 cnn="Smallest"
-scenarios="left_right_curved"
+scenarios="straight"
 CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --algo DDPG \
         --actor-lr $alr \
@@ -18,9 +18,9 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --target-lr $lr \
         --dropout-rate 0.0 \
         --pretrained none \
-        --carla-port 6500 \
+        --carla-port 9500 \
         --env-name $env \
-        --start-steps 5000 \
+        --start-steps 10000 \
         --max-steps 300000 \
         --replay-size 100000 \
         --fixed-replay \
@@ -30,10 +30,10 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --action-type $action \
         --reward-function $reward \
         --log-interval 100 \
-        --log-dir ../logs/$env/04_19 \
-        --save-dir ../weights/$env/04_19 \
+        --log-dir ../logs/$env/05_20 \
+        --save-dir ../weights/$env/05_20 \
         --discount 0.99 \
         --scenarios $scenarios \
-        --file-name DDPG-ALR$alr-CLR$clr-$action-$reward-lrcurved-rgb-image-fixed-replay-100k
+        --file-name DDPG-ALR$alr-CLR$clr-$scenarios-$action-$reward-orig-rgb-image-fixed-replay-100k-w-reward-scaling-notraining-256
 
 # wait

@@ -15,7 +15,7 @@ class ConfigManager(object):
             self.config["action_type"] = action_type
             self.config["framestack"] = 1
             self.config["preprocess_crop_image"] = True
-            self.config["max_static_steps"] = 1000
+            self.config["max_static_steps"] = 750
             self.config["grayscale"] = False
             self.config["verbose"] = True
             self.config["segmented"] = use_segmented
