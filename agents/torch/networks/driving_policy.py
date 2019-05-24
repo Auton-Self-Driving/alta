@@ -41,8 +41,7 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         self.fc = nn.Sequential(
             FcBlock(512, 256),
             FcBlock(256, 256),
-            nn.Linear(256, action_dim),
-            nn.Tanh()
+            nn.Linear(256, action_dim)
         )
 
     def forward(self, obs):        
@@ -65,5 +64,6 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         x = torch.sum(x * branch_mask, dim=0)
         """
         x = self.fc(x)
-        
+        # print(x)
+        x = nn.functional.tanh(x)
         return x
