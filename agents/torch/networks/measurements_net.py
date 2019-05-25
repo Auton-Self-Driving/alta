@@ -15,8 +15,8 @@ class MeasurementNet(nn.Module):
         super(MeasurementNet, self).__init__()
 
         self.measurement_features = nn.Sequential(
-            FcBlock(1, 512, dropout_rate=dropout_rate),
-            FcBlock(512, 512, dropout_rate=dropout_rate)
+            FcBlock(1, 512, dropout_rate=dropout_rate)
+            # FcBlock(512, 512, dropout_rate=dropout_rate)
         )
         
 

@@ -52,7 +52,7 @@ class DrivingDeterministicPolicy(DeterministicPolicy):
         # x = torch.cat((obs["image_features"], x), dim=1)
         # x = self.fc_merge(x)
         
-        x = obs["image_features"]
+        x = obs["features"]
 
         """
         # Compute output branches

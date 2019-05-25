@@ -298,7 +298,12 @@ class CarlaEnv(Env):
             raise ValueError("Scenarios Config not set!")
 
     def _clamp_action(self, action, min_val=-0.5, max_val=0.5):
-        return np.clip(action, a_min = min_val, a_max = max_val) 
+        return np.clip(action, a_min = min_val, a_max = max_val)
+    
+    def render(self, carla_image, mode='human'):
+        cv2.imshow('im', self.observation_image)
+        cv2.waitKey(1)
+        # draw_image(self.display, carla_image)
     
     def _get_control(self, action):
         """ Get Control object for Carla from action

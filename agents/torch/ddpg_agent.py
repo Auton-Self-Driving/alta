@@ -1,18 +1,18 @@
 import copy
 from itertools import chain
-from typing import Optional
+from typing import Union
 
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution
 
 from .abstract_agent import Agent
-from .networks import CNN, Pretrained, DeterministicPolicy, QValue
+from .networks import CNN, Pretrained, DeterministicPolicy, QValue, MeasurementNet
 
 
 class DDPGAgent(Agent):
     def __init__(self,
-                 cnn: Optional[CNN], 
+                 encoder: Union[CNN, MeasurementNet, None], 
                  actor: DeterministicPolicy, 
                  critic: QValue, 
                  noise: Distribution,
@@ -30,8 +30,8 @@ class DDPGAgent(Agent):
         self.max_grad_norm = max_grad_norm
         
         # Current networks
-        if cnn is not None:
-            self.curr_nets["cnn"] = cnn.to(self.device)
+        if encoder is not None:
+            self.curr_nets["encoder"] = encoder.to(self.device)
         self.curr_nets["actor"] = actor.to(self.device)
         self.curr_nets["critic"] = critic.to(self.device)
         
@@ -43,11 +43,11 @@ class DDPGAgent(Agent):
         self.actor_params = self.curr_nets["actor"].parameters()
         self.critic_params = self.curr_nets["critic"].parameters()
         
-        if "cnn" in self.curr_nets:
+        if "encoder" in self.curr_nets:
             # self.actor_params = chain(
-            #     self.actor_params, self.curr_nets["cnn"].parameters())
+            #     self.actor_params, self.curr_nets["encoder"].parameters())
             self.critic_params = chain(
-                self.critic_params, self.curr_nets["cnn"].parameters())
+                self.critic_params, self.curr_nets["encoder"].parameters())
             
         if optim is "Adam":
             self.actor_optim = torch.optim.Adam(self.actor_params, lr=actor_lr,
@@ -69,8 +69,11 @@ class DDPGAgent(Agent):
         
         with torch.set_grad_enabled(False):
             # Process image input
-            if "cnn" in self.curr_nets:
-                obs["image_features"] = self.curr_nets["cnn"](obs["image"])
+            if "encoder" in self.curr_nets:
+                if isinstance(self.curr_nets["encoder"], CNN):
+                    obs["features"] = self.curr_nets["encoder"](obs["image"])
+                elif isinstance(self.curr_nets["encoder"], MeasurementNet):
+                    obs["features"] = self.curr_nets["encoder"](obs["orientation"])
                 
             # Compute action
             action = self.curr_nets["actor"](obs).cpu()
@@ -90,11 +93,16 @@ class DDPGAgent(Agent):
         obs, action, reward, next_obs, done = [self._put_on_device(x) for x in batch]
         
         # Process image inputs if necessary
-        if "cnn" in self.curr_nets:
-            obs["image_features"] = self.curr_nets["cnn"](obs["image"])
-            next_obs["image_features"] = self.targ_nets["cnn"](next_obs["image"])
+        if "encoder" in self.curr_nets:
+            if isinstance(self.curr_nets["encoder"], CNN):
+                obs["features"] = self.curr_nets["encoder"](obs["image"])
+                next_obs["features"] = self.targ_nets["encoder"](next_obs["image"])
+            elif isinstance(self.curr_nets["encoder"], MeasurementNet):
+                obs["features"] = self.curr_nets["encoder"](obs["orientation"])
+                next_obs["features"] = self.targ_nets["encoder"](next_obs["orientation"])
 
         # Compute current Q estimate
+        # print(obs.size())
         current_Q = self.curr_nets["critic"](obs, action)
         
         # Compute target Q value
@@ -115,11 +123,11 @@ class DDPGAgent(Agent):
         losses, weights, grads = {}, {}, {}
         losses["critic"] = critic_loss.item()
         self._log_weights_and_grads(
-            "critic_update", ["critic", "cnn"], weights, grads)
+            "critic_update", ["critic", "encoder"], weights, grads)
 
         # Compute actor loss (avoiding gradient w.r.t CNN through obs)
         action = self.curr_nets["actor"](obs)
-        obs["image_features"] = obs["image_features"].detach()
+        obs["features"] = obs["features"].detach()
         actor_loss = -self.curr_nets["critic"](obs, action).mean()
 
         # Optimize actor (and cnn)
@@ -131,7 +139,7 @@ class DDPGAgent(Agent):
         # Record actor optimization statistics
         losses["actor"] = actor_loss.item()
         self._log_weights_and_grads(
-            "actor_update", ["actor", "cnn"], weights, grads)
+            "actor_update", ["actor", "encoder"], weights, grads)
         
         # Update frozen target models
         self._soft_update_target()

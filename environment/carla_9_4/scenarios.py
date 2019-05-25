@@ -323,6 +323,8 @@ def paths_straight_Town01_test():
            WAYPOINT_DICT[102]
        ]
     ]
+    
+    return paths
 
 def paths_left_Town01_train():
     

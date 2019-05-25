@@ -55,16 +55,19 @@ def make_env_and_agent(args):
                     algo=args.algo, scenarios=args.scenarios, action_type=args.action_type, reward=args.reward_function, use_segmented=args.segmented)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
-            if args.pretrained == "none":
-                if args.cnn_size == "Large":
-                    cnn = DrivingLargeCNN(args.batch_norm, args.dropout_rate)
-                elif args.cnn_size == "Small":
-                    cnn = DrivingSmallCNN(args.batch_norm, args.dropout_rate)
-                elif args.cnn_size == "Smallest":
-                    cnn = DrivingSmallestCNN(args.batch_norm, args.dropout_rate)
-            else:
-                cnn = Pretrained(model_name=args.pretrained, pre_trained=True)
-            print(cnn)
+            if args.obs_space == "image":
+                if args.pretrained == "none":
+                    if args.cnn_size == "Large":
+                        net = DrivingLargeCNN(args.batch_norm, args.dropout_rate)
+                    elif args.cnn_size == "Small":
+                        net = DrivingSmallCNN(args.batch_norm, args.dropout_rate)
+                    elif args.cnn_size == "Smallest":
+                        net = DrivingSmallestCNN(args.batch_norm, args.dropout_rate)
+                else:
+                    net = Pretrained(model_name=args.pretrained, pre_trained=True)
+            elif args.obs_space == "measurement":
+                net = MeasurementNet()
+            print(net)
             actor = DrivingDeterministicPolicy(action_dim=action_dim)
             critic = DrivingQValue(action_dim=action_dim)
             
@@ -76,20 +79,20 @@ def make_env_and_agent(args):
             env = MujocoEnv(args.env_name, pixel_obs=args.pixel_obs)
             
             if args.pixel_obs:
-                cnn = MujocoSmallCNN(args.batch_norm)
+                net = MujocoSmallCNN(args.batch_norm)
                 actor = MujocoDeterministicPolicy(400, env.action_dim, 
                                                   pixel_obs=args.pixel_obs)
                 critic = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
             
             else:
-                cnn = None
+                net = None
                 actor = MujocoDeterministicPolicy(env.state_dim, env.action_dim)
                 critic = MujocoQValue(env.state_dim, env.action_dim)
                 
             noise = Normal(torch.zeros(env.action_dim), 
                            torch.ones(env.action_dim) * 0.1)
             
-        agent = DDPGAgent(cnn, actor, critic, noise, args.actor_lr, args.critic_lr,
+        agent = DDPGAgent(net, actor, critic, noise, args.actor_lr, args.critic_lr,
                           args.target_lr, args.discount, args.max_grad_norm)
     
     elif args.algo == "TD3":
@@ -108,7 +111,7 @@ def make_env_and_agent(args):
                 config = ConfigManager(algo=args.algo)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
-            cnn = DrivingSmallCNN(args.batch_norm)
+            net = DrivingSmallCNN(args.batch_norm)
             actor = DrivingDeterministicPolicy()
             critic1 = DrivingQValue()
             critic2 = DrivingQValue()
@@ -124,14 +127,14 @@ def make_env_and_agent(args):
             env = MujocoEnv(args.env_name, pixel_obs=args.pixel_obs)
             
             if args.pixel_obs:
-                cnn = MujocoSmallCNN(args.batch_norm)
+                net = MujocoSmallCNN(args.batch_norm)
                 actor = MujocoDeterministicPolicy(400, env.action_dim,
                                                   pixel_obs=args.pixel_obs)
                 critic1 = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
                 critic2 = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
                 
             else:
-                cnn = None
+                net = None
                 actor = MujocoDeterministicPolicy(env.state_dim, env.action_dim)
                 critic1 = MujocoQValue(env.state_dim, env.action_dim)
                 critic2 = MujocoQValue(env.state_dim, env.action_dim)
@@ -142,7 +145,7 @@ def make_env_and_agent(args):
                                   torch.ones(env.action_dim) * 0.2)
             noise_clip = 0. # No target noise
         
-        agent = TD3Agent(cnn, actor, critic1, critic2, exploration_noise,
+        agent = TD3Agent(net, actor, critic1, critic2, exploration_noise,
                          target_noise, noise_clip, args.policy_interval, 
                          args.actor_lr, args.critic_lr, args.target_lr, 
                          args.discount, args.max_grad_norm)
@@ -159,13 +162,13 @@ def make_env_and_agent(args):
                 
             else:
                 env = MujocoEnv(args.env_name)
-                cnn = None
+                net = None
                 actor = MujocoTanhGaussianPolicy(env.state_dim, env.action_dim)
                 qcritic1 = MujocoQValue(env.state_dim, env.action_dim)
                 qcritic2 = MujocoQValue(env.state_dim, env.action_dim)
                 vcritic = MujocoStateValue(env.state_dim)
         
-        agent = SACAgent(cnn, actor, qcritic1, qcritic2, vcritic, args.entropy_coeff, 
+        agent = SACAgent(net, actor, qcritic1, qcritic2, vcritic, args.entropy_coeff, 
                          args.policy_l2, args.policy_interval, args.actor_lr,
                          args.critic_lr, args.target_lr, args.discount)
        
@@ -496,6 +499,8 @@ if __name__ == "__main__":
                         help='port for Carla server')
     parser.add_argument('--pixel-obs', action='store_true',
                         help='Mujoco observation in pixels if True')
+    parser.add_argument('--obs-space', default="image",
+                        help='one of "image", "measurement", "fusion"')
     parser.add_argument('--pretrained', default="none",
                         help='one of "none", "vgg16", "resnet18", "squeezenet", "densenet", "inception"')
     parser.add_argument('--cnn-size', default="Small",
