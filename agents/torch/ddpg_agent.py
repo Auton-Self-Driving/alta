@@ -5,14 +5,14 @@ from typing import Union
 import torch
 import torch.nn as nn
 from torch.distributions import Distribution
+from torchvision import transforms
 
 from .abstract_agent import Agent
-from .networks import CNN, Pretrained, DeterministicPolicy, QValue, MeasurementNet
-
+from .networks import CNN, VAE, Pretrained, DeterministicPolicy, QValue, MeasurementNet
 
 class DDPGAgent(Agent):
     def __init__(self,
-                 encoder: Union[CNN, MeasurementNet, None], 
+                 encoder: Union[CNN, VAE, MeasurementNet, None], 
                  actor: DeterministicPolicy, 
                  critic: QValue, 
                  noise: Distribution,
@@ -43,22 +43,28 @@ class DDPGAgent(Agent):
         self.actor_params = self.curr_nets["actor"].parameters()
         self.critic_params = self.curr_nets["critic"].parameters()
         
-        if "encoder" in self.curr_nets:
+        if isinstance(self.curr_nets["encoder"], CNN) or isinstance(self.curr_nets["encoder"], MeasurementNet):
             # self.actor_params = chain(
             #     self.actor_params, self.curr_nets["encoder"].parameters())
             self.critic_params = chain(
                 self.critic_params, self.curr_nets["encoder"].parameters())
-            
+        elif isinstance(self.curr_nets["encoder"], VAE):
+            self.vae_params = self.curr_nets["encoder"].parameters()
+
         if optim is "Adam":
             self.actor_optim = torch.optim.Adam(self.actor_params, lr=actor_lr,
                                                     eps=1e-5)
             self.critic_optim = torch.optim.Adam(self.critic_params, lr=critic_lr,
                                                     eps=1e-5)
+            if isinstance(self.curr_nets["encoder"], VAE):
+                self.vae_optim = torch.optim.Adam(self.vae_params, lr=1e-4, eps=1e-5)
         elif optim is "RMSprop":
             self.actor_optim = torch.optim.RMSprop(self.actor_params, lr=actor_lr,
                                                 eps=1e-5, momentum=0)
             self.critic_optim = torch.optim.RMSprop(self.critic_params, lr=critic_lr,
                                                     eps=1e-5, momentum=0)
+            if isinstance(self.curr_nets["encoder"], VAE):
+                self.vae_optim = torch.optim.RMSprop(self.vae_params, lr=1e-5, eps=1e-5, momentum=0)
     
     def get_action(self, obs, eval_mode):
         # Set eval mode for batchnorm and dropout
@@ -69,11 +75,13 @@ class DDPGAgent(Agent):
         
         with torch.set_grad_enabled(False):
             # Process image input
-            if "encoder" in self.curr_nets:
-                if isinstance(self.curr_nets["encoder"], CNN):
-                    obs["features"] = self.curr_nets["encoder"](obs["image"])
-                elif isinstance(self.curr_nets["encoder"], MeasurementNet):
-                    obs["features"] = self.curr_nets["encoder"](obs["orientation"])
+            if isinstance(self.curr_nets["encoder"], CNN):
+                obs["features"] = self.curr_nets["encoder"](obs["image"])
+            elif isinstance(self.curr_nets["encoder"], MeasurementNet):
+                obs["features"] = self.curr_nets["encoder"](obs["orientation"])
+            elif isinstance(self.curr_nets["encoder"], VAE):
+                obs["vae_features"] = self.curr_nets["encoder"](obs["image"])
+                obs["features"] = self.curr_nets["encoder"].get_encoded_features()
                 
             # Compute action
             action = self.curr_nets["actor"](obs).cpu()
@@ -93,13 +101,22 @@ class DDPGAgent(Agent):
         obs, action, reward, next_obs, done = [self._put_on_device(x) for x in batch]
         
         # Process image inputs if necessary
-        if "encoder" in self.curr_nets:
-            if isinstance(self.curr_nets["encoder"], CNN):
-                obs["features"] = self.curr_nets["encoder"](obs["image"])
-                next_obs["features"] = self.targ_nets["encoder"](next_obs["image"])
-            elif isinstance(self.curr_nets["encoder"], MeasurementNet):
-                obs["features"] = self.curr_nets["encoder"](obs["orientation"])
-                next_obs["features"] = self.targ_nets["encoder"](next_obs["orientation"])
+        if isinstance(self.curr_nets["encoder"], CNN):
+            obs["features"] = self.curr_nets["encoder"](obs["image"])
+            next_obs["features"] = self.targ_nets["encoder"](next_obs["image"])
+        elif isinstance(self.curr_nets["encoder"], MeasurementNet):
+            obs["features"] = self.curr_nets["encoder"](obs["orientation"])
+            next_obs["features"] = self.targ_nets["encoder"](next_obs["orientation"])
+        elif isinstance(self.curr_nets["encoder"], VAE):
+            obs["vae_features"] = self.curr_nets["encoder"](obs["image"])
+            obs["features"] = self.curr_nets["encoder"].get_encoded_features()
+            next_obs["vae_features"] = self.targ_nets["encoder"](next_obs["image"])
+            next_obs["features"] = self.targ_nets["encoder"].get_encoded_features()
+
+            # Compute VAE loss and update
+            vae_loss1 = self.update_vae(obs["vae_features"], obs["image"])
+            vae_loss2 = self.update_vae(next_obs["vae_features"], next_obs["image"])
+            vae_loss = (vae_loss1 + vae_loss2) / 2.0
 
         # Compute current Q estimate
         # print(obs.size())
@@ -119,12 +136,6 @@ class DDPGAgent(Agent):
         nn.utils.clip_grad_norm_(self.critic_params, self.max_grad_norm)
         self.critic_optim.step()
 
-        # Record critic optimization statistics
-        losses, weights, grads = {}, {}, {}
-        losses["critic"] = critic_loss.item()
-        self._log_weights_and_grads(
-            "critic_update", ["critic", "encoder"], weights, grads)
-
         # Compute actor loss (avoiding gradient w.r.t CNN through obs)
         action = self.curr_nets["actor"](obs)
         obs["features"] = obs["features"].detach()
@@ -136,12 +147,49 @@ class DDPGAgent(Agent):
         nn.utils.clip_grad_norm_(self.actor_params, self.max_grad_norm)
         self.actor_optim.step()
 
-        # Record actor optimization statistics
-        losses["actor"] = actor_loss.item()
-        self._log_weights_and_grads(
-            "actor_update", ["actor", "encoder"], weights, grads)
+        losses, weights, grads = {}, {}, {}
+        
+        if isinstance(self.curr_nets["encoder"], CNN) or isinstance(self.curr_nets["encoder"], MeasurementNet):
+            # Record critic optimization statistics
+            losses["critic"] = critic_loss.item()
+            self._log_weights_and_grads(
+                "critic_update", ["critic", "encoder"], weights, grads)
+
+            # Record actor optimization statistics
+            losses["actor"] = actor_loss.item()
+            self._log_weights_and_grads(
+                "actor_update", ["actor"], weights, grads)
+        elif isinstance(self.curr_nets["encoder"], VAE):
+            # Record VAE loss optimization statistics
+            losses["vae_encoder"] = vae_loss.item()
+            self._log_weights_and_grads(
+                "vae_update", ["encoder"], weights, grads)
+            
+            # Record critic optimization statistics
+            losses["critic"] = critic_loss.item()
+            self._log_weights_and_grads(
+                "critic_update", ["critic"], weights, grads)
+
+            # Record actor optimization statistics
+            losses["actor"] = actor_loss.item()
+            self._log_weights_and_grads(
+                "actor_update", ["actor"], weights, grads)
         
         # Update frozen target models
         self._soft_update_target()
 
         return losses, weights, grads
+
+    def update_vae(self, outputs, batch):
+        recon_batch, mu, logvar = outputs
+        vae_loss = self.curr_nets["encoder"].loss_function(
+            recon_batch, batch, mu, logvar)
+        # print("VAE loss = {}".format(vae_loss))
+        # Optimize
+        self.vae_optim.zero_grad()
+        vae_loss.backward(retain_graph=True)
+        nn.utils.clip_grad_norm_(self.vae_params, self.max_grad_norm)
+        self.vae_optim.step()
+        
+        return vae_loss
+        

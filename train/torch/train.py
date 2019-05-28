@@ -56,18 +56,23 @@ def make_env_and_agent(args):
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
             if args.obs_space == "image":
-                if args.pretrained == "none":
-                    if args.cnn_size == "Large":
-                        net = DrivingLargeCNN(args.batch_norm, args.dropout_rate)
-                    elif args.cnn_size == "Small":
-                        net = DrivingSmallCNN(args.batch_norm, args.dropout_rate)
-                    elif args.cnn_size == "Smallest":
-                        net = DrivingSmallestCNN(args.batch_norm, args.dropout_rate)
-                else:
-                    net = Pretrained(model_name=args.pretrained, pre_trained=True)
+                if args.pixel_model == "cnn":
+                    if args.pretrained == "none":
+                        if args.cnn_size == "Large":
+                            encoder = DrivingLargeCNN(args.batch_norm, args.dropout_rate)
+                        elif args.cnn_size == "Small":
+                            encoder = DrivingSmallCNN(args.batch_norm, args.dropout_rate)
+                        elif args.cnn_size == "Smallest":
+                            encoder = DrivingSmallestCNN(args.batch_norm, args.dropout_rate)
+                    else:
+                        encoder = Pretrained(model_name=args.pretrained, pre_trained=True)
+                elif args.pixel_model == "vae":
+                    resy, resx = env._get_image_resolution()
+                    encoder = VAE(input_dim=resx*resy, hidden_dim=2048, encoded_dim=512)
+                    env.config["grayscale"] = True           
             elif args.obs_space == "measurement":
-                net = MeasurementNet()
-            print(net)
+                encoder = MeasurementNet()
+            print(encoder)
             actor = DrivingDeterministicPolicy(action_dim=action_dim)
             critic = DrivingQValue(action_dim=action_dim)
             
@@ -79,20 +84,19 @@ def make_env_and_agent(args):
             env = MujocoEnv(args.env_name, pixel_obs=args.pixel_obs)
             
             if args.pixel_obs:
-                net = MujocoSmallCNN(args.batch_norm)
+                encoder = MujocoSmallCNN(args.batch_norm)
                 actor = MujocoDeterministicPolicy(400, env.action_dim, 
                                                   pixel_obs=args.pixel_obs)
                 critic = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
             
             else:
-                net = None
+                encoder = None
                 actor = MujocoDeterministicPolicy(env.state_dim, env.action_dim)
                 critic = MujocoQValue(env.state_dim, env.action_dim)
                 
             noise = Normal(torch.zeros(env.action_dim), 
                            torch.ones(env.action_dim) * 0.1)
-            
-        agent = DDPGAgent(net, actor, critic, noise, args.actor_lr, args.critic_lr,
+        agent = DDPGAgent(encoder, actor, critic, noise, args.actor_lr, args.critic_lr,
                           args.target_lr, args.discount, args.max_grad_norm)
     
     elif args.algo == "TD3":
@@ -111,7 +115,7 @@ def make_env_and_agent(args):
                 config = ConfigManager(algo=args.algo)
                 env = CarlaEnv94(config=config.config, port=args.carla_port)
             
-            net = DrivingSmallCNN(args.batch_norm)
+            encoder = DrivingSmallCNN(args.batch_norm)
             actor = DrivingDeterministicPolicy()
             critic1 = DrivingQValue()
             critic2 = DrivingQValue()
@@ -127,14 +131,14 @@ def make_env_and_agent(args):
             env = MujocoEnv(args.env_name, pixel_obs=args.pixel_obs)
             
             if args.pixel_obs:
-                net = MujocoSmallCNN(args.batch_norm)
+                encoder = MujocoSmallCNN(args.batch_norm)
                 actor = MujocoDeterministicPolicy(400, env.action_dim,
                                                   pixel_obs=args.pixel_obs)
                 critic1 = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
                 critic2 = MujocoQValue(400, env.action_dim, pixel_obs=args.pixel_obs)
                 
             else:
-                net = None
+                encoder = None
                 actor = MujocoDeterministicPolicy(env.state_dim, env.action_dim)
                 critic1 = MujocoQValue(env.state_dim, env.action_dim)
                 critic2 = MujocoQValue(env.state_dim, env.action_dim)
@@ -145,7 +149,7 @@ def make_env_and_agent(args):
                                   torch.ones(env.action_dim) * 0.2)
             noise_clip = 0. # No target noise
         
-        agent = TD3Agent(net, actor, critic1, critic2, exploration_noise,
+        agent = TD3Agent(encoder, actor, critic1, critic2, exploration_noise,
                          target_noise, noise_clip, args.policy_interval, 
                          args.actor_lr, args.critic_lr, args.target_lr, 
                          args.discount, args.max_grad_norm)
@@ -162,13 +166,13 @@ def make_env_and_agent(args):
                 
             else:
                 env = MujocoEnv(args.env_name)
-                net = None
+                encoder = None
                 actor = MujocoTanhGaussianPolicy(env.state_dim, env.action_dim)
                 qcritic1 = MujocoQValue(env.state_dim, env.action_dim)
                 qcritic2 = MujocoQValue(env.state_dim, env.action_dim)
                 vcritic = MujocoStateValue(env.state_dim)
         
-        agent = SACAgent(net, actor, qcritic1, qcritic2, vcritic, args.entropy_coeff, 
+        agent = SACAgent(encoder, actor, qcritic1, qcritic2, vcritic, args.entropy_coeff,
                          args.policy_l2, args.policy_interval, args.actor_lr,
                          args.critic_lr, args.target_lr, args.discount)
        
@@ -505,6 +509,8 @@ if __name__ == "__main__":
                         help='one of "none", "vgg16", "resnet18", "squeezenet", "densenet", "inception"')
     parser.add_argument('--cnn-size', default="Small",
                         help='one of "Large", "Small", "Smallest"')
+    parser.add_argument('--pixel-model', default='cnn',
+                        help='CARLA Image model: one of "cnn", "vae"')
     parser.add_argument('--batch-norm', action='store_true',
                         help='apply batch normalization only if True')
     parser.add_argument('--segmented', action='store_true',

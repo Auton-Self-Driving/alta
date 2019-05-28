@@ -19,6 +19,7 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --dropout-rate 0.0 \
         --pretrained none \
         --carla-port 9500 \
+        --pixel-model "vae" \
         --env-name $env \
         --start-steps 10000 \
         --max-steps 300000 \
@@ -30,10 +31,10 @@ CUDA_VISIBLE_DEVICES=1 python ../train/torch/train.py \
         --action-type $action \
         --reward-function $reward \
         --log-interval 100 \
-        --log-dir ../logs/$env/05_20 \
-        --save-dir ../weights/$env/05_20 \
+        --log-dir ../logs/$env/05_25 \
+        --save-dir ../weights/$env/05_25 \
         --discount 0.99 \
         --scenarios $scenarios \
-        --file-name DDPG-ALR$alr-CLR$clr-$scenarios-$action-$reward-orig-rgb-image-fixed-replay-100k-w-reward-scaling-notraining-256
+        --file-name DDPG-ALR$alr-CLR$clr-vae-fixed-replay-50k
 
 # wait

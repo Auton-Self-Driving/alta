@@ -299,6 +299,9 @@ class CarlaEnv(Env):
 
     def _clamp_action(self, action, min_val=-0.5, max_val=0.5):
         return np.clip(action, a_min = min_val, a_max = max_val)
+
+    def _get_image_resolution(self):
+        return (self.config['y_res'], self.config['x_res'])
     
     def render(self, carla_image, mode='human'):
         cv2.imshow('im', self.observation_image)
