@@ -177,7 +177,7 @@ WAYPOINT_DICT = {
 }
 
 
-def paths_straight_Town01():
+def paths_straight_Town01_train():
 
     # paths contain list of list
     # paths = [path_1, .. , path_n]
@@ -185,12 +185,56 @@ def paths_straight_Town01():
 
     paths = [
        [
-           WAYPOINT_DICT[0],
-           WAYPOINT_DICT[4]
+           WAYPOINT_DICT[36],
+           WAYPOINT_DICT[40]
        ],
        [
-           WAYPOINT_DICT[127],
-           WAYPOINT_DICT[123]
+           WAYPOINT_DICT[7],
+           WAYPOINT_DICT[3]
+       ],
+       [
+           WAYPOINT_DICT[110],
+           WAYPOINT_DICT[114]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[50]
+       ],
+       [
+           WAYPOINT_DICT[147],
+           WAYPOINT_DICT[90]
+       ],
+       [
+           WAYPOINT_DICT[33],
+           WAYPOINT_DICT[87]
+       ],
+       [
+           WAYPOINT_DICT[80],
+           WAYPOINT_DICT[76]
+       ],
+       [
+           WAYPOINT_DICT[45],
+           WAYPOINT_DICT[49]
+       ],
+       [
+           WAYPOINT_DICT[95],
+           WAYPOINT_DICT[104]
+       ],
+       [
+           WAYPOINT_DICT[20],
+           WAYPOINT_DICT[107]
+       ],
+       [
+           WAYPOINT_DICT[78],
+           WAYPOINT_DICT[70]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[45],
+           WAYPOINT_DICT[69]
        ]
     ]
     # paths = [
@@ -228,6 +272,248 @@ def paths_straight_Town01():
 
     return paths
 
+def paths_straight_Town01_test():
+    paths = [
+       [
+           WAYPOINT_DICT[39],
+           WAYPOINT_DICT[35]
+       ],
+       [
+           WAYPOINT_DICT[0],
+           WAYPOINT_DICT[4]
+       ],
+       [
+           WAYPOINT_DICT[61],
+           WAYPOINT_DICT[59]
+       ],
+       [
+           WAYPOINT_DICT[55],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[47],
+           WAYPOINT_DICT[64]
+       ],
+       [
+           WAYPOINT_DICT[26],
+           WAYPOINT_DICT[19]
+       ],
+       [
+           WAYPOINT_DICT[29],
+           WAYPOINT_DICT[107]
+       ],
+       [
+           WAYPOINT_DICT[84],
+           WAYPOINT_DICT[34]
+       ],
+       [
+           WAYPOINT_DICT[53],
+           WAYPOINT_DICT[67]
+       ],
+       [
+           WAYPOINT_DICT[22],
+           WAYPOINT_DICT[17]
+       ],
+       [
+           WAYPOINT_DICT[91],
+           WAYPOINT_DICT[148]
+       ],
+       [
+           WAYPOINT_DICT[95],
+           WAYPOINT_DICT[102]
+       ]
+    ]
+
+def paths_left_Town01_train():
+    
+    paths = [
+        [
+            WAYPOINT_DICT[85],
+            WAYPOINT_DICT[98]
+        ],
+        [
+            WAYPOINT_DICT[87],
+            WAYPOINT_DICT[100]
+        ],
+        [
+            WAYPOINT_DICT[76],
+            WAYPOINT_DICT[63]
+        ],
+        [
+            WAYPOINT_DICT[70],
+            WAYPOINT_DICT[66]
+        ],
+        [
+            WAYPOINT_DICT[104],
+            WAYPOINT_DICT[78]
+        ],
+        [
+            WAYPOINT_DICT[106],
+            WAYPOINT_DICT[80]
+        ],
+        [
+            WAYPOINT_DICT[46],
+            WAYPOINT_DICT[37]
+        ],
+        [
+            WAYPOINT_DICT[44],
+            WAYPOINT_DICT[39]
+        ],
+        [
+            WAYPOINT_DICT[48],
+            WAYPOINT_DICT[37]
+        ]
+    ]
+    return paths
+
+def paths_left_Town01_test():
+    
+    paths = [
+        [
+            WAYPOINT_DICT[85],
+            WAYPOINT_DICT[100]
+        ],
+        [
+            WAYPOINT_DICT[87],
+            WAYPOINT_DICT[98]
+        ],
+        [
+            WAYPOINT_DICT[76],
+            WAYPOINT_DICT[77]
+        ],
+        [
+            WAYPOINT_DICT[70],
+            WAYPOINT_DICT[63]
+        ],
+        [
+            WAYPOINT_DICT[104],
+            WAYPOINT_DICT[80]
+        ],
+        [
+            WAYPOINT_DICT[106],
+            WAYPOINT_DICT[78]
+        ],
+        [
+            WAYPOINT_DICT[46],
+            WAYPOINT_DICT[39]
+        ],
+        [
+            WAYPOINT_DICT[44],
+            WAYPOINT_DICT[37]
+        ],
+        [
+            WAYPOINT_DICT[48],
+            WAYPOINT_DICT[39]
+        ]
+    ]
+    return paths
+
+def paths_right_Town01_train_():
+    
+    paths = [
+        [
+            WAYPOINT_DICT[42],
+            WAYPOINT_DICT[49]
+        ],
+        [
+            WAYPOINT_DICT[40],
+            WAYPOINT_DICT[47]
+        ],
+        [
+            WAYPOINT_DICT[38],
+            WAYPOINT_DICT[49]
+        ],
+        [
+            WAYPOINT_DICT[79],
+            WAYPOINT_DICT[103]
+        ],
+        [
+            WAYPOINT_DICT[81],
+            WAYPOINT_DICT[105]
+        ],
+        [
+            WAYPOINT_DICT[67],
+            WAYPOINT_DICT[77]
+        ],
+        [
+            WAYPOINT_DICT[64],
+            WAYPOINT_DICT[71]
+        ],
+        [
+            WAYPOINT_DICT[99],
+            WAYPOINT_DICT[86]
+        ],
+        [
+            WAYPOINT_DICT[97],
+            WAYPOINT_DICT[84]
+        ]
+    ]
+    return paths
+
+
+def paths_right_Town01_train():
+    paths = [
+        [
+            WAYPOINT_DICT[42],
+            WAYPOINT_DICT[49]
+        ],
+        [
+            WAYPOINT_DICT[40],
+            WAYPOINT_DICT[47]
+        ],
+        [
+            WAYPOINT_DICT[38],
+            WAYPOINT_DICT[49]
+        ]
+
+    ]
+    return paths
+
+
+def paths_right_Town01_test():
+    
+    paths = [
+        [
+            WAYPOINT_DICT[42],
+            WAYPOINT_DICT[47]
+        ],
+        [
+            WAYPOINT_DICT[40],
+            WAYPOINT_DICT[49]
+        ],
+        [
+            WAYPOINT_DICT[38],
+            WAYPOINT_DICT[47]
+        ],
+        [
+            WAYPOINT_DICT[79],
+            WAYPOINT_DICT[105]
+        ],
+        [
+            WAYPOINT_DICT[81],
+            WAYPOINT_DICT[103]
+        ],
+        [
+            WAYPOINT_DICT[67],
+            WAYPOINT_DICT[71]
+        ],
+        [
+            WAYPOINT_DICT[64],
+            WAYPOINT_DICT[77]
+        ],
+        [
+            WAYPOINT_DICT[99],
+            WAYPOINT_DICT[84]
+        ],
+        [
+            WAYPOINT_DICT[97],
+            WAYPOINT_DICT[86]
+        ]
+    ]
+    return paths
+
+'''
+Deprecated
 def paths_left_and_right_train():
     
     # # Old longer paths
@@ -289,41 +575,42 @@ def paths_left_and_right_test():
         ]
     ]
     return paths
+'''
 
 def get_fixed_short_straight_path_Town01(unseen=False):
     " Returns a list of [start_transform, target_transform]"
     if not unseen:
-        return paths_straight_Town01()[0]
+        return random.choice(paths_straight_Town01_train())
     else:
-        return paths_straight_Town01()[1]
+        return random.choice(paths_straight_Town01_test())
 
+'''Deprecated
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
-    return paths_straight_Town01()[1]
+    return paths_straight_Town01_train()[1]
 
 def get_random_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
-    return random.choice(paths_straight_Town01())
+    return random.choice(paths_straight_Town01_train())
+'''
 
 def get_left_right_randomly(unseen = False):
-    if unseen:
-        return get_test_left_right_randomly()
-    else:
-        return get_train_left_right_randomly()
+    return random.choice([get_right_turn(unseen=unseen), get_left_turn(unseen=unseen)])
 
 def get_right_turn(unseen = False):
     if unseen:
-        return get_test_right_turn()
+        return random.choice(paths_right_Town01_test())
     else:
-        return get_train_right_turn()
+        return random.choice(paths_right_Town01_train())
     
 def get_left_turn(unseen = False):
     if unseen:
-        return get_test_left_turn()
+        return random.choice(paths_left_Town01_test())
     else:
-        return get_train_left_turn()
+        return random.choice(paths_left_Town01_train())
 
-# Helper functions
+'''
+# Deprecated Helper functions
 def get_train_right_turn():
     return paths_left_and_right_train()[1]
 
@@ -341,3 +628,4 @@ def get_train_left_right_randomly():
 
 def get_test_left_right_randomly():
     return random.choice(paths_left_and_right_test())
+'''

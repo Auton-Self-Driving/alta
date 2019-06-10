@@ -130,3 +130,6 @@ misc/logs/*jpeg
 
 *logs/
 *.history/*
+
+# don't track .txt files used for printing output
+*.txt

@@ -33,3 +33,5 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "right_curved"
+            self.config["x_res"] = 224
+            self.config["y_res"] = 224

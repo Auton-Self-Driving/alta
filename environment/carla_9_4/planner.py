@@ -6,6 +6,7 @@ import math
 import numpy as np
 from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
 from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla_9_4.agents.tools.misc import distance_vehicle
 from collections import deque
 
 # CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
@@ -33,6 +34,9 @@ class GlobalPlanner():
         self._hop_resolution = 2.0
         # queue with tuples of (waypoint, RoadOption)
         self._waypoints_queue = deque(maxlen=20000)
+        self._waypoints_queue_old = deque(maxlen=20000)
+        self.dist_to_trajectory = 0
+        self.second_last_waypoint = None
     
     def _trace_route(self, map, start_transform, destination_transform):
         """
@@ -60,6 +64,7 @@ class GlobalPlanner():
         self._waypoints_queue.clear()
         for elem in current_plan:
             self._waypoints_queue.append(elem)
+            self._waypoints_queue_old.append(elem)
 
     def get_next_orientation(self, vehicle_transform):
         
@@ -67,7 +72,7 @@ class GlobalPlanner():
         next_waypoint_found = False
         num_next_waypoints = 5
         max_index = 0
-        for i, (waypoint, _) in enumerate(self._waypoints_queue):
+        for i, (waypoint, _) in enumerate(self._waypoints_queue_old):
             
             dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
             
@@ -85,15 +90,86 @@ class GlobalPlanner():
                     break
         if max_index > 0:
             for i in range(max_index):
-                self._waypoints_queue.popleft()
+                self._waypoints_queue_old.popleft()
         
         if next_waypoint_found and len(next_waypoints_angles) > 0:
+            print(next_waypoints_angles)
             angle = np.mean(np.array(next_waypoints_angles))
         else:
             print("No next waypoint found!")
             angle = 0
 
-        return angle
+        return angle, 0
+
+    def get_next_orientation_new(self, vehicle_transform):
+        
+        next_waypoints_angles = []
+        next_waypoints = []
+        next_waypoint_found = False
+        num_next_waypoints = 5
+        max_index = 0
+        min_dist = np.inf
+        # print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
+        for i, (waypoint, _) in enumerate(self._waypoints_queue):
+
+            dist_to_waypoint = distance_vehicle(waypoint, vehicle_transform)
+            dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
+            
+            # next_waypoint_found implies the first waypoint with 
+            # positive dot product is found
+            if not next_waypoint_found:
+                if dist_to_waypoint < min_dist:
+                    min_dist = dist_to_waypoint
+                    max_index = i
+                    next_waypoints_angles = [angle]
+                    next_waypoints = [waypoint]
+                else:
+                    next_waypoint_found = True
+            else:
+                if len(next_waypoints_angles) < num_next_waypoints:
+                    next_waypoints_angles.append(angle)
+                    next_waypoints.append(waypoint)
+                else:
+                    break
+        if max_index > 0:
+            q_len = len(self._waypoints_queue)
+
+            # Remove all waypoints except the closest one (max_index)
+            for i in range(max_index):
+                waypoint, _ = self._waypoints_queue.popleft()
+                
+                # Store second-last waypoint for corner case
+                if i == q_len - 2:
+                    self.second_last_waypoint = waypoint
+        
+        next_waypoints_angles_array = np.array(next_waypoints_angles)
+        print("full angle {0}, selected angle {1}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:])))
+        print(next_waypoints_angles)
+        if len(next_waypoints_angles) > 1:
+            angle = np.mean(next_waypoints_angles_array[1:])
+        elif len(next_waypoints_angles) > 0:
+            angle = np.mean(next_waypoints_angles_array)
+        else:
+            print("No next waypoint found!")
+            angle = 0
+
+        if len(next_waypoints) > 1:
+            self.dist_to_trajectory = self.getPointToLineDistance(
+                                    vehicle_transform,
+                                    next_waypoints[0],
+                                    next_waypoints[1])
+        else:
+            # Reached near last waypoint
+            # use second_last_waypoint
+            
+            print("Needed to use second_last_waypoint")
+            last_wp, _ = self._waypoints_queue[0]
+            self.dist_to_trajectory = self.getPointToLineDistance(
+                                    vehicle_transform,
+                                    self.second_last_waypoint,
+                                    last_wp)
+
+        return angle, self.dist_to_trajectory
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
 
@@ -114,3 +190,14 @@ class GlobalPlanner():
             angle *= -1.0
 
         return dot, angle
+
+    def getPointToLineDistance(self, vehicle_transform, waypoint1, waypoint2):
+        point = np.array([vehicle_transform.location.x, vehicle_transform.location.x])
+        point1_on_line = np.array([waypoint1.transform.location.x, waypoint1.transform.location.y])
+        point2_on_line = np.array([waypoint2.transform.location.x, waypoint2.transform.location.y])
+        return self.getPointToLineDistanceHelper(point, point1_on_line, point2_on_line)
+
+    def getPointToLineDistanceHelper(self, point, point1_on_line, point2_on_line):
+        a_vec = point2_on_line - point1_on_line
+        b_vec = point - point1_on_line
+        return np.linalg.norm(np.cross(a_vec, b_vec) / np.linalg.norm(a_vec))

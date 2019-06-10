@@ -224,6 +224,8 @@ class CarlaEnv(gym.Env):
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
+
+        self.dist_to_trajectory = None
         # Compute number of channels in sensor image
         # We use this later in the preprocess step to reshape the data
         # im_channels refers to number of channels the agent receives after preprocessing
@@ -267,7 +269,7 @@ class CarlaEnv(gym.Env):
 
         if(self.config['train_config'] == 'PPO'):
             # Streer, Throttle
-            self.action_space = Box(low=np.array([-0.5, -0.7]), high=np.array([0.5, 0.7]), dtype=np.float32)
+            self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):
@@ -352,6 +354,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
+        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         reward = self._compute_reward(name=self.config['reward_function'],
                                     prev_measurement=self.prev_measurement,
                                     cur_measurement=self.episode_measurements)
@@ -391,12 +395,18 @@ class CarlaEnv(gym.Env):
             [self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
-        obs['orientation'] = np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())])
+        obs['orientation'] = np.array([next_orientation])
+
+        print("orientation {0}".format(next_orientation))
+        print("old orientation {0}".format(next_orientation_old))
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO":
             self.vis_wrapper.save_image(obs['image'], self.num_steps)
+            self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
+            self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                
             if done:
                 self.episode_num += 1
                 self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
@@ -414,6 +424,7 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
+            # self.source_transform, self.destination_transform = scenarios.get_train_right_turn()
             self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
         elif self.config["scenarios"] == "left_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
@@ -435,6 +446,7 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] is "merged_gas":
             steer = float(action[0])
             gas = float(action[1])
+            gas = np.clip(gas, 0.3, 0.7)
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -605,11 +617,14 @@ class CarlaEnv(gym.Env):
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
+        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+
         obs['image'] = image
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
-        obs['orientation'] = np.array([self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())])
+        obs['orientation']= np.array([next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         return obs['orientation']
@@ -775,6 +790,8 @@ class CarlaEnv(gym.Env):
             reward = self._compute_reward_corl2(prev_measurement, cur_measurement)
         elif name == 'corlT':
             reward = self._compute_reward_corlT(prev_measurement, cur_measurement)
+        elif name == "simple":
+            reward = self._compute_reward_simple(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_cirl(self, prev, current):
@@ -909,6 +926,43 @@ class CarlaEnv(gym.Env):
 
         print("goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward")
         print(goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward)
+        # Update state variables
+        if np.absolute(lane_intersection_reward) > 0:
+            self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+        return reward
+    
+    def _compute_reward_simple(self, prev, current):
+        cur_dist = current["distance_to_goal"]
+        prev_dist = prev["distance_to_goal"]
+
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+        dist_to_trajectory_reward = -1 * self.dist_to_trajectory
+        
+        speed_reward = current["speed"]
+        acceleration_reward = (current["speed"] - prev["speed"])
+        
+        # Collision damage
+        if((current["num_collisions"] - prev["num_collisions"]) > 0):
+            collision_reward = -1
+        else:
+            collision_reward = 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # New sidewalk intersection
+        if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
+            lane_intersection_reward = -1
+        else:
+            lane_intersection_reward = 0
+        self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        reward = dist_to_trajectory_reward + speed_reward
+
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
