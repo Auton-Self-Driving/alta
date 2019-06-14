@@ -26,12 +26,12 @@ class ConfigManager(object):
             self.config["scenarios"] = "right_curved"
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
-            self.config["reward_function"] = "corl2"
+            self.config["reward_function"] = "simple"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "merged_gas"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "right_curved"
-            self.config["x_res"] = 224
-            self.config["y_res"] = 224
+            self.config["x_res"] = 84
+            self.config["y_res"] = 84
