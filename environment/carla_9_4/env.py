@@ -446,7 +446,7 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] is "merged_gas":
             steer = float(action[0])
             gas = float(action[1])
-            gas = np.clip(gas, 0.3, 0.7)
+            gas = np.clip(gas, 0.0, 0.7)
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -942,7 +942,7 @@ class CarlaEnv(gym.Env):
 
         dist_to_trajectory_reward = -1 * self.dist_to_trajectory
         
-        speed_reward = current["speed"]
+        speed_reward = 0.1 *current["speed"]
         acceleration_reward = (current["speed"] - prev["speed"])
         
         # Collision damage
@@ -959,10 +959,17 @@ class CarlaEnv(gym.Env):
             lane_intersection_reward = 0
         self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
 
-        reward = dist_to_trajectory_reward + speed_reward
+        success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
 
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
+        if success:
+            success_reward = 10
+        else:
+            success_reward = 0
+
+        reward = dist_to_trajectory_reward + speed_reward + success_reward
+
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, success_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, success_reward, reward)
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1

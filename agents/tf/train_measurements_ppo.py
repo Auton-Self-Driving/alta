@@ -40,7 +40,7 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
-prefix = 'ppo_wp_right_3_scenario_throttle_clipped_simple_newori_14/'
+prefix = 'ppo_wp_right_3_scenario_throttle_nonzero_simple2_newori_1/'
 
 ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
