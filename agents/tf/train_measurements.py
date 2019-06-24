@@ -41,9 +41,9 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_wp_lr_5e6_g_9_straight_1_simple6_throttleonly_exp_5k_1/'
+prefix = 'dqn_wp_lr_5e6_g_9_straight_1_simple6_steeronly_exp_5k_1/'
 
-ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -55,53 +55,53 @@ IMAGES_PATH = ALTA_LOGS+prefix+'images/'
 VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 FRAME_SKIP = 4
 
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.5, -0.5],
-#     # Forward
-#     1: [0.5, -0.4],
-#     # Brake
-#     2: [0.5, -0.3],
-#     # Left
-#     3: [0.5, -0.2],
-#     # Right
-#     4: [0.5, -0.1],
-#     # Forward left
-#     5: [0.5, 0.0],
-#     # Forward right
-#     6: [0.5, 0.1],
-#     # Brake left
-#     7: [0.5, 0.2],
-#     # Brake right
-#     8: [0.5, 0.3],
-
-#     9: [0.5, 0.4],
-#     10: [0.5, 0.5]
-# }
-
 DISCRETE_ACTIONS = {
     # Coast
-    0: [-0.5, 0.0],
+    0: [0.5, -0.5],
     # Forward
-    1: [-0.4, 0.0],
+    1: [0.5, -0.4],
     # Brake
-    2: [-0.3, 0.0],
+    2: [0.5, -0.3],
     # Left
-    3: [-0.2, 0.0],
+    3: [0.5, -0.2],
     # Right
-    4: [-0.1, 0.0],
+    4: [0.5, -0.1],
     # Forward left
-    5: [0.0, 0.0],
+    5: [0.5, 0.0],
     # Forward right
-    6: [0.1, 0.0],
+    6: [0.5, 0.1],
     # Brake left
-    7: [0.2, 0.0],
+    7: [0.5, 0.2],
     # Brake right
-    8: [0.3, 0.0],
+    8: [0.5, 0.3],
 
-    9: [0.4, 0.0],
-    10: [0.5, 0.0]
+    9: [0.5, 0.4],
+    10: [0.5, 0.5]
 }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [-0.5, 0.0],
+#     # Forward
+#     1: [-0.4, 0.0],
+#     # Brake
+#     2: [-0.3, 0.0],
+#     # Left
+#     3: [-0.2, 0.0],
+#     # Right
+#     4: [-0.1, 0.0],
+#     # Forward left
+#     5: [0.0, 0.0],
+#     # Forward right
+#     6: [0.1, 0.0],
+#     # Brake left
+#     7: [0.2, 0.0],
+#     # Brake right
+#     8: [0.3, 0.0],
+
+#     9: [0.4, 0.0],
+#     10: [0.5, 0.0]
+# }
 
 
 # DISCRETE_ACTIONS = {

@@ -40,9 +40,9 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
-prefix = 'ppo_wp_st_1_throttle_steer_simple1_newori_1/'
+prefix = 'ppo_wp_st_1_throttle_steer_simple6_newori_1/'
 
-ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 

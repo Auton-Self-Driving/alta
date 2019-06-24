@@ -112,53 +112,53 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight"
 }
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.5, -0.5],
-#     # Forward
-#     1: [0.5, -0.4],
-#     # Brake
-#     2: [0.5, -0.3],
-#     # Left
-#     3: [0.5, -0.2],
-#     # Right
-#     4: [0.5, -0.1],
-#     # Forward left
-#     5: [0.5, 0.0],
-#     # Forward right
-#     6: [0.5, 0.1],
-#     # Brake left
-#     7: [0.5, 0.2],
-#     # Brake right
-#     8: [0.5, 0.3],
-
-#     9: [0.5, 0.4],
-#     10: [0.5, 0.5]
-# }
-
 DISCRETE_ACTIONS = {
     # Coast
-    0: [-0.5, 0.0],
+    0: [0.5, -0.5],
     # Forward
-    1: [-0.4, 0.0],
+    1: [0.5, -0.4],
     # Brake
-    2: [-0.3, 0.0],
+    2: [0.5, -0.3],
     # Left
-    3: [-0.2, 0.0],
+    3: [0.5, -0.2],
     # Right
-    4: [-0.1, 0.0],
+    4: [0.5, -0.1],
     # Forward left
-    5: [0.0, 0.0],
+    5: [0.5, 0.0],
     # Forward right
-    6: [0.1, 0.0],
+    6: [0.5, 0.1],
     # Brake left
-    7: [0.2, 0.0],
+    7: [0.5, 0.2],
     # Brake right
-    8: [0.3, 0.0],
+    8: [0.5, 0.3],
 
-    9: [0.4, 0.0],
-    10: [0.5, 0.0]
+    9: [0.5, 0.4],
+    10: [0.5, 0.5]
 }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [-0.5, 0.0],
+#     # Forward
+#     1: [-0.4, 0.0],
+#     # Brake
+#     2: [-0.3, 0.0],
+#     # Left
+#     3: [-0.2, 0.0],
+#     # Right
+#     4: [-0.1, 0.0],
+#     # Forward left
+#     5: [0.0, 0.0],
+#     # Forward right
+#     6: [0.1, 0.0],
+#     # Brake left
+#     7: [0.2, 0.0],
+#     # Brake right
+#     8: [0.3, 0.0],
+
+#     9: [0.4, 0.0],
+#     10: [0.5, 0.0]
+# }
 
 # DISCRETE_ACTIONS = {
 #     # Coast
@@ -444,8 +444,8 @@ class CarlaEnv(gym.Env):
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
         
-        return obs, reward, done, self.episode_measurements
-        # return obs['orientation'], reward, done, self.episode_measurements
+        # return obs, reward, done, self.episode_measurements
+        return obs['orientation'], reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
@@ -665,7 +665,8 @@ class CarlaEnv(gym.Env):
         obs['orientation']= np.array([next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        return obs
+        # return obs
+        return obs['orientation']
 
     def get_speed_from_velocity(self, velocity):
 
