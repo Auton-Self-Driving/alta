@@ -193,11 +193,11 @@ class GlobalPlanner():
         for i, (waypoint, _) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
-            print("i:{0}, dist : {1}".format(i, dist_i)) 
+            # print("i:{0}, dist : {1}".format(i, dist_i)) 
             if dist_i < self._min_distance:
                 max_index = i
 
-        print("max_index {0}".format(max_index))    
+        # print("max_index {0}".format(max_index))
         q_len = len(self._waypoints_queue)
         if max_index >= 0:
             for i in range(max_index + 1):
@@ -317,10 +317,10 @@ class GlobalPlanner():
         return self.getPointToLineDistanceHelper(point, point1_on_line, point2_on_line)
 
     def getPointToLineDistanceHelper(self, point, point1_on_line, point2_on_line):
-        print(point, point1_on_line, point2_on_line)
+        # print(point, point1_on_line, point2_on_line)
         a_vec = point2_on_line - point1_on_line
         b_vec = point - point1_on_line
-        print(a_vec, b_vec)
+        # print(a_vec, b_vec)
         return np.linalg.norm(np.cross(a_vec, b_vec) / np.linalg.norm(a_vec))
 
     def printwaypoint(self, waypoint):

@@ -112,28 +112,52 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight"
 }
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.5, -0.5],
+#     # Forward
+#     1: [0.5, -0.4],
+#     # Brake
+#     2: [0.5, -0.3],
+#     # Left
+#     3: [0.5, -0.2],
+#     # Right
+#     4: [0.5, -0.1],
+#     # Forward left
+#     5: [0.5, 0.0],
+#     # Forward right
+#     6: [0.5, 0.1],
+#     # Brake left
+#     7: [0.5, 0.2],
+#     # Brake right
+#     8: [0.5, 0.3],
+
+#     9: [0.5, 0.4],
+#     10: [0.5, 0.5]
+# }
+
 DISCRETE_ACTIONS = {
     # Coast
-    0: [0.5, -0.5],
+    0: [-0.5, 0.0],
     # Forward
-    1: [0.5, -0.4],
+    1: [-0.4, 0.0],
     # Brake
-    2: [0.5, -0.3],
+    2: [-0.3, 0.0],
     # Left
-    3: [0.5, -0.2],
+    3: [-0.2, 0.0],
     # Right
-    4: [0.5, -0.1],
+    4: [-0.1, 0.0],
     # Forward left
-    5: [0.5, 0.0],
+    5: [0.0, 0.0],
     # Forward right
-    6: [0.5, 0.1],
+    6: [0.1, 0.0],
     # Brake left
-    7: [0.5, 0.2],
+    7: [0.2, 0.0],
     # Brake right
-    8: [0.5, 0.3],
+    8: [0.3, 0.0],
 
-    9: [0.5, 0.4],
-    10: [0.5, 0.5]
+    9: [0.4, 0.0],
+    10: [0.5, 0.0]
 }
 
 # DISCRETE_ACTIONS = {
@@ -270,6 +294,7 @@ class CarlaEnv(gym.Env):
         if(self.config['train_config'] == 'PPO'):
             # Streer, Throttle
             self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            # self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):
@@ -406,6 +431,9 @@ class CarlaEnv(gym.Env):
             self.vis_wrapper.save_image(obs['image'], self.num_steps)
             self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
             self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+            self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
+            self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
+            self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
                 
             if done:
                 self.episode_num += 1
@@ -416,7 +444,8 @@ class CarlaEnv(gym.Env):
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
         
-        return obs['orientation'], reward, done, self.episode_measurements
+        return obs, reward, done, self.episode_measurements
+        # return obs['orientation'], reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
@@ -438,7 +467,7 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        action = action.flatten()
+        # action = action.flatten()
         if self.config["action_type"] is "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -457,6 +486,15 @@ class CarlaEnv(gym.Env):
             steer = float(action[0])
             throttle = float(0.50)
             brake = float(0.0)
+        elif self.config["action_type"] == "throttle_only":
+            gas = float(action[0])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+            steer = float(0.0)
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
@@ -627,7 +665,7 @@ class CarlaEnv(gym.Env):
         obs['orientation']= np.array([next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        return obs['orientation']
+        return obs
 
     def get_speed_from_velocity(self, velocity):
 
@@ -942,7 +980,7 @@ class CarlaEnv(gym.Env):
 
         dist_to_trajectory_reward = -1 * self.dist_to_trajectory
         
-        speed_reward = 0.1 *current["speed"]
+        speed_reward = 1.0 * current["speed"]
         acceleration_reward = (current["speed"] - prev["speed"])
         
         # Collision damage
@@ -966,7 +1004,7 @@ class CarlaEnv(gym.Env):
         else:
             success_reward = 0
 
-        reward = dist_to_trajectory_reward + speed_reward + success_reward
+        reward = dist_to_trajectory_reward + speed_reward
 
         print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, success_reward, reward")
         print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, success_reward, reward)
@@ -1016,7 +1054,7 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        static = False
+        # static = False
         maxStepsTaken = False
 
         if success:

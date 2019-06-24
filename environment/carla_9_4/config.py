@@ -17,13 +17,13 @@ class ConfigManager(object):
             self.config["algo"] = "DQN"
             self.config["x_res"] = 84
             self.config["y_res"] = 84
-            self.config["reward_function"] = "corl2"
+            self.config["reward_function"] = "simple"
             self.config["discrete_actions"] = True
             self.config["train_config"] = "baselines"
             self.config["action_type"] = "sep_gas"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["scenarios"] = "right_curved"
+            self.config["scenarios"] = "straight"
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple"
@@ -32,6 +32,6 @@ class ConfigManager(object):
             self.config["action_type"] = "merged_gas"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["scenarios"] = "right_curved"
+            self.config["scenarios"] = "straight"
             self.config["x_res"] = 84
             self.config["y_res"] = 84

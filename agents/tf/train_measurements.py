@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -41,9 +41,9 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_measure_wp_lr_5e6_g_9_straight_short_corlA_1_correct_steeronly_exp_5k_run1/'
+prefix = 'dqn_wp_lr_5e6_g_9_straight_1_simple6_throttleonly_exp_5k_1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
+ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -55,29 +55,75 @@ IMAGES_PATH = ALTA_LOGS+prefix+'images/'
 VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 FRAME_SKIP = 4
 
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.5, -0.5],
+#     # Forward
+#     1: [0.5, -0.4],
+#     # Brake
+#     2: [0.5, -0.3],
+#     # Left
+#     3: [0.5, -0.2],
+#     # Right
+#     4: [0.5, -0.1],
+#     # Forward left
+#     5: [0.5, 0.0],
+#     # Forward right
+#     6: [0.5, 0.1],
+#     # Brake left
+#     7: [0.5, 0.2],
+#     # Brake right
+#     8: [0.5, 0.3],
+
+#     9: [0.5, 0.4],
+#     10: [0.5, 0.5]
+# }
+
 DISCRETE_ACTIONS = {
     # Coast
-    0: [0.5, -0.5],
+    0: [-0.5, 0.0],
     # Forward
-    1: [0.5, -0.4],
+    1: [-0.4, 0.0],
     # Brake
-    2: [0.5, -0.3],
+    2: [-0.3, 0.0],
     # Left
-    3: [0.5, -0.2],
+    3: [-0.2, 0.0],
     # Right
-    4: [0.5, -0.1],
+    4: [-0.1, 0.0],
     # Forward left
-    5: [0.5, 0.0],
+    5: [0.0, 0.0],
     # Forward right
-    6: [0.5, 0.1],
+    6: [0.1, 0.0],
     # Brake left
-    7: [0.5, 0.2],
+    7: [0.2, 0.0],
     # Brake right
-    8: [0.5, 0.3],
+    8: [0.3, 0.0],
 
-    9: [0.5, 0.4],
-    10: [0.5, 0.5]
+    9: [0.4, 0.0],
+    10: [0.5, 0.0]
 }
+
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.0, 0.0],
+#     # Forward
+#     1: [0.5, 0.0],
+#     # Forward left
+#     2: [0.25, -0.3],
+#     3: [0.25, -0.1],
+#     # Forward right
+#     4: [0.25, 0.1],
+#     5: [0.25, 0.3],
+#     # Brake
+#     6: [-0.5, 0.0],
+#     # Brake left
+#     7: [-0.25, -0.3],
+#     8: [-0.25, -0.1],
+#     # Brake right
+#     9: [-0.25, 0.1],
+#     10: [-0.25, 0.3]
+# }
 
 if __name__ == '__main__':
     with U.make_session():
@@ -135,7 +181,10 @@ if __name__ == '__main__':
             new_obs, rew, done, eps_measurements = env.step(action)
             vis_wrapper.save_image(obs['image'], t)
             logger.log_scalar('timesteps/train/orientation', obs['orientation'], t)
-            logger.log_scalar('timesteps/train/throttle', DISCRETE_ACTIONS[action][1], t)
+            logger.log_scalar('timesteps/train/throttle', DISCRETE_ACTIONS[action][0], t)
+            logger.log_scalar('timesteps/train/steer', eps_measurements['control_steer'], t)
+            logger.log_scalar('timesteps/train/speed', eps_measurements['speed'], t)
+            
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
             rew = float(rew[0, 0])
