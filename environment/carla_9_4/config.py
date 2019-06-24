@@ -29,9 +29,9 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_gas"
+            self.config["action_type"] = "throttle_only"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["scenarios"] = "right_curved"
+            self.config["scenarios"] = "straight"
             self.config["x_res"] = 84
             self.config["y_res"] = 84

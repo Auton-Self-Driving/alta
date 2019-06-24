@@ -584,15 +584,13 @@ def get_fixed_short_straight_path_Town01(unseen=False):
     else:
         return random.choice(paths_straight_Town01_test())
 
-'''Deprecated
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
-    return paths_straight_Town01_train()[1]
+    return paths_straight_Town01_train()[0]
 
 def get_random_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
     return random.choice(paths_straight_Town01_train())
-'''
 
 def get_left_right_randomly(unseen = False):
     return random.choice([get_right_turn(unseen=unseen), get_left_turn(unseen=unseen)])

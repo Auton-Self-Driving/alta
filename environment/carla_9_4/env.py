@@ -269,7 +269,8 @@ class CarlaEnv(gym.Env):
 
         if(self.config['train_config'] == 'PPO'):
             # Streer, Throttle
-            self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            # self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):
@@ -406,7 +407,8 @@ class CarlaEnv(gym.Env):
             self.vis_wrapper.save_image(obs['image'], self.num_steps)
             self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
             self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-                
+            self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
+            self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)                
             if done:
                 self.episode_num += 1
                 self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
@@ -420,7 +422,7 @@ class CarlaEnv(gym.Env):
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01(unseen)
+            self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -446,7 +448,8 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] is "merged_gas":
             steer = float(action[0])
             gas = float(action[1])
-            gas = np.clip(gas, 0.3, 0.7)
+            # gas = gas + 0.25
+            gas = np.clip(gas, 0.0, 0.7)
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -456,6 +459,10 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "steer_only":
             steer = float(action[0])
             throttle = float(0.50)
+            brake = float(0.0)
+        elif self.config["action_type"] == "throttle_only":
+            steer = float(0.0)
+            throttle = float(action[0])
             brake = float(0.0)
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
@@ -940,9 +947,9 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-        dist_to_trajectory_reward = -1 * self.dist_to_trajectory
+        dist_to_trajectory_reward = -10 * self.dist_to_trajectory
         
-        speed_reward = current["speed"]
+        speed_reward = 0.1 * current["speed"]
         acceleration_reward = (current["speed"] - prev["speed"])
         
         # Collision damage
