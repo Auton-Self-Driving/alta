@@ -940,9 +940,9 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-        dist_to_trajectory_reward = -1 * self.dist_to_trajectory
+        dist_to_trajectory_reward = -0.1 * self.dist_to_trajectory
         
-        speed_reward = current["speed"]
+        speed_reward = 0.1 * current["speed"]
         acceleration_reward = (current["speed"] - prev["speed"])
         
         # Collision damage

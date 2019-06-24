@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -40,7 +40,7 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
-prefix = 'ppo_wp_right_3_scenario_throttle_clipped_simple_newori_14/'
+prefix = 'ppo_wp_right_3_scenario_throttle_clipped_simple01_newori_1/'
 
 ALTA_LOGS = '/media/hdd/hiteshar/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
