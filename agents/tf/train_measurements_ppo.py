@@ -40,7 +40,7 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
-prefix = 'ppo_wp_straight_3_scenario_throttle_only_unclipped_simple11_newori_1/'
+prefix = 'ppo_wp_straight_merged_speed_simple6_newori_2/'
 
 ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
@@ -59,7 +59,7 @@ TB_LOGS_DIR = ALTA_LOGS+prefix+str(datetime.now())
 def train():
     model = PPO2(policy=MlpPolicy, env=env, n_steps=500, nminibatches=4, verbose=1,
                  tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
-    model.learn(100000, tb_log_name="PPO2")
+    model.learn(500000, tb_log_name="PPO2")
     return model
 
 if __name__ == '__main__':

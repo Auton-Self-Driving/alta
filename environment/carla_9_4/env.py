@@ -23,8 +23,11 @@ import time
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
 import environment.carla_9_4.planner as planner
+import environment.carla_9_4.controller as controller
 import scipy.misc
 from scipy.misc import imsave
+
+
 
 # Keeping this for now (since we may need to log images later)
 # SENSOR_LOG_DIR = '/../../misc/logs'
@@ -104,7 +107,7 @@ DEFAULT_ENV = {
     "sensor_tick": '1.0',
     "dist_for_success" : 4.0,
     "max_offlane_steps" : 20,
-    "max_static_steps" : 100,
+    "max_static_steps" : 500,
     "log_measurements_to_file": False,
     "train_config": 'baselines',
     "sync_mode": True,
@@ -112,29 +115,29 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight"
 }
-DISCRETE_ACTIONS = {
-    # Coast
-    0: [0.5, -0.5],
-    # Forward
-    1: [0.5, -0.4],
-    # Brake
-    2: [0.5, -0.3],
-    # Left
-    3: [0.5, -0.2],
-    # Right
-    4: [0.5, -0.1],
-    # Forward left
-    5: [0.5, 0.0],
-    # Forward right
-    6: [0.5, 0.1],
-    # Brake left
-    7: [0.5, 0.2],
-    # Brake right
-    8: [0.5, 0.3],
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.5, -0.5],
+#     # Forward
+#     1: [0.5, -0.4],
+#     # Brake
+#     2: [0.5, -0.3],
+#     # Left
+#     3: [0.5, -0.2],
+#     # Right
+#     4: [0.5, -0.1],
+#     # Forward left
+#     5: [0.5, 0.0],
+#     # Forward right
+#     6: [0.5, 0.1],
+#     # Brake left
+#     7: [0.5, 0.2],
+#     # Brake right
+#     8: [0.5, 0.3],
 
-    9: [0.5, 0.4],
-    10: [0.5, 0.5]
-}
+#     9: [0.5, 0.4],
+#     10: [0.5, 0.5]
+# }
 
 # DISCRETE_ACTIONS = {
 #     # Coast
@@ -155,6 +158,72 @@ DISCRETE_ACTIONS = {
 #     # Brake right
 #     9: [-0.25, 0.1],
 #     10: [-0.25, 0.3]
+# }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [10.0, 0.0],
+#     # Forward
+#     1: [20.0, 0.0],
+#     # Forward left
+#     2: [15.0, -0.3],
+#     3: [15.0, -0.1],
+#     # Forward right
+#     4: [15.0, 0.1],
+#     5: [15.0, 0.3],
+#     # Brake
+#     6: [0.0, 0.0],
+#     # Brake left
+#     7: [5.0, -0.3],
+#     8: [5.0, -0.1],
+#     # Brake right
+#     9: [5.0, 0.1],
+#     10: [5.0, 0.3]
+# }
+
+DISCRETE_ACTIONS = {
+    # Coast
+    0: [10.0, -0.5],
+    # Forward
+    1: [10.0, -0.4],
+    # Brake
+    2: [10.0, -0.3],
+    # Left
+    3: [10.0, -0.2],
+    # Right
+    4: [10.0, -0.1],
+    # Forward left
+    5: [10.0, 0.0],
+    # Forward right
+    6: [10.0, 0.1],
+    # Brake left
+    7: [10.0, 0.2],
+    # Brake right
+    8: [10.0, 0.3],
+
+    9: [10.0, 0.4],
+    10: [10.0, 0.5]
+}
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.0, 0.0],
+#     # Forward
+#     1: [2.0, 0.0],
+#     # Forward left
+#     2: [4.0, 0.0],
+#     3: [6.0, 0.0],
+#     # Forward right
+#     4: [8.0, 0.0],
+#     5: [10.0, 0.0],
+#     # Brake
+#     6: [12.0, 0.0],
+#     # Brake left
+#     7: [14.0, 0.0],
+#     8: [16.0, 0.0],
+#     # Brake right
+#     9: [18.0, 0.0],
+#     10: [20.0, 0.0]
 # }
 
 episode_measurements = {
@@ -212,6 +281,21 @@ class CarlaEnv(gym.Env):
         self.server_process = None
         self.CarlaServer = None
         self.target_speed = self.config['target_speed']
+        self.args_lateral_dict = {
+            'K_P': 1,
+            'K_D': 0.02,
+            'K_I': 0,
+            'dt': 1.0/10.0}
+        # self.args_lateral_dict = {
+        #     'K_P': 1.95,
+        #     'K_D': 0.01,
+        #     'K_I': 1.4,
+        #     'dt': 1.0/10.0}
+        self.args_longitudinal_dict = {
+            'K_P': 1.0,
+            'K_D': 0,
+            'K_I': 1,
+            'dt': 1.0/10.0}
         self.actor_list = []
         self.image_data = None
         # Set default source and destination points (in _reset function)
@@ -233,6 +317,8 @@ class CarlaEnv(gym.Env):
             self.im_channels = 1
         else:
             self.im_channels = 3
+        
+        self.controller = controller.PIDLongitudinalController() 
 
         # Start Carla Server
         serverStarted = False
@@ -270,7 +356,17 @@ class CarlaEnv(gym.Env):
         if(self.config['train_config'] == 'PPO'):
             # Streer, Throttle
             # self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
-            self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
+            
+            # Steer, Speed
+            self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+            
+            # Steer only
+            # self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+            
+            # Speed only
+            # self.action_space = Box(low=np.array([0.0]), high=np.array([20.0]), dtype=np.float32)
+            
+            # self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):
@@ -301,8 +397,13 @@ class CarlaEnv(gym.Env):
 
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
-            throttle = float(np.clip(action[0], 0, 1))
-            brake = float(np.abs(np.clip(action[0], -1, 0)))
+            target_speed = float(np.clip(action[0], 0, self.target_speed))
+            self.episode_measurements['target_speed'] = target_speed
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = 0.0
+            # throttle = float(np.clip(action[0], 0, 1))
+            # brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
             reverse = False
             hand_brake = False
@@ -408,7 +509,10 @@ class CarlaEnv(gym.Env):
             self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
             self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
             self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
-            self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)                
+            self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
+            self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
+            self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
+                            
             if done:
                 self.episode_num += 1
                 self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
@@ -418,11 +522,11 @@ class CarlaEnv(gym.Env):
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
         
-        return obs['orientation'], reward, done, self.episode_measurements
+        return obs, reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
+            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01(unseen)
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -458,12 +562,26 @@ class CarlaEnv(gym.Env):
                 brake = 0.0
         elif self.config["action_type"] == "steer_only":
             steer = float(action[0])
-            throttle = float(0.50)
+            target_speed = float(10.0)
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "throttle_only":
             steer = float(0.0)
-            throttle = float(action[0])
+            target_speed = float(np.clip(action[0], 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
+        elif self.config["action_type"] == "merged_speed":
+            steer = float(action[0])
+            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        
+        if target_speed:
+            self.episode_measurements["target_speed"] = target_speed
+            
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
@@ -634,7 +752,7 @@ class CarlaEnv(gym.Env):
         obs['orientation']= np.array([next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        return obs['orientation']
+        return obs
 
     def get_speed_from_velocity(self, velocity):
 
@@ -947,9 +1065,9 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-        dist_to_trajectory_reward = -10 * self.dist_to_trajectory
+        dist_to_trajectory_reward = -1 * self.dist_to_trajectory
         
-        speed_reward = 0.1 * current["speed"]
+        speed_reward = current["speed"]
         acceleration_reward = (current["speed"] - prev["speed"])
         
         # Collision damage
