@@ -293,8 +293,8 @@ class CarlaEnv(gym.Env):
 
         if(self.config['train_config'] == 'PPO'):
             # Streer, Throttle
-            self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
-            # self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+            # self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
     def _update_config(self, config):

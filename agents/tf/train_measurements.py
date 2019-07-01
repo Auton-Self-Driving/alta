@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-prefix = 'dqn_wp_lr_5e6_g_9_straight_1_simple6_steeronly_exp_5k_1/'
+prefix = 'dqn_wp_lr_5e6_g_9_straight_1_simple6_steeronly_exp_5k_2/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs'
 if not os.path.exists(ALTA_LOGS):

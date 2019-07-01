@@ -40,9 +40,9 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
-prefix = 'ppo_wp_st_1_throttle_steer_simple6_newori_1/'
+prefix = 'ppo_wp_st_1_throttle_only_simple6_newori_lr_2_5e_3_1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -57,9 +57,9 @@ SAVE_PATH = ALTA_LOGS + prefix + 'ppo2_measurements_weights'
 TB_LOGS_DIR = ALTA_LOGS+prefix+str(datetime.now())
 
 def train():
-    model = PPO2(policy=MlpPolicy, env=env, n_steps=500, nminibatches=4, verbose=1,
+    model = PPO2(policy=MlpPolicy, env=env, n_steps=500, nminibatches=4, verbose=1,learning_rate=2.5e-3,
                  tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
-    model.learn(100000, tb_log_name="PPO2")
+    model.learn(1000000, tb_log_name="PPO2")
     return model
 
 if __name__ == '__main__':

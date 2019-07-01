@@ -468,7 +468,7 @@ def paths_right_Town01_train():
         ]
 
     ]
-    return paths
+    return paths[0:1]
 
 
 def paths_right_Town01_test():
@@ -511,7 +511,7 @@ def paths_right_Town01_test():
             WAYPOINT_DICT[86]
         ]
     ]
-    return paths
+    return paths[0:1]
 
 '''
 Deprecated

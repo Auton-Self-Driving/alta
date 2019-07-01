@@ -29,7 +29,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_gas"
+            self.config["action_type"] = "throttle_only"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "straight"
