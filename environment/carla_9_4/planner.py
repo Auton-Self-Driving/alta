@@ -67,9 +67,9 @@ class GlobalPlanner():
         self._waypoints_queue.clear()
         prev_wp = None
         for elem in current_plan:
-            self.printwaypoint(elem[0])
+            # self.printwaypoint(elem[0])
             if not self.sameWaypoint(elem[0], prev_wp):
-                print("Added wp")
+                # print("Added wp")
                 self._waypoints_queue.append(elem)
                 self._waypoints_queue_old.append(elem)
             prev_wp = elem[0]
@@ -189,11 +189,11 @@ class GlobalPlanner():
         num_next_waypoints = 5
         max_index = -1
         min_dist = np.inf
-
+        print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
         for i, (waypoint, _) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
-            print("i:{0}, dist : {1}".format(i, dist_i)) 
+            # print("i:{0}, dist : {1}".format(i, dist_i)) 
             if dist_i < self._min_distance:
                 max_index = i
 

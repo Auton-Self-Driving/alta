@@ -33,5 +33,8 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "straight"
-            self.config["x_res"] = 84
-            self.config["y_res"] = 84
+            # self.config["num_vehicles"] = 30
+            self.config["x_res"] = 160
+            self.config["y_res"] = 80
+            self.config["input_type"] = "wp_vae"
+            self.config["semantic"] = True

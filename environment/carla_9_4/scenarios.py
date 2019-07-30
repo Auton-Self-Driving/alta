@@ -326,6 +326,327 @@ def paths_straight_Town01_test():
     
     return paths[0:1]
 
+def benchmark_paths_straight_train():
+    
+    paths = [
+       [
+           WAYPOINT_DICT[36],
+           WAYPOINT_DICT[40]
+       ],
+       [
+           WAYPOINT_DICT[39],
+           WAYPOINT_DICT[35]
+       ],
+       [
+           WAYPOINT_DICT[110],
+           WAYPOINT_DICT[114]
+       ],
+       [
+           WAYPOINT_DICT[7],
+           WAYPOINT_DICT[3]
+       ],
+       [
+           WAYPOINT_DICT[0],
+           WAYPOINT_DICT[4]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[50]
+       ],
+       [
+           WAYPOINT_DICT[61],
+           WAYPOINT_DICT[59]
+       ],
+       [
+           WAYPOINT_DICT[47],
+           WAYPOINT_DICT[64]
+       ],
+       [
+           WAYPOINT_DICT[147],
+           WAYPOINT_DICT[90]
+       ],
+       [
+           WAYPOINT_DICT[33],
+           WAYPOINT_DICT[87]
+       ],
+       [
+           WAYPOINT_DICT[26],
+           WAYPOINT_DICT[19]
+       ],
+       [
+           WAYPOINT_DICT[80],
+           WAYPOINT_DICT[76]
+       ],
+       [
+           WAYPOINT_DICT[45],
+           WAYPOINT_DICT[49]
+       ],
+       [
+           WAYPOINT_DICT[55],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[29],
+           WAYPOINT_DICT[107]
+       ],
+       [
+           WAYPOINT_DICT[95],
+           WAYPOINT_DICT[104]
+       ],
+       [
+           WAYPOINT_DICT[84],
+           WAYPOINT_DICT[34]
+       ],
+       [
+           WAYPOINT_DICT[53],
+           WAYPOINT_DICT[67]
+       ],
+       [
+           WAYPOINT_DICT[22],
+           WAYPOINT_DICT[17]
+       ],
+       [
+           WAYPOINT_DICT[91],
+           WAYPOINT_DICT[148]
+       ],
+       [
+           WAYPOINT_DICT[20],
+           WAYPOINT_DICT[107]
+       ],
+       [
+           WAYPOINT_DICT[78],
+           WAYPOINT_DICT[70]
+       ],
+       [
+           WAYPOINT_DICT[95],
+           WAYPOINT_DICT[102]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[45],
+           WAYPOINT_DICT[69]
+       ]
+    ]
+    
+    return paths
+
+def benchmark_paths_turn_train():
+    
+    paths = [
+       [
+           WAYPOINT_DICT[138],
+           WAYPOINT_DICT[17]
+       ],
+       [
+           WAYPOINT_DICT[47],
+           WAYPOINT_DICT[16]
+       ],
+       [
+           WAYPOINT_DICT[26],
+           WAYPOINT_DICT[9]
+       ],
+       [
+           WAYPOINT_DICT[42],
+           WAYPOINT_DICT[49]
+       ],
+       [
+           WAYPOINT_DICT[140],
+           WAYPOINT_DICT[124]
+       ],
+       [
+           WAYPOINT_DICT[85],
+           WAYPOINT_DICT[98]
+       ],
+       [
+           WAYPOINT_DICT[65],
+           WAYPOINT_DICT[133]
+       ],
+       [
+           WAYPOINT_DICT[137],
+           WAYPOINT_DICT[51]
+       ],
+       [
+           WAYPOINT_DICT[76],
+           WAYPOINT_DICT[66]
+       ],
+       [
+           WAYPOINT_DICT[46],
+           WAYPOINT_DICT[39]
+       ],
+       [
+           WAYPOINT_DICT[40],
+           WAYPOINT_DICT[60]
+       ],
+       [
+           WAYPOINT_DICT[0],
+           WAYPOINT_DICT[29]
+       ],
+       [
+           WAYPOINT_DICT[4],
+           WAYPOINT_DICT[129]
+       ],
+       [
+           WAYPOINT_DICT[121],
+           WAYPOINT_DICT[140]
+       ],
+       [
+           WAYPOINT_DICT[2],
+           WAYPOINT_DICT[129]
+       ],
+       [
+           WAYPOINT_DICT[78],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[85]
+       ],
+       [
+           WAYPOINT_DICT[41],
+           WAYPOINT_DICT[102]
+       ],
+       [
+           WAYPOINT_DICT[95],
+           WAYPOINT_DICT[70]
+       ],
+       [
+           WAYPOINT_DICT[68],
+           WAYPOINT_DICT[129]
+       ],
+       [
+           WAYPOINT_DICT[84],
+           WAYPOINT_DICT[69]
+       ],
+       [
+           WAYPOINT_DICT[47],
+           WAYPOINT_DICT[79]
+       ],
+       [
+           WAYPOINT_DICT[110],
+           WAYPOINT_DICT[15]
+       ],
+       [
+           WAYPOINT_DICT[130],
+           WAYPOINT_DICT[17]
+       ],
+       [
+           WAYPOINT_DICT[0],
+           WAYPOINT_DICT[17]
+       ]
+    ]
+    
+    return paths
+
+def benchmark_paths_navigation_train():
+    
+    paths = [
+       [
+           WAYPOINT_DICT[105],
+           WAYPOINT_DICT[29]
+       ],
+       [
+           WAYPOINT_DICT[27],
+           WAYPOINT_DICT[130]
+       ],
+       [
+           WAYPOINT_DICT[102],
+           WAYPOINT_DICT[87]
+       ],
+       [
+           WAYPOINT_DICT[132],
+           WAYPOINT_DICT[27]
+       ],
+       [
+           WAYPOINT_DICT[24],
+           WAYPOINT_DICT[44]
+       ],
+       [
+           WAYPOINT_DICT[96],
+           WAYPOINT_DICT[26]
+       ],
+       [
+           WAYPOINT_DICT[34],
+           WAYPOINT_DICT[67]
+       ],
+       [
+           WAYPOINT_DICT[28],
+           WAYPOINT_DICT[1]
+       ],
+       [
+           WAYPOINT_DICT[140],
+           WAYPOINT_DICT[134]
+       ],
+       [
+           WAYPOINT_DICT[105],
+           WAYPOINT_DICT[9]
+       ],
+       [
+           WAYPOINT_DICT[148],
+           WAYPOINT_DICT[129]
+       ],
+       [
+           WAYPOINT_DICT[65],
+           WAYPOINT_DICT[18]
+       ],
+       [
+           WAYPOINT_DICT[21],
+           WAYPOINT_DICT[16]
+       ],
+       [
+           WAYPOINT_DICT[147],
+           WAYPOINT_DICT[97]
+       ],
+       [
+           WAYPOINT_DICT[42],
+           WAYPOINT_DICT[51]
+       ],
+       [ # Swapped to make it align in the correct direction
+           WAYPOINT_DICT[41],
+           WAYPOINT_DICT[30]
+       ],
+       [
+           WAYPOINT_DICT[18],
+           WAYPOINT_DICT[107]
+       ],
+       [
+           WAYPOINT_DICT[69],
+           WAYPOINT_DICT[45]
+       ],
+       [
+           WAYPOINT_DICT[102],
+           WAYPOINT_DICT[95]
+       ],
+       [
+           WAYPOINT_DICT[18],
+           WAYPOINT_DICT[145]
+       ],
+       [
+           WAYPOINT_DICT[111],
+           WAYPOINT_DICT[64]
+       ],
+       [
+           WAYPOINT_DICT[79],
+           WAYPOINT_DICT[45]
+       ],
+       [
+           WAYPOINT_DICT[84],
+           WAYPOINT_DICT[69]
+       ],
+       [
+           WAYPOINT_DICT[73],
+           WAYPOINT_DICT[31]
+       ],
+       [
+           WAYPOINT_DICT[37],
+           WAYPOINT_DICT[81]
+       ]
+    ]
+    
+    return paths
+
 def paths_left_Town01_train():
     
     paths = [
@@ -469,24 +790,24 @@ def paths_right_Town01_train():
         ]
 
     ]
-    return paths
+    return paths[0:1]
 
 
 def paths_right_Town01_test():
     
     paths = [
-        [
-            WAYPOINT_DICT[42],
-            WAYPOINT_DICT[47]
-        ],
-        [
-            WAYPOINT_DICT[40],
-            WAYPOINT_DICT[49]
-        ],
-        [
-            WAYPOINT_DICT[38],
-            WAYPOINT_DICT[47]
-        ],
+        # [
+        #     WAYPOINT_DICT[42],
+        #     WAYPOINT_DICT[47]
+        # ],
+        # [
+        #     WAYPOINT_DICT[40],
+        #     WAYPOINT_DICT[49]
+        # ],
+        # [
+        #     WAYPOINT_DICT[38],
+        #     WAYPOINT_DICT[47]
+        # ],
         [
             WAYPOINT_DICT[79],
             WAYPOINT_DICT[105]
@@ -512,7 +833,7 @@ def paths_right_Town01_test():
             WAYPOINT_DICT[86]
         ]
     ]
-    return paths
+    return paths[0:1]
 
 '''
 Deprecated
@@ -581,10 +902,42 @@ def paths_left_and_right_test():
 
 def get_fixed_short_straight_path_Town01(unseen=False):
     " Returns a list of [start_transform, target_transform]"
+    # if not unseen:
+    #     return random.choice(paths_straight_Town01_train())
+    # else:
+    #     return random.choice(paths_straight_Town01_test())
     if not unseen:
-        return random.choice(paths_straight_Town01_train())
+        return random.choice(benchmark_paths_straight_train())
     else:
-        return random.choice(paths_straight_Town01_test())
+        # TODO: Incorpoarate test scenarios from Town02
+        return random.choice(benchmark_paths_straight_train())
+
+def get_fixed_short_curved_path_Town01(unseen=False):
+    " Returns a list of [start_transform, target_transform]"
+    # if not unseen:
+    #     return random.choice(paths_straight_Town01_train())
+    # else:
+    #     return random.choice(paths_straight_Town01_test())
+    if not unseen:
+        return random.choice(benchmark_paths_turn_train())
+    else:
+        # TODO: Incorpoarate test scenarios from Town02
+        return random.choice(benchmark_paths_turn_train())
+
+def get_fixed_short_navigation_path_Town01(unseen=False):
+    " Returns a list of [start_transform, target_transform]"
+    # if not unseen:
+    #     return random.choice(paths_straight_Town01_train())
+    # else:
+    #     return random.choice(paths_straight_Town01_test())
+    if not unseen:
+        path = random.choice(benchmark_paths_navigation_train())
+        print(path[0].location.x, path[0].location.y, path[1].location.x, path[1].location.y)
+        return path
+    else:
+        # TODO: Incorpoarate test scenarios from Town02
+        return random.choice(benchmark_paths_navigation_train())
+
 
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
