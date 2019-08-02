@@ -56,6 +56,7 @@ except Exception as e:
 # from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 # from environment.carla_9_4.agents.tools.misc import vector
 import environment.carla_9_4.sensors as sensors
+from carla import ColorConverter as cc
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -87,7 +88,7 @@ DEFAULT_ENV = {
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions": True,
+    "discrete_actions": False,
 
     # Number of frames stacked together
     "framestack" : 1,
@@ -110,7 +111,9 @@ DEFAULT_ENV = {
     "sync_mode": True,
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
-    "scenarios" : "straight"
+    "scenarios" : "straight",
+    "semantic" : False,
+    "use_scenarios" : True
 }
 DISCRETE_ACTIONS = {
     # Coast
@@ -444,8 +447,8 @@ class CarlaEnv(gym.Env):
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
         
-        # return obs, reward, done, self.episode_measurements
-        return obs['orientation'], reward, done, self.episode_measurements
+        return obs, reward, done, self.episode_measurements
+        # return obs['orientation'], reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False):
         if self.config["scenarios"] == "straight":
@@ -495,6 +498,8 @@ class CarlaEnv(gym.Env):
                 throttle = gas
                 brake = 0.0
             steer = float(0.0)
+        elif self.config["action_type"] == "control":
+            return action
 
         # Avoid fake braking (from Codevilla conditional imitation learning code)
         # Needed for imitation learning agent to succeed on benchmarks, should not
@@ -565,7 +570,7 @@ class CarlaEnv(gym.Env):
 
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
-        if self.config["city_name"] == "Town01":
+        if self.config["city_name"]== "Town01" and self.config["use_scenarios"]:
             self._set_scenario(unseen=unseen)
         else:
 
@@ -589,7 +594,9 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
+        camera.set_attribute('fov', str(120))
+        camera_transform = carla.Transform(carla.Location(x= 5.0, z=30.0), carla.Rotation(pitch=270.0))
+        # camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
@@ -601,7 +608,7 @@ class CarlaEnv(gym.Env):
         # Prefer to write raw data (of type 'memoryview') since we won't use all data
         # written to memory (hence typecasting before would be waste of compute)
         if(self.config['write_data']):
-            self.camera_actor.listen(lambda image: self._write_data(image.raw_data))
+            self.camera_actor.listen(lambda image: self._write_data(image))
         if(self.config['save_images_to_disk']):
             self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         if(self.config['record_sim']):
@@ -665,8 +672,8 @@ class CarlaEnv(gym.Env):
         obs['orientation']= np.array([next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        # return obs
-        return obs['orientation']
+        return obs
+        # return obs['orientation']
 
     def get_speed_from_velocity(self, velocity):
 
@@ -758,7 +765,12 @@ class CarlaEnv(gym.Env):
     #     self._current_plan = solution
     #     self._local_planner.set_global_plan(self._current_plan)
 
-    def _write_data(self, sensor_data):
+    def _write_data(self, image):
+        
+        if self.config["semantic"]:
+            image.convert(cc.CityScapesPalette)
+        sensor_data = image.raw_data
+
         if(self.config['framestack'] == 1):
             self._save_sensor_data(sensor_data)
         else:
@@ -808,7 +820,8 @@ class CarlaEnv(gym.Env):
 
         if(self.config['preprocess_crop_image']):
             # Cut from top and bottom
-            data = data[115:510, :]
+            # data = data[115:510, :]
+            data = data[:500, :]
 
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
 
@@ -817,7 +830,7 @@ class CarlaEnv(gym.Env):
             data = data.reshape(self.config["x_res"], self.config["y_res"], 1)
         # TODO: Need to check better forms of normalization. Add a config flag for normalization
         # image = (image.astype(np.float32) - 128) / 128
-        data = data / 255.0
+        # data = data / 255.0
         return data
 
     def _compute_reward(self, name, prev_measurement, cur_measurement):
@@ -1055,8 +1068,9 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        # static = False
-        maxStepsTaken = False
+        success = False
+        static = False
+        # maxStepsTaken = False
 
         if success:
             termination_state = 'success'
