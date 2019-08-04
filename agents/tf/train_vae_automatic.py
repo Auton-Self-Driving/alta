@@ -43,7 +43,7 @@ import tensorboard_logging as tf_log
 from vae.controller import VAEController
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-prefix = 'vae_training/'
+prefix = 'vae_automatic_training1/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -136,6 +136,11 @@ if __name__ == '__main__':
             agent = RoamingAgent(env.vehicle_actor)
         
         if (t > 1 and t % 500 == 0):
-            vae.optimize()
+            train_loss_avg, r_loss_avg, kl_loss_avg, train_step = vae.optimize()
+            logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
+            logger.log_scalar('timesteps/vae_train/r_loss', r_loss_avg, t)
+            logger.log_scalar('timesteps/vae_train/kl_loss', kl_loss_avg, t)
+            logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
+            logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
         if(t > 100 and t % 1000 == 0):
             vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 

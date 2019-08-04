@@ -99,6 +99,11 @@ class VAEController:
 
         for epoch in range(self.epoch_per_optimization):
             np.random.shuffle(ds)
+
+            train_loss_array = []
+            r_loss_array = []
+            kl_loss_array = []
+
             for idx in range(num_batches):
                 batch = ds[idx * self.batch_size:(idx + 1) * self.batch_size]
                 obs = batch.astype(np.float) / 255.0
@@ -113,7 +118,18 @@ class VAEController:
                 if ((train_step + 1) % 50 == 0):
                     print("VAE: optimization step",
                           (train_step + 1), train_loss, r_loss, kl_loss)
+
+                train_loss_array.append(train_loss)
+                r_loss_array.append(r_loss)
+                kl_loss_array.append(kl_loss)
         self.set_target_params()
+
+        # Average values in last epoch
+        train_loss_avg = np.mean(np.array(train_loss_array))
+        r_loss_avg = np.mean(np.array(r_loss_array))
+        kl_loss_avg = np.mean(np.array(kl_loss_array))
+
+        return train_loss_avg, r_loss_avg, kl_loss_avg, train_step
 
     def save(self, path):
         self.target_vae.save_json(path)
