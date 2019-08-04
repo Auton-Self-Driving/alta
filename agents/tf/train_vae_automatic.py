@@ -59,7 +59,7 @@ VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE/'
 VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE/'
 FRAME_SKIP = 4
-TOTAL_TIMESTEPS = 1000000
+TOTAL_TIMESTEPS = 200000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
 VAE_TRAINING_STEPS = 10000
 
@@ -142,5 +142,5 @@ if __name__ == '__main__':
             logger.log_scalar('timesteps/vae_train/kl_loss', kl_loss_avg, t)
             logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
             logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
-        if(t > 100 and t % 1000 == 0):
+        if(t > 100 and t % 5000 == 0):
             vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 
