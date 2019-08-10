@@ -57,6 +57,7 @@ except Exception as e:
 # from environment.carla_9_4.agents.tools.misc import vector
 import environment.carla_9_4.sensors as sensors
 from carla import ColorConverter as cc
+import random
 
 # Dict storing basic environ config params
 # NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
@@ -248,6 +249,7 @@ class CarlaEnv(gym.Env):
         self.trace_route = None
         self.episode_num = 0
         self.total_steps = 0
+        self.semantic_image = None
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
@@ -370,6 +372,7 @@ class CarlaEnv(gym.Env):
 
         # Read in preprocessed image
         sensor_image = self._read_data()
+        semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
 
         # print('-'*50)
         # print('In step. Read sensor image of type:', type(sensor_image))
@@ -382,8 +385,10 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        next_orientation, self.dist_to_trajectory = 0, 0
+        next_orientation_old, _ = 0, 0
+        # next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         reward = self._compute_reward(name=self.config['reward_function'],
                                     prev_measurement=self.prev_measurement,
                                     cur_measurement=self.episode_measurements)
@@ -417,6 +422,7 @@ class CarlaEnv(gym.Env):
         branch_idx = 1
 
         obs['image'] = sensor_image
+        obs['semantic_image'] = semantic_image
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -595,7 +601,7 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera.set_attribute('fov', str(120))
-        camera_transform = carla.Transform(carla.Location(x= 5.0, z=30.0), carla.Rotation(pitch=270.0))
+        camera_transform = carla.Transform(carla.Location(x= 5.0, z=20.0), carla.Rotation(pitch=270.0))
         # camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
@@ -633,10 +639,13 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
+        self.spawn_npc(125)
+
         print('-'*50)
         print('Waiting for sensor to initialize')
         print('-'*50)
         time.sleep(2)
+
 
         #TODO: fix bug with no sensor_image. empty image for now
         # x_res = int(self.config["sensor_x_res"])
@@ -656,16 +665,20 @@ class CarlaEnv(gym.Env):
             self._world.tick()
             timestamp = self._world.wait_for_tick()
         image = self._read_data()
+        semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
 
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
-        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        next_orientation, self.dist_to_trajectory = 0, 0
+        next_orientation_old, _ = 0, 0
+        # next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
 
         obs['image'] = image
+        obs['semantic_image'] = semantic_image
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
@@ -674,6 +687,42 @@ class CarlaEnv(gym.Env):
 
         return obs
         # return obs['orientation']
+
+    def try_spawn_random_vehicle_at(self, blueprints, transform):
+            blueprint = random.choice(blueprints)
+            if blueprint.has_attribute('color'):
+                color = random.choice(blueprint.get_attribute('color').recommended_values)
+                blueprint.set_attribute('color', color)
+            blueprint.set_attribute('role_name', 'autopilot')
+            vehicle = self._world.try_spawn_actor(blueprint, transform)
+            if vehicle is not None:
+                self.actor_list.append(vehicle)
+                vehicle.set_autopilot()
+                print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
+                return True
+            return False
+
+    def spawn_npc(self, number_of_vehicles):
+        blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+
+        spawn_points = list(self._world.get_map().get_spawn_points())
+        random.shuffle(spawn_points)
+
+        print('found %d spawn points.' % len(spawn_points))
+
+        count = number_of_vehicles
+
+        for spawn_point in spawn_points:
+            if self.try_spawn_random_vehicle_at(blueprints, spawn_point):
+                count -= 1
+            if count <= 0:
+                break
+
+        while count > 0:
+            if self.try_spawn_random_vehicle_at(blueprints, random.choice(spawn_points)):
+                count -= 1
+
+        print('spawned %d vehicles, press Ctrl+C to exit.' % number_of_vehicles)
 
     def get_speed_from_velocity(self, velocity):
 
@@ -768,7 +817,9 @@ class CarlaEnv(gym.Env):
     def _write_data(self, image):
         
         if self.config["semantic"]:
+            self.semantic_image = np.array(image.raw_data)
             image.convert(cc.CityScapesPalette)
+
         sensor_data = image.raw_data
 
         if(self.config['framestack'] == 1):
@@ -821,7 +872,8 @@ class CarlaEnv(gym.Env):
         if(self.config['preprocess_crop_image']):
             # Cut from top and bottom
             # data = data[115:510, :]
-            data = data[:500, :]
+            # data = data[:500, :]
+            data = data[200:500, 300:500] 
 
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
 

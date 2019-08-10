@@ -42,7 +42,8 @@ class ConvVAE(object):
     def _build_graph(self):
         self.g = tf.Graph()
         with self.g.as_default():
-            self.x = tf.placeholder(tf.float32, shape=[None, 80, 160, 3])
+            # self.x = tf.placeholder(tf.float32, shape=[None, 80, 160, 3])
+            self.x = tf.placeholder(tf.float32, shape=[None, 160, 80, 3])
 
             # Encoder
             h = tf.layers.conv2d(self.x, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
@@ -60,7 +61,8 @@ class ConvVAE(object):
 
             # Decoder
             h = tf.layers.dense(self.z, 3 * 8 * 256, name="dec_fc")
-            h = tf.reshape(h, [-1, 3, 8, 256])
+            # h = tf.reshape(h, [-1, 3, 8, 256])
+            h = tf.reshape(h, [-1, 8, 3, 256])
             h = tf.layers.conv2d_transpose(h, 128, 4, strides=2, activation=tf.nn.relu, name="dec_deconv1")
             h = tf.layers.conv2d_transpose(h, 64, 4, strides=2, activation=tf.nn.relu, name="dec_deconv2")
             h = tf.layers.conv2d_transpose(h, 32, 5, strides=2, activation=tf.nn.relu, name="dec_deconv3")

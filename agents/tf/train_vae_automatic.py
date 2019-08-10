@@ -43,7 +43,7 @@ import tensorboard_logging as tf_log
 from vae.controller import VAEController
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-prefix = 'vae_automatic_training1/'
+prefix = 'vae_v125_z512_kl_0_crop_z20_test/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     print('Launched environment!')
     print('-'*50)
 
-    vae = VAEController()
+    vae = VAEController(z_size=512, kl_tolerance=0.0, image_size=(160, 80, 3))
 
     obs = env.reset()
     print('-'*50)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         new_obs, rew, done, eps_measurements = env.step(control)
         
         
-        new_encoded_image = get_vae_observation(vae, new_obs['image'])
+        # new_encoded_image = get_vae_observation(vae, new_obs['image'])
         # Store transition in the replay buffer.
         # Read only sensor image part of the observation (sensor_image, [measurements_array])
         rew = float(rew[0, 0])
@@ -118,13 +118,6 @@ if __name__ == '__main__':
         if done:
             num_episodes += 1
             num_done += 1
-            # print('-'*50)
-            # print('Timesteps:', t)
-            # print('-'*50)
-            # logger.log_scalar('episodes/train/dist_to_target', eps_measurements['distance_to_goal'], num_episodes)
-            # logger.log_scalar('episodes/train/reward', eps_measurements['total_reward'], num_episodes)
-            # logger.log_scalar('timesteps/train/dist_to_target', eps_measurements['distance_to_goal'], t)
-            # logger.log_scalar('timesteps/train/reward', eps_measurements['total_reward'], t)
             print('-'*50)
             print('Generating video')
             print('-'*50)
@@ -134,7 +127,7 @@ if __name__ == '__main__':
             vis_wrapper_vae.remove_images()
             obs = env.reset()
             agent = RoamingAgent(env.vehicle_actor)
-        
+
         if (t > 1 and t % 500 == 0):
             train_loss_avg, r_loss_avg, kl_loss_avg, train_step = vae.optimize()
             logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
@@ -142,5 +135,11 @@ if __name__ == '__main__':
             logger.log_scalar('timesteps/vae_train/kl_loss', kl_loss_avg, t)
             logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
             logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
+            
+            model_params, model_shapes, model_names = vae.vae.get_model_params()
+            for (i, model_param) in enumerate(model_params):
+                model_name = model_names[i]
+                model_param_all = (np.ravel(np.array(model_param)))
+                logger.log_histogram('timesteps/vae_train/model_parameters_' + model_name, model_param_all, train_step)
         if(t > 100 and t % 5000 == 0):
             vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 

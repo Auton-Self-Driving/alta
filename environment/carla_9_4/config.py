@@ -37,8 +37,8 @@ class ConfigManager(object):
             self.config["y_res"] = 84
         elif algo == 'VAE_seg':
             self.config["sensors"] = ["sensor.camera.semantic_segmentation"]
-            self.config["x_res"] = 160
-            self.config["y_res"] = 80
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
             self.config['preprocess_crop_image'] = True
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
