@@ -32,9 +32,10 @@ class ConfigManager(object):
             self.config["action_type"] = "merged_speed"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
+            self.config["semantic"] = True
             self.config["scenarios"] = "straight"
             # self.config["num_vehicles"] = 30
-            self.config["x_res"] = 160
-            self.config["y_res"] = 80
-            self.config["input_type"] = "wp_vae"
-            self.config["semantic"] = True
+            self.config["x_res"] = 84
+            self.config["y_res"] = 84
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"

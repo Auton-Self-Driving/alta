@@ -261,7 +261,6 @@ class CarlaEnv(gym.Env):
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
         self.server_port = self.config["server_port"]
-        self.city_name = self.config["city_name"]
         # TODO: Check planner API from 0.9
 
         self.episode_id = None
@@ -380,13 +379,13 @@ class CarlaEnv(gym.Env):
             # self.action_space = Box(low=np.array([0.0]), high=np.array([20.0]), dtype=np.float32)
             
             # self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
-            # self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+            self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
             # vae_image_space = Box(low=np.finfo(np.float32).min,
             #                          high=np.finfo(np.float32).max,
             #                          shape=(1, 512), dtype=np.float32)
-            self.observation_space = Box(low=np.finfo(np.float32).min,
-                                     high=np.finfo(np.float32).max,
-                                     shape=(1, 513), dtype=np.float32)
+            # self.observation_space = Box(low=np.finfo(np.float32).min,
+            #                          high=np.finfo(np.float32).max,
+            #                          shape=(1, 513), dtype=np.float32)
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -516,7 +515,8 @@ class CarlaEnv(gym.Env):
         branch_idx = 1
 
         obs['image'] = sensor_image
-        obs['image'] = self.vae.decode(sensor_image)[0, :, :, :].astype(np.uint8)
+        if self.config["input_type"] == 'vae' or self.config["input_type"] == "wp_vae":
+            obs['image'] = self.vae.decode(sensor_image)[0, :, :, :].astype(np.uint8)
         # import scipy.misc
         # import random
         # import string
@@ -562,9 +562,9 @@ class CarlaEnv(gym.Env):
         else:
             return obs['orientation'], reward, done, self.episode_measurements
 
-    def _set_scenario(self, unseen=False):
+    def _set_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_short_straight_path_Town01(unseen)
+            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -573,9 +573,9 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "left_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
         elif self.config["scenarios"] == "curved":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_short_curved_path_Town01(unseen)
+            self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
         elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_short_navigation_path_Town01(unseen)
+            self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -624,6 +624,7 @@ class CarlaEnv(gym.Env):
             brake = float(0.0)
         elif self.config["action_type"] == "merged_speed":
             steer = float(action[0])
+            # steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
@@ -650,8 +651,8 @@ class CarlaEnv(gym.Env):
 
         return control
 
-    def reset(self, unseen=False):
-        return self._reset(unseen)
+    def reset(self, unseen=False, index=0):
+        return self._reset(unseen, index)
 
     def destroy_all_existing_actors(self):
 
@@ -689,7 +690,7 @@ class CarlaEnv(gym.Env):
         self.other_vehicle_agent_list.clear()
         self.other_vehicle_control_list.clear()
 
-    def _reset(self, unseen=False):
+    def _reset(self, unseen=False, index=0):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
 
         self.clear_episode_measurements()
@@ -724,14 +725,15 @@ class CarlaEnv(gym.Env):
         #     f.write("Transform(Location(x={0}, y={1}, z={2}), Rotation(yaw={3}))\n".format(point.location.x, point.location.y, point.location.z, point.rotation.yaw))
         # f.close()
         try:
-            vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
+            vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
+            # vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
-        if self.config["city_name"] == "Town01":
-            self._set_scenario(unseen=unseen)
+        if self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02":
+            self._set_scenario(unseen=unseen, index=index, town=self.config["city_name"])
         else:
             # Set source and destination at random spawn points
             # get_spawn_points() returns a list of carla.libcarla.Transform
@@ -751,7 +753,8 @@ class CarlaEnv(gym.Env):
                 vehicle_initialized = False
                 
                 other_vehicle_actor = None
-                vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
+                vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
+                # vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
                 while not other_vehicle_actor:
                     start_pose = random.choice(spawn_points)
                     other_vehicle_actor = self._world.try_spawn_actor(vehicle_bp, start_pose)
@@ -842,7 +845,8 @@ class CarlaEnv(gym.Env):
         next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
 
         obs['image'] = image
-        obs['image'] = self.vae.decode(image)[0, :, :, :].astype(np.uint8)
+        if self.config["input_type"] == 'vae' or self.config["input_type"] == "wp_vae":
+            obs['image'] = self.vae.decode(image)[0, :, :, :].astype(np.uint8)
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
@@ -999,8 +1003,6 @@ class CarlaEnv(gym.Env):
         data = image.reshape(x_res, y_res, 4)
         # Convert from BGRA to RGB image
         data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
-        import scipy.misc
-        scipy.misc.imsave('random' + str(random.randint(1,20)) + '.jpg', data)
         
         if(self.config['grayscale']):
             data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
@@ -1009,8 +1011,9 @@ class CarlaEnv(gym.Env):
             # Cut from top and bottom
             data = data[115:510, :]
 
+        # preprocess
+        data = data[:500, :]
         data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
-
         # The cv2 resize converts to self.config["x_res"], self.config["y_res"]. We need the last channel to framestack later.
         if(self.config['grayscale']):
             data = data.reshape(self.config["x_res"], self.config["y_res"], 1)

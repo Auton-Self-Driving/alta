@@ -10,7 +10,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from models import VAEController, CustomPolicy
 # from stable_baselines import logger
 
-from ppo_with_vae import PPOWithVAE
+from ppo import PPOWithVAE
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 

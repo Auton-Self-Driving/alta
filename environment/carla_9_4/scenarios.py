@@ -21,7 +21,7 @@ from carla.libcarla import Location
 from carla.libcarla import Rotation
 import random
 
-WAYPOINT_DICT = {
+WAYPOINT_DICT_Town01 = {
     0: Transform(Location(x=271.0400085449219, y=129.489990234375, z=1.32), Rotation(yaw=179.999755859375)),
     1: Transform(Location(x=270.79998779296875, y=133.43003845214844, z=1.32), Rotation(yaw=-9.1552734375e-05)),
     2: Transform(Location(x=237.6999969482422, y=129.75, z=1.32), Rotation(yaw=179.999755859375)),
@@ -176,6 +176,93 @@ WAYPOINT_DICT = {
     151: Transform(Location(x=88.61998748779297, y=212.89999389648438, z=1.32), Rotation(yaw=90.00004577636719))
 }
 
+WAYPOINT_DICT_Town02 = {
+    0: Transform(Location(x=-3.679999828338623, y=251.36000061035156, z=1.32), Rotation(yaw=-89.99981689453125)),
+    1: Transform(Location(x=-3.679999828338623, y=142.19000244140625, z=1.32), Rotation(yaw=-89.99981689453125)),
+    2: Transform(Location(x=132.02999877929688, y=211.0, z=1.32), Rotation(yaw=89.99995422363281)),
+    3: Transform(Location(x=135.87998962402344, y=226.04998779296875, z=1.32), Rotation(yaw=-89.99981689453125)),
+    4: Transform(Location(x=132.02999877929688, y=201.1699981689453, z=1.32), Rotation(yaw=89.99995422363281)),
+    5: Transform(Location(x=135.87998962402344, y=220.8300018310547, z=1.32), Rotation(yaw=-89.99981689453125)),
+    6: Transform(Location(x=41.38999938964844, y=212.97999572753906, z=1.32), Rotation(yaw=89.99995422363281)),
+    7: Transform(Location(x=-7.529999732971191, y=158.97999572753906, z=1.32), Rotation(yaw=89.99995422363281)),
+    8: Transform(Location(x=45.23999786376953, y=225.58999633789062, z=1.32), Rotation(yaw=-89.99981689453125)),
+    9: Transform(Location(x=41.38999938964844, y=203.89999389648438, z=1.32), Rotation(yaw=89.99995422363281)),
+    10: Transform(Location(x=45.88999938964844, y=216.25999450683594, z=1.32), Rotation(yaw=-89.99981689453125)),
+    11: Transform(Location(x=41.38999938964844, y=275.0299987792969, z=1.32), Rotation(yaw=89.99995422363281)),
+    12: Transform(Location(x=45.23999786376953, y=291.2900085449219, z=1.32), Rotation(yaw=-89.99981689453125)),
+    13: Transform(Location(x=41.38999938964844, y=257.4599914550781, z=1.32), Rotation(yaw=89.99995422363281)),
+    14: Transform(Location(x=45.59000015258789, y=271.5099792480469, z=1.32), Rotation(yaw=-89.99981689453125)),
+    15: Transform(Location(x=150.24002075195312, y=191.77003479003906, z=1.32), Rotation(yaw=-0.00018310546875)),
+    16: Transform(Location(x=165.0900421142578, y=187.1199493408203, z=1.32), Rotation(yaw=-179.9996337890625)),
+    17: Transform(Location(x=9.469999313354492, y=191.76998901367188, z=1.32), Rotation(yaw=-0.00018310546875)),
+    18: Transform(Location(x=-3.679999828338623, y=172.42999267578125, z=1.32), Rotation(yaw=-89.99981689453125)),
+    19: Transform(Location(x=21.9000244140625, y=187.9199981689453, z=1.32), Rotation(yaw=-179.9996337890625)),
+    20: Transform(Location(x=14.200018882751465, y=191.76998901367188, z=1.32), Rotation(yaw=-0.00018310546875)),
+    21: Transform(Location(x=27.72001838684082, y=187.9199981689453, z=1.32), Rotation(yaw=-179.9996337890625)),
+    22: Transform(Location(x=63.34002685546875, y=191.76998901367188, z=1.32), Rotation(yaw=-0.00018310546875)),
+    23: Transform(Location(x=75.4100341796875, y=187.9199981689453, z=1.32), Rotation(yaw=-179.9996337890625)),
+    24: Transform(Location(x=92.34001922607422, y=191.76998901367188, z=1.32), Rotation(yaw=-0.00018310546875)),
+    25: Transform(Location(x=92.34004974365234, y=187.9199981689453, z=1.32), Rotation(yaw=-179.9996337890625)),
+    26: Transform(Location(x=162.02005004882812, y=191.77003479003906, z=1.32), Rotation(yaw=-0.00018310546875)),
+    27: Transform(Location(x=181.800048828125, y=187.9199981689453, z=1.32), Rotation(yaw=-179.9996337890625)),
+    28: Transform(Location(x=104.59001922607422, y=191.77003479003906, z=1.32), Rotation(yaw=-0.00018310546875)),
+    29: Transform(Location(x=-7.529999732971191, y=208.9199981689453, z=1.32), Rotation(yaw=89.99995422363281)),
+    30: Transform(Location(x=117.93003845214844, y=187.91995239257812, z=1.32), Rotation(yaw=-179.9996337890625)),
+    31: Transform(Location(x=151.30001831054688, y=241.280029296875, z=1.32), Rotation(yaw=-0.00018310546875)),
+    32: Transform(Location(x=162.92002868652344, y=237.42996215820312, z=1.32), Rotation(yaw=-179.9996337890625)),
+    33: Transform(Location(x=59.71002960205078, y=241.27999877929688, z=1.32), Rotation(yaw=-0.00018310546875)),
+    34: Transform(Location(x=71.0400390625, y=237.42999267578125, z=1.32), Rotation(yaw=-179.9996337890625)),
+    35: Transform(Location(x=88.71001434326172, y=241.27999877929688, z=1.32), Rotation(yaw=-0.00018310546875)),
+    36: Transform(Location(x=88.71004486083984, y=237.42999267578125, z=1.32), Rotation(yaw=-179.9996337890625)),
+    37: Transform(Location(x=162.7600555419922, y=241.280029296875, z=1.32), Rotation(yaw=-0.00018310546875)),
+    38: Transform(Location(x=174.33004760742188, y=237.42999267578125, z=1.32), Rotation(yaw=-179.9996337890625)),
+    39: Transform(Location(x=104.30001831054688, y=241.280029296875, z=1.32), Rotation(yaw=-0.00018310546875)),
+    40: Transform(Location(x=-3.679999828338623, y=219.4099884033203, z=1.32), Rotation(yaw=-89.99981689453125)),
+    41: Transform(Location(x=118.77003479003906, y=237.42996215820312, z=1.32), Rotation(yaw=-179.9996337890625)),
+    42: Transform(Location(x=9.530024528503418, y=302.57000732421875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    43: Transform(Location(x=14.010019302368164, y=306.41998291015625, z=1.32), Rotation(yaw=-0.00018310546875)),
+    44: Transform(Location(x=26.940019607543945, y=302.57000732421875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    45: Transform(Location(x=59.60002899169922, y=306.41998291015625, z=1.32), Rotation(yaw=-0.00018310546875)),
+    46: Transform(Location(x=71.53003692626953, y=302.57000732421875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    47: Transform(Location(x=88.83001708984375, y=306.41998291015625, z=1.32), Rotation(yaw=-0.00018310546875)),
+    48: Transform(Location(x=88.83004760742188, y=302.57000732421875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    49: Transform(Location(x=178.29005432128906, y=306.4200439453125, z=1.32), Rotation(yaw=-0.00018310546875)),
+    50: Transform(Location(x=-7.529999732971191, y=288.2200012207031, z=1.32), Rotation(yaw=89.99995422363281)),
+    51: Transform(Location(x=178.29005432128906, y=302.57000732421875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    52: Transform(Location(x=136.11001586914062, y=306.4200439453125, z=1.32), Rotation(yaw=-0.00018310546875)),
+    53: Transform(Location(x=136.1100311279297, y=302.5699462890625, z=1.32), Rotation(yaw=-179.9996337890625)),
+    54: Transform(Location(x=1.5399999618530273, y=109.39999389648438, z=1.32), Rotation(yaw=-0.00018310546875)),
+    55: Transform(Location(x=1.5400243997573853, y=105.54998779296875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    56: Transform(Location(x=21.420019149780273, y=109.39999389648438, z=1.32), Rotation(yaw=-0.00018310546875)),
+    57: Transform(Location(x=25.530019760131836, y=105.54998779296875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    58: Transform(Location(x=55.41002655029297, y=109.39998626708984, z=1.32), Rotation(yaw=-0.00018310546875)),
+    59: Transform(Location(x=55.410037994384766, y=105.54998779296875, z=1.32), Rotation(yaw=-179.9996337890625)),
+    60: Transform(Location(x=84.41001892089844, y=109.29999542236328, z=1.32), Rotation(yaw=-0.00018310546875)),
+    61: Transform(Location(x=-3.679999828338623, y=288.2200012207031, z=1.32), Rotation(yaw=-89.99981689453125)),
+    62: Transform(Location(x=84.41004943847656, y=105.55001068115234, z=1.32), Rotation(yaw=-179.9996337890625)),
+    63: Transform(Location(x=173.87005615234375, y=109.40003967285156, z=1.32), Rotation(yaw=-0.00018310546875)),
+    64: Transform(Location(x=173.87005615234375, y=105.55001068115234, z=1.32), Rotation(yaw=-179.9996337890625)),
+    65: Transform(Location(x=131.6900177001953, y=109.40003967285156, z=1.32), Rotation(yaw=-0.00018310546875)),
+    66: Transform(Location(x=131.69003295898438, y=105.54996490478516, z=1.32), Rotation(yaw=-179.9996337890625)),
+    67: Transform(Location(x=189.92999267578125, y=121.20999908447266, z=1.32), Rotation(yaw=89.99995422363281)),
+    68: Transform(Location(x=193.77999877929688, y=121.20999908447266, z=1.32), Rotation(yaw=-89.99981689453125)),
+    69: Transform(Location(x=189.92999267578125, y=142.19000244140625, z=1.32), Rotation(yaw=89.99995422363281)),
+    70: Transform(Location(x=193.77999877929688, y=142.19000244140625, z=1.32), Rotation(yaw=-89.99981689453125)),
+    71: Transform(Location(x=189.92999267578125, y=160.5800018310547, z=1.32), Rotation(yaw=89.99995422363281)),
+    72: Transform(Location(x=-7.529999732971191, y=251.36000061035156, z=1.32), Rotation(yaw=89.99995422363281)),
+    73: Transform(Location(x=193.77999877929688, y=171.2899932861328, z=1.32), Rotation(yaw=-89.99981689453125)),
+    74: Transform(Location(x=189.92999267578125, y=208.11000061035156, z=1.32), Rotation(yaw=89.99995422363281)),
+    75: Transform(Location(x=193.77999877929688, y=218.7899932861328, z=1.32), Rotation(yaw=-89.99981689453125)),
+    76: Transform(Location(x=189.92999267578125, y=293.5400085449219, z=1.32), Rotation(yaw=89.99995422363281)),
+    77: Transform(Location(x=193.77999877929688, y=293.5400085449219, z=1.32), Rotation(yaw=-89.99981689453125)),
+    78: Transform(Location(x=189.92999267578125, y=252.3300018310547, z=1.32), Rotation(yaw=89.99995422363281)),
+    79: Transform(Location(x=193.77999877929688, y=266.42999267578125, z=1.32), Rotation(yaw=-89.99981689453125)),
+    80: Transform(Location(x=-7.529999732971191, y=121.20999908447266, z=1.32), Rotation(yaw=89.99995422363281)),
+    81: Transform(Location(x=-3.679999828338623, y=121.20999908447266, z=1.32), Rotation(yaw=-89.99981689453125)),
+    82: Transform(Location(x=-7.529999732971191, y=142.19000244140625, z=1.32), Rotation(yaw=89.99995422363281))
+}
+
+
 
 def paths_straight_Town01_train():
 
@@ -185,66 +272,66 @@ def paths_straight_Town01_train():
 
     paths = [
        [
-           WAYPOINT_DICT[36],
-           WAYPOINT_DICT[40]
+           WAYPOINT_DICT_Town01[36],
+           WAYPOINT_DICT_Town01[40]
        ],
        [
-           WAYPOINT_DICT[7],
-           WAYPOINT_DICT[3]
+           WAYPOINT_DICT_Town01[7],
+           WAYPOINT_DICT_Town01[3]
        ],
        [
-           WAYPOINT_DICT[110],
-           WAYPOINT_DICT[114]
+           WAYPOINT_DICT_Town01[110],
+           WAYPOINT_DICT_Town01[114]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[50]
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[50]
        ],
        [
-           WAYPOINT_DICT[147],
-           WAYPOINT_DICT[90]
+           WAYPOINT_DICT_Town01[147],
+           WAYPOINT_DICT_Town01[90]
        ],
        [
-           WAYPOINT_DICT[33],
-           WAYPOINT_DICT[87]
+           WAYPOINT_DICT_Town01[33],
+           WAYPOINT_DICT_Town01[87]
        ],
        [
-           WAYPOINT_DICT[80],
-           WAYPOINT_DICT[76]
+           WAYPOINT_DICT_Town01[80],
+           WAYPOINT_DICT_Town01[76]
        ],
        [
-           WAYPOINT_DICT[45],
-           WAYPOINT_DICT[49]
+           WAYPOINT_DICT_Town01[45],
+           WAYPOINT_DICT_Town01[49]
        ],
        [
-           WAYPOINT_DICT[95],
-           WAYPOINT_DICT[104]
+           WAYPOINT_DICT_Town01[95],
+           WAYPOINT_DICT_Town01[104]
        ],
        [
-           WAYPOINT_DICT[20],
-           WAYPOINT_DICT[107]
+           WAYPOINT_DICT_Town01[20],
+           WAYPOINT_DICT_Town01[107]
        ],
        [
-           WAYPOINT_DICT[78],
-           WAYPOINT_DICT[70]
+           WAYPOINT_DICT_Town01[78],
+           WAYPOINT_DICT_Town01[70]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[44]
        ],
        [
-           WAYPOINT_DICT[45],
-           WAYPOINT_DICT[69]
+           WAYPOINT_DICT_Town01[45],
+           WAYPOINT_DICT_Town01[69]
        ]
     ]
     # paths = [
     #    [
-    #        WAYPOINT_DICT[0],
-    #        WAYPOINT_DICT[8]
+    #        WAYPOINT_DICT_Town01[0],
+    #        WAYPOINT_DICT_Town01[8]
     #    ],
     #    [
-    #        WAYPOINT_DICT[130],
-    #        WAYPOINT_DICT[123]
+    #        WAYPOINT_DICT_Town01[130],
+    #        WAYPOINT_DICT_Town01[123]
     #    ]
     # ]
     # paths = [
@@ -275,373 +362,694 @@ def paths_straight_Town01_train():
 def paths_straight_Town01_test():
     paths = [
        [
-           WAYPOINT_DICT[39],
-           WAYPOINT_DICT[35]
+           WAYPOINT_DICT_Town01[39],
+           WAYPOINT_DICT_Town01[35]
        ],
        [
-           WAYPOINT_DICT[0],
-           WAYPOINT_DICT[4]
+           WAYPOINT_DICT_Town01[0],
+           WAYPOINT_DICT_Town01[4]
        ],
        [
-           WAYPOINT_DICT[61],
-           WAYPOINT_DICT[59]
+           WAYPOINT_DICT_Town01[61],
+           WAYPOINT_DICT_Town01[59]
        ],
        [
-           WAYPOINT_DICT[55],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town01[55],
+           WAYPOINT_DICT_Town01[44]
        ],
        [
-           WAYPOINT_DICT[47],
-           WAYPOINT_DICT[64]
+           WAYPOINT_DICT_Town01[47],
+           WAYPOINT_DICT_Town01[64]
        ],
        [
-           WAYPOINT_DICT[26],
-           WAYPOINT_DICT[19]
+           WAYPOINT_DICT_Town01[26],
+           WAYPOINT_DICT_Town01[19]
        ],
        [
-           WAYPOINT_DICT[29],
-           WAYPOINT_DICT[107]
+           WAYPOINT_DICT_Town01[29],
+           WAYPOINT_DICT_Town01[107]
        ],
        [
-           WAYPOINT_DICT[84],
-           WAYPOINT_DICT[34]
+           WAYPOINT_DICT_Town01[84],
+           WAYPOINT_DICT_Town01[34]
        ],
        [
-           WAYPOINT_DICT[53],
-           WAYPOINT_DICT[67]
+           WAYPOINT_DICT_Town01[53],
+           WAYPOINT_DICT_Town01[67]
        ],
        [
-           WAYPOINT_DICT[22],
-           WAYPOINT_DICT[17]
+           WAYPOINT_DICT_Town01[22],
+           WAYPOINT_DICT_Town01[17]
        ],
        [
-           WAYPOINT_DICT[91],
-           WAYPOINT_DICT[148]
+           WAYPOINT_DICT_Town01[91],
+           WAYPOINT_DICT_Town01[148]
        ],
        [
-           WAYPOINT_DICT[95],
-           WAYPOINT_DICT[102]
+           WAYPOINT_DICT_Town01[95],
+           WAYPOINT_DICT_Town01[102]
        ]
     ]
     
     return paths[0:1]
 
-def benchmark_paths_straight_train():
+def benchmark_paths_straight_Town01():
     
     paths = [
        [
-           WAYPOINT_DICT[36],
-           WAYPOINT_DICT[40]
+           WAYPOINT_DICT_Town01[36],
+           WAYPOINT_DICT_Town01[40]
        ],
        [
-           WAYPOINT_DICT[39],
-           WAYPOINT_DICT[35]
+           WAYPOINT_DICT_Town01[39],
+           WAYPOINT_DICT_Town01[35]
        ],
        [
-           WAYPOINT_DICT[110],
-           WAYPOINT_DICT[114]
+           WAYPOINT_DICT_Town01[110],
+           WAYPOINT_DICT_Town01[114]
        ],
        [
-           WAYPOINT_DICT[7],
-           WAYPOINT_DICT[3]
+           WAYPOINT_DICT_Town01[7],
+           WAYPOINT_DICT_Town01[3]
        ],
        [
-           WAYPOINT_DICT[0],
-           WAYPOINT_DICT[4]
+           WAYPOINT_DICT_Town01[0],
+           WAYPOINT_DICT_Town01[4]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[50]
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[50]
        ],
        [
-           WAYPOINT_DICT[61],
-           WAYPOINT_DICT[59]
+           WAYPOINT_DICT_Town01[61],
+           WAYPOINT_DICT_Town01[59]
        ],
        [
-           WAYPOINT_DICT[47],
-           WAYPOINT_DICT[64]
+           WAYPOINT_DICT_Town01[47],
+           WAYPOINT_DICT_Town01[64]
        ],
        [
-           WAYPOINT_DICT[147],
-           WAYPOINT_DICT[90]
+           WAYPOINT_DICT_Town01[147],
+           WAYPOINT_DICT_Town01[90]
        ],
        [
-           WAYPOINT_DICT[33],
-           WAYPOINT_DICT[87]
+           WAYPOINT_DICT_Town01[33],
+           WAYPOINT_DICT_Town01[87]
        ],
        [
-           WAYPOINT_DICT[26],
-           WAYPOINT_DICT[19]
+           WAYPOINT_DICT_Town01[26],
+           WAYPOINT_DICT_Town01[19]
        ],
        [
-           WAYPOINT_DICT[80],
-           WAYPOINT_DICT[76]
+           WAYPOINT_DICT_Town01[80],
+           WAYPOINT_DICT_Town01[76]
        ],
        [
-           WAYPOINT_DICT[45],
-           WAYPOINT_DICT[49]
+           WAYPOINT_DICT_Town01[45],
+           WAYPOINT_DICT_Town01[49]
        ],
        [
-           WAYPOINT_DICT[55],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town01[55],
+           WAYPOINT_DICT_Town01[44]
        ],
        [
-           WAYPOINT_DICT[29],
-           WAYPOINT_DICT[107]
+           WAYPOINT_DICT_Town01[29],
+           WAYPOINT_DICT_Town01[107]
        ],
        [
-           WAYPOINT_DICT[95],
-           WAYPOINT_DICT[104]
+           WAYPOINT_DICT_Town01[95],
+           WAYPOINT_DICT_Town01[104]
        ],
        [
-           WAYPOINT_DICT[84],
-           WAYPOINT_DICT[34]
+           WAYPOINT_DICT_Town01[84],
+           WAYPOINT_DICT_Town01[34]
        ],
        [
-           WAYPOINT_DICT[53],
-           WAYPOINT_DICT[67]
+           WAYPOINT_DICT_Town01[53],
+           WAYPOINT_DICT_Town01[67]
        ],
        [
-           WAYPOINT_DICT[22],
-           WAYPOINT_DICT[17]
+           WAYPOINT_DICT_Town01[22],
+           WAYPOINT_DICT_Town01[17]
        ],
        [
-           WAYPOINT_DICT[91],
-           WAYPOINT_DICT[148]
+           WAYPOINT_DICT_Town01[91],
+           WAYPOINT_DICT_Town01[148]
        ],
        [
-           WAYPOINT_DICT[20],
-           WAYPOINT_DICT[107]
+           WAYPOINT_DICT_Town01[20],
+           WAYPOINT_DICT_Town01[107]
        ],
        [
-           WAYPOINT_DICT[78],
-           WAYPOINT_DICT[70]
+           WAYPOINT_DICT_Town01[78],
+           WAYPOINT_DICT_Town01[70]
        ],
        [
-           WAYPOINT_DICT[95],
-           WAYPOINT_DICT[102]
+           WAYPOINT_DICT_Town01[95],
+           WAYPOINT_DICT_Town01[102]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[44]
        ],
        [
-           WAYPOINT_DICT[45],
-           WAYPOINT_DICT[69]
+           WAYPOINT_DICT_Town01[45],
+           WAYPOINT_DICT_Town01[69]
        ]
     ]
     
     return paths
 
-def benchmark_paths_turn_train():
-    
+def benchmark_paths_straight_Town02():
+
     paths = [
-       [
-           WAYPOINT_DICT[138],
-           WAYPOINT_DICT[17]
+       [    # Swapped to make it align in the correct direction
+           WAYPOINT_DICT_Town02[34],
+           WAYPOINT_DICT_Town02[38]
        ],
        [
-           WAYPOINT_DICT[47],
-           WAYPOINT_DICT[16]
+           WAYPOINT_DICT_Town02[4],
+           WAYPOINT_DICT_Town02[2]
        ],
        [
-           WAYPOINT_DICT[26],
-           WAYPOINT_DICT[9]
+           WAYPOINT_DICT_Town02[12],
+           WAYPOINT_DICT_Town02[10]
        ],
        [
-           WAYPOINT_DICT[42],
-           WAYPOINT_DICT[49]
+           WAYPOINT_DICT_Town02[62],
+           WAYPOINT_DICT_Town02[55]
        ],
        [
-           WAYPOINT_DICT[140],
-           WAYPOINT_DICT[124]
+           WAYPOINT_DICT_Town02[43],
+           WAYPOINT_DICT_Town02[47]
        ],
        [
-           WAYPOINT_DICT[85],
-           WAYPOINT_DICT[98]
+           WAYPOINT_DICT_Town02[64],
+           WAYPOINT_DICT_Town02[66]
        ],
        [
-           WAYPOINT_DICT[65],
-           WAYPOINT_DICT[133]
+           WAYPOINT_DICT_Town02[78],
+           WAYPOINT_DICT_Town02[76]
        ],
        [
-           WAYPOINT_DICT[137],
-           WAYPOINT_DICT[51]
+           WAYPOINT_DICT_Town02[59],
+           WAYPOINT_DICT_Town02[57]
        ],
        [
-           WAYPOINT_DICT[76],
-           WAYPOINT_DICT[66]
+           WAYPOINT_DICT_Town02[61],
+           WAYPOINT_DICT_Town02[18]
        ],
        [
-           WAYPOINT_DICT[46],
-           WAYPOINT_DICT[39]
+           WAYPOINT_DICT_Town02[35],
+           WAYPOINT_DICT_Town02[39]
        ],
        [
-           WAYPOINT_DICT[40],
-           WAYPOINT_DICT[60]
+           WAYPOINT_DICT_Town02[12],
+           WAYPOINT_DICT_Town02[8]
        ],
        [
-           WAYPOINT_DICT[0],
-           WAYPOINT_DICT[29]
+           WAYPOINT_DICT_Town02[0],
+           WAYPOINT_DICT_Town02[18]
        ],
        [
-           WAYPOINT_DICT[4],
-           WAYPOINT_DICT[129]
+           WAYPOINT_DICT_Town02[75],
+           WAYPOINT_DICT_Town02[68]
        ],
        [
-           WAYPOINT_DICT[121],
-           WAYPOINT_DICT[140]
+           WAYPOINT_DICT_Town02[54],
+           WAYPOINT_DICT_Town02[60]
        ],
        [
-           WAYPOINT_DICT[2],
-           WAYPOINT_DICT[129]
+           WAYPOINT_DICT_Town02[45],
+           WAYPOINT_DICT_Town02[49]
        ],
        [
-           WAYPOINT_DICT[78],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town02[46],
+           WAYPOINT_DICT_Town02[42]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[85]
+           WAYPOINT_DICT_Town02[53],
+           WAYPOINT_DICT_Town02[46]
        ],
        [
-           WAYPOINT_DICT[41],
-           WAYPOINT_DICT[102]
+           WAYPOINT_DICT_Town02[80],
+           WAYPOINT_DICT_Town02[29]
        ],
        [
-           WAYPOINT_DICT[95],
-           WAYPOINT_DICT[70]
+           WAYPOINT_DICT_Town02[65],
+           WAYPOINT_DICT_Town02[63]
        ],
        [
-           WAYPOINT_DICT[68],
-           WAYPOINT_DICT[129]
+           WAYPOINT_DICT_Town02[0],
+           WAYPOINT_DICT_Town02[81]
        ],
        [
-           WAYPOINT_DICT[84],
-           WAYPOINT_DICT[69]
+           WAYPOINT_DICT_Town02[54],
+           WAYPOINT_DICT_Town02[63]
        ],
        [
-           WAYPOINT_DICT[47],
-           WAYPOINT_DICT[79]
+           WAYPOINT_DICT_Town02[51],
+           WAYPOINT_DICT_Town02[42]
        ],
        [
-           WAYPOINT_DICT[110],
-           WAYPOINT_DICT[15]
+           WAYPOINT_DICT_Town02[16],
+           WAYPOINT_DICT_Town02[19]
        ],
        [
-           WAYPOINT_DICT[130],
-           WAYPOINT_DICT[17]
+           WAYPOINT_DICT_Town02[17],
+           WAYPOINT_DICT_Town02[26]
        ],
        [
-           WAYPOINT_DICT[0],
-           WAYPOINT_DICT[17]
+           WAYPOINT_DICT_Town02[77],
+           WAYPOINT_DICT_Town02[68]
        ]
     ]
     
     return paths
 
-def benchmark_paths_navigation_train():
+def benchmark_paths_turn_Town01():
     
     paths = [
        [
-           WAYPOINT_DICT[105],
-           WAYPOINT_DICT[29]
+           WAYPOINT_DICT_Town01[138],
+           WAYPOINT_DICT_Town01[17]
        ],
        [
-           WAYPOINT_DICT[27],
-           WAYPOINT_DICT[130]
+           WAYPOINT_DICT_Town01[47],
+           WAYPOINT_DICT_Town01[16]
        ],
        [
-           WAYPOINT_DICT[102],
-           WAYPOINT_DICT[87]
+           WAYPOINT_DICT_Town01[26],
+           WAYPOINT_DICT_Town01[9]
        ],
        [
-           WAYPOINT_DICT[132],
-           WAYPOINT_DICT[27]
+           WAYPOINT_DICT_Town01[42],
+           WAYPOINT_DICT_Town01[49]
        ],
        [
-           WAYPOINT_DICT[24],
-           WAYPOINT_DICT[44]
+           WAYPOINT_DICT_Town01[140],
+           WAYPOINT_DICT_Town01[124]
        ],
        [
-           WAYPOINT_DICT[96],
-           WAYPOINT_DICT[26]
+           WAYPOINT_DICT_Town01[85],
+           WAYPOINT_DICT_Town01[98]
        ],
        [
-           WAYPOINT_DICT[34],
-           WAYPOINT_DICT[67]
+           WAYPOINT_DICT_Town01[65],
+           WAYPOINT_DICT_Town01[133]
        ],
        [
-           WAYPOINT_DICT[28],
-           WAYPOINT_DICT[1]
+           WAYPOINT_DICT_Town01[137],
+           WAYPOINT_DICT_Town01[51]
        ],
        [
-           WAYPOINT_DICT[140],
-           WAYPOINT_DICT[134]
+           WAYPOINT_DICT_Town01[76],
+           WAYPOINT_DICT_Town01[66]
        ],
        [
-           WAYPOINT_DICT[105],
-           WAYPOINT_DICT[9]
+           WAYPOINT_DICT_Town01[46],
+           WAYPOINT_DICT_Town01[39]
        ],
        [
-           WAYPOINT_DICT[148],
-           WAYPOINT_DICT[129]
+           WAYPOINT_DICT_Town01[40],
+           WAYPOINT_DICT_Town01[60]
        ],
        [
-           WAYPOINT_DICT[65],
-           WAYPOINT_DICT[18]
+           WAYPOINT_DICT_Town01[0],
+           WAYPOINT_DICT_Town01[29]
        ],
        [
-           WAYPOINT_DICT[21],
-           WAYPOINT_DICT[16]
+           WAYPOINT_DICT_Town01[4],
+           WAYPOINT_DICT_Town01[129]
        ],
        [
-           WAYPOINT_DICT[147],
-           WAYPOINT_DICT[97]
+           WAYPOINT_DICT_Town01[121],
+           WAYPOINT_DICT_Town01[140]
        ],
        [
-           WAYPOINT_DICT[42],
-           WAYPOINT_DICT[51]
+           WAYPOINT_DICT_Town01[2],
+           WAYPOINT_DICT_Town01[129]
+       ],
+       [
+           WAYPOINT_DICT_Town01[78],
+           WAYPOINT_DICT_Town01[44]
+       ],
+       [
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[85]
+       ],
+       [
+           WAYPOINT_DICT_Town01[41],
+           WAYPOINT_DICT_Town01[102]
+       ],
+       [
+           WAYPOINT_DICT_Town01[95],
+           WAYPOINT_DICT_Town01[70]
+       ],
+       [
+           WAYPOINT_DICT_Town01[68],
+           WAYPOINT_DICT_Town01[129]
+       ],
+       [
+           WAYPOINT_DICT_Town01[84],
+           WAYPOINT_DICT_Town01[69]
+       ],
+       [
+           WAYPOINT_DICT_Town01[47],
+           WAYPOINT_DICT_Town01[79]
+       ],
+       [
+           WAYPOINT_DICT_Town01[110],
+           WAYPOINT_DICT_Town01[15]
+       ],
+       [
+           WAYPOINT_DICT_Town01[130],
+           WAYPOINT_DICT_Town01[17]
+       ],
+       [
+           WAYPOINT_DICT_Town01[0],
+           WAYPOINT_DICT_Town01[17]
+       ]
+    ]
+    
+    return paths
+
+def benchmark_paths_turn_Town02():
+    
+    paths = [
+       [
+           WAYPOINT_DICT_Town02[37],
+           WAYPOINT_DICT_Town02[76]
+       ],
+       [
+           WAYPOINT_DICT_Town02[8],
+           WAYPOINT_DICT_Town02[24]
+       ],
+       [
+           WAYPOINT_DICT_Town02[60],
+           WAYPOINT_DICT_Town02[69]
+       ],
+       [
+           WAYPOINT_DICT_Town02[38],
+           WAYPOINT_DICT_Town02[10]
+       ],
+       [
+           WAYPOINT_DICT_Town02[21],
+           WAYPOINT_DICT_Town02[1]
+       ],
+       [
+           WAYPOINT_DICT_Town02[58],
+           WAYPOINT_DICT_Town02[71]
+       ],
+       [
+           WAYPOINT_DICT_Town02[74],
+           WAYPOINT_DICT_Town02[32]
+       ],
+       [
+           WAYPOINT_DICT_Town02[44],
+           WAYPOINT_DICT_Town02[0]
+       ],
+       [
+           WAYPOINT_DICT_Town02[71],
+           WAYPOINT_DICT_Town02[16]
+       ],
+       [
+           WAYPOINT_DICT_Town02[14],
+           WAYPOINT_DICT_Town02[24]
+       ],
+       [
+           WAYPOINT_DICT_Town02[34],
+           WAYPOINT_DICT_Town02[11]
+       ],
+       [
+           WAYPOINT_DICT_Town02[43],
+           WAYPOINT_DICT_Town02[14]
+       ],
+       [
+           WAYPOINT_DICT_Town02[75],
+           WAYPOINT_DICT_Town02[16]
+       ],
+       [
+           WAYPOINT_DICT_Town02[80],
+           WAYPOINT_DICT_Town02[21]
+       ],
+       [
+           WAYPOINT_DICT_Town02[3],
+           WAYPOINT_DICT_Town02[23]
+       ],
+       [
+           WAYPOINT_DICT_Town02[75],
+           WAYPOINT_DICT_Town02[59]
+       ],
+       [
+           WAYPOINT_DICT_Town02[50],
+           WAYPOINT_DICT_Town02[47]
+       ],
+       [
+           WAYPOINT_DICT_Town02[11],
+           WAYPOINT_DICT_Town02[19]
+       ],
+       [
+           WAYPOINT_DICT_Town02[77],
+           WAYPOINT_DICT_Town02[34]
+       ],
+       [
+           WAYPOINT_DICT_Town02[79],
+           WAYPOINT_DICT_Town02[25]
+       ],
+       [
+           WAYPOINT_DICT_Town02[40],
+           WAYPOINT_DICT_Town02[63]
+       ],
+       [
+           WAYPOINT_DICT_Town02[58],
+           WAYPOINT_DICT_Town02[76]
+       ],
+       [
+           WAYPOINT_DICT_Town02[79],
+           WAYPOINT_DICT_Town02[55]
+       ],
+       [
+           WAYPOINT_DICT_Town02[16],
+           WAYPOINT_DICT_Town02[61]
+       ],
+       [
+           WAYPOINT_DICT_Town02[27],
+           WAYPOINT_DICT_Town02[11]
+       ]
+    ]
+    
+    return paths
+
+def benchmark_paths_navigation_Town01():
+    
+    paths = [
+       [
+           WAYPOINT_DICT_Town01[105],
+           WAYPOINT_DICT_Town01[29]
+       ],
+       [
+           WAYPOINT_DICT_Town01[27],
+           WAYPOINT_DICT_Town01[130]
+       ],
+       [
+           WAYPOINT_DICT_Town01[102],
+           WAYPOINT_DICT_Town01[87]
+       ],
+       [
+           WAYPOINT_DICT_Town01[132],
+           WAYPOINT_DICT_Town01[27]
+       ],
+       [
+           WAYPOINT_DICT_Town01[24],
+           WAYPOINT_DICT_Town01[44]
+       ],
+       [
+           WAYPOINT_DICT_Town01[96],
+           WAYPOINT_DICT_Town01[26]
+       ],
+       [
+           WAYPOINT_DICT_Town01[34],
+           WAYPOINT_DICT_Town01[67]
+       ],
+       [
+           WAYPOINT_DICT_Town01[28],
+           WAYPOINT_DICT_Town01[1]
+       ],
+       [
+           WAYPOINT_DICT_Town01[140],
+           WAYPOINT_DICT_Town01[134]
+       ],
+       [
+           WAYPOINT_DICT_Town01[105],
+           WAYPOINT_DICT_Town01[9]
+       ],
+       [
+           WAYPOINT_DICT_Town01[148],
+           WAYPOINT_DICT_Town01[129]
+       ],
+       [
+           WAYPOINT_DICT_Town01[65],
+           WAYPOINT_DICT_Town01[18]
+       ],
+       [
+           WAYPOINT_DICT_Town01[21],
+           WAYPOINT_DICT_Town01[16]
+       ],
+       [
+           WAYPOINT_DICT_Town01[147],
+           WAYPOINT_DICT_Town01[97]
+       ],
+       [
+           WAYPOINT_DICT_Town01[42],
+           WAYPOINT_DICT_Town01[51]
        ],
        [ # Swapped to make it align in the correct direction
-           WAYPOINT_DICT[41],
-           WAYPOINT_DICT[30]
+           WAYPOINT_DICT_Town01[41],
+           WAYPOINT_DICT_Town01[30]
        ],
        [
-           WAYPOINT_DICT[18],
-           WAYPOINT_DICT[107]
+           WAYPOINT_DICT_Town01[18],
+           WAYPOINT_DICT_Town01[107]
        ],
        [
-           WAYPOINT_DICT[69],
-           WAYPOINT_DICT[45]
+           WAYPOINT_DICT_Town01[69],
+           WAYPOINT_DICT_Town01[45]
        ],
        [
-           WAYPOINT_DICT[102],
-           WAYPOINT_DICT[95]
+           WAYPOINT_DICT_Town01[102],
+           WAYPOINT_DICT_Town01[95]
        ],
        [
-           WAYPOINT_DICT[18],
-           WAYPOINT_DICT[145]
+           WAYPOINT_DICT_Town01[18],
+           WAYPOINT_DICT_Town01[145]
        ],
        [
-           WAYPOINT_DICT[111],
-           WAYPOINT_DICT[64]
+           WAYPOINT_DICT_Town01[111],
+           WAYPOINT_DICT_Town01[64]
        ],
        [
-           WAYPOINT_DICT[79],
-           WAYPOINT_DICT[45]
+           WAYPOINT_DICT_Town01[79],
+           WAYPOINT_DICT_Town01[45]
        ],
        [
-           WAYPOINT_DICT[84],
-           WAYPOINT_DICT[69]
+           WAYPOINT_DICT_Town01[84],
+           WAYPOINT_DICT_Town01[69]
        ],
        [
-           WAYPOINT_DICT[73],
-           WAYPOINT_DICT[31]
+           WAYPOINT_DICT_Town01[73],
+           WAYPOINT_DICT_Town01[31]
        ],
        [
-           WAYPOINT_DICT[37],
-           WAYPOINT_DICT[81]
+           WAYPOINT_DICT_Town01[37],
+           WAYPOINT_DICT_Town01[81]
+       ]
+    ]
+    
+    return paths
+
+def benchmark_paths_navigation_Town02():
+    
+    paths = [
+       [
+           WAYPOINT_DICT_Town02[19],
+           WAYPOINT_DICT_Town02[66]
+       ],
+       [
+           WAYPOINT_DICT_Town02[79],
+           WAYPOINT_DICT_Town02[14]
+       ],
+       [
+           WAYPOINT_DICT_Town02[19],
+           WAYPOINT_DICT_Town02[57]
+       ],
+       [
+           WAYPOINT_DICT_Town02[23],
+           WAYPOINT_DICT_Town02[1]
+       ],
+       [
+           WAYPOINT_DICT_Town02[53],
+           WAYPOINT_DICT_Town02[76]
+       ],
+       [
+           WAYPOINT_DICT_Town02[42],
+           WAYPOINT_DICT_Town02[13]
+       ],
+       [
+           WAYPOINT_DICT_Town02[31],
+           WAYPOINT_DICT_Town02[71]
+       ],
+       [
+           WAYPOINT_DICT_Town02[33],
+           WAYPOINT_DICT_Town02[5]
+       ],
+       [
+           WAYPOINT_DICT_Town02[54],
+           WAYPOINT_DICT_Town02[30]
+       ],
+       [
+           WAYPOINT_DICT_Town02[10],
+           WAYPOINT_DICT_Town02[61]
+       ],
+       [
+           WAYPOINT_DICT_Town02[66],
+           WAYPOINT_DICT_Town02[3]
+       ],
+       [
+           WAYPOINT_DICT_Town02[27],
+           WAYPOINT_DICT_Town02[12]
+       ],
+       [
+           WAYPOINT_DICT_Town02[79],
+           WAYPOINT_DICT_Town02[19]
+       ],
+       [
+           WAYPOINT_DICT_Town02[2],
+           WAYPOINT_DICT_Town02[29]
+       ],
+       [
+           WAYPOINT_DICT_Town02[16],
+           WAYPOINT_DICT_Town02[14]
+       ],
+       [
+           WAYPOINT_DICT_Town02[5],
+           WAYPOINT_DICT_Town02[57]
+       ],
+       [ # Swapped to make it align in the correct direction
+           WAYPOINT_DICT_Town02[73],
+           WAYPOINT_DICT_Town02[70]
+       ],
+       [
+           WAYPOINT_DICT_Town02[46],
+           WAYPOINT_DICT_Town02[67]
+       ],
+       [
+           WAYPOINT_DICT_Town02[57],
+           WAYPOINT_DICT_Town02[50]
+       ],
+       [
+           WAYPOINT_DICT_Town02[61],
+           WAYPOINT_DICT_Town02[49]
+       ],
+       [
+           WAYPOINT_DICT_Town02[21],
+           WAYPOINT_DICT_Town02[12]
+       ],
+       [
+           WAYPOINT_DICT_Town02[51],
+           WAYPOINT_DICT_Town02[81]
+       ],
+       [
+           WAYPOINT_DICT_Town02[77],
+           WAYPOINT_DICT_Town02[68]
+       ],
+       [
+           WAYPOINT_DICT_Town02[56],
+           WAYPOINT_DICT_Town02[65]
+       ],
+       [
+           WAYPOINT_DICT_Town02[43],
+           WAYPOINT_DICT_Town02[54]
        ]
     ]
     
@@ -651,40 +1059,40 @@ def paths_left_Town01_train():
     
     paths = [
         [
-            WAYPOINT_DICT[85],
-            WAYPOINT_DICT[98]
+            WAYPOINT_DICT_Town01[85],
+            WAYPOINT_DICT_Town01[98]
         ],
         [
-            WAYPOINT_DICT[87],
-            WAYPOINT_DICT[100]
+            WAYPOINT_DICT_Town01[87],
+            WAYPOINT_DICT_Town01[100]
         ],
         [
-            WAYPOINT_DICT[76],
-            WAYPOINT_DICT[63]
+            WAYPOINT_DICT_Town01[76],
+            WAYPOINT_DICT_Town01[63]
         ],
         [
-            WAYPOINT_DICT[70],
-            WAYPOINT_DICT[66]
+            WAYPOINT_DICT_Town01[70],
+            WAYPOINT_DICT_Town01[66]
         ],
         [
-            WAYPOINT_DICT[104],
-            WAYPOINT_DICT[78]
+            WAYPOINT_DICT_Town01[104],
+            WAYPOINT_DICT_Town01[78]
         ],
         [
-            WAYPOINT_DICT[106],
-            WAYPOINT_DICT[80]
+            WAYPOINT_DICT_Town01[106],
+            WAYPOINT_DICT_Town01[80]
         ],
         [
-            WAYPOINT_DICT[46],
-            WAYPOINT_DICT[37]
+            WAYPOINT_DICT_Town01[46],
+            WAYPOINT_DICT_Town01[37]
         ],
         [
-            WAYPOINT_DICT[44],
-            WAYPOINT_DICT[39]
+            WAYPOINT_DICT_Town01[44],
+            WAYPOINT_DICT_Town01[39]
         ],
         [
-            WAYPOINT_DICT[48],
-            WAYPOINT_DICT[37]
+            WAYPOINT_DICT_Town01[48],
+            WAYPOINT_DICT_Town01[37]
         ]
     ]
     return paths
@@ -693,40 +1101,40 @@ def paths_left_Town01_test():
     
     paths = [
         [
-            WAYPOINT_DICT[85],
-            WAYPOINT_DICT[100]
+            WAYPOINT_DICT_Town01[85],
+            WAYPOINT_DICT_Town01[100]
         ],
         [
-            WAYPOINT_DICT[87],
-            WAYPOINT_DICT[98]
+            WAYPOINT_DICT_Town01[87],
+            WAYPOINT_DICT_Town01[98]
         ],
         [
-            WAYPOINT_DICT[76],
-            WAYPOINT_DICT[77]
+            WAYPOINT_DICT_Town01[76],
+            WAYPOINT_DICT_Town01[77]
         ],
         [
-            WAYPOINT_DICT[70],
-            WAYPOINT_DICT[63]
+            WAYPOINT_DICT_Town01[70],
+            WAYPOINT_DICT_Town01[63]
         ],
         [
-            WAYPOINT_DICT[104],
-            WAYPOINT_DICT[80]
+            WAYPOINT_DICT_Town01[104],
+            WAYPOINT_DICT_Town01[80]
         ],
         [
-            WAYPOINT_DICT[106],
-            WAYPOINT_DICT[78]
+            WAYPOINT_DICT_Town01[106],
+            WAYPOINT_DICT_Town01[78]
         ],
         [
-            WAYPOINT_DICT[46],
-            WAYPOINT_DICT[39]
+            WAYPOINT_DICT_Town01[46],
+            WAYPOINT_DICT_Town01[39]
         ],
         [
-            WAYPOINT_DICT[44],
-            WAYPOINT_DICT[37]
+            WAYPOINT_DICT_Town01[44],
+            WAYPOINT_DICT_Town01[37]
         ],
         [
-            WAYPOINT_DICT[48],
-            WAYPOINT_DICT[39]
+            WAYPOINT_DICT_Town01[48],
+            WAYPOINT_DICT_Town01[39]
         ]
     ]
     return paths
@@ -735,40 +1143,40 @@ def paths_right_Town01_train_():
     
     paths = [
         [
-            WAYPOINT_DICT[42],
-            WAYPOINT_DICT[49]
+            WAYPOINT_DICT_Town01[42],
+            WAYPOINT_DICT_Town01[49]
         ],
         [
-            WAYPOINT_DICT[40],
-            WAYPOINT_DICT[47]
+            WAYPOINT_DICT_Town01[40],
+            WAYPOINT_DICT_Town01[47]
         ],
         [
-            WAYPOINT_DICT[38],
-            WAYPOINT_DICT[49]
+            WAYPOINT_DICT_Town01[38],
+            WAYPOINT_DICT_Town01[49]
         ],
         [
-            WAYPOINT_DICT[79],
-            WAYPOINT_DICT[103]
+            WAYPOINT_DICT_Town01[79],
+            WAYPOINT_DICT_Town01[103]
         ],
         [
-            WAYPOINT_DICT[81],
-            WAYPOINT_DICT[105]
+            WAYPOINT_DICT_Town01[81],
+            WAYPOINT_DICT_Town01[105]
         ],
         [
-            WAYPOINT_DICT[67],
-            WAYPOINT_DICT[77]
+            WAYPOINT_DICT_Town01[67],
+            WAYPOINT_DICT_Town01[77]
         ],
         [
-            WAYPOINT_DICT[64],
-            WAYPOINT_DICT[71]
+            WAYPOINT_DICT_Town01[64],
+            WAYPOINT_DICT_Town01[71]
         ],
         [
-            WAYPOINT_DICT[99],
-            WAYPOINT_DICT[86]
+            WAYPOINT_DICT_Town01[99],
+            WAYPOINT_DICT_Town01[86]
         ],
         [
-            WAYPOINT_DICT[97],
-            WAYPOINT_DICT[84]
+            WAYPOINT_DICT_Town01[97],
+            WAYPOINT_DICT_Town01[84]
         ]
     ]
     return paths
@@ -777,16 +1185,16 @@ def paths_right_Town01_train_():
 def paths_right_Town01_train():
     paths = [
         [
-            WAYPOINT_DICT[42],
-            WAYPOINT_DICT[49]
+            WAYPOINT_DICT_Town01[42],
+            WAYPOINT_DICT_Town01[49]
         ],
         [
-            WAYPOINT_DICT[40],
-            WAYPOINT_DICT[47]
+            WAYPOINT_DICT_Town01[40],
+            WAYPOINT_DICT_Town01[47]
         ],
         [
-            WAYPOINT_DICT[38],
-            WAYPOINT_DICT[49]
+            WAYPOINT_DICT_Town01[38],
+            WAYPOINT_DICT_Town01[49]
         ]
 
     ]
@@ -797,40 +1205,40 @@ def paths_right_Town01_test():
     
     paths = [
         # [
-        #     WAYPOINT_DICT[42],
-        #     WAYPOINT_DICT[47]
+        #     WAYPOINT_DICT_Town01[42],
+        #     WAYPOINT_DICT_Town01[47]
         # ],
         # [
-        #     WAYPOINT_DICT[40],
-        #     WAYPOINT_DICT[49]
+        #     WAYPOINT_DICT_Town01[40],
+        #     WAYPOINT_DICT_Town01[49]
         # ],
         # [
-        #     WAYPOINT_DICT[38],
-        #     WAYPOINT_DICT[47]
+        #     WAYPOINT_DICT_Town01[38],
+        #     WAYPOINT_DICT_Town01[47]
         # ],
         [
-            WAYPOINT_DICT[79],
-            WAYPOINT_DICT[105]
+            WAYPOINT_DICT_Town01[79],
+            WAYPOINT_DICT_Town01[105]
         ],
         [
-            WAYPOINT_DICT[81],
-            WAYPOINT_DICT[103]
+            WAYPOINT_DICT_Town01[81],
+            WAYPOINT_DICT_Town01[103]
         ],
         [
-            WAYPOINT_DICT[67],
-            WAYPOINT_DICT[71]
+            WAYPOINT_DICT_Town01[67],
+            WAYPOINT_DICT_Town01[71]
         ],
         [
-            WAYPOINT_DICT[64],
-            WAYPOINT_DICT[77]
+            WAYPOINT_DICT_Town01[64],
+            WAYPOINT_DICT_Town01[77]
         ],
         [
-            WAYPOINT_DICT[99],
-            WAYPOINT_DICT[84]
+            WAYPOINT_DICT_Town01[99],
+            WAYPOINT_DICT_Town01[84]
         ],
         [
-            WAYPOINT_DICT[97],
-            WAYPOINT_DICT[86]
+            WAYPOINT_DICT_Town01[97],
+            WAYPOINT_DICT_Town01[86]
         ]
     ]
     return paths[0:1]
@@ -843,25 +1251,25 @@ def paths_left_and_right_train():
     # paths = [
     #     # left
     #     [
-    #         WAYPOINT_DICT[48],
-    #         WAYPOINT_DICT[37]
+    #         WAYPOINT_DICT_Town01[48],
+    #         WAYPOINT_DICT_Town01[37]
     #     ],
     #     # right
     #     [
-    #         WAYPOINT_DICT[38],
-    #         WAYPOINT_DICT[49]
+    #         WAYPOINT_DICT_Town01[38],
+    #         WAYPOINT_DICT_Town01[49]
     #     ]
     # ]
     paths = [
         # left
         [
-            WAYPOINT_DICT[44],
-            WAYPOINT_DICT[39]
+            WAYPOINT_DICT_Town01[44],
+            WAYPOINT_DICT_Town01[39]
         ],
         # right
         [
-            WAYPOINT_DICT[42],
-            WAYPOINT_DICT[47]
+            WAYPOINT_DICT_Town01[42],
+            WAYPOINT_DICT_Town01[47]
         ]
     ]
     return paths
@@ -872,24 +1280,24 @@ def paths_left_and_right_test():
     # paths = [
     #     # left
     #     [
-    #         WAYPOINT_DICT[87],
-    #         WAYPOINT_DICT[100]
+    #         WAYPOINT_DICT_Town01[87],
+    #         WAYPOINT_DICT_Town01[100]
     #     ],
     #     # right
     #     [
-    #         WAYPOINT_DICT[99],
-    #         WAYPOINT_DICT[86]
+    #         WAYPOINT_DICT_Town01[99],
+    #         WAYPOINT_DICT_Town01[86]
     #     ]
     # ]
     paths = [
         # left
         [
-            WAYPOINT_DICT[85],
-            WAYPOINT_DICT[98]
+            WAYPOINT_DICT_Town01[85],
+            WAYPOINT_DICT_Town01[98]
         ],
         # right
         [
-            WAYPOINT_DICT[94],
+            WAYPOINT_DICT_Town01[94],
             Transform(Location(x=1.5099804401397705, y=278.81, z=1.32), Rotation(yaw=-90.00029754638672))
             # Destination is mid of 84 and 86
             # 84: Transform(Location(x=1.5099804401397705, y=308.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
@@ -900,43 +1308,58 @@ def paths_left_and_right_test():
     return paths
 '''
 
-def get_fixed_short_straight_path_Town01(unseen=False):
+def get_straight_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     # if not unseen:
     #     return random.choice(paths_straight_Town01_train())
     # else:
     #     return random.choice(paths_straight_Town01_test())
     if not unseen:
-        return random.choice(benchmark_paths_straight_train())
+        if town == "Town01":
+            return random.choice(benchmark_paths_straight_Town01())
+        elif town == "Town02":
+            return random.choice(benchmark_paths_straight_Town02())
     else:
-        # TODO: Incorpoarate test scenarios from Town02
-        return random.choice(benchmark_paths_straight_train())
+        # TODO: Change Town
+        if town == "Town01":
+            return benchmark_paths_straight_Town01()[index]
+        elif town == "Town02":
+            return benchmark_paths_straight_Town02()[index]
 
-def get_fixed_short_curved_path_Town01(unseen=False):
+def get_curved_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     # if not unseen:
     #     return random.choice(paths_straight_Town01_train())
     # else:
     #     return random.choice(paths_straight_Town01_test())
     if not unseen:
-        return random.choice(benchmark_paths_turn_train())
+        if town == "Town01":
+            return random.choice(benchmark_paths_turn_Town01())
+        elif town == "Town02":
+            return random.choice(benchmark_paths_turn_Town02()) 
     else:
-        # TODO: Incorpoarate test scenarios from Town02
-        return random.choice(benchmark_paths_turn_train())
+        # TODO: Change town
+        if town == "Town01":
+            return benchmark_paths_turn_Town01()[index]
+        elif town == "Town02":
+            return benchmark_paths_turn_Town02()[index]
 
-def get_fixed_short_navigation_path_Town01(unseen=False):
+def get_navigation_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     # if not unseen:
     #     return random.choice(paths_straight_Town01_train())
     # else:
     #     return random.choice(paths_straight_Town01_test())
     if not unseen:
-        path = random.choice(benchmark_paths_navigation_train())
-        print(path[0].location.x, path[0].location.y, path[1].location.x, path[1].location.y)
-        return path
+        if town == "Town01":
+            return random.choice(benchmark_paths_navigation_Town01())
+        elif town == "Town02":
+            return random.choice(benchmark_paths_navigation_Town02())
     else:
-        # TODO: Incorpoarate test scenarios from Town02
-        return random.choice(benchmark_paths_navigation_train())
+        if town == "Town01":
+            return benchmark_paths_navigation_Town01()[index]
+        elif town == "Town02":
+            return benchmark_paths_navigation_Town02()[index]
 
 
 def get_fixed_long_straight_path_Town01():
