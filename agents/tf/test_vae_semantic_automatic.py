@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -44,7 +44,7 @@ from ae.controller import VAEController
 import ae.util as util
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_1/'
+prefix = 'ae_v125_z512_kl_0_crop_z20_sem_lr_5e3_fixed_2/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -55,12 +55,12 @@ TF_MODELS = ALTA_LOGS+prefix+'tf-models/checkpoint/'
 if not os.path.exists(TF_MODELS):
     os.makedirs(TF_MODELS)
 
-IMAGES_PATH = ALTA_LOGS+prefix+'images/'
-VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
-IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE/'
-VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE/'
+IMAGES_PATH = ALTA_LOGS+prefix+'images1/'
+VIDEO_PATH = ALTA_LOGS+prefix+'videos1/'
+IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE1/'
+VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE1/'
 FRAME_SKIP = 4
-TOTAL_TIMESTEPS = 200000
+TOTAL_TIMESTEPS = 10
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
 VAE_TRAINING_STEPS = 10000
 
@@ -88,6 +88,7 @@ if __name__ == '__main__':
     print('-'*50)
 
     vae = VAEController(image_size=(160, 80, 13), learning_rate=5e-3, batch_size=64)
+    vae.load(TF_MODELS+'vae-model-'+str(40000)+'.json') 
 
     obs = env.reset()
     print('-'*50)
@@ -122,9 +123,19 @@ if __name__ == '__main__':
         decoded_image = util.convert_from_one_hot(decoded_image_onehot)
         # print("decoded_image", np.shape(decoded_image))
 
-        decoded_image = util.convert_to_rgb(decoded_image).astype(np.uint8)
+        decoded_image_rgb = util.convert_to_rgb(decoded_image).astype(np.uint8)
         # decoded_image = np.tile(decoded_image, (1,1,3))
-        vis_wrapper_vae.save_image(decoded_image , t)
+        vis_wrapper_vae.save_image(decoded_image_rgb , t)
+
+        my_decoded_image = np.expand_dims(np.argmax(decoded_image_onehot, axis=-1), axis=-1)
+        decoded_image_onehot_bad = decoded_image_onehot.astype(np.uint8)
+        print(decoded_image_onehot, decoded_image_onehot_bad)
+        print("Array equal", np.array_equal(decoded_image, my_decoded_image))
+        input_labels_flattened, output_labels_flattened = np.reshape(semantic_image, (-1)), np.reshape(decoded_image, (-1))
+        my_accuracy = np.mean(np.equal(input_labels_flattened, output_labels_flattened))
+        print("accuracy", my_accuracy)
+        print(semantic_image)
+        print(decoded_image)
 
         control = agent.run_step()
         new_obs, rew, done, eps_measurements = env.step(control)
@@ -150,21 +161,21 @@ if __name__ == '__main__':
             obs = env.reset()
             agent = RoamingAgent(env.vehicle_actor)
 
-        if (t > 1 and t % 500 == 0):
-            # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step = vae.optimize()
-            train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
-            logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
-            logger.log_scalar('timesteps/vae_train/accuracy_avg', accuracy_avg, t)
-            # logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
-            # logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
-            logger.log_scalar('timesteps/vae_train/my_accuracy_avg', my_accuracy_avg, t)
-            print("loss and accuracy")
-            print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
-            print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
-            model_params, model_shapes, model_names = vae.ae.get_model_params()
-            for (i, model_param) in enumerate(model_params):
-                model_name = model_names[i]
-                model_param_all = (np.ravel(np.array(model_param)))
-                logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
-        if(t > 100 and t % 5000 == 0):
-            vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 
+        # if (t > 1 and t % 500 == 0):
+        #     # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step = vae.optimize()
+        #     train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
+        #     logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
+        #     logger.log_scalar('timesteps/vae_train/accuracy_avg', accuracy_avg, t)
+        #     # logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
+        #     # logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
+        #     logger.log_scalar('timesteps/vae_train/my_accuracy_avg', my_accuracy_avg, t)
+        #     print("loss and accuracy")
+        #     print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
+        #     print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
+        #     model_params, model_shapes, model_names = vae.ae.get_model_params()
+        #     for (i, model_param) in enumerate(model_params):
+        #         model_name = model_names[i]
+        #         model_param_all = (np.ravel(np.array(model_param)))
+        #         logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
+        # if(t > 100 and t % 5000 == 0):
+        #     vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 

@@ -102,20 +102,25 @@ class VAEController:
             train_loss_array = []
             accuracy_array = []
             confusion_matrix_final = 0
+            my_accuracy_array = []
+            my_confusion_matrix_final = 0
 
             for idx in range(num_batches):
                 batch = ds[idx * self.batch_size:(idx + 1) * self.batch_size]
                 # obs = batch.astype(np.float) / 255.0
                 obs = batch.astype(np.float)
                 feed = {self.ae.x: obs, }
-                (train_loss, train_step, accuracy, accuracy_op, confusion_matrix, _) = self.ae.sess.run([
+                (train_loss, train_step, accuracy, accuracy_op, confusion_matrix, _, my_accuracy, my_confusion_matrix, my_confusion_matrix_normalized) = self.ae.sess.run([
                     self.ae.loss,
                     self.ae.global_step,
                     self.ae.accuracy,
                     self.ae.accuracy_op,
                     self.ae.confusion_matrix,
-                    self.ae.train_op
-                ], feed)
+                    self.ae.train_op,
+                    self.ae.my_accuracy,
+                    self.ae.my_confusion_matrix,
+                    self.ae.my_confusion_matrix_normalized
+                ], feed)                
                 if ((train_step + 1) % 50 == 0):
                     print("AE: optimization step",
                           (train_step + 1), train_loss)
@@ -123,14 +128,23 @@ class VAEController:
                 train_loss_array.append(train_loss)
                 accuracy_array.append(accuracy)
                 confusion_matrix_final += confusion_matrix
+
+                my_accuracy_array.append(my_accuracy)
+                my_confusion_matrix_final += my_confusion_matrix
+
         self.set_target_params()
 
         # Average values in last epoch
         train_loss_avg = np.mean(np.array(train_loss_array))
         accuracy_avg = np.mean(np.array(accuracy_array))
         confusion_matrix_final = np.array(confusion_matrix_final)
+
+        my_accuracy_avg = np.mean(np.array(my_accuracy_array))
+        my_confusion_matrix_final = np.array(my_confusion_matrix_final)
         
-        return train_loss_avg, accuracy_avg, confusion_matrix_final, train_step
+        # my_confusion_matrix_normalized_final = my_confusion_matrix_final / np.sum(my_confusion_matrix_final, axis=1).reshape((-1,1))
+        my_confusion_matrix_normalized_final = my_confusion_matrix_final
+        return train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final
 
     def save(self, path):
         self.target_ae.save_json(path)
