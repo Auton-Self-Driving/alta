@@ -40,14 +40,14 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-from ae.controller import VAEController
+from my_vae.controller import VAEController
 import ae.util as util
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 import csv
 
-prefix = 'ae_v125_sem_lr_5e3_nn_16_32_64_128_c5_3/'
+prefix = 'vae_v125_sem_lr_1e4_nn_16_32_64_128_z1024_kl_05_2/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/myvae/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
@@ -64,7 +64,7 @@ FRAME_SKIP = 4
 TOTAL_TIMESTEPS = 200000
 VAL_TIMESTEPS = 10000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
-NUM_CLASSES  = 5
+
 Accuracy_File = ALTA_LOGS+prefix+"acurracy_town1.csv"
 confusion_matrix_file = ALTA_LOGS+prefix+"cm_town1.txt"
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     print('Launched environment!')
     print('-'*50)
 
-    vae = VAEController(image_size=(160, 80, 5), learning_rate=5e-3, batch_size=64)
+    vae = VAEController(z_size=1024, image_size=(160, 80, 13), learning_rate=1e-4, batch_size=64, kl_tolerance=0.5)
 
     obs = env.reset()
     print('-'*50)
@@ -108,19 +108,26 @@ if __name__ == '__main__':
     for t in range(TOTAL_TIMESTEPS):
 
         semantic_image = obs['semantic_image']
-        # semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
-        semantic_image_rgb = util.convert_to_rgb(semantic_image).astype(np.uint8)
+        # print("semantic_image", semantic_image, np.max(semantic_image), np.min(semantic_image))
+        semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
 
         print("type of obs[image]", type(obs['image']))
         print("type of semantic_image_rgb", type(semantic_image_rgb))
 
-        semantic_image_reduced = util.reduce_classes(semantic_image)
-        semantic_image_onehot = util.convert_to_one_hot(semantic_image_reduced, num_classes=5)
+        # print("semantic_image_rgb", semantic_image_rgb, np.max(semantic_image_rgb), np.min(semantic_image_rgb))
+        # print("semantic_image", np.shape(semantic_image))
+        semantic_image_onehot = util.convert_to_one_hot(semantic_image)
+        # print("semantic_image_onehot", np.shape(semantic_image_onehot))
+        # print("semantic_image_onehot", semantic_image_onehot[0,0,:])
         encoded_image = get_and_add_vae_observation(vae, semantic_image_onehot)
+        # print("encoded_image", np.shape(encoded_image))
         vis_wrapper.save_image(semantic_image_rgb, t)
+        # decoded_image_onehot = vae.decode(encoded_image)[0].astype(np.uint8)
         decoded_image_onehot = vae.decode(encoded_image)[0]
+        # print("decoded_image_onehot", np.shape(decoded_image_onehot))
         decoded_image = util.convert_from_one_hot(decoded_image_onehot)
-        
+        # print("decoded_image", np.shape(decoded_image))
+
         decoded_image = util.convert_to_rgb(decoded_image).astype(np.uint8)
         # decoded_image = np.tile(decoded_image, (1,1,3))
         vis_wrapper_vae.save_image(decoded_image , t)
@@ -151,16 +158,19 @@ if __name__ == '__main__':
 
         if (t > 1 and t % 500 == 0):
             # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step = vae.optimize()
-            train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
+            train_loss_avg, entropy_loss_avg, kl_loss_avg, accuracy_avg, my_accuracy_avg, confusion_matrix_final, confusion_matrix_final, train_step = vae.optimize()
+            # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
             logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
+            logger.log_scalar('timesteps/vae_train/entropy_loss', entropy_loss_avg, t)
+            logger.log_scalar('timesteps/vae_train/kl_loss', kl_loss_avg, t)
             logger.log_scalar('timesteps/vae_train/accuracy_avg', accuracy_avg, t)
             # logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
             # logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
             logger.log_scalar('timesteps/vae_train/my_accuracy_avg', my_accuracy_avg, t)
             print("loss and accuracy")
             print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
-            print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
-            model_params, model_shapes, model_names = vae.ae.get_model_params()
+            # print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
+            model_params, model_shapes, model_names = vae.vae.get_model_params()
             for (i, model_param) in enumerate(model_params):
                 model_name = model_names[i]
                 model_param_all = (np.ravel(np.array(model_param)))
@@ -171,6 +181,7 @@ if __name__ == '__main__':
         if(t > 10 and t % 10000 == 0):
                 
             # Validation
+
             num_episodes += 1
             print('-'*50)
             print('Generating video')
@@ -179,19 +190,18 @@ if __name__ == '__main__':
             vis_wrapper.remove_images()
             vis_wrapper_vae.generate_video(num_episodes)
             vis_wrapper_vae.remove_images()
-
             obs = env.reset()
             agent = RoamingAgent(env.vehicle_actor)
-            
-            confusion_matrix = np.zeros((NUM_CLASSES, NUM_CLASSES))
+
+            confusion_matrix = np.zeros((13, 13))
             val_accuracy_array = []
             for valT in range(VAL_TIMESTEPS):
 
                 semantic_image = obs['semantic_image']
-                semantic_image_rgb = util.convert_to_rgb(semantic_image).astype(np.uint8)
+                semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
 
-                semantic_image_reduced = util.reduce_classes(semantic_image)
-                semantic_image_onehot = util.convert_to_one_hot(semantic_image_reduced, num_classes=5)
+                
+                semantic_image_onehot = util.convert_to_one_hot(semantic_image)
                 encoded_image = get_vae_observation(vae, semantic_image_onehot)
                 decoded_image_onehot = vae.decode(encoded_image)[0]
                 decoded_image = util.convert_from_one_hot(decoded_image_onehot)

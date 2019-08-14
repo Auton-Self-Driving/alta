@@ -37,13 +37,15 @@ class Logger(object):
         im_summaries = []
         for nr, img in enumerate(images):
             # Write the image to a string
-            s = StringIO()
-            plt.imsave(s, img, format='png')
+            # s = StringIO()
+            # plt.imsave(s, img, format='png')
 
             # Create an Image object
             img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
                                        height=img.shape[0],
                                        width=img.shape[1])
+            img_sum = tf.Summary.Image(height=img.shape[0],
+                                       width=img.shape[1])                                       
             # Create a Summary value
             im_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, nr),
                                                  image=img_sum))

@@ -50,7 +50,6 @@ def reduce_classes(semantic_image):
             orig_class = semantic_image[i, j]
             new_class = int(CLASS_REMAP[orig_class])
             semantic_reduced_image[i, j] = new_class
-
     return semantic_reduced_image
 
 def convert_to_one_hot(labels, num_classes):
