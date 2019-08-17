@@ -639,7 +639,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        self.spawn_npc(125)
+        self.spawn_npc(50)
 
         print('-'*50)
         print('Waiting for sensor to initialize')

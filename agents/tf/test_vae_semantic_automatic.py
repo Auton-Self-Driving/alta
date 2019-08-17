@@ -44,7 +44,7 @@ from ae.controller import VAEController
 import ae.util as util
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-prefix = 'ae_v125_z512_kl_0_crop_z20_sem_lr_5e3_fixed_2/'
+prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_1/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -55,12 +55,12 @@ TF_MODELS = ALTA_LOGS+prefix+'tf-models/checkpoint/'
 if not os.path.exists(TF_MODELS):
     os.makedirs(TF_MODELS)
 
-IMAGES_PATH = ALTA_LOGS+prefix+'images1/'
-VIDEO_PATH = ALTA_LOGS+prefix+'videos1/'
-IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE1/'
-VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE1/'
+IMAGES_PATH = ALTA_LOGS+prefix+'images_1/'
+VIDEO_PATH = ALTA_LOGS+prefix+'videos_1/'
+IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE_1/'
+VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE_1/'
 FRAME_SKIP = 4
-TOTAL_TIMESTEPS = 10
+TOTAL_TIMESTEPS = 1000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
 VAE_TRAINING_STEPS = 10000
 
@@ -100,21 +100,22 @@ if __name__ == '__main__':
 
     num_episodes = 0
     num_done = 0
+    my_accuracy_array = []
     for t in range(TOTAL_TIMESTEPS):
 
         semantic_image = obs['semantic_image']
         # print("semantic_image", semantic_image, np.max(semantic_image), np.min(semantic_image))
         semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
 
-        print("type of obs[image]", type(obs['image']))
-        print("type of semantic_image_rgb", type(semantic_image_rgb))
+        # print("type of obs[image]", type(obs['image']))
+        # print("type of semantic_image_rgb", type(semantic_image_rgb))
 
         # print("semantic_image_rgb", semantic_image_rgb, np.max(semantic_image_rgb), np.min(semantic_image_rgb))
         # print("semantic_image", np.shape(semantic_image))
         semantic_image_onehot = util.convert_to_one_hot(semantic_image)
         # print("semantic_image_onehot", np.shape(semantic_image_onehot))
         # print("semantic_image_onehot", semantic_image_onehot[0,0,:])
-        encoded_image = get_and_add_vae_observation(vae, semantic_image_onehot)
+        encoded_image = get_vae_observation(vae, semantic_image_onehot)
         # print("encoded_image", np.shape(encoded_image))
         vis_wrapper.save_image(semantic_image_rgb, t)
         # decoded_image_onehot = vae.decode(encoded_image)[0].astype(np.uint8)
@@ -129,14 +130,15 @@ if __name__ == '__main__':
 
         my_decoded_image = np.expand_dims(np.argmax(decoded_image_onehot, axis=-1), axis=-1)
         decoded_image_onehot_bad = decoded_image_onehot.astype(np.uint8)
-        print(decoded_image_onehot, decoded_image_onehot_bad)
+        # print(decoded_image_onehot, decoded_image_onehot_bad)
         print("Array equal", np.array_equal(decoded_image, my_decoded_image))
         input_labels_flattened, output_labels_flattened = np.reshape(semantic_image, (-1)), np.reshape(decoded_image, (-1))
         my_accuracy = np.mean(np.equal(input_labels_flattened, output_labels_flattened))
         print("accuracy", my_accuracy)
-        print(semantic_image)
-        print(decoded_image)
+        # print(semantic_image)
+        # print(decoded_image)
 
+        my_accuracy_array.append(my_accuracy)
         control = agent.run_step()
         new_obs, rew, done, eps_measurements = env.step(control)
         
@@ -178,4 +180,9 @@ if __name__ == '__main__':
         #         model_param_all = (np.ravel(np.array(model_param)))
         #         logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
         # if(t > 100 and t % 5000 == 0):
-        #     vae.save(TF_MODELS+'vae-model-'+str(t)+'.json') 
+        #     vae.save(TF_MODELS+'vae-model-'+str(t)+'.json')
+    
+    my_accuracy_array = np.array(my_accuracy_array)
+    print(np.size(my_accuracy_array), np.mean(my_accuracy_array))
+    vis_wrapper.generate_video(num_episodes)
+    vis_wrapper_vae.generate_video(num_episodes)
