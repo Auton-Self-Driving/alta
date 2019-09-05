@@ -5,7 +5,7 @@ import random
 import time
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
-
+# ./CarlaUE4.sh Town01 -windowed -ResX=800 -ResY=800 -carla-server -benchmark -fps=10 -carla-world-port=2000 SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0
 class CarlaServer():
     def __init__(self, config=None):
         print("Launching CARLA server...")

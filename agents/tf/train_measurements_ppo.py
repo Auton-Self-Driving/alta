@@ -2,11 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys, os
+import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -37,29 +37,31 @@ import tensorboard_logging as tf_log
 
 # PPO specific
 from stable_baselines.ppo2.ppo2 import Runner
-from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.misc_util import set_global_seeds
 from ppo import PPO
+from models import MlpPolicy
 
-prefix = 'ppo_wp_straight_merged_speed_simple6_w_bias_lr_25e4_1/'
+prefix = 'ppo_new_lr_5e5/'
 
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_scenarios_straight/'
+ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/new_ppo_pid_scenarios_straight_1layer/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
-TF_MODELS = ALTA_LOGS+prefix+'tf-models/checkpoint/'
+TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
 if not os.path.exists(TF_MODELS):
     os.makedirs(TF_MODELS)
 
 FRAME_SKIP = 1
-SAVE_PATH = ALTA_LOGS + prefix + 'ppo2_measurements_weights110000'
-TB_LOGS_DIR = ALTA_LOGS+prefix+str(datetime.now())
+SAVE_PATH = ALTA_LOGS + 'ppo2_measurements_weights'
+TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
-def train():
-    model = PPO(policy=MlpPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-5, 
-                tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
-    model.learn(1000000, tb_log_name="PPO2", save_file=SAVE_PATH)
-    return model
+def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
+    list_of_files = glob.glob(log_dir + ext)
+    latest_file = max(list_of_files, key=os.path.getctime)
+    latest_file = latest_file.split('.')[0]
+    ind = int(latest_file.split(sep)[1])
+    return ind, latest_file
 
 if __name__ == '__main__':
 
@@ -68,14 +70,18 @@ if __name__ == '__main__':
     logger = tf_log.Logger(TB_LOGS_DIR)
     
     if os.path.exists(SAVE_PATH + ".pkl"):
-        IMAGES_PATH = ALTA_LOGS+prefix+'test_images_' + config.config["city_name"] + '_5/'
-        VIDEO_PATH = ALTA_LOGS+prefix+'test_videos_' + config.config["city_name"] + '_5/'
+        with open(ALTA_LOGS + "seed.txt", "r") as f:
+            seed = int(f.readline())
+        print("Using the pre-initialized seed: {}".format(seed))
+        set_global_seeds(seed)
+
+        IMAGES_PATH = ALTA_LOGS+'test_images_' + config.config["city_name"] + '/'
+        VIDEO_PATH = ALTA_LOGS+'test_videos_' + config.config["city_name"] + '/'
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
         
-        env = CarlaEnv(config.config, vis_wrapper, logger)
+        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
         
-        print("Task: test")
         model = PPO.load(SAVE_PATH, dummy_env)
         success_episodes = 0
         results = {}
@@ -101,12 +107,34 @@ if __name__ == '__main__':
         print(results)
         print("Total Success Episodes: {}".format(success_episodes))
     else:
-        IMAGES_PATH = ALTA_LOGS+prefix+'images/'
-        VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
+        IMAGES_PATH = ALTA_LOGS+'images/'
+        VIDEO_PATH = ALTA_LOGS+'videos/'
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
         
-        env = CarlaEnv(config.config, vis_wrapper, logger)
+        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
-
-        model = train()
-        model.save(SAVE_PATH)
+        
+        model = PPO(policy=MlpPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-5, 
+                tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
+        steps = 1000000
+        if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
+            with open(ALTA_LOGS + "seed.txt", "r") as f:
+                seed = int(f.readline())
+            print("Using the pre-initialized seed: {}".format(seed))
+            set_global_seeds(seed)
+            completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
+            completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
+            print("Loading Latest model!!!")
+            model.load(latest_model, dummy_env)
+            print("Model: {} loaded successfully".format(latest_model))
+            env.total_steps = completed_steps
+            env.episode_num = completed_episodes
+            _, best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
+        else:
+            dt = datetime.now()
+            millis = dt.microsecond
+            print(millis)
+            with open(ALTA_LOGS + "seed.txt", "w") as f:
+                f.write(str(millis))
+            _, best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+        best_model.save(SAVE_PATH)

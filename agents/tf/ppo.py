@@ -88,7 +88,36 @@ def safe_mean(arr):
 class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
+    def get_best_model(self, total_timesteps, save_file, env):
+        print("Searching for best model now!!!")
+        nupdates = total_timesteps // self.n_batch
+        total_rewards = []
+        total_successes = []
+        for update in range(1, nupdates + 1):
+            if (update * self.n_batch) % 10000 == 0:
+                self.load(save_file + str(update * self.n_batch))
+                print("Loading model file: {}".format(save_file + str(update * self.n_batch)))
+                total_reward, success_episodes = self.test(env)
+                print(total_reward, success_episodes)
+                env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
+                env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                total_rewards.append(total_reward)
+                total_successes.append(success_episodes)
+        print("Rewards at intermediate training: {}".format(total_rewards))
+        print("Total success episodes: {}".format(total_successes))
+        m = max(total_successes)
+        max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
+        total_rewards = np.array(total_rewards)[max_inds]
+        ind = max_inds[np.argmax(total_rewards)]
+        print("Best model appears at index: {}".format(ind))
+        print("No of successes in best model: {}".format(total_successes[ind]))
+        print("Max no of successes: {}".format(m))
+        SAVE_PATH = save_file + str(ind + 1) + "0000"
+        best_model = self.load(SAVE_PATH, DummyVecEnv([lambda: env]))
+        
+        return best_model
+    
+    def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
               reset_num_timesteps=True, save_file="default"):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
@@ -107,7 +136,15 @@ class PPO(PPO2):
             t_first_start = time.time()
 
             nupdates = total_timesteps // self.n_batch
-            for update in range(1, nupdates + 1):
+            
+            print("No of updates: {}".format(nupdates))
+            print("Total timesteps : {}".format(total_timesteps))
+            print("Batch size: {}".format(self.n_batch))
+            # total_rewards = []
+            # total_successes = []
+            for update in range((trained_timesteps // self.n_batch) + 1, nupdates + 1):
+                # if (update * self.n_batch) <= trained_timesteps:
+                #     continue
                 assert self.n_batch % self.nminibatches == 0
                 batch_size = self.n_batch // self.nminibatches
                 t_start = time.time()
@@ -134,6 +171,11 @@ class PPO(PPO2):
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
                     if (update * self.n_batch) % 10000 == 0:
                         self.save(save_file + str(update * self.n_batch))
+                        # total_reward, success_episodes = self.test(env)
+                        # env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
+                        # env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                        # total_rewards.append(total_reward)
+                        # total_successes.append(success_episodes)
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0
@@ -184,8 +226,38 @@ class PPO(PPO2):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
-
-            return self
+            best_model = self.get_best_model(total_timesteps, save_file, env)
+            
+            return self, best_model
+        
+    def test(self, env):
+        dummy_env = DummyVecEnv([lambda: env])
+        success_episodes = 0
+        results = {}
+        total_reward = 0
+        for ind in range(1):
+            obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
+            obs[:] = env.reset(unseen=True, index=ind)
+            done = False
+            reward = 0
+            
+            while not done:
+                actions = self.step(obs, deterministic=True)[0]
+                info = env.step(actions)
+                reward += info[1]
+                done = info[2]
+                obs = np.expand_dims(info[0], axis=0)
+            
+            total_reward += reward
+            if info[3]['termination_state'] == 'success':
+                success_episodes += 1
+                results[ind] = 1
+            else:
+                results[ind] = 0
+        print("Results of train scenarios")
+        print(results)
+        print("Total Success Episodes: {}".format(success_episodes))
+        return total_reward, success_episodes
 
         
 class PPOWithVAE(PPO2):
@@ -241,9 +313,9 @@ class PPOWithVAE(PPO2):
                     self.save(PATH_MODEL_PPO2)
                     """Optimize the VAE"""
                     time_start = time.time()
-                    vae.optimize()
-                    vae.save(PATH_MODEL_VAE)
-                    print("Time to optimize the VAE: ", time.time() - time_start)
+                    # vae.optimize()
+                    # vae.save(PATH_MODEL_VAE)
+                    # print("Time to optimize the VAE: ", time.time() - time_start)
 
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()

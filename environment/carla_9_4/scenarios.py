@@ -1366,6 +1366,10 @@ def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
     return paths_straight_Town01_train()[0]
 
+def get_fixed_long_curved_path_Town01():
+    " Returns a list of [start_transform, target_transform]"
+    return benchmark_paths_turn_Town01()[0]
+
 def get_random_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
     return random.choice(paths_straight_Town01_train())
