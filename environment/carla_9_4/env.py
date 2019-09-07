@@ -114,7 +114,8 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight",
     "semantic" : False,
-    "use_scenarios" : True
+    "use_scenarios" : True,
+    "num_npc": 30
 }
 DISCRETE_ACTIONS = {
     # Coast
@@ -365,7 +366,7 @@ class CarlaEnv(gym.Env):
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
             self._world.tick()
-            timestamp = self._world.wait_for_tick()
+            timestamp = self._world.wait_for_tick(40.0)
         self.num_steps += 1
         self.total_steps +=1
         self.episode_measurements['num_steps'] = self.num_steps
@@ -639,7 +640,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        self.spawn_npc(50)
+        self.spawn_npc(self.config["num_npc"])
 
         print('-'*50)
         print('Waiting for sensor to initialize')
@@ -663,7 +664,7 @@ class CarlaEnv(gym.Env):
 
         for _ in range(60):
             self._world.tick()
-            timestamp = self._world.wait_for_tick()
+            timestamp = self._world.wait_for_tick(40.0)
         image = self._read_data()
         semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
 

@@ -69,7 +69,7 @@ class GlobalPlanner():
         for elem in current_plan:
             self.printwaypoint(elem[0])
             if not self.sameWaypoint(elem[0], prev_wp):
-                print("Added wp")
+                # print("Added wp")
                 self._waypoints_queue.append(elem)
                 self._waypoints_queue_old.append(elem)
             prev_wp = elem[0]
@@ -255,8 +255,8 @@ class GlobalPlanner():
         #             self.second_last_waypoint = waypoint
         
         next_waypoints_angles_array = np.array(next_waypoints_angles)
-        print("full angle {0}, selected 2nd angle {1}, selected 3rd angle {2}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:]), np.mean(next_waypoints_angles_array[2:])))
-        print(next_waypoints_angles)
+        # print("full angle {0}, selected 2nd angle {1}, selected 3rd angle {2}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:]), np.mean(next_waypoints_angles_array[2:])))
+        # print(next_waypoints_angles)
         # if len(next_waypoints_angles) > 2:
         #     angle = np.mean(next_waypoints_angles_array[2:])
         # elif len(next_waypoints_angles) > 1:

@@ -43,8 +43,8 @@ import tensorboard_logging as tf_log
 from ae.controller import VAEController
 import ae.util as util
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
-
-prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_1/'
+import csv
+prefix = 'ae_v125_sem_lr_5e3_nn_16_32_64_128_1/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -55,14 +55,19 @@ TF_MODELS = ALTA_LOGS+prefix+'tf-models/checkpoint/'
 if not os.path.exists(TF_MODELS):
     os.makedirs(TF_MODELS)
 
-IMAGES_PATH = ALTA_LOGS+prefix+'images_1/'
-VIDEO_PATH = ALTA_LOGS+prefix+'videos_1/'
-IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE_1/'
-VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE_1/'
+IMAGES_PATH = ALTA_LOGS+prefix+'images_1_1/'
+VIDEO_PATH = ALTA_LOGS+prefix+'videos_1_1/'
+IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE_1_1/'
+VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE_1_1/'
 FRAME_SKIP = 4
-TOTAL_TIMESTEPS = 1000
+TOTAL_TIMESTEPS = 10000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
 VAE_TRAINING_STEPS = 10000
+# Accuracy_File = ALTA_LOGS+prefix+"acurracy_town1.csv"
+# confusion_matrix_file = ALTA_LOGS+prefix+"cm_town1.txt"
+
+Accuracy_File = ALTA_LOGS+prefix+"acurracy_town2.csv"
+confusion_matrix_file = ALTA_LOGS+prefix+"cm_town2.txt"
 
 def get_vae_observation(vae, observation_image):
         ob = vae.encode(observation_image)
@@ -88,101 +93,125 @@ if __name__ == '__main__':
     print('-'*50)
 
     vae = VAEController(image_size=(160, 80, 13), learning_rate=5e-3, batch_size=64)
-    vae.load(TF_MODELS+'vae-model-'+str(40000)+'.json') 
-
-    obs = env.reset()
-    print('-'*50)
-    print('Received observation of shape:', obs['image'].shape)
-    print('-'*50)
-
-    agent = RoamingAgent(env.vehicle_actor)
     
+    for modelt in range(5000, 195000, 5000):
 
-    num_episodes = 0
-    num_done = 0
-    my_accuracy_array = []
-    for t in range(TOTAL_TIMESTEPS):
+        vae.load(TF_MODELS+'vae-model-'+str(modelt)+'.json') 
 
-        semantic_image = obs['semantic_image']
-        # print("semantic_image", semantic_image, np.max(semantic_image), np.min(semantic_image))
-        semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
+        obs = env.reset()
+        print('-'*50)
+        print('Received observation of shape:', obs['image'].shape)
+        print('-'*50)
 
-        # print("type of obs[image]", type(obs['image']))
-        # print("type of semantic_image_rgb", type(semantic_image_rgb))
-
-        # print("semantic_image_rgb", semantic_image_rgb, np.max(semantic_image_rgb), np.min(semantic_image_rgb))
-        # print("semantic_image", np.shape(semantic_image))
-        semantic_image_onehot = util.convert_to_one_hot(semantic_image)
-        # print("semantic_image_onehot", np.shape(semantic_image_onehot))
-        # print("semantic_image_onehot", semantic_image_onehot[0,0,:])
-        encoded_image = get_vae_observation(vae, semantic_image_onehot)
-        # print("encoded_image", np.shape(encoded_image))
-        vis_wrapper.save_image(semantic_image_rgb, t)
-        # decoded_image_onehot = vae.decode(encoded_image)[0].astype(np.uint8)
-        decoded_image_onehot = vae.decode(encoded_image)[0]
-        # print("decoded_image_onehot", np.shape(decoded_image_onehot))
-        decoded_image = util.convert_from_one_hot(decoded_image_onehot)
-        # print("decoded_image", np.shape(decoded_image))
-
-        decoded_image_rgb = util.convert_to_rgb(decoded_image).astype(np.uint8)
-        # decoded_image = np.tile(decoded_image, (1,1,3))
-        vis_wrapper_vae.save_image(decoded_image_rgb , t)
-
-        my_decoded_image = np.expand_dims(np.argmax(decoded_image_onehot, axis=-1), axis=-1)
-        decoded_image_onehot_bad = decoded_image_onehot.astype(np.uint8)
-        # print(decoded_image_onehot, decoded_image_onehot_bad)
-        print("Array equal", np.array_equal(decoded_image, my_decoded_image))
-        input_labels_flattened, output_labels_flattened = np.reshape(semantic_image, (-1)), np.reshape(decoded_image, (-1))
-        my_accuracy = np.mean(np.equal(input_labels_flattened, output_labels_flattened))
-        print("accuracy", my_accuracy)
-        # print(semantic_image)
-        # print(decoded_image)
-
-        my_accuracy_array.append(my_accuracy)
-        control = agent.run_step()
-        new_obs, rew, done, eps_measurements = env.step(control)
+        agent = RoamingAgent(env.vehicle_actor)
         
+        confusion_matrix = np.zeros((13, 13))
+        num_episodes = 0
+        num_done = 0
+        my_accuracy_array = []
+        for t in range(TOTAL_TIMESTEPS):
+
+            semantic_image = obs['semantic_image']
+            # print("semantic_image", semantic_image, np.max(semantic_image), np.min(semantic_image))
+            semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
+
+            # print("type of obs[image]", type(obs['image']))
+            # print("type of semantic_image_rgb", type(semantic_image_rgb))
+
+            # print("semantic_image_rgb", semantic_image_rgb, np.max(semantic_image_rgb), np.min(semantic_image_rgb))
+            # print("semantic_image", np.shape(semantic_image))
+            semantic_image_onehot = util.convert_to_one_hot(semantic_image)
+            # print("semantic_image_onehot", np.shape(semantic_image_onehot))
+            # print("semantic_image_onehot", semantic_image_onehot[0,0,:])
+            encoded_image = get_vae_observation(vae, semantic_image_onehot)
+            # print("encoded_image", np.shape(encoded_image))
+            vis_wrapper.save_image(semantic_image_rgb, t)
+            # decoded_image_onehot = vae.decode(encoded_image)[0].astype(np.uint8)
+            decoded_image_onehot = vae.decode(encoded_image)[0]
+            # print("decoded_image_onehot", np.shape(decoded_image_onehot))
+            decoded_image = util.convert_from_one_hot(decoded_image_onehot)
+            # print("decoded_image", np.shape(decoded_image))
+
+            decoded_image_rgb = util.convert_to_rgb(decoded_image).astype(np.uint8)
+            # decoded_image = np.tile(decoded_image, (1,1,3))
+            vis_wrapper_vae.save_image(decoded_image_rgb , t)
+
+            my_decoded_image = np.expand_dims(np.argmax(decoded_image_onehot, axis=-1), axis=-1)
+            decoded_image_onehot_bad = decoded_image_onehot.astype(np.uint8)
+            # print(decoded_image_onehot, decoded_image_onehot_bad)
+            # print("Array equal", np.array_equal(decoded_image, my_decoded_image))
+            input_labels_flattened, output_labels_flattened = np.reshape(semantic_image, (-1)), np.reshape(decoded_image, (-1))
+            my_accuracy = np.mean(np.equal(input_labels_flattened, output_labels_flattened))
+
+            
+            for i in range(np.size(input_labels_flattened)):
+                input_label = input_labels_flattened[i]
+                output_label = output_labels_flattened[i]
+                confusion_matrix[input_label][output_label] += 1
+            # print("accuracy", my_accuracy)
+            # print(semantic_image)
+            # print(decoded_image)
+
+            my_accuracy_array.append(my_accuracy)
+            control = agent.run_step()
+            new_obs, rew, done, eps_measurements = env.step(control)
+            
+            
+            # new_encoded_image = get_vae_observation(vae, new_obs['image'])
+            # Store transition in the replay buffer.
+            # Read only sensor image part of the observation (sensor_image, [measurements_array])
+            rew = float(rew[0, 0])
+            done = bool(done[0, 0])
+
+            obs = new_obs
+            if done:
+                num_episodes += 1
+                num_done += 1
+                print('-'*50)
+                print('Generating video')
+                print('-'*50)
+                vis_wrapper.generate_video(num_episodes)
+                vis_wrapper.remove_images()
+                vis_wrapper_vae.generate_video(num_episodes)
+                vis_wrapper_vae.remove_images()
+                obs = env.reset()
+                agent = RoamingAgent(env.vehicle_actor)
+
+            # if (t > 1 and t % 500 == 0):
+            #     # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step = vae.optimize()
+            #     train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
+            #     logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
+            #     logger.log_scalar('timesteps/vae_train/accuracy_avg', accuracy_avg, t)
+            #     # logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
+            #     # logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
+            #     logger.log_scalar('timesteps/vae_train/my_accuracy_avg', my_accuracy_avg, t)
+            #     print("loss and accuracy")
+            #     print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
+            #     print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
+            #     model_params, model_shapes, model_names = vae.ae.get_model_params()
+            #     for (i, model_param) in enumerate(model_params):
+            #         model_name = model_names[i]
+            #         model_param_all = (np.ravel(np.array(model_param)))
+            #         logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
+            # if(t > 100 and t % 5000 == 0):
+            #     vae.save(TF_MODELS+'vae-model-'+str(t)+'.json')
         
-        # new_encoded_image = get_vae_observation(vae, new_obs['image'])
-        # Store transition in the replay buffer.
-        # Read only sensor image part of the observation (sensor_image, [measurements_array])
-        rew = float(rew[0, 0])
-        done = bool(done[0, 0])
+        my_accuracy_array = np.array(my_accuracy_array)
+        my_accuracy_avg = np.mean(my_accuracy_array)
+        print(t, np.size(my_accuracy_array), np.mean(my_accuracy_array))
 
-        obs = new_obs
-        if done:
-            num_episodes += 1
-            num_done += 1
-            print('-'*50)
-            print('Generating video')
-            print('-'*50)
-            vis_wrapper.generate_video(num_episodes)
-            vis_wrapper.remove_images()
-            vis_wrapper_vae.generate_video(num_episodes)
-            vis_wrapper_vae.remove_images()
-            obs = env.reset()
-            agent = RoamingAgent(env.vehicle_actor)
-
-        # if (t > 1 and t % 500 == 0):
-        #     # train_loss_avg, accuracy_avg, confusion_matrix_final, train_step = vae.optimize()
-        #     train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = vae.optimize()
-        #     logger.log_scalar('timesteps/vae_train/train_loss', train_loss_avg, t)
-        #     logger.log_scalar('timesteps/vae_train/accuracy_avg', accuracy_avg, t)
-        #     # logger.log_scalar('timesteps/vae_train/global_step', train_step, t)
-        #     # logger.log_scalar('timesteps/vae_train/train_loss_global_step', train_loss_avg, train_step)
-        #     logger.log_scalar('timesteps/vae_train/my_accuracy_avg', my_accuracy_avg, t)
-        #     print("loss and accuracy")
-        #     print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
-        #     print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
-        #     model_params, model_shapes, model_names = vae.ae.get_model_params()
-        #     for (i, model_param) in enumerate(model_params):
-        #         model_name = model_names[i]
-        #         model_param_all = (np.ravel(np.array(model_param)))
-        #         logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
-        # if(t > 100 and t % 5000 == 0):
-        #     vae.save(TF_MODELS+'vae-model-'+str(t)+'.json')
-    
-    my_accuracy_array = np.array(my_accuracy_array)
-    print(np.size(my_accuracy_array), np.mean(my_accuracy_array))
-    vis_wrapper.generate_video(num_episodes)
-    vis_wrapper_vae.generate_video(num_episodes)
+        confusion_matrix_normalized =  confusion_matrix / np.sum(confusion_matrix, axis=1).reshape((-1, 1))
+        print(confusion_matrix)
+        print(confusion_matrix_normalized)
+        # vis_wrapper.generate_video(num_episodes)
+        # vis_wrapper_vae.generate_video(num_episodes)
+        # logger.log_scalar('timesteps/vae_train/town1_accuracy_avg', my_accuracy_avg, t)
+        logger.log_scalar('timesteps/vae_train/town2_accuracy_avg', my_accuracy_avg, t)
+        with open(Accuracy_File,'a') as f:
+            writer = csv.writer(f, delimiter=',')
+            writer.writerow([modelt, my_accuracy_avg])
+        with open(confusion_matrix_file, 'a') as f:
+            f.write(str(modelt))
+            f.write(str(confusion_matrix))
+            f.write("normalized\n")
+            f.write(str(confusion_matrix_normalized))

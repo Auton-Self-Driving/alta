@@ -47,3 +47,4 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["city_name"] = "Town01"
+            self.config["num_npc"] = 125
