@@ -370,25 +370,30 @@ class CarlaEnv(gym.Env):
             self.observation_space = image_space
 
         if(self.config['train_config'] == 'PPO'):
-            # Streer, Throttle
-            # self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
-            
-            # Steer, Speed
-            # self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
-            
-            # Steer only
-            self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
-            
+            if self.config["action_type"] == 'merged_gas':
+                # Streer, Throttle
+                self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            elif self.config["action_type"] == 'merged_speed':
+                # Steer, Speed
+                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+            elif self.config["action_type"] == 'steer_only':
+                # Steer only
+                self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+ 
             # Speed only
             # self.action_space = Box(low=np.array([0.0]), high=np.array([20.0]), dtype=np.float32)
             
             # self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+            elif self.config["input_type"] == 'vae':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 3072), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 769), dtype=np.float32)
+                                        shape=(1, 3073), dtype=np.float32)
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -516,7 +521,8 @@ class CarlaEnv(gym.Env):
         
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
-            image_labels = convert_to_one_hot(semantic_image)
+            semantic_image = reduce_classes(semantic_image)
+            image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
             obs['semantic_image'] = semantic_image
 
@@ -536,9 +542,9 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO" and not self.unseen:
-            self.vis_wrapper.save_image(obs['image'], self.num_steps)
+            self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
             if self.vis_wrapper_vae is not None:
-                self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0])).astype(np.uint8), self.num_steps)
+                self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
             self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
             self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
             self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
@@ -558,7 +564,7 @@ class CarlaEnv(gym.Env):
                     self.vis_wrapper_vae.generate_video(self.episode_num)
                     self.vis_wrapper_vae.remove_images()
         if self.config["input_type"] == 'vae':
-            return sensor_image, reward, done, self.episode_measurements
+            return encoded_image, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp_vae":
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             fused_input = np.hstack([encoded_image, orientation])
@@ -853,7 +859,8 @@ class CarlaEnv(gym.Env):
         obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
-            image_labels = convert_to_one_hot(semantic_image)
+            semantic_image = reduce_classes(semantic_image)
+            image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
             obs['semantic_image'] = semantic_image
     
@@ -864,7 +871,7 @@ class CarlaEnv(gym.Env):
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         if self.config["input_type"] == 'vae':
-            return image
+            return encoded_image
         elif self.config["input_type"] == "wp_vae":
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             fused_input = np.hstack([encoded_image, orientation])

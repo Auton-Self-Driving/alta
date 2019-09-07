@@ -39,8 +39,9 @@ import tensorboard_logging as tf_log
 from stable_baselines.ppo2.ppo2 import Runner
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
+from stable_baselines.common.policies import register_policy
 from ppo import PPO
-from models import MlpPolicy
+from models import CustomPolicy, CustomWPPolicy, MlpPolicy
 
 prefix = 'ppo_new_lr_5e5/'
 
@@ -113,8 +114,9 @@ if __name__ == '__main__':
         
         env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
+        register_policy('CustomWPPolicy', CustomWPPolicy)
         
-        model = PPO(policy=MlpPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-5, 
+        model = PPO(policy=CustomWPPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-5, 
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
         steps = 1000000
         if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
@@ -137,4 +139,5 @@ if __name__ == '__main__':
             with open(ALTA_LOGS + "seed.txt", "w") as f:
                 f.write(str(millis))
             _, best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+        
         best_model.save(SAVE_PATH)

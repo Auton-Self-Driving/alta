@@ -38,5 +38,5 @@ class ConfigManager(object):
             # self.config["num_vehicles"] = 30
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp_vae"
+            self.config["input_type"] = "vae"
             self.config["city_name"] = "Town01"

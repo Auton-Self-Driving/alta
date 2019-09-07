@@ -11,7 +11,7 @@ from .models import ConvAutoEncoder
 
 
 class AEController:
-    def __init__(self, z_size=512, image_size=(160, 80, 13),
+    def __init__(self, z_size=512, image_size=(160, 80, 5),
                  learning_rate=0.0001, kl_tolerance=0.5,
                  epoch_per_optimization=10, batch_size=64,
                  buffer_size=500):
