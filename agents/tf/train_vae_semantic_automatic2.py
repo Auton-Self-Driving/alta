@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -46,7 +46,7 @@ import ae.plot_cm as plot_cm
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 import csv
 
-prefix = 'ae_v125_sem_lr_5e3_nn_16_32_64_128_c5_fs_1_test1/'
+prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_c5_fs_10_1/'
 
 ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
@@ -61,9 +61,9 @@ IMAGES_PATH = ALTA_LOGS+prefix+'images/'
 VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 IMAGES_PATH_VAE = ALTA_LOGS+prefix+'images_VAE/'
 VIDEO_PATH_VAE = ALTA_LOGS+prefix+'videos_VAE/'
-FRAME_SKIP = 1
+FRAME_SKIP = 10
 TOTAL_TIMESTEPS = 2000000
-VAL_TIMESTEPS = 100
+VAL_TIMESTEPS = 100000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
 NUM_CLASSES  = 5
 Accuracy_File = ALTA_LOGS+prefix+"acurracy_town1.csv"
@@ -168,10 +168,10 @@ if __name__ == '__main__':
                 model_name = model_names[i]
                 model_param_all = (np.ravel(np.array(model_param)))
                 logger.log_histogram('timesteps/ae_train/model_parameters_' + model_name, model_param_all, train_step)
-        if(t > 100 and t % (5000* FRAME_SKIP) == 0):
+        if(t > 100 and t % (1000* FRAME_SKIP) == 0):
             vae.save(TF_MODELS+'vae-model-'+str(t)+'.json')
 
-        if(t > 10 and t % (500 * FRAME_SKIP) == 0):
+        if(t > 10 and t % (1000 * FRAME_SKIP) == 0):
                 
             # Validation
             num_episodes += 1
@@ -237,8 +237,9 @@ if __name__ == '__main__':
             logger.log_scalar('timesteps/vae_train/town1_accuracy_avg', val_accuracy_avg, t)
 
             # class_names = [i[0] for i in util.REDUCED_SEMANTIC_COLOR_MAP]
-            class_names = [util.REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)]
-            plot_cm.log_confusion_matrix(confusion_matrix, logger.writer, class_names, t)
+            # class_names = [util.REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)]
+            # cm_image_png, cm_image = plot_cm.get_cm_image(confusion_matrix)
+            # logger.log_images("CM", [cm_image_png],t)
             with open(Accuracy_File,'a') as f:
                 writer = csv.writer(f, delimiter=',')
                 writer.writerow([t, val_accuracy_avg])
