@@ -542,7 +542,10 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO" and not self.unseen:
-            self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
+            if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+                self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
+            else:
+                self.vis_wrapper.save_image(obs['image'], self.num_steps)
             if self.vis_wrapper_vae is not None:
                 self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
             self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)

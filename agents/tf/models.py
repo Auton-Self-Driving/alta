@@ -7,6 +7,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.layers import xavier_initializer
 from stable_baselines.common.policies import ActorCriticPolicy, FeedForwardPolicy, register_policy, nature_cnn
+from stable_baselines.a2c.utils import linear
 
 
 def CoRLModel(inputs, num_actions, scope, reuse=False):
@@ -96,7 +97,7 @@ class CustomPolicy(ActorCriticPolicy):
         super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=True)
 
         with tf.variable_scope("model", reuse=reuse):
-            activ = tf.nn.relu
+            activ = tf.nn.tanh
             
             measurement_features = tf.expand_dims(self.processed_obs[:, :, -1], axis=1)
             vae_features = self.processed_obs[:, :, :-1]
@@ -138,23 +139,23 @@ class CustomPolicy(ActorCriticPolicy):
 
 class CustomWPPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
-        super(CustomWPPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=True)
+        super(CustomWPPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
         with tf.variable_scope("model", reuse=reuse):
-            activ = tf.nn.relu
+            activ = tf.nn.tanh
             
-            measurement_features = tf.expand_dims(self.processed_obs[:, :, -1], axis=1)
+            measurement_features = tf.expand_dims(self.processed_obs[:, -1], axis=1)
             measurement_features_flat = tf.layers.flatten(measurement_features)
             
             pi_h = activ(tf.layers.dense(measurement_features_flat, 64, name='pi_vae_fc'))
-            pi_latent = tf.reshape(pi_h, [-1, 1, 64])
-            features = tf.layers.flatten(pi_latent)
-            pi_latent = activ(tf.layers.dense(features, 64, name='pi_fc'))
+            pi_latent = activ(tf.layers.dense(pi_h, 64, name='pi_fc'))
+            # pi_h = activ(linear(measurement_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            # pi_latent = activ(linear(pi_h, "pi_fc", 64, init_scale=np.sqrt(2)))
             
             vf_h = activ(tf.layers.dense(measurement_features_flat, 64, name='vf_vae_fc'))
-            vf_latent = tf.reshape(vf_h, [-1, 1, 64])
-            features = tf.layers.flatten(vf_latent)
-            vf_latent = activ(tf.layers.dense(features, 64, name='vf_fc'))
+            vf_latent = activ(tf.layers.dense(vf_h, 64, name='vf_fc'))
+            # vf_h = activ(linear(measurement_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            # vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
 

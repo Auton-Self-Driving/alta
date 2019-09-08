@@ -6,7 +6,7 @@ import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -43,9 +43,9 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO
 from models import CustomPolicy, CustomWPPolicy, MlpPolicy
 
-prefix = 'ppo_new_lr_5e5/'
+prefix = 'ppo_custom_net_tanh_scale_F_lr_5e4/'
 
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/new_ppo_pid_scenarios_straight_1layer/' + prefix
+ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_single_straight/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -86,12 +86,12 @@ if __name__ == '__main__':
         model = PPO.load(SAVE_PATH, dummy_env)
         success_episodes = 0
         results = {}
-        for ind in range(25):
+        for ind in range(1):
             obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
             obs[:] = env.reset(unseen=True, index=ind)
             done = False
             while not done:
-                actions = model.step(obs, deterministic=False)[0]
+                actions = model.step(obs, deterministic=True)[0]
                 info = env.step(actions)
                 done = info[2]
                 obs = np.expand_dims(info[0], axis=0)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         dummy_env = DummyVecEnv([lambda: env])
         register_policy('CustomWPPolicy', CustomWPPolicy)
         
-        model = PPO(policy=CustomWPPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-5, 
+        model = PPO(policy=CustomWPPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-4, 
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
         steps = 1000000
         if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):

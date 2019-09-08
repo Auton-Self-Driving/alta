@@ -2,7 +2,7 @@ import sys, os, time, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from stable_baselines.common.vec_env import DummyVecEnv
 from models import CustomPolicy, CustomWPPolicy, MlpPolicy
@@ -24,10 +24,10 @@ import tensorboard_logging as tf_log
 
 vae = AEController()
 # change
-prefix = 'vae_mlp2layer_lr_5e4/'
+prefix = 'vae_custom_net_lr_5e6/'
 
 PATH_MODEL_VAE = "vae-model-200000.json"
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_vae_only_scenarios_single_straight_steer_only/' + prefix
+ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_vae_scenarios_single_straight_steer_only/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
             obs[:] = env.reset(unseen=True, index=ind)
             done = False
             while not done:
-                actions = model.step(obs, deterministic=False)[0]
+                actions = model.step(obs, deterministic=True)[0]
                 info = env.step(actions)
                 done = info[2]
                 obs = np.expand_dims(info[0], axis=0)
@@ -116,7 +116,7 @@ if __name__ == '__main__':
         register_policy('CustomWPPolicy', CustomWPPolicy)
         
         model = PPO(policy=MlpPolicy, env=dummy_env, n_steps=500, nminibatches=10, verbose=1,
-                       tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, learning_rate=5e-4)
+                       tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, learning_rate=5e-6)
         steps = 1000000
         if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
             with open(ALTA_LOGS + "seed.txt", "r") as f:
