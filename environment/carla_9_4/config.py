@@ -29,7 +29,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "steer_only"
+            self.config["action_type"] = "merged_speed"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
@@ -38,5 +38,5 @@ class ConfigManager(object):
             # self.config["num_vehicles"] = 30
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "vae"
+            self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"

@@ -43,9 +43,9 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO
 from models import CustomPolicy, CustomWPPolicy, MlpPolicy
 
-prefix = 'ppo_custom_net_tanh_scale_F_lr_5e4/'
+prefix = 'ppo_1/'
 
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_single_straight/' + prefix
+ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/neurips/ppo_pid_wp_scenarios_straight/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -57,6 +57,8 @@ FRAME_SKIP = 1
 SAVE_PATH = ALTA_LOGS + 'ppo2_measurements_weights'
 TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
+MAX_TRIALS = 100
+
 def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
     list_of_files = glob.glob(log_dir + ext)
     latest_file = max(list_of_files, key=os.path.getctime)
@@ -65,79 +67,84 @@ def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
     return ind, latest_file
 
 if __name__ == '__main__':
-
-    # Create the environment
-    config = ConfigManager(algo="PPO")
-    logger = tf_log.Logger(TB_LOGS_DIR)
-    
-    if os.path.exists(SAVE_PATH + ".pkl"):
-        with open(ALTA_LOGS + "seed.txt", "r") as f:
-            seed = int(f.readline())
-        print("Using the pre-initialized seed: {}".format(seed))
-        set_global_seeds(seed)
-
-        IMAGES_PATH = ALTA_LOGS+'test_images_' + config.config["city_name"] + '/'
-        VIDEO_PATH = ALTA_LOGS+'test_videos_' + config.config["city_name"] + '/'
-        vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
-        
-        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
-        dummy_env = DummyVecEnv([lambda: env])
-        
-        model = PPO.load(SAVE_PATH, dummy_env)
-        success_episodes = 0
-        results = {}
-        for ind in range(1):
-            obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-            obs[:] = env.reset(unseen=True, index=ind)
-            done = False
-            while not done:
-                actions = model.step(obs, deterministic=True)[0]
-                info = env.step(actions)
-                done = info[2]
-                obs = np.expand_dims(info[0], axis=0)
+    register_policy('CustomWPPolicy', CustomWPPolicy)
+    for i in range(MAX_TRIALS):
+        try:
+            # Create the environment
+            config = ConfigManager(algo="PPO")
+            logger = tf_log.Logger(TB_LOGS_DIR)
             
-            print("Termination State: {}".format(info[3]['termination_state']))
-            if info[3]['termination_state'] == 'success':
-                success_episodes += 1
-                results[ind] = 1
+            if os.path.exists(SAVE_PATH + ".pkl"):
+                with open(ALTA_LOGS + "seed.txt", "r") as f:
+                    seed = int(f.readline())
+                print("Using the pre-initialized seed: {}".format(seed))
+                set_global_seeds(seed)
+
+                IMAGES_PATH = ALTA_LOGS+'test_images_' + config.config["city_name"] + '/'
+                VIDEO_PATH = ALTA_LOGS+'test_videos_' + config.config["city_name"] + '/'
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                dummy_env = DummyVecEnv([lambda: env])
+                
+                model = PPO.load(SAVE_PATH, dummy_env)
+                success_episodes = 0
+                results = {}
+                for ind in range(25):
+                    obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
+                    obs[:] = env.reset(unseen=True, index=ind)
+                    done = False
+                    while not done:
+                        actions = model.step(obs, deterministic=True)[0]
+                        info = env.step(actions)
+                        done = info[2]
+                        obs = np.expand_dims(info[0], axis=0)
+                    
+                    print("Termination State: {}".format(info[3]['termination_state']))
+                    if info[3]['termination_state'] == 'success':
+                        success_episodes += 1
+                        results[ind] = 1
+                    else:
+                        results[ind] = 0
+                print("Task Name: {}".format(config.config["scenarios"]))
+                print("Town Name: {}".format(config.config["city_name"]))
+                print("Results of test scenarios")
+                print(results)
+                print("Total Success Episodes: {}".format(success_episodes))
             else:
-                results[ind] = 0
-        print("Task Name: {}".format(config.config["scenarios"]))
-        print("Town Name: {}".format(config.config["city_name"]))
-        print("Results of test scenarios")
-        print(results)
-        print("Total Success Episodes: {}".format(success_episodes))
-    else:
-        IMAGES_PATH = ALTA_LOGS+'images/'
-        VIDEO_PATH = ALTA_LOGS+'videos/'
-        vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
-        
-        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
-        dummy_env = DummyVecEnv([lambda: env])
-        register_policy('CustomWPPolicy', CustomWPPolicy)
-        
-        model = PPO(policy=CustomWPPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=5e-4, 
-                tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
-        steps = 1000000
-        if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
-            with open(ALTA_LOGS + "seed.txt", "r") as f:
-                seed = int(f.readline())
-            print("Using the pre-initialized seed: {}".format(seed))
-            set_global_seeds(seed)
-            completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
-            completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
-            print("Loading Latest model!!!")
-            model.load(latest_model, dummy_env)
-            print("Model: {} loaded successfully".format(latest_model))
-            env.total_steps = completed_steps
-            env.episode_num = completed_episodes
-            _, best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
-        else:
-            dt = datetime.now()
-            millis = dt.microsecond
-            print(millis)
-            with open(ALTA_LOGS + "seed.txt", "w") as f:
-                f.write(str(millis))
-            _, best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
-        
-        best_model.save(SAVE_PATH)
+                IMAGES_PATH = ALTA_LOGS+'images/'
+                VIDEO_PATH = ALTA_LOGS+'videos/'
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                dummy_env = DummyVecEnv([lambda: env])
+                
+                model = PPO(policy=MlpPolicy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=2e-4, 
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
+                steps = 1000000
+                if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
+                    with open(ALTA_LOGS + "seed.txt", "r") as f:
+                        seed = int(f.readline())
+                    print("Using the pre-initialized seed: {}".format(seed))
+                    set_global_seeds(seed)
+                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
+                    completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
+                    print("Loading Latest model!!!")
+                    model.load(latest_model, dummy_env)
+                    print("Model: {} loaded successfully".format(latest_model))
+                    env.total_steps = completed_steps
+                    env.episode_num = completed_episodes
+                    _, best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
+                else:
+                    dt = datetime.now()
+                    millis = dt.microsecond
+                    print(millis)
+                    with open(ALTA_LOGS + "seed.txt", "w") as f:
+                        f.write(str(millis))
+                    _, best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+                
+                best_model.save(SAVE_PATH)
+        except Exception as e:
+            print(e)
+            env.close()
+            time.sleep(120)

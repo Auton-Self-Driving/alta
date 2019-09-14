@@ -88,13 +88,13 @@ def MeasurementsModel(inputs, num_actions, scope, reuse=False):
 class MlpPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(MlpPolicy, self).__init__(*args, **kwargs,
-                                           net_arch=[dict(pi=[64, 64],
-                                                          vf=[64, 64])],
+                                           net_arch=[dict(pi=[64],
+                                                          vf=[64])],
                                            feature_extraction="mlp")
 
 class CustomPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
-        super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=True)
+        super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.nn.tanh
@@ -103,15 +103,26 @@ class CustomPolicy(ActorCriticPolicy):
             vae_features = self.processed_obs[:, :, :-1]
             vae_features_flat = tf.layers.flatten(vae_features)
             
-            pi_h = activ(tf.layers.dense(vae_features_flat, 64, name='pi_vae_fc'))
-            pi_latent = tf.reshape(pi_h, [-1, 1, 64])
-            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
-            pi_latent = activ(tf.layers.dense(features, 64, name='pi_fc'))
+            # pi_h = activ(tf.layers.dense(vae_features_flat, 1, name='pi_vae_fc'))
+            # pi_latent = tf.reshape(pi_h, [-1, 1, 1])
+            # features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            # pi_latent = activ(tf.layers.dense(features, 64, name='pi_fc'))
             
-            vf_h = activ(tf.layers.dense(vae_features_flat, 64, name='vf_vae_fc'))
-            vf_latent = tf.reshape(vf_h, [-1, 1, 64])
+            pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 1, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 1])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+            
+            # vf_h = activ(tf.layers.dense(vae_features_flat, 1, name='vf_vae_fc'))
+            # vf_latent = tf.reshape(vf_h, [-1, 1, 1])
+            # features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            # vf_latent = activ(tf.layers.dense(features, 64, name='vf_fc'))
+            
+            vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 1, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(vf_h, [-1, 1, 1])
             features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
-            vf_latent = activ(tf.layers.dense(features, 64, name='vf_fc'))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
 

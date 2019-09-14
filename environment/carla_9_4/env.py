@@ -386,14 +386,16 @@ class CarlaEnv(gym.Env):
             # self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_constant' or self.config["input_type"] == 'wp_noise':
+                self.observation_space = Box(low=np.array([-4.0, -4.0]), high=np.array([4.0, 4.0]), dtype=np.float32)
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 3072), dtype=np.float32)
+                                        shape=(1, 1536), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 3073), dtype=np.float32)
+                                        shape=(1, 1537), dtype=np.float32)
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -524,6 +526,9 @@ class CarlaEnv(gym.Env):
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
+            # encoded_image = encoded_image / 10.0
+            print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
+            print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
@@ -535,6 +540,10 @@ class CarlaEnv(gym.Env):
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
         obs['orientation'] = np.array([next_orientation])
+        if self.config["input_type"] == 'wp_constant':
+            obs['orientation'] = np.array([next_orientation, 0.0])
+        elif self.config["input_type"] == 'wp_noise':
+            obs['orientation'] = np.array([next_orientation, np.random.normal(0.0, 1.0)])
 
         print("orientation {0}".format(next_orientation))
         print("old orientation {0}".format(next_orientation_old))
@@ -577,8 +586,8 @@ class CarlaEnv(gym.Env):
 
     def _set_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
-            # self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
+            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -587,8 +596,8 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "left_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
         elif self.config["scenarios"] == "curved":
-            self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
-            # self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
+            # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
+            self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
         elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
             self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
         else:
@@ -865,12 +874,19 @@ class CarlaEnv(gym.Env):
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
+            # encoded_image = encoded_image / 10.0
+            print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
+            print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
         obs['orientation']= np.array([next_orientation])
+        if self.config["input_type"] == 'wp_constant':
+            obs['orientation'] = np.array([next_orientation, 0.0])
+        elif self.config["input_type"] == 'wp_noise':
+            obs['orientation'] = np.array([next_orientation, np.random.normal(0.0, 1.0)])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         if self.config["input_type"] == 'vae':
