@@ -12,6 +12,10 @@ import gym
 from collections import deque
 from stable_baselines.common.math_util import explained_variance
 from stable_baselines.a2c.utils import total_episode_reward_logger
+import os
+
+import matplotlib
+import matplotlib.pyplot as plt
 
 # change
 PATH_MODEL_VAE = "ppo_vae_turn_rgb3_test.json"
@@ -84,38 +88,124 @@ def safe_mean(arr):
     """
     return np.nan if len(arr) == 0 else np.mean(arr)
 
+def plot_policy(model, ind, path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    observations = np.arange(-2, 2, 0.01).reshape((-1, 1))
+    det_actions = []
+    stoch_actions = []
+    var_actions = []
+
+    for i in range(observations.shape[0]):
+        obs = observations[np.newaxis, i, :]
+        act = model.step(obs, deterministic=True)[0]
+        act[0, 1] += 10.0
+        det_actions.append(act)
+        act, _, _, _, logstd, _ = model.step(obs, deterministic=False)
+        act[0, 1] += 10.0
+        stoch_actions.append(act)
+        var_actions.append(logstd)
+        
+    det_actions = np.array(det_actions).reshape((-1, 2))
+    stoch_actions = np.array(stoch_actions).reshape((-1, 2))
+    var_actions = np.exp(np.array(var_actions).reshape((-1, 2)))
+
+    fig, axs = plt.subplots(3, 2, sharex='col', figsize=(12, 12))
+    fig.suptitle('Policy plots for {} model'.format(ind))
+
+    axs[0, 0].plot(observations, det_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[0, 0].set_xlabel('Waypoint orientation')
+    axs[0, 0].set_ylabel('Deterministic - Steer')
+    axs[0, 1].plot(observations, det_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[0, 1].set_xlabel('Waypoint orientation')
+    axs[0, 1].set_ylabel('Deterministic - Target Speed')
+    
+    axs[1, 0].plot(observations, var_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[1, 0].set_xlabel('Waypoint orientation')
+    axs[1, 0].set_ylabel('Variance - Steer')
+    axs[1, 1].plot(observations, var_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[1, 1].set_xlabel('Waypoint orientation')
+    axs[1, 1].set_ylabel('Variance - Target Speed')
+    
+    axs[2, 0].plot(observations, stoch_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[2, 0].set_xlabel('Waypoint orientation')
+    axs[2, 0].set_ylabel('Stochastic - Steer')
+    axs[2, 1].plot(observations, stoch_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[2, 1].set_xlabel('Waypoint orientation')
+    axs[2, 1].set_ylabel('Stochastic - Target Speed')
+        
+    plt.savefig(path + 'policy_{}.png'.format(ind))
+
+def plot_value_fn(model, ind, path)
+
+class OverideRunner(Runner):
+    
+    def run(self):
+        """
+        Run a learning step of the model
+
+        :return:
+            - observations: (np.ndarray) the observations
+            - rewards: (np.ndarray) the rewards
+            - masks: (numpy bool) whether an episode is over or not
+            - actions: (np.ndarray) the actions
+            - values: (np.ndarray) the value function output
+            - negative log probabilities: (np.ndarray)
+            - states: (np.ndarray) the internal states of the recurrent policies
+            - infos: (dict) the extra information of the model
+        """
+        # mb stands for minibatch
+        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
+        mb_states = self.states
+        ep_infos = []
+        for _ in range(self.n_steps):
+            actions, values, self.states, neglogpacs, logstd, mean = self.model.step(self.obs, self.states, self.dones)
+            mb_obs.append(self.obs.copy())
+            mb_actions.append(actions)
+            mb_values.append(values)
+            mb_neglogpacs.append(neglogpacs)
+            mb_dones.append(self.dones)
+            clipped_actions = actions
+            # Clip the actions to avoid out of bound error
+            if isinstance(self.env.action_space, gym.spaces.Box):
+                clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
+            self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
+            for info in infos:
+                maybe_ep_info = info.get('episode')
+                if maybe_ep_info is not None:
+                    ep_infos.append(maybe_ep_info)
+            mb_rewards.append(rewards)
+        # batch of steps to batch of rollouts
+        mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
+        mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
+        mb_actions = np.asarray(mb_actions)
+        mb_values = np.asarray(mb_values, dtype=np.float32)
+        mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
+        mb_dones = np.asarray(mb_dones, dtype=np.bool)
+        last_values = self.model.value(self.obs, self.states, self.dones)
+        # discount/bootstrap off value fn
+        mb_advs = np.zeros_like(mb_rewards)
+        true_reward = np.copy(mb_rewards)
+        last_gae_lam = 0
+        for step in reversed(range(self.n_steps)):
+            if step == self.n_steps - 1:
+                nextnonterminal = 1.0 - self.dones
+                nextvalues = last_values
+            else:
+                nextnonterminal = 1.0 - mb_dones[step + 1]
+                nextvalues = mb_values[step + 1]
+            delta = mb_rewards[step] + self.gamma * nextvalues * nextnonterminal - mb_values[step]
+            mb_advs[step] = last_gae_lam = delta + self.gamma * self.lam * nextnonterminal * last_gae_lam
+        mb_returns = mb_advs + mb_values
+
+        mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward = \
+            map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward))
+
+        return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
+
 
 class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
-    
-    def get_best_model(self, total_timesteps, save_file, env):
-        print("Searching for best model now!!!")
-        nupdates = total_timesteps // self.n_batch
-        total_rewards = []
-        total_successes = []
-        for update in range(1, nupdates + 1):
-            if (update * self.n_batch) % 10000 == 0:
-                self.load(save_file + str(update * self.n_batch))
-                print("Loading model file: {}".format(save_file + str(update * self.n_batch)))
-                total_reward, success_episodes = self.test(env)
-                print(total_reward, success_episodes)
-                env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
-                env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
-                total_rewards.append(total_reward)
-                total_successes.append(success_episodes)
-        print("Rewards at intermediate training: {}".format(total_rewards))
-        print("Total success episodes: {}".format(total_successes))
-        m = max(total_successes)
-        max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
-        total_rewards = np.array(total_rewards)[max_inds]
-        ind = max_inds[np.argmax(total_rewards)]
-        print("Best model appears at index: {}".format(ind))
-        print("No of successes in best model: {}".format(total_successes[ind]))
-        print("Max no of successes: {}".format(m))
-        SAVE_PATH = save_file + str(ind + 1) + "0000"
-        best_model = self.load(SAVE_PATH, DummyVecEnv([lambda: env]))
-        
-        return best_model
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
               reset_num_timesteps=True, save_file="default"):
@@ -129,7 +219,7 @@ class PPO(PPO2):
                 as writer:
             self._setup_learn(seed)
 
-            runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
+            runner = OverideRunner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
             self.episode_reward = np.zeros((self.n_envs,))
 
             ep_info_buf = deque(maxlen=100)
@@ -149,6 +239,7 @@ class PPO(PPO2):
                 batch_size = self.n_batch // self.nminibatches
                 t_start = time.time()
                 frac = 1.0 - (update - 1.0) / nupdates
+                # frac = 1.0
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 # true_reward is the reward without discount
@@ -171,6 +262,7 @@ class PPO(PPO2):
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
                     if (update * self.n_batch) % 10000 == 0:
                         self.save(save_file + str(update * self.n_batch))
+                        plot_policy(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
                         # total_reward, success_episodes = self.test(env)
                         # env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                         # env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
@@ -226,38 +318,8 @@ class PPO(PPO2):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
-            best_model = self.get_best_model(total_timesteps, save_file, env)
             
-            return self, best_model
-        
-    def test(self, env):
-        dummy_env = DummyVecEnv([lambda: env])
-        success_episodes = 0
-        results = {}
-        total_reward = 0
-        for ind in range(25):
-            obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-            obs[:] = env.reset(unseen=True, index=ind)
-            done = False
-            reward = 0
-            
-            while not done:
-                actions = self.step(obs, deterministic=True)[0]
-                info = env.step(actions)
-                reward += info[1]
-                done = info[2]
-                obs = np.expand_dims(info[0], axis=0)
-            
-            total_reward += reward
-            if info[3]['termination_state'] == 'success':
-                success_episodes += 1
-                results[ind] = 1
-            else:
-                results[ind] = 0
-        print("Results of train scenarios")
-        print(results)
-        print("Total Success Episodes: {}".format(success_episodes))
-        return total_reward, success_episodes
+            return self
 
         
 class PPOWithVAE(PPO2):
@@ -275,7 +337,7 @@ class PPOWithVAE(PPO2):
                 as writer:
             self._setup_learn(seed)
 
-            runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
+            runner = OverideRunner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
             self.episode_reward = np.zeros((self.n_envs,))
 
             ep_info_buf = deque(maxlen=100)

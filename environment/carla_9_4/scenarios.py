@@ -842,7 +842,7 @@ def benchmark_paths_turn_Town02():
     return paths
 
 def benchmark_paths_navigation_Town01():
-    
+    # paths = [[WAYPOINT_DICT_Town01[8], WAYPOINT_DICT_Town01[39]]]
     paths = [
        [
            WAYPOINT_DICT_Town01[105],

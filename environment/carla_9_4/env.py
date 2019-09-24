@@ -311,6 +311,7 @@ class CarlaEnv(gym.Env):
         # self.other_vehicle_control_list = []
 
         self.image_data = None
+        self.image_data2 = None
         # Set default source and destination points (in _reset function)
         self.source_transform = None
         self.destination_transform = None
@@ -348,6 +349,21 @@ class CarlaEnv(gym.Env):
                 self.CarlaServer.close()
                 error = e
                 serverStartRetries += 1
+        
+        # Create new client
+        self.client =  self._spawn_client()
+
+        self._world = self.client.get_world()
+
+        if(self.config['sync_mode']):
+            settings = self._world.get_settings()
+            settings.synchronous_mode = True
+            self._world.apply_settings(settings)
+
+        self._map = self._world.get_map()
+        
+        self.blueprint_library = self._world.get_blueprint_library()
+        self.spawn_points = self._world.get_map().get_spawn_points()
 
         if(self.config['train_config'] == 'baselines'):
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
@@ -479,6 +495,10 @@ class CarlaEnv(gym.Env):
 
         # Read in preprocessed image
         sensor_image = self._read_data()
+        sensor_image2 = self._read_data2()
+        dummy_image = np.zeros_like(sensor_image2)
+        dummy_image = dummy_image[:, :20]
+        combined_image = np.hstack((sensor_image2, dummy_image, sensor_image))
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
@@ -531,7 +551,7 @@ class CarlaEnv(gym.Env):
             print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
-        obs['image'] = sensor_image
+        obs['image'] = combined_image
         
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
@@ -550,26 +570,28 @@ class CarlaEnv(gym.Env):
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
-        if self.config["train_config"] == "PPO" and not self.unseen:
+        if self.config["train_config"] == "PPO":
             if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                 self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
             else:
                 self.vis_wrapper.save_image(obs['image'], self.num_steps)
             if self.vis_wrapper_vae is not None:
                 self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
-            self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
-            self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-            self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
-            self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
-            self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
-            self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
+            if not self.unseen:
+                self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
+                self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
+                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
+                self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
                             
             if done:
                 self.episode_num += 1
-                self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
-                self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
-                self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
+                if not self.unseen:
+                    self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
+                    self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
+                    self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
+                    self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
                 self.vis_wrapper.generate_video(self.episode_num)
                 self.vis_wrapper.remove_images()
                 if self.vis_wrapper_vae is not None:
@@ -729,28 +751,28 @@ class CarlaEnv(gym.Env):
         # Destroy
         self.destroy_all_existing_actors()
 
-        # Create new client
-        self.client =  self._spawn_client()
+        # # Create new client
+        # self.client =  self._spawn_client()
 
-        self._world = self.client.get_world()
+        # self._world = self.client.get_world()
 
-        if(self.config['sync_mode']):
-            settings = self._world.get_settings()
-            settings.synchronous_mode = True
-            self._world.apply_settings(settings)
+        # if(self.config['sync_mode']):
+        #     settings = self._world.get_settings()
+        #     settings.synchronous_mode = True
+        #     self._world.apply_settings(settings)
 
-        self._map = self._world.get_map()
+        # self._map = self._world.get_map()
 
-        blueprint_library = self._world.get_blueprint_library()
-        spawn_points = self._world.get_map().get_spawn_points()
+        # self.blueprint_library = self._world.get_blueprint_library()
+        # self.spawn_points = self._world.get_map().get_spawn_points()
         # f = open("spawn_points.txt", "w")
         # f.write("Printing all spawn points")
-        # for point in spawn_points:
+        # for point in self.spawn_points:
         #     f.write("Transform(Location(x={0}, y={1}, z={2}), Rotation(yaw={3}))\n".format(point.location.x, point.location.y, point.location.z, point.rotation.yaw))
         # f.close()
         try:
-            vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
-            # vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
+            vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
+            # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
@@ -762,7 +784,7 @@ class CarlaEnv(gym.Env):
             # Set source and destination at random spawn points
             # get_spawn_points() returns a list of carla.libcarla.Transform
             # which has attributes location and rotation
-            self.source_transform, self.destination_transform = random.choice(spawn_points), random.choice(spawn_points)
+            self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
         self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
         self.actor_list.append(self.vehicle_actor)
@@ -772,14 +794,14 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "dynamic_navigation":
             self.spawn_npc(self.config["num_vehicles"] - 1)
             # self.destroy_other_actors()
-            # spawn_points = self.populate_spawn_points(spawn_points, self.source_transform)
+            # spawn_points = self.populate_spawn_points(self.spawn_points, self.source_transform)
             # vehicle_positions = random.sample(spawn_points, len(spawn_points))
             # for i in range(self.config["num_vehicles"] - 1):
             #     vehicle_initialized = False
                 
             #     other_vehicle_actor = None
-            #     vehicle_bp = blueprint_library.find(self.config['vehicle_type'])
-            #     # vehicle_bp = blueprint_library.find(random.choice(self.config['vehicle_types']))
+            #     vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
+            #     # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
             #     while not other_vehicle_actor:
             #         start_pose = random.choice(spawn_points)
             #         other_vehicle_actor = self._world.try_spawn_actor(vehicle_bp, start_pose)
@@ -794,15 +816,29 @@ class CarlaEnv(gym.Env):
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][1]
-        camera = blueprint_library.find(sensor)
-        camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        camera.set_attribute('fov', '120')
-        camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.camera_actor)
+        sensor = self.config['sensors'][0]
+        camera1 = self.blueprint_library.find(sensor)
+        camera1.set_attribute('image_size_x', self.config['sensor_x_res'])
+        camera1.set_attribute('image_size_y', self.config['sensor_y_res'])
+        camera1.set_attribute('sensor_tick', self.config['sensor_tick'])
+        camera1.set_attribute('fov', '120')
+        
+        camera2 = self.blueprint_library.find(sensor)
+        camera2.set_attribute('image_size_x', self.config['sensor_x_res'])
+        camera2.set_attribute('image_size_y', self.config['sensor_y_res'])
+        camera2.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # camera2.set_attribute('fov', '120')
+        
+        camera1_transform = carla.Transform(carla.Location(x=5.0, z=10.0), carla.Rotation(pitch=270.0))
+        self.camera1_actor = self._world.spawn_actor(camera1, camera1_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.camera1_actor)
+        
+        # camera2_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        camera2_transform = carla.Transform(carla.Location(x=-5.5, z=2.8))
+
+        self.camera2_actor = self._world.spawn_actor(camera2, camera2_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.camera2_actor)
+        
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
 
@@ -812,9 +848,11 @@ class CarlaEnv(gym.Env):
         # Prefer to write raw data (of type 'memoryview') since we won't use all data
         # written to memory (hence typecasting before would be waste of compute)
         if(self.config['write_data']):
-            self.camera_actor.listen(lambda image: self._write_data(image))
+            self.camera1_actor.listen(lambda image: self._write_data(image))
+            self.camera2_actor.listen(lambda image: self._write_data2(image))
         if(self.config['save_images_to_disk']):
-            self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
+            self.camera1_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
+            self.camera2_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         if(self.config['record_sim']):
             log_id = str(episode_measurements['episode_id'])
             self.client.start_recorder(log_id, self.vehicle_actor)
@@ -1050,6 +1088,48 @@ class CarlaEnv(gym.Env):
 
         if(self.config['framestack'] == 1):
             sensor_data = self._read_sensor_data()
+            im_processed = self._preprocess_core(sensor_data)
+        else:
+            data_array = []
+            # Use this loop since the callback is continuously writing into the queue
+            # hence we only read in 'framestack' number of images
+            # Original Atari DQN paper is unclear on order of stacking
+            _image_queue_snapshot = copy.deepcopy(self._image_queue)
+            for image in _image_queue_snapshot:
+                data_array.append(self._preprocess_core(image))
+            # data_array = list(copy.deepcopy(self._image_queue))
+            #Compute ndims (to compute which axis to stack along)
+            ndim = self.config['framestack']
+            # Stack all the images along last axis
+            im_processed = np.concatenate((data_array[:]), axis=2)
+        return im_processed
+    
+    def _write_data2(self, image):
+        
+        if self.config["semantic"]:
+            self.semantic_image = np.array(image.raw_data)
+            image.convert(cc.CityScapesPalette)
+        sensor_data = image.raw_data
+        
+        if(self.config['framestack'] == 1):
+            self._save_sensor_data2(sensor_data)
+        else:
+            # NOTE: Typecasting here since can't do a deepcopy with 'memoryview objects'
+            # TODO: Find a workaround, since typecasting then discarding is inefficient.
+            self._image_queue.append(np.array(sensor_data))
+
+    def _save_sensor_data2(self, sensor_data):
+        self.image_data2 = sensor_data
+
+    def _read_sensor_data2(self):
+        return np.array(self.image_data2)
+
+    def _read_data2(self):
+        #TODO: Read data in from sensor callback and then call preprocess function
+        #sensor data is Image object for all sensors (besides LIDAR)
+
+        if(self.config['framestack'] == 1):
+            sensor_data = self._read_sensor_data2()
             im_processed = self._preprocess_core(sensor_data)
         else:
             data_array = []

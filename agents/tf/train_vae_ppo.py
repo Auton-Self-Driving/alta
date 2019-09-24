@@ -130,7 +130,7 @@ if __name__ == '__main__':
                     completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
                     completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
                     print("Loading Latest model!!!")
-                    model.load(latest_model, dummy_env)
+                    model = model.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))
                     env.total_steps = completed_steps
                     env.episode_num = completed_episodes
