@@ -8,12 +8,13 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.layers import xavier_initializer
-from stable_baselines.common.policies import BasePolicy, register_policy, nature_cnn
+from stable_baselines.common.policies import BasePolicy, register_policy, nature_cnn, mlp_extractor
 from stable_baselines.a2c.utils import conv, linear, conv_to_fc, batch_to_seq, seq_to_batch, lstm
 from stable_baselines.common.distributions import CategoricalProbabilityDistribution, \
     MultiCategoricalProbabilityDistribution, DiagGaussianProbabilityDistribution, BernoulliProbabilityDistribution
 from stable_baselines.common.input import observation_input
 from distributions import make_proba_dist_type
+
 
 def CoRLModel(inputs, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
@@ -280,7 +281,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
 class Policy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
-        super(MlpPolicy, self).__init__(*args, **kwargs,
+        super(Policy, self).__init__(*args, **kwargs,
                                            net_arch=[dict(pi=[64],
                                                           vf=[64])],
                                            feature_extraction="mlp")

@@ -3,19 +3,23 @@
 import time
 import numpy as np
 from mpi4py import MPI
-from stable_baselines import logger
-from stable_baselines.common.base_class import SetVerbosity, TensorboardWriter
-from stable_baselines.ppo2.ppo2 import PPO2, Runner
-from stable_baselines.common.vec_env import DummyVecEnv
 import sys
 import gym
 from collections import deque
-from stable_baselines.common.math_util import explained_variance
-from stable_baselines.a2c.utils import total_episode_reward_logger
 import os
-
+import sys
+import multiprocessing
+from collections import deque
 import matplotlib
 import matplotlib.pyplot as plt
+import tensorflow as tf
+from stable_baselines.common.policies import RecurrentActorCriticPolicy
+from stable_baselines import logger
+from stable_baselines.common import explained_variance, tf_util, SetVerbosity, TensorboardWriter
+from stable_baselines.ppo2.ppo2 import PPO2, Runner
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.a2c.utils import total_episode_reward_logger
+
 
 # change
 PATH_MODEL_VAE = "ppo_vae_turn_rgb3_test.json"
@@ -88,27 +92,30 @@ def safe_mean(arr):
     """
     return np.nan if len(arr) == 0 else np.mean(arr)
 
-def plot_policy(model, ind, path):
+def plot_policy_and_value_fns(model, ind, path):
     if not os.path.exists(path):
         os.makedirs(path)
     observations = np.arange(-2, 2, 0.01).reshape((-1, 1))
     det_actions = []
     stoch_actions = []
     var_actions = []
+    values = []
 
     for i in range(observations.shape[0]):
         obs = observations[np.newaxis, i, :]
-        act = model.step(obs, deterministic=True)[0]
-        act[0, 1] += 10.0
+        act, value, _, _, _, _ = model.step(obs, deterministic=True)
+        act[0, 1] = (act[0, 1] + 1) * 10.0
         det_actions.append(act)
         act, _, _, _, logstd, _ = model.step(obs, deterministic=False)
-        act[0, 1] += 10.0
+        act[0, 1] = (act[0, 1] + 1) * 10.0
         stoch_actions.append(act)
         var_actions.append(logstd)
+        values.append(value)
         
     det_actions = np.array(det_actions).reshape((-1, 2))
     stoch_actions = np.array(stoch_actions).reshape((-1, 2))
     var_actions = np.exp(np.array(var_actions).reshape((-1, 2)))
+    values = np.array(values).reshape((-1, 1))
 
     fig, axs = plt.subplots(3, 2, sharex='col', figsize=(12, 12))
     fig.suptitle('Policy plots for {} model'.format(ind))
@@ -122,10 +129,10 @@ def plot_policy(model, ind, path):
     
     axs[1, 0].plot(observations, var_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 0].set_xlabel('Waypoint orientation')
-    axs[1, 0].set_ylabel('Variance - Steer')
+    axs[1, 0].set_ylabel('Std Deviation - Steer')
     axs[1, 1].plot(observations, var_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 1].set_xlabel('Waypoint orientation')
-    axs[1, 1].set_ylabel('Variance - Target Speed')
+    axs[1, 1].set_ylabel('Std Deviation - Target Speed')
     
     axs[2, 0].plot(observations, stoch_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 0].set_xlabel('Waypoint orientation')
@@ -135,8 +142,15 @@ def plot_policy(model, ind, path):
     axs[2, 1].set_ylabel('Stochastic - Target Speed')
         
     plt.savefig(path + 'policy_{}.png'.format(ind))
+    plt.close()
+    
+    plt.figure()
+    plt.plot(observations, values, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    plt.xlabel('Waypoint orientation')
+    plt.ylabel('Value')
+    fig.suptitle('Valuex plots for {} model'.format(ind))  
+    plt.savefig(path + 'value_{}.png'.format(ind))
 
-def plot_value_fn(model, ind, path)
 
 class OverideRunner(Runner):
     
@@ -262,7 +276,7 @@ class PPO(PPO2):
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
                     if (update * self.n_batch) % 10000 == 0:
                         self.save(save_file + str(update * self.n_batch))
-                        plot_policy(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
+                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
                         # total_reward, success_episodes = self.test(env)
                         # env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                         # env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
@@ -320,6 +334,126 @@ class PPO(PPO2):
                         break
             
             return self
+        
+    def setup_model(self):
+        with SetVerbosity(self.verbose):
+
+            # assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO2 model must be " \
+                                                            #    "an instance of common.policies.ActorCriticPolicy."
+
+            self.n_batch = self.n_envs * self.n_steps
+
+            n_cpu = multiprocessing.cpu_count()
+            if sys.platform == 'darwin':
+                n_cpu //= 2
+
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
+
+                n_batch_step = None
+                n_batch_train = None
+                if issubclass(self.policy, RecurrentActorCriticPolicy):
+                    assert self.n_envs % self.nminibatches == 0, "For recurrent policies, "\
+                        "the number of environments run in parallel should be a multiple of nminibatches."
+                    n_batch_step = self.n_envs
+                    n_batch_train = self.n_batch // self.nminibatches
+
+                act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                        n_batch_step, reuse=False, **self.policy_kwargs)
+                with tf.variable_scope("train_model", reuse=True,
+                                       custom_getter=tf_util.outer_scope_getter("train_model")):
+                    train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                              self.n_envs // self.nminibatches, self.n_steps, n_batch_train,
+                                              reuse=True, **self.policy_kwargs)
+
+                with tf.variable_scope("loss", reuse=False):
+                    self.action_ph = train_model.pdtype.sample_placeholder([None], name="action_ph")
+                    self.advs_ph = tf.placeholder(tf.float32, [None], name="advs_ph")
+                    self.rewards_ph = tf.placeholder(tf.float32, [None], name="rewards_ph")
+                    self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None], name="old_neglog_pac_ph")
+                    self.old_vpred_ph = tf.placeholder(tf.float32, [None], name="old_vpred_ph")
+                    self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
+                    self.clip_range_ph = tf.placeholder(tf.float32, [], name="clip_range_ph")
+
+                    neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
+                    self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+
+                    vpred = train_model.value_flat
+                    vpredclipped = self.old_vpred_ph + tf.clip_by_value(
+                        train_model.value_flat - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+                    vf_losses1 = tf.square(vpred - self.rewards_ph)
+                    vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
+                    self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+                    ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
+                    pg_losses = -self.advs_ph * ratio
+                    pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 +
+                                                                  self.clip_range_ph)
+                    self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+                    self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
+                    self.clipfrac = tf.reduce_mean(tf.cast(tf.greater(tf.abs(ratio - 1.0),
+                                                                      self.clip_range_ph), tf.float32))
+                    loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+
+                    tf.summary.scalar('entropy_loss', self.entropy)
+                    tf.summary.scalar('policy_gradient_loss', self.pg_loss)
+                    tf.summary.scalar('value_function_loss', self.vf_loss)
+                    tf.summary.scalar('approximate_kullback-leibler', self.approxkl)
+                    tf.summary.scalar('clip_factor', self.clipfrac)
+                    tf.summary.scalar('loss', loss)
+
+                    with tf.variable_scope('model'):
+                        self.params = tf.trainable_variables()
+                        grads = tf.gradients(loss, self.params)
+                        if self.max_grad_norm is not None:
+                            grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                        grads = list(zip(grads, self.params))
+                        # print(grads)
+                        # for var in self.params:
+                        #     print(var.name)
+                        if self.full_tensorboard_log:
+                            for var in self.params:
+                                tf.summary.histogram(var.name, var)
+                            for grad, var in grads[:-2]:
+                                tf.summary.histogram(var.name + '/gradient', grad)
+                    # grads = tf.gradients(loss, self.params)
+                    # if self.max_grad_norm is not None:
+                    #     grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                    # grads = list(zip(grads, self.params))
+                trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
+                self._train = trainer.apply_gradients(grads)
+
+                self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
+
+                with tf.variable_scope("input_info", reuse=False):
+                    tf.summary.scalar('discounted_rewards', tf.reduce_mean(self.rewards_ph))
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
+                    tf.summary.scalar('advantage', tf.reduce_mean(self.advs_ph))
+                    tf.summary.scalar('clip_range', tf.reduce_mean(self.clip_range_ph))
+                    tf.summary.scalar('old_neglog_action_probabilty', tf.reduce_mean(self.old_neglog_pac_ph))
+                    tf.summary.scalar('old_value_pred', tf.reduce_mean(self.old_vpred_ph))
+
+                    if self.full_tensorboard_log:
+                        tf.summary.histogram('discounted_rewards', self.rewards_ph)
+                        tf.summary.histogram('learning_rate', self.learning_rate_ph)
+                        tf.summary.histogram('advantage', self.advs_ph)
+                        tf.summary.histogram('clip_range', self.clip_range_ph)
+                        tf.summary.histogram('old_neglog_action_probabilty', self.old_neglog_pac_ph)
+                        tf.summary.histogram('old_value_pred', self.old_vpred_ph)
+                        if tf_util.is_image(self.observation_space):
+                            tf.summary.image('observation', train_model.obs_ph)
+                        else:
+                            tf.summary.histogram('observation', train_model.obs_ph)
+
+                self.train_model = train_model
+                self.act_model = act_model
+                self.step = act_model.step
+                self.proba_step = act_model.proba_step
+                self.value = act_model.value
+                self.initial_state = act_model.initial_state
+                tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
+
+                self.summary = tf.summary.merge_all()
 
         
 class PPOWithVAE(PPO2):

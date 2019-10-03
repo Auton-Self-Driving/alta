@@ -505,6 +505,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
+        if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
+            self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
@@ -571,12 +573,13 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO":
-            if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
-                self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
-            else:
-                self.vis_wrapper.save_image(obs['image'], self.num_steps)
-            if self.vis_wrapper_vae is not None:
-                self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
+            if self.config["videos"]:
+                if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+                    self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
+                else:
+                    self.vis_wrapper.save_image(obs['image'], self.num_steps)
+                if self.vis_wrapper_vae is not None:
+                    self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
             if not self.unseen:
                 self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -589,14 +592,17 @@ class CarlaEnv(gym.Env):
                 self.episode_num += 1
                 if not self.unseen:
                     self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
+                    self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
                     self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
                     self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
+                    self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
                     self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
-                self.vis_wrapper.generate_video(self.episode_num)
-                self.vis_wrapper.remove_images()
-                if self.vis_wrapper_vae is not None:
-                    self.vis_wrapper_vae.generate_video(self.episode_num)
-                    self.vis_wrapper_vae.remove_images()
+                if self.config["videos"]:
+                    self.vis_wrapper.generate_video(self.episode_num)
+                    self.vis_wrapper.remove_images()
+                    if self.vis_wrapper_vae is not None:
+                        self.vis_wrapper_vae.generate_video(self.episode_num)
+                        self.vis_wrapper_vae.remove_images()
         if self.config["input_type"] == 'vae':
             return encoded_image, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp_vae":
@@ -873,6 +879,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
+        self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
         print('-'*50)

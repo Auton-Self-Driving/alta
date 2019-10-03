@@ -35,8 +35,9 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["semantic"] = False
             self.config["scenarios"] = "navigation"
+            self.config["videos"] = False                                                                                                                                                                                                                  
             # self.config["num_vehicles"] = 16
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
-            self.config["city_name"] = "Town02"
+            self.config["city_name"] = "Town01"

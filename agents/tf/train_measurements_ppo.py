@@ -43,14 +43,14 @@ from stable_baselines.ppo2.ppo2 import Runner
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from ppo import PPO, plot_policy
+from ppo import PPO, plot_policy_and_value_fns
 from models import CustomPolicy, CustomWPPolicy, Policy
 
-prefix = 'ppo_4/'
+prefix = 'ppo_entcoeff_00_logstd_07/'
 
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/neurips/ppo_pid_wp_scenarios_navigation/' + prefix
+ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
-SCRATH_DIR = '/home/scratch/tanmaya/projects/neurips/ppo_pid_wp_scenarios_navigation/' + prefix
+SCRATH_DIR = '/home/scratch/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -152,8 +152,8 @@ if __name__ == '__main__':
                 print("Using the pre-initialized seed: {}".format(seed))
                 set_global_seeds(seed)
 
-                IMAGES_PATH = SCRATH_DIR+'final_images_' + config.config["city_name"] + '/'
-                VIDEO_PATH = SCRATH_DIR+'final_videos_' + config.config["city_name"] + '/'
+                IMAGES_PATH = ALTA_LOGS+'final_images_' + config.config["city_name"] + '/'
+                VIDEO_PATH = ALTA_LOGS+'final_videos_' + config.config["city_name"] + '/'
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
                 
                 env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
@@ -203,8 +203,8 @@ if __name__ == '__main__':
                     f.write("Total Success Episodes: {}".format(str(success_episodes)))
             elif os.path.exists(SAVE_PATH + str(steps) + ".pkl"):
                 print("All models exist. Finding best model !!")
-                IMAGES_PATH = SCRATH_DIR+'best_model_images/'
-                VIDEO_PATH = SCRATH_DIR+'best_model_videos/'
+                IMAGES_PATH = ALTA_LOGS+'best_model_images/'
+                VIDEO_PATH = ALTA_LOGS+'best_model_videos/'
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
                 env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
                 best_model = get_best_model(steps, SAVE_PATH, env)
@@ -218,8 +218,8 @@ if __name__ == '__main__':
                 env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
                 
-                model = PPO(policy=Policy, env=dummy_env, n_steps=250, nminibatches=4, verbose=1, learning_rate=2e-4, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True)
+                model = PPO(policy=Policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=2e-4, 
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.00)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                         f.write(str(millis))
                     random_model = model.learn(0, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
                     random_model.save(SAVE_PATH + "0")
-                    plot_policy(random_model, 0, POLICY_PLOTS)
+                    plot_policy_and_value_fns(random_model, 0, POLICY_PLOTS)
                     _ = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
                 
                 best_model = get_best_model(steps, SAVE_PATH, env)
