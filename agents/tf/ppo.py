@@ -117,7 +117,7 @@ def plot_policy_and_value_fns(model, ind, path):
     var_actions = np.exp(np.array(var_actions).reshape((-1, 2)))
     values = np.array(values).reshape((-1, 1))
 
-    fig, axs = plt.subplots(3, 2, sharex='col', figsize=(12, 12))
+    fig, axs = plt.subplots(3, 2, figsize=(12, 12))
     fig.suptitle('Policy plots for {} model'.format(ind))
 
     axs[0, 0].plot(observations, det_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
@@ -140,7 +140,15 @@ def plot_policy_and_value_fns(model, ind, path):
     axs[2, 1].plot(observations, stoch_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Waypoint orientation')
     axs[2, 1].set_ylabel('Stochastic - Target Speed')
-        
+    
+    axs[0,0].grid(True)
+    axs[0,1].grid(True)
+    axs[1,0].grid(True)
+    axs[1,1].grid(True)
+    axs[2,0].grid(True)
+    axs[2,1].grid(True)
+
+    plt.grid(True)
     plt.savefig(path + 'policy_{}.png'.format(ind))
     plt.close()
     

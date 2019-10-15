@@ -391,7 +391,7 @@ class CarlaEnv(gym.Env):
                 self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
             elif self.config["action_type"] == 'merged_speed':
                 # Steer, Speed
-                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+                self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
             elif self.config["action_type"] == 'steer_only':
                 # Steer only
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
@@ -445,7 +445,7 @@ class CarlaEnv(gym.Env):
 
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
-            target_speed = float(np.clip(action[0] + 10.0, 0, self.target_speed))
+            target_speed = float(np.clip((action[0] + 1) * 10.0, 0, self.target_speed))
             self.episode_measurements['target_speed'] = target_speed
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
@@ -676,7 +676,7 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)

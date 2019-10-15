@@ -6,7 +6,7 @@ import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -46,7 +46,7 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns
 from models import CustomPolicy, CustomWPPolicy, Policy
 
-prefix = 'ppo_entcoeff_00_logstd_07/'
+prefix = 'ppo_entcoeff_05_logstd_23_w_tanh/'
 
 ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
@@ -138,7 +138,7 @@ def get_best_model(total_timesteps, save_file, env):
 if __name__ == '__main__':
     
     register_policy('CustomWPPolicy', CustomWPPolicy)
-    steps = 1000000
+    steps = 5000000
     
     for i in range(MAX_TRIALS):
         try:
@@ -219,19 +219,20 @@ if __name__ == '__main__':
                 dummy_env = DummyVecEnv([lambda: env])
                 
                 model = PPO(policy=Policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=2e-4, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.00)
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.05)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
                     print("Using the pre-initialized seed: {}".format(seed))
                     set_global_seeds(seed)
                     completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
-                    completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
+                    env.total_steps = completed_steps
+                    if config.config["videos"]:
+                        completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
+                        env.episode_num = completed_episodes
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))
-                    env.total_steps = completed_steps
-                    env.episode_num = completed_episodes
                     _ = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
                 else:
                     dt = datetime.now()
