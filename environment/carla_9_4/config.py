@@ -37,7 +37,6 @@ DEFAULT_ENV = {
     "enable_planner" : True,
     "reward_function" : 'corl',
     "save_images_to_disk" : False,
-    "record_sim": False,
     "write_data": True,
     # Print measurements to screen
     "print_obs" : True,
@@ -51,7 +50,7 @@ DEFAULT_ENV = {
     "num_pedestrians" : 0,
     "max_steps" : 400,
     "next_command": None,
-    "verbose": True,
+    "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
     "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',

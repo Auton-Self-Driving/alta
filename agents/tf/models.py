@@ -287,7 +287,6 @@ class Policy(FeedForwardPolicy):
                                            feature_extraction="mlp")
     
     def step(self, obs, state=None, mask=None, deterministic=False):
-        print("Deterministic {0}".format(deterministic))
         if deterministic:
             action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
                                                    {self.obs_ph: obs})
