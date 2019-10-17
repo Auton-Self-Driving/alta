@@ -1,9 +1,7 @@
 """ Environment file wrapper for CARLA """
 
 import gym
-from gym import error, utils
 from gym.spaces import Box, Discrete, Tuple
-from gym.utils import seeding
 
 from datetime import datetime
 import os
@@ -11,7 +9,6 @@ import glob
 import sys
 import traceback
 import random
-import queue
 import json
 import numpy as np
 import math
@@ -24,29 +21,12 @@ import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
 import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
+import environment.carla_9_4.sensors as sensors
+from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
+from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 import scipy.misc
 from scipy.misc import imsave
-from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from agents.tf.ae.util import *
-
-
-
-# Keeping this for now (since we may need to log images later)
-# SENSOR_LOG_DIR = '/../../misc/logs'
-
-RETRIES_ON_ERROR=5
-
-CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
-if CARLA_9_4_PATH == None:
-    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
-
-try:
-    sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
-        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-except IndexError:
-    pass
 
 try:
     import carla
@@ -54,202 +34,7 @@ except Exception as e:
     print("Failed to import Carla")
     raise e
 
-# from environment.carla_9_4.agents.navigation.agent import *
-# from environment.carla_9_4.agents.navigation.local_planner import LocalPlanner
-# from environment.carla_9_4.agents.navigation.local_planner import compute_connection, RoadOption
-# from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
-# from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-# from environment.carla_9_4.agents.tools.misc import vector
-import environment.carla_9_4.sensors as sensors
 from carla import ColorConverter as cc
-
-# Dict storing basic environ config params
-# NOTE: Doing this since it's more convenient to pass in a dict (compared to __init__ args)
-# TODO: Split into server specific and client specific
-DEFAULT_ENV = {
-    "server_path" : CARLA_9_4_PATH,
-    "server_binary" : CARLA_9_4_PATH + '/CarlaUE4.sh',
-    "server_process" : None,
-    # X Rendering Resolution (NOTE: Doesn't change anything! Link to Issue #17)
-    "render_res_x" : 800,
-    # Y Rendering Resolution (NOTE: Doesn't change anything! Link to Issue #17)
-    "render_res_y" : 800,
-    # Note data type here is string (since that is what the blueprint attribute set API requires)
-    "sensor_x_res" : '800',
-    "sensor_y_res" : '800',
-    # Input X Res (Default set to Atari)
-    "x_res": 84,
-    # Input Y Res (Default set to Atari)
-    "y_res": 84,
-    "server_fps" : 10,
-    "server_port" : None,
-    "city_name" : "Town01",
-    "frame_skip": 1,
-    "enable_planner" : True,
-    "reward_function" : 'corl',
-    "save_images_to_disk" : False,
-    "record_sim": False,
-    "write_data": True,
-    # Print measurements to screen
-    "print_obs" : True,
-    "client" : None,
-    "discrete_actions": True,
-
-    # Number of frames stacked together
-    "framestack" : 1,
-    "grayscale" : False,
-    "num_vehicles" : 1,
-    "num_pedestrians" : 0,
-    "max_steps" : 400,
-    "next_command": None,
-    "verbose": True,
-    "vehicle_type": 'vehicle.toyota.prius',
-    "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
-                      'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
-                      'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
-                      'vehicle.tesla.model3', 'vehicle.seat.leon', 'vehicle.lincoln.mkz2017',
-                      'vehicle.volkswagen.t2', 'vehicle.nissan.micra', 'vehicle.chevrolet.impala', 'vehicle.mini.cooperst',
-                      'vehicle.jeep.wrangler_rubicon'],
-    "target_speed": 20,
-    "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
-    "action_type": "merged_gas",
-    "sensor_tick": '1.0',
-    "dist_for_success" : 4.0,
-    "max_offlane_steps" : 20,
-    "max_static_steps" : 500,
-    "log_measurements_to_file": False,
-    "train_config": 'baselines',
-    "sync_mode": True,
-    # NOTE: crop does not work with framestack yet. need to add.
-    "preprocess_crop_image": False,
-    "scenarios" : "straight",
-    "semantic" : False
-}
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.5, -0.5],
-#     # Forward
-#     1: [0.5, -0.4],
-#     # Brake
-#     2: [0.5, -0.3],
-#     # Left
-#     3: [0.5, -0.2],
-#     # Right
-#     4: [0.5, -0.1],
-#     # Forward left
-#     5: [0.5, 0.0],
-#     # Forward right
-#     6: [0.5, 0.1],
-#     # Brake left
-#     7: [0.5, 0.2],
-#     # Brake right
-#     8: [0.5, 0.3],
-
-#     9: [0.5, 0.4],
-#     10: [0.5, 0.5]
-# }
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.0, 0.0],
-#     # Forward
-#     1: [0.5, 0.0],
-#     # Forward left
-#     2: [0.25, -0.3],
-#     3: [0.25, -0.1],
-#     # Forward right
-#     4: [0.25, 0.1],
-#     5: [0.25, 0.3],
-#     # Brake
-#     6: [-0.5, 0.0],
-#     # Brake left
-#     7: [-0.25, -0.3],
-#     8: [-0.25, -0.1],
-#     # Brake right
-#     9: [-0.25, 0.1],
-#     10: [-0.25, 0.3]
-# }
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [10.0, 0.0],
-#     # Forward
-#     1: [20.0, 0.0],
-#     # Forward left
-#     2: [15.0, -0.3],
-#     3: [15.0, -0.1],
-#     # Forward right
-#     4: [15.0, 0.1],
-#     5: [15.0, 0.3],
-#     # Brake
-#     6: [0.0, 0.0],
-#     # Brake left
-#     7: [5.0, -0.3],
-#     8: [5.0, -0.1],
-#     # Brake right
-#     9: [5.0, 0.1],
-#     10: [5.0, 0.3]
-# }
-
-DISCRETE_ACTIONS = {
-    # Coast
-    0: [10.0, -0.5],
-    # Forward
-    1: [10.0, -0.4],
-    # Brake
-    2: [10.0, -0.3],
-    # Left
-    3: [10.0, -0.2],
-    # Right
-    4: [10.0, -0.1],
-    # Forward left
-    5: [10.0, 0.0],
-    # Forward right
-    6: [10.0, 0.1],
-    # Brake left
-    7: [10.0, 0.2],
-    # Brake right
-    8: [10.0, 0.3],
-
-    9: [10.0, 0.4],
-    10: [10.0, 0.5]
-}
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.0, 0.0],
-#     # Forward
-#     1: [2.0, 0.0],
-#     # Forward left
-#     2: [4.0, 0.0],
-#     3: [6.0, 0.0],
-#     # Forward right
-#     4: [8.0, 0.0],
-#     5: [10.0, 0.0],
-#     # Brake
-#     6: [12.0, 0.0],
-#     # Brake left
-#     7: [14.0, 0.0],
-#     8: [16.0, 0.0],
-#     # Brake right
-#     9: [18.0, 0.0],
-#     10: [20.0, 0.0]
-# }
-
-episode_measurements = {
-    "episode_id": None,
-    "num_steps": None,
-    "location": None,
-    "speed": None,
-    "distance_to_goal": None,
-    "num_collisions": 0,
-    "num_laneintersections": 0,
-    "static_steps": 0,
-    "offlane_steps": 0
-    # intersection_offroad
-    # intersection_otherlane
-    # next_command
-}
 
 CARLA_LOGS = os.path.expanduser("~/CARLA_LOGS/"+str(datetime.now()))
 if not os.path.exists(CARLA_LOGS):
@@ -261,58 +46,26 @@ class CarlaEnv(gym.Env):
         self._update_config(config)
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
-        self.server_port = self.config["server_port"]
-        # TODO: Check planner API from 0.9
-
         self.episode_id = None
-        self.client = None
         self.vehicle_actor = None
-        self._world = None
-        self._map = None
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
-        self.prev_image = 0
+        
         # File to log measurements to
         self.measurements_log = None
         # Can pass in train/test weather as an array
         self.weather = None
-        # Scenario is a list of weather/poses tuples
-        self.scenario = None
-        self.start_pos = None
-        self.end_pos = None
-        #Agent defaults (for planner)
-        self._proximity_threshold = 10.0
-        self._local_planner = None
-        self._hop_resolution = 2.0
-        self._current_plan = None
         self._image_queue = collections.deque(maxlen=self.config['framestack'])
-        self.server_process = None
-        self.CarlaServer = None
         self.target_speed = self.config['target_speed']
-        self.args_lateral_dict = {
-            'K_P': 1,
-            'K_D': 0.02,
-            'K_I': 0,
-            'dt': 1.0/10.0}
-        # self.args_lateral_dict = {
-        #     'K_P': 1.95,
-        #     'K_D': 0.01,
-        #     'K_I': 1.4,
-        #     'dt': 1.0/10.0}
         self.args_longitudinal_dict = {
-            'K_P': 1.0,
-            'K_D': 0,
-            'K_I': 1,
-            'dt': 1.0/10.0}
+            'K_P': 0.1,
+            'K_D': 0.0005,
+            'K_I': 0.4,
+            'dt': 1/10.0}
         self.actor_list = []
-        # self.other_vehicle_actor_list = []
-        # self.other_vehicle_agent_list = []
-        # self.other_vehicle_control_list = []
 
         self.image_data = None
-        self.image_data2 = None
-        # Set default source and destination points (in _reset function)
         self.source_transform = None
         self.destination_transform = None
         self.global_planner = None
@@ -327,20 +80,17 @@ class CarlaEnv(gym.Env):
         self.vis_wrapper_vae = vis_wrapper_vae
 
         self.dist_to_trajectory = None
-        # Compute number of channels in sensor image
-        # We use this later in the preprocess step to reshape the data
-        # im_channels refers to number of channels the agent receives after preprocessing
         if(self.config['grayscale']):
             self.im_channels = 1
         else:
             self.im_channels = 3
         
-        self.controller = controller.PIDLongitudinalController(K_P=0.1, K_D=0.0005, K_I=1.0, dt=1/10.0) 
+        self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
 
         # Start Carla Server
         serverStarted = False
         serverStartRetries = 0
-        while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+        while ((not serverStarted) and serverStartRetries < self.config['server_retries']):
             try:
                 self.CarlaServer = server.CarlaServer(config=self.config)
                 serverStarted = True
@@ -367,22 +117,7 @@ class CarlaEnv(gym.Env):
 
         if(self.config['train_config'] == 'baselines'):
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
-            image_space = Box(
-            0,
-            255,
-            shape=(self.config["y_res"], self.config["x_res"],
-                    self.im_channels * self.config["framestack"]),
-            dtype=np.uint8)
-            # observation space is image and vector of measurements
-            # vector of measurements is:
-            # current speed, distance to goal, damage from collisions,
-            # current high-level command by planner, in one-hot encoding.
-            # self.observation_space = Tuple(
-            # [
-            #     image_space,
-            #     # Discrete(len(COMMANDS_ENUM)),  # next_command
-            #     Box(0, 1024.0, shape=(2, ), dtype=np.float32)
-            # ])
+            image_space = Box(0, 255, shape=(self.config["y_res"], self.config["x_res"], self.im_channels * self.config["framestack"]), dtype=np.uint8)
             self.observation_space = image_space
 
         if(self.config['train_config'] == 'PPO'):
@@ -396,10 +131,6 @@ class CarlaEnv(gym.Env):
                 # Steer only
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
  
-            # Speed only
-            # self.action_space = Box(low=np.array([0.0]), high=np.array([20.0]), dtype=np.float32)
-            
-            # self.action_space = Box(low=np.array([0.0]), high=np.array([0.7]), dtype=np.float32)
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
             elif self.config["input_type"] == 'wp_constant' or self.config["input_type"] == 'wp_noise':
@@ -484,8 +215,6 @@ class CarlaEnv(gym.Env):
 
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
-            # for i in range(self.config["num_vehicles"] - 1):
-            #     self.other_vehicle_actor_list[i].apply_control(self.other_vehicle_control_list[i])
             self._world.tick()
             timestamp = self._world.wait_for_tick(120.0)
         self.num_steps += 1
@@ -495,10 +224,6 @@ class CarlaEnv(gym.Env):
 
         # Read in preprocessed image
         sensor_image = self._read_data()
-        sensor_image2 = self._read_data2()
-        dummy_image = np.zeros_like(sensor_image2)
-        dummy_image = dummy_image[:, :20]
-        combined_image = np.hstack((sensor_image2, dummy_image, sensor_image))
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
@@ -553,7 +278,7 @@ class CarlaEnv(gym.Env):
             print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
-        obs['image'] = combined_image
+        obs['image'] = sensor_image
         
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
@@ -730,17 +455,6 @@ class CarlaEnv(gym.Env):
         print(len(points))
         return points
 
-    # def destroy_other_actors(self):
-    #     for _ in range(len(self.other_vehicle_actor_list)):
-    #         try:
-    #             actor = self.other_vehicle_actor_list.pop()
-    #             actor.destroy()
-    #         except Exception as e:
-    #             print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
-        
-    #     self.other_vehicle_agent_list.clear()
-    #     self.other_vehicle_control_list.clear()
-
     def _reset(self, unseen=False, index=0):
         #TODO: Keep track of current location, and distance to goal (i.e. update eps meas params)
 
@@ -749,7 +463,7 @@ class CarlaEnv(gym.Env):
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
-        self.prev_image = None
+        # self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
         self.unseen = unseen
@@ -757,25 +471,6 @@ class CarlaEnv(gym.Env):
         # Destroy
         self.destroy_all_existing_actors()
 
-        # # Create new client
-        # self.client =  self._spawn_client()
-
-        # self._world = self.client.get_world()
-
-        # if(self.config['sync_mode']):
-        #     settings = self._world.get_settings()
-        #     settings.synchronous_mode = True
-        #     self._world.apply_settings(settings)
-
-        # self._map = self._world.get_map()
-
-        # self.blueprint_library = self._world.get_blueprint_library()
-        # self.spawn_points = self._world.get_map().get_spawn_points()
-        # f = open("spawn_points.txt", "w")
-        # f.write("Printing all spawn points")
-        # for point in self.spawn_points:
-        #     f.write("Transform(Location(x={0}, y={1}, z={2}), Rotation(yaw={3}))\n".format(point.location.x, point.location.y, point.location.z, point.rotation.yaw))
-        # f.close()
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
@@ -798,27 +493,7 @@ class CarlaEnv(gym.Env):
         # print('Spawned vehicle actor at', self.location)
 
         if self.config["scenarios"] == "dynamic_navigation":
-            self.spawn_npc(self.config["num_vehicles"] - 1)
-            # self.destroy_other_actors()
-            # spawn_points = self.populate_spawn_points(self.spawn_points, self.source_transform)
-            # vehicle_positions = random.sample(spawn_points, len(spawn_points))
-            # for i in range(self.config["num_vehicles"] - 1):
-            #     vehicle_initialized = False
-                
-            #     other_vehicle_actor = None
-            #     vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
-            #     # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
-            #     while not other_vehicle_actor:
-            #         start_pose = random.choice(spawn_points)
-            #         other_vehicle_actor = self._world.try_spawn_actor(vehicle_bp, start_pose)
-            #         # if driving_vehicle and self._auto_pilot:
-            #         #     driving_vehicle.set_autopilot(self._auto_pilot)
-            #     print("Initiliazed vehicle actor successfully!! ")
-            #     other_vehicle_agent = RoamingAgent(other_vehicle_actor)
-            #     self.actor_list.append(other_vehicle_actor)
-            #     self.other_vehicle_actor_list.append(other_vehicle_actor)
-            #     self.other_vehicle_agent_list.append(other_vehicle_agent)
-                
+            self.spawn_npc(self.config["num_vehicles"] - 1)    
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -855,12 +530,12 @@ class CarlaEnv(gym.Env):
         # written to memory (hence typecasting before would be waste of compute)
         if(self.config['write_data']):
             self.camera1_actor.listen(lambda image: self._write_data(image))
-            self.camera2_actor.listen(lambda image: self._write_data2(image))
         if(self.config['save_images_to_disk']):
             self.camera1_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
             self.camera2_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
         if(self.config['record_sim']):
-            log_id = str(episode_measurements['episode_id'])
+            # TODO: Check this
+            log_id = str(self.episode_measurements['episode_id'])
             self.client.start_recorder(log_id, self.vehicle_actor)
 
         #Attach planner to vehicle actor
@@ -984,91 +659,6 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    # def _set_destination(self,location):
-    #     """Generate waypoints and feed into local + global planner
-    #     Parameters
-    #     ----------
-    #     location: Final destination waypoint
-    #     """
-    #     start_waypoint = self._map.get_waypoint(self.vehicle_actor.get_location())
-    #     end_waypoint = self._map.get_waypoint(
-    #         carla.Location(location.x, location.y, location.z))
-    #     solution = []
-
-    #     # Setting up global router
-    #     dao = GlobalRoutePlannerDAO(self.vehicle_actor.get_world().get_map())
-    #     grp = GlobalRoutePlanner(dao)
-    #     grp.setup()
-
-    #     # Obtain route plan
-    #     x1 = start_waypoint.transform.location.x
-    #     y1 = start_waypoint.transform.location.y
-    #     x2 = end_waypoint.transform.location.x
-    #     y2 = end_waypoint.transform.location.y
-    #     route = grp.plan_route((x1, y1), (x2, y2))
-
-    #     current_waypoint = start_waypoint
-    #     route.append(RoadOption.VOID)
-    #     for action in route:
-
-    #         #   Generate waypoints to next junction
-    #         wp_choice = current_waypoint.next(self._hop_resolution)
-    #         while len(wp_choice) == 1:
-    #             current_waypoint = wp_choice[0]
-    #             solution.append((current_waypoint, RoadOption.LANEFOLLOW))
-    #             wp_choice = current_waypoint.next(self._hop_resolution)
-
-    #             #   Stop at destination
-    #             if current_waypoint.transform.location.distance(
-    #                 end_waypoint.transform.location) < self._hop_resolution: break
-    #         if action == RoadOption.VOID: break
-
-    #         #   Select appropriate path at the junction
-    #         if len(wp_choice) > 1:
-
-    #             # Current heading vector
-    #             current_transform = current_waypoint.transform
-    #             current_location = current_transform.location
-    #             projected_location = current_location + \
-    #                 carla.Location(
-    #                     x=math.cos(math.radians(current_transform.rotation.yaw)),
-    #                     y=math.sin(math.radians(current_transform.rotation.yaw)))
-    #             v_current = vector(current_location, projected_location)
-    #             direction = 0
-    #             if action == RoadOption.LEFT:
-    #                 direction = 1
-    #             elif action == RoadOption.RIGHT:
-    #                 direction = -1
-    #             elif action == RoadOption.STRAIGHT:
-    #                 direction = 0
-    #             select_criteria = float('inf')
-
-    #             #   Choose correct path
-    #             for wp_select in wp_choice:
-    #                 v_select = vector(
-    #                     current_location, wp_select.transform.location)
-    #                 cross = float('inf')
-    #                 if direction == 0:
-    #                     cross = abs(np.cross(v_current, v_select)[-1])
-    #                 else:
-    #                     cross = direction*np.cross(v_current, v_select)[-1]
-    #                 if cross < select_criteria:
-    #                     select_criteria = cross
-    #                     current_waypoint = wp_select
-
-    #             #   Generate all waypoints within the junction
-    #             #   along selected path
-    #             solution.append((current_waypoint, action))
-    #             current_waypoint = current_waypoint.next(self._hop_resolution)[0]
-    #             while current_waypoint.is_intersection:
-    #                 solution.append((current_waypoint, action))
-    #                 current_waypoint = current_waypoint.next(self._hop_resolution)[0]
-
-    #     assert solution
-
-    #     self._current_plan = solution
-    #     self._local_planner.set_global_plan(self._current_plan)
-
     def _write_data(self, image):
         
         if self.config["semantic"]:
@@ -1111,47 +701,47 @@ class CarlaEnv(gym.Env):
             im_processed = np.concatenate((data_array[:]), axis=2)
         return im_processed
     
-    def _write_data2(self, image):
+    # def _write_data2(self, image):
         
-        if self.config["semantic"]:
-            self.semantic_image = np.array(image.raw_data)
-            image.convert(cc.CityScapesPalette)
-        sensor_data = image.raw_data
+    #     if self.config["semantic"]:
+    #         self.semantic_image = np.array(image.raw_data)
+    #         image.convert(cc.CityScapesPalette)
+    #     sensor_data = image.raw_data
         
-        if(self.config['framestack'] == 1):
-            self._save_sensor_data2(sensor_data)
-        else:
-            # NOTE: Typecasting here since can't do a deepcopy with 'memoryview objects'
-            # TODO: Find a workaround, since typecasting then discarding is inefficient.
-            self._image_queue.append(np.array(sensor_data))
+    #     if(self.config['framestack'] == 1):
+    #         self._save_sensor_data2(sensor_data)
+    #     else:
+    #         # NOTE: Typecasting here since can't do a deepcopy with 'memoryview objects'
+    #         # TODO: Find a workaround, since typecasting then discarding is inefficient.
+    #         self._image_queue.append(np.array(sensor_data))
 
-    def _save_sensor_data2(self, sensor_data):
-        self.image_data2 = sensor_data
+    # def _save_sensor_data2(self, sensor_data):
+    #     self.image_data2 = sensor_data
 
-    def _read_sensor_data2(self):
-        return np.array(self.image_data2)
+    # def _read_sensor_data2(self):
+    #     return np.array(self.image_data2)
 
-    def _read_data2(self):
-        #TODO: Read data in from sensor callback and then call preprocess function
-        #sensor data is Image object for all sensors (besides LIDAR)
+    # def _read_data2(self):
+    #     #TODO: Read data in from sensor callback and then call preprocess function
+    #     #sensor data is Image object for all sensors (besides LIDAR)
 
-        if(self.config['framestack'] == 1):
-            sensor_data = self._read_sensor_data2()
-            im_processed = self._preprocess_core(sensor_data)
-        else:
-            data_array = []
-            # Use this loop since the callback is continuously writing into the queue
-            # hence we only read in 'framestack' number of images
-            # Original Atari DQN paper is unclear on order of stacking
-            _image_queue_snapshot = copy.deepcopy(self._image_queue)
-            for image in _image_queue_snapshot:
-                data_array.append(self._preprocess_core(image))
-            # data_array = list(copy.deepcopy(self._image_queue))
-            #Compute ndims (to compute which axis to stack along)
-            ndim = self.config['framestack']
-            # Stack all the images along last axis
-            im_processed = np.concatenate((data_array[:]), axis=2)
-        return im_processed
+    #     if(self.config['framestack'] == 1):
+    #         sensor_data = self._read_sensor_data2()
+    #         im_processed = self._preprocess_core(sensor_data)
+    #     else:
+    #         data_array = []
+    #         # Use this loop since the callback is continuously writing into the queue
+    #         # hence we only read in 'framestack' number of images
+    #         # Original Atari DQN paper is unclear on order of stacking
+    #         _image_queue_snapshot = copy.deepcopy(self._image_queue)
+    #         for image in _image_queue_snapshot:
+    #             data_array.append(self._preprocess_core(image))
+    #         # data_array = list(copy.deepcopy(self._image_queue))
+    #         #Compute ndims (to compute which axis to stack along)
+    #         ndim = self.config['framestack']
+    #         # Stack all the images along last axis
+    #         im_processed = np.concatenate((data_array[:]), axis=2)
+    #     return im_processed
 
     def _preprocess_core(self, image):
         # sensor_x_res is a str (reason mentioned near definition). reshape requires int
