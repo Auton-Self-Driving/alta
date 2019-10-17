@@ -101,7 +101,7 @@ class GlobalPlanner():
                 self._waypoints_queue_old.popleft()
         
         if next_waypoint_found and len(next_waypoints_angles) > 0:
-            print(next_waypoints_angles)
+            # print(next_waypoints_angles)
             angle = np.mean(np.array(next_waypoints_angles))
         else:
             print("No next waypoint found!")
@@ -189,7 +189,7 @@ class GlobalPlanner():
         num_next_waypoints = 5
         max_index = -1
         min_dist = np.inf
-        print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
+        # print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
         for i, (waypoint, _) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
@@ -197,7 +197,7 @@ class GlobalPlanner():
             if dist_i < self._min_distance:
                 max_index = i
 
-        print("max_index {0}".format(max_index))    
+        # print("max_index {0}".format(max_index))    
         q_len = len(self._waypoints_queue)
         if max_index >= 0:
             for i in range(max_index + 1):
@@ -208,7 +208,7 @@ class GlobalPlanner():
                 elif i == q_len - 2:
                     self.second_last_waypoint = waypoint
 
-        print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
+        # print("length of waypoints queue {0}".format(len(self._waypoints_queue)))
         for i, (waypoint, _) in enumerate(self._waypoints_queue):
             if i > num_next_waypoints - 1:
                 break
@@ -255,8 +255,8 @@ class GlobalPlanner():
         #             self.second_last_waypoint = waypoint
         
         next_waypoints_angles_array = np.array(next_waypoints_angles)
-        print("full angle {0}, selected 2nd angle {1}, selected 3rd angle {2}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:]), np.mean(next_waypoints_angles_array[2:])))
-        print(next_waypoints_angles)
+        # print("full angle {0}, selected 2nd angle {1}, selected 3rd angle {2}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:]), np.mean(next_waypoints_angles_array[2:])))
+        # print(next_waypoints_angles)
         # if len(next_waypoints_angles) > 2:
         #     angle = np.mean(next_waypoints_angles_array[2:])
         # elif len(next_waypoints_angles) > 1:
@@ -287,7 +287,7 @@ class GlobalPlanner():
                                     vehicle_transform,
                                     self.second_last_waypoint,
                                     self.last_waypoint)
-        print("self.dist_to_trajectory {0}".format(self.dist_to_trajectory))
+        # print("self.dist_to_trajectory {0}".format(self.dist_to_trajectory))
         return angle, self.dist_to_trajectory
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
@@ -317,10 +317,10 @@ class GlobalPlanner():
         return self.getPointToLineDistanceHelper(point, point1_on_line, point2_on_line)
 
     def getPointToLineDistanceHelper(self, point, point1_on_line, point2_on_line):
-        print(point, point1_on_line, point2_on_line)
+        # print(point, point1_on_line, point2_on_line)
         a_vec = point2_on_line - point1_on_line
         b_vec = point - point1_on_line
-        print(a_vec, b_vec)
+        # print(a_vec, b_vec)
         return np.linalg.norm(np.cross(a_vec, b_vec) / np.linalg.norm(a_vec))
 
     def printwaypoint(self, waypoint):

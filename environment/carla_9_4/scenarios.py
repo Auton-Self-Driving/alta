@@ -946,7 +946,8 @@ def benchmark_paths_navigation_Town01():
        ]
     ]
     
-    return paths
+    return paths[0:5]
+    # return paths
 
 def benchmark_paths_navigation_Town02():
     

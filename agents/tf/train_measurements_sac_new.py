@@ -42,13 +42,13 @@ import tensorboard_logging as tf_log
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from my_sac import MY_SAC, plot_policy_and_value_fns
+from my_sac import MY_SAC, plot_policy_and_value_fns, My_MlpPolicy
 # from models import CustomPolicy, CustomWPPolicy, Policy
-from stable_baselines.sac.policies import MlpPolicy
+# from stable_baselines.sac.policies import MlpPolicy
 
-prefix = 'sac_nav_25_buf_1m_b_256_lr_3e_4_simple2_r_10_1/'
+prefix = 'sac_nav_5_buf_1m_b_256_lr_3e_4_simple2_r_10_nn64_1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/sac_runs2/' + prefix
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/sac_runs3/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
 # SCRATH_DIR = '/home/scratch/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 if not os.path.exists(ALTA_LOGS):
@@ -60,11 +60,11 @@ if not os.path.exists(TF_MODELS):
 
 FRAME_SKIP = 1
 SAVE_PATH = ALTA_LOGS + 'sac_measurements_weights'
-TB_LOGS_DIR = ALTA_LOGS+ 'tb_test20/'
+TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 MODEL_PATH = ALTA_LOGS + 'sac_measurements_weights' + '150000' + '.pkl'
 MAX_TRIALS = 10
 
-TEST = True
+TEST = False
 
 def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
     list_of_files = glob.glob(log_dir + ext)
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         test(model, env, model_step=0)
     else:
 
-        model = MY_SAC(policy=MlpPolicy, env=dummy_env, learning_rate=3e-4,buffer_size=1000000,batch_size=256,
+        model = MY_SAC(policy=My_MlpPolicy, env=dummy_env, learning_rate=3e-4,buffer_size=1000000,batch_size=256,
             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, verbose=1)
         
         model.learn(env, steps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)

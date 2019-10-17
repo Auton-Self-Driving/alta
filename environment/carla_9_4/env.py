@@ -113,8 +113,8 @@ DEFAULT_ENV = {
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
-    "sensor_tick": '1.0',
-    "dist_for_success" : 4.0,
+    "sensor_tick": '0.0',
+    "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 500,
     "log_measurements_to_file": False,
@@ -335,7 +335,7 @@ class CarlaEnv(gym.Env):
         else:
             self.im_channels = 3
         
-        self.controller = controller.PIDLongitudinalController(K_P=0.1, K_D=0.0005, K_I=1.0, dt=1/10.0) 
+        self.controller = controller.PIDLongitudinalController(K_P=0.1, K_D=0.0005, K_I=0.4, dt=1/10.0) 
 
         # Start Carla Server
         serverStarted = False
@@ -391,7 +391,8 @@ class CarlaEnv(gym.Env):
                 self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
             elif self.config["action_type"] == 'merged_speed':
                 # Steer, Speed
-                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+                # self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+                self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
             elif self.config["action_type"] == 'steer_only':
                 # Steer only
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
@@ -490,19 +491,20 @@ class CarlaEnv(gym.Env):
             timestamp = self._world.wait_for_tick(120.0)
         self.num_steps += 1
         if not self.unseen:
+        # if True:
             self.total_steps +=1
         self.episode_measurements['num_steps'] = self.num_steps
 
         # Read in preprocessed image
-        sensor_image = self._read_data()
-        sensor_image2 = self._read_data2()
-        dummy_image = np.zeros_like(sensor_image2)
-        dummy_image = dummy_image[:, :20]
-        combined_image = np.hstack((sensor_image2, dummy_image, sensor_image))
+        # sensor_image = self._read_data()
+        # sensor_image2 = self._read_data2()
+        # dummy_image = np.zeros_like(sensor_image2)
+        # dummy_image = dummy_image[:, :20]
+        # combined_image = np.hstack((sensor_image2, dummy_image, sensor_image))
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
@@ -510,7 +512,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        next_orientation_old, _ = 0, 0
         reward = self._compute_reward(name=self.config['reward_function'],
                                     prev_measurement=self.prev_measurement,
                                     cur_measurement=self.episode_measurements)
@@ -553,7 +556,7 @@ class CarlaEnv(gym.Env):
             print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
-        obs['image'] = combined_image
+        # obs['image'] = combined_image
         
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
@@ -567,8 +570,8 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_noise':
             obs['orientation'] = np.array([next_orientation, np.random.normal(0.0, 1.0)])
 
-        print("orientation {0}".format(next_orientation))
-        print("old orientation {0}".format(next_orientation_old))
+        # print("orientation {0}".format(next_orientation))
+        # print("old orientation {0}".format(next_orientation_old))
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -581,16 +584,22 @@ class CarlaEnv(gym.Env):
                 if self.vis_wrapper_vae is not None:
                     self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
             if not self.unseen:
+            # if True:
                 self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
                 self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
-                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
                 self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
                 self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/dist_to_trajectory_reward', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/speed_reward', self.episode_measurements['speed_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/step_reward', self.episode_measurements['step_reward'], self.total_steps)
                             
             if done:
                 self.episode_num += 1
                 if not self.unseen:
+                # if True:
                     self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
                     self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
                     self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
@@ -599,7 +608,7 @@ class CarlaEnv(gym.Env):
                     self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
                 if self.config["videos"]:
                     self.vis_wrapper.generate_video(self.episode_num)
-                    self.vis_wrapper.remove_images()
+                    # self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         self.vis_wrapper_vae.generate_video(self.episode_num)
                         self.vis_wrapper_vae.remove_images()
@@ -676,7 +685,8 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            # target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
@@ -720,14 +730,14 @@ class CarlaEnv(gym.Env):
             self.episode_measurements[key] = 0
     
     def populate_spawn_points(self, spawn_points, source_transform):
-        print(len(spawn_points))
+        # print(len(spawn_points))
         points = []
         for point in spawn_points:
             if point.location.x == source_transform.location.x and point.location.y == source_transform.location.y and \
             point.location.z == source_transform.location.z and point.rotation.yaw == source_transform.rotation.yaw:
                 continue
             points.append(point)
-        print(len(points))
+        # print(len(points))
         return points
 
     # def destroy_other_actors(self):
@@ -820,48 +830,48 @@ class CarlaEnv(gym.Env):
             #     self.other_vehicle_agent_list.append(other_vehicle_agent)
                 
 
-        #TODO: Generalize this code to attach 'n' different sensors to the vehicle
-        #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][0]
-        camera1 = self.blueprint_library.find(sensor)
-        camera1.set_attribute('image_size_x', self.config['sensor_x_res'])
-        camera1.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera1.set_attribute('sensor_tick', self.config['sensor_tick'])
-        camera1.set_attribute('fov', '120')
+        # #TODO: Generalize this code to attach 'n' different sensors to the vehicle
+        # #Attach a sensor to the vehicle
+        # sensor = self.config['sensors'][0]
+        # camera1 = self.blueprint_library.find(sensor)
+        # camera1.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # camera1.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # camera1.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # camera1.set_attribute('fov', '120')
         
-        camera2 = self.blueprint_library.find(sensor)
-        camera2.set_attribute('image_size_x', self.config['sensor_x_res'])
-        camera2.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera2.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # camera2.set_attribute('fov', '120')
+        # camera2 = self.blueprint_library.find(sensor)
+        # camera2.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # camera2.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # camera2.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # camera2.set_attribute('fov', '120')
         
-        camera1_transform = carla.Transform(carla.Location(x=5.0, z=10.0), carla.Rotation(pitch=270.0))
-        self.camera1_actor = self._world.spawn_actor(camera1, camera1_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.camera1_actor)
+        # camera1_transform = carla.Transform(carla.Location(x=5.0, z=10.0), carla.Rotation(pitch=270.0))
+        # self.camera1_actor = self._world.spawn_actor(camera1, camera1_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.camera1_actor)
         
-        # camera2_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        camera2_transform = carla.Transform(carla.Location(x=-5.5, z=2.8))
+        # # camera2_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # camera2_transform = carla.Transform(carla.Location(x=-5.5, z=2.8))
 
-        self.camera2_actor = self._world.spawn_actor(camera2, camera2_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.camera2_actor)
+        # self.camera2_actor = self._world.spawn_actor(camera2, camera2_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.camera2_actor)
         
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
 
-        self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
-        self.actor_list.append(self.lane_invasion_sensor.sensor)
-        # Register callback to put images in the queue
-        # Prefer to write raw data (of type 'memoryview') since we won't use all data
-        # written to memory (hence typecasting before would be waste of compute)
-        if(self.config['write_data']):
-            self.camera1_actor.listen(lambda image: self._write_data(image))
-            self.camera2_actor.listen(lambda image: self._write_data2(image))
-        if(self.config['save_images_to_disk']):
-            self.camera1_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
-            self.camera2_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
-        if(self.config['record_sim']):
-            log_id = str(episode_measurements['episode_id'])
-            self.client.start_recorder(log_id, self.vehicle_actor)
+        # self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
+        # self.actor_list.append(self.lane_invasion_sensor.sensor)
+        # # Register callback to put images in the queue
+        # # Prefer to write raw data (of type 'memoryview') since we won't use all data
+        # # written to memory (hence typecasting before would be waste of compute)
+        # if(self.config['write_data']):
+        #     self.camera1_actor.listen(lambda image: self._write_data(image))
+        #     self.camera2_actor.listen(lambda image: self._write_data2(image))
+        # if(self.config['save_images_to_disk']):
+        #     self.camera1_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
+        #     self.camera2_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
+        # if(self.config['record_sim']):
+        #     log_id = str(episode_measurements['episode_id'])
+        #     self.client.start_recorder(log_id, self.vehicle_actor)
 
         #Attach planner to vehicle actor
         #TODO: Check how to give steering as input to PID? Target speed is present as input
@@ -876,16 +886,16 @@ class CarlaEnv(gym.Env):
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        print('-'*50)
-        print('Waiting for sensor to initialize')
-        print('-'*50)
-        time.sleep(2)
+        # print('-'*50)
+        # print('Waiting for sensor to initialize')
+        # print('-'*50)
+        time.sleep(1)
 
         #TODO: fix bug with no sensor_image. empty image for now
         # x_res = int(self.config["sensor_x_res"])
@@ -897,23 +907,24 @@ class CarlaEnv(gym.Env):
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
 
-        print('-'*50)
-        print('Initializing environment')
-        print('-'*50)
+        # print('-'*50)
+        # print('Initializing environment')
+        # print('-'*50)
 
         for _ in range(60):
             self._world.tick()
             timestamp = self._world.wait_for_tick(120.0)
-        image = self._read_data()
+        # image = self._read_data()
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        next_orientation_old, _ = 0, 0
 
-        obs['image'] = image
+        # obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
             semantic_image = reduce_classes(semantic_image)
@@ -1192,6 +1203,8 @@ class CarlaEnv(gym.Env):
             reward = self._compute_reward_corlT(prev_measurement, cur_measurement)
         elif name == "simple":
             reward = self._compute_reward_simple(prev_measurement, cur_measurement)
+        elif name == "simple2":
+            reward = self._compute_reward_simple2(prev_measurement, cur_measurement)
         return reward
 
     def _compute_reward_cirl(self, prev, current):
@@ -1324,8 +1337,8 @@ class CarlaEnv(gym.Env):
 
         reward = goal_distance_reward + speed_reward + distance_reward + collision_reward + lane_intersection_reward
 
-        print("goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward")
-        print(goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward)
+        # print("goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward")
+        # print(goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward)
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
@@ -1361,8 +1374,8 @@ class CarlaEnv(gym.Env):
 
         reward = dist_to_trajectory_reward + speed_reward
 
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
+        # print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
+        # print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
         # Update state variables
         if np.absolute(lane_intersection_reward) > 0:
             self.episode_measurements["offlane_steps"] += 1
@@ -1370,6 +1383,51 @@ class CarlaEnv(gym.Env):
             self.episode_measurements["static_steps"] += 1
         return reward
     
+    def _compute_reward_simple2(self, prev, current):
+        cur_dist = current["distance_to_goal"]
+        prev_dist = prev["distance_to_goal"]
+
+        steer = np.abs(self.episode_measurements['control_steer'])
+        steer_reward = -10 * steer
+
+        self.episode_measurements["steer_reward"] = steer_reward
+
+        if self.config["verbose"]:
+            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+        dist_to_trajectory_reward = -1 * self.dist_to_trajectory
+        self.episode_measurements["dist_to_trajectory_reward"] = dist_to_trajectory_reward
+        speed_reward = current["speed"]
+        acceleration_reward = (current["speed"] - prev["speed"])
+        
+        self.episode_measurements["speed_reward"] = speed_reward
+        # Collision damage
+        if((current["num_collisions"] - prev["num_collisions"]) > 0):
+            collision_reward = -1
+        else:
+            collision_reward = 0
+        self.episode_measurements["collision_reward"] = collision_reward
+
+        # # New sidewalk intersection
+        # if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
+        #     lane_intersection_reward = -1
+        # else:
+        #     lane_intersection_reward = 0
+        # self.episode_measurements["lane_intersection_reward"] = lane_intersection_reward
+
+        reward = dist_to_trajectory_reward + speed_reward + steer_reward
+
+        self.episode_measurements["step_reward"] = reward
+
+        # print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, steer_reward, reward")
+        # print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, steer_reward, reward)
+        # Update state variables
+        # if np.absolute(lane_intersection_reward) > 0:
+        #     self.episode_measurements["offlane_steps"] += 1
+        if current["speed"] == 0:
+            self.episode_measurements["static_steps"] += 1
+        return reward
+
     def _compute_reward_corlT(self, prev, current):
        cur_dist = current["distance_to_goal"]
        prev_dist = prev["distance_to_goal"]

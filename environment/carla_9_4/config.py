@@ -26,7 +26,7 @@ class ConfigManager(object):
             self.config["scenarios"] = "straight"
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
-            self.config["reward_function"] = "simple"
+            self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "merged_speed"
@@ -41,3 +41,4 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
