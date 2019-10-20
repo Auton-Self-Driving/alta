@@ -1,0 +1,223 @@
+import numpy as np
+
+def compute_reward(name, prev_measurement, cur_measurement, verbose=False):
+    if name == 'corl':
+        reward = _compute_reward_corl(prev_measurement, cur_measurement, verbose=verbose)
+    elif name == 'cirl':
+        reward = _compute_reward_cirl(prev_measurement, cur_measurement, verbose=verbose)
+    elif name == 'corl2':
+        reward = _compute_reward_corl2(prev_measurement, cur_measurement, verbose=verbose)
+    elif name == 'corlT':
+        reward = _compute_reward_corlT(prev_measurement, cur_measurement, verbose=verbose)
+    elif name == "simple":
+        reward = _compute_reward_simple(prev_measurement, cur_measurement, verbose=verbose)
+    return reward
+
+def _compute_reward_cirl(prev, current, verbose=False):
+    # 1) Abnormal steer penalty
+    """
+    if (control.steer > 0) and (directions == 3):
+        # Turn right when should go left
+        steer_reward = -15
+    elif (control.steer < 0) and (directions == 4):
+        # Turn left when should go right
+        steer_reward = -15
+    elif (abs(control.steer) > 0.2) and (directions in [0, 2, 5]):
+        # Turn when should go straight
+        # TODO: directions 0, 2 could mean follow lane that is turning
+        steer_reward = -20
+    else:
+        steer_reward = 0
+    """
+    steer_reward = 0
+    current["steer_reward"] = steer_reward
+
+    # 2) Collision penalty
+    no_collisions = (current["num_collisions"] - prev["num_collisions"])
+    collision = no_collisions > 0
+    collision_reward = -30 if collision else 0
+    current["collision_reward"] = collision_reward
+
+    # 3) Sidewalk and opposite lane overlap penalty
+    no_lane_intersections = (current["num_laneintersections"] - prev["num_laneintersections"])
+    lane_change = no_lane_intersections > 0
+    lane_intersection_reward = -30 if lane_change else 0
+    current["lane_intersection_reward"] = lane_intersection_reward
+
+    # 4) Speed reward (in km/h)
+    #TODO: Incorporate directions once planner is ready. Default assumed to go straight.
+    # converted to km/h
+    speed = current["speed"] * 3.6
+    speed_reward = speed if (speed < 30) else (60 - speed)
+    # if directions in [0, 2]:
+    #     # If following lane or going straight, limit speed to 30km/h
+    #     speed_reward = speed if (speed < 30) else (60 - speed)
+    # else:
+    #     # If approaching intersection, limit speed to 20km/h
+    #     speed_reward = speed if (speed < 20) else (40 - speed)
+    current["speed_reward"] = speed_reward
+
+    # Total reward (approximately scaled to [0, 1] range)
+    reward = steer_reward + collision_reward + lane_intersection_reward + speed_reward
+    reward /= 30
+
+    if np.absolute(lane_intersection_reward) > 0:
+        current["offlane_steps"] += 1
+    if current["speed"] == 0:
+        current["static_steps"] += 1
+
+    return reward
+
+def _compute_reward_corl(prev, current, verbose=False):
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
+
+    if verbose:
+        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+    # Distance travelled toward the goal in m
+    distance_reward = 10000 * (prev_dist - cur_dist)
+    current["distance_reward"] = distance_reward
+
+    # Change in speed (km/h)
+    speed_reward = 0.05 * (current["speed"] - prev["speed"])
+    current["speed_reward"] = speed_reward
+
+    # Collision damage
+    collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+    current["collision_reward"] = collision_reward
+
+    # New sidewalk intersection
+    lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+    current["lane_intersection_reward"] = lane_intersection_reward
+
+    reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+
+    # Update state variables
+    if np.absolute(lane_intersection_reward) > 0:
+        current["offlane_steps"] += 1
+    if current["speed"] == 0:
+        current["static_steps"] += 1
+    return reward
+
+def _compute_reward_corl2(prev, current, verbose=False):
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
+
+    if verbose:
+        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+    goal_distance_reward = 1/(cur_dist)**0.5
+    current["goal_distance_reward"] = goal_distance_reward
+
+    # Distance travelled toward the goal in m
+    distance_reward = 0.01 * (prev_dist - cur_dist)
+    current["distance_reward"] = distance_reward
+
+    # Change in speed (km/h)
+    speed_reward = 0.05 * (current["speed"] - prev["speed"])
+    current["speed_reward"] = speed_reward
+
+    # Collision damage
+    if((current["num_collisions"] - prev["num_collisions"]) > 0):
+        collision_reward = -1
+    else:
+        collision_reward = 0
+    current["collision_reward"] = collision_reward
+
+    # New sidewalk intersection
+    if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
+        lane_intersection_reward = -1
+    else:
+        lane_intersection_reward = 0
+    current["lane_intersection_reward"] = lane_intersection_reward
+
+    # # Collision damage
+    # collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+    # current["collision_reward"] = collision_reward
+
+    # # New sidewalk intersection
+    # lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+    # current["lane_intersection_reward"] = lane_intersection_reward
+
+
+    reward = goal_distance_reward + speed_reward + distance_reward + collision_reward + lane_intersection_reward
+
+    print("goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward")
+    print(goal_distance_reward, speed_reward, distance_reward, collision_reward, lane_intersection_reward, reward)
+    # Update state variables
+    if np.absolute(lane_intersection_reward) > 0:
+        current["offlane_steps"] += 1
+    if current["speed"] == 0:
+        current["static_steps"] += 1
+    return reward
+
+def _compute_reward_simple(prev, current, verbose=False):
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
+
+    if verbose:
+        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+    dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
+    
+    speed_reward = current["speed"]
+    acceleration_reward = (current["speed"] - prev["speed"])
+    
+    # Collision damage
+    if((current["num_collisions"] - prev["num_collisions"]) > 0):
+        collision_reward = -1
+    else:
+        collision_reward = 0
+    current["collision_reward"] = collision_reward
+
+    # New sidewalk intersection
+    if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
+        lane_intersection_reward = -1
+    else:
+        lane_intersection_reward = 0
+    current["lane_intersection_reward"] = lane_intersection_reward
+
+    reward = dist_to_trajectory_reward + speed_reward
+    
+    if verbose:
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
+    
+    # Update state variables
+    if np.absolute(lane_intersection_reward) > 0:
+        current["offlane_steps"] += 1
+    if current["speed"] == 0:
+        current["static_steps"] += 1
+    return reward
+
+def _compute_reward_corlT(prev, current, verbose=False):
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
+
+    # Distance travelled toward the goal in m
+    #distance_reward = np.clip(prev_dist - cur_dist, -10.0, 10.0)
+    distance_reward = 1/(cur_dist)**0.5
+    current["distance_reward"] = distance_reward
+
+    # Change in speed (km/h)
+    speed_reward = 0.05 * (current["speed"] - prev["speed"])
+    current["speed_reward"] = speed_reward
+
+    # Collision damage
+    collision_reward = -.00002 * (current["num_collisions"] - prev["num_collisions"])
+    current["collision_reward"] = collision_reward
+
+    # New sidewalk intersection
+    lane_intersection_reward = -2 * (current["num_laneintersections"] - prev["num_laneintersections"])
+    current["lane_intersection_reward"] = lane_intersection_reward
+
+    reward = distance_reward + speed_reward + collision_reward + lane_intersection_reward
+
+    # Update state variables
+    if np.absolute(lane_intersection_reward) > 0:
+        current["offlane_steps"] += 1
+    if current["speed"] == 0:
+        current["static_steps"] += 1
+    return reward
+

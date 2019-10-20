@@ -267,7 +267,6 @@ class CarlaEnv(gym.Env):
             obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
-        
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -355,7 +354,7 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        action = action.flatten()
+        # action = action.flatten()
         if self.config["action_type"] is "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -489,6 +488,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
+        self.spawn_npc(125)
+
         print('-'*50)
         print('Waiting for sensor to initialize')
         print('-'*50)
@@ -508,6 +509,7 @@ class CarlaEnv(gym.Env):
             self._world.tick()
             timestamp = self._world.wait_for_tick(120.0)
         image = self._read_data()
+
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
@@ -654,8 +656,9 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
+        success = False
         static = False
-        maxStepsTaken = False
+        # maxStepsTaken = False
 
         if success:
             termination_state = 'success'

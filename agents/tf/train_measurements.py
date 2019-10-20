@@ -6,7 +6,7 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -141,6 +141,52 @@ DISCRETE_ACTIONS = {
     9: [18.0, 0.0],
     10: [20.0, 0.0]
 }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [-0.5, 0.0],
+#     # Forward
+#     1: [-0.4, 0.0],
+#     # Brake
+#     2: [-0.3, 0.0],
+#     # Left
+#     3: [-0.2, 0.0],
+#     # Right
+#     4: [-0.1, 0.0],
+#     # Forward left
+#     5: [0.0, 0.0],
+#     # Forward right
+#     6: [0.1, 0.0],
+#     # Brake left
+#     7: [0.2, 0.0],
+#     # Brake right
+#     8: [0.3, 0.0],
+
+#     9: [0.4, 0.0],
+#     10: [0.5, 0.0]
+# }
+
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.0, 0.0],
+#     # Forward
+#     1: [0.5, 0.0],
+#     # Forward left
+#     2: [0.25, -0.3],
+#     3: [0.25, -0.1],
+#     # Forward right
+#     4: [0.25, 0.1],
+#     5: [0.25, 0.3],
+#     # Brake
+#     6: [-0.5, 0.0],
+#     # Brake left
+#     7: [-0.25, -0.3],
+#     8: [-0.25, -0.1],
+#     # Brake right
+#     9: [-0.25, 0.1],
+#     10: [-0.25, 0.3]
+# }
 
 if __name__ == '__main__':
     with U.make_session():

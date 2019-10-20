@@ -199,3 +199,14 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
+        elif algo == 'VAE_seg':
+            self.config["sensors"] = ["sensor.camera.semantic_segmentation"]
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
+            self.config['preprocess_crop_image'] = True
+            self.config["action_type"] = "control"
+            self.config["use_scenarios"] = False
+            self.config["semantic"] = True
+            self.config['max_steps'] = 10000
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
