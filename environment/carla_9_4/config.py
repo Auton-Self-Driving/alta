@@ -61,7 +61,7 @@ DEFAULT_ENV = {
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
-    "sensor_tick": '1.0',
+    "sensor_tick": '0.0',
     "dist_for_success" : 4.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 500,
