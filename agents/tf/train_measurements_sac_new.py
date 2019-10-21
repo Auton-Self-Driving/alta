@@ -8,7 +8,8 @@ sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
-from environment.carla_9_4.env import CarlaEnv
+# from environment.carla_9_4.env import CarlaEnv
+from environment.carla_9_4.env_new import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
 import itertools
