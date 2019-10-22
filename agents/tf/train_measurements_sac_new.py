@@ -6,7 +6,7 @@ import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 # from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.env_new import CarlaEnv
@@ -47,9 +47,9 @@ from my_sac import MY_SAC, plot_policy_and_value_fns, My_MlpPolicy
 # from models import CustomPolicy, CustomWPPolicy, Policy
 # from stable_baselines.sac.policies import MlpPolicy
 
-prefix = 'sac_nav_5_buf_1m_b_256_lr_3e_4_simple2_r_10_nn64_1/'
+prefix = 'sac_nav_5_buf_1m_b_256_lr_3e_4_simple2_r_10_nn64_test1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/sac_runs3/' + prefix
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
 # SCRATH_DIR = '/home/scratch/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 if not os.path.exists(ALTA_LOGS):

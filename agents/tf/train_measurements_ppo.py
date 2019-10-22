@@ -219,7 +219,7 @@ if __name__ == '__main__':
                 dummy_env = DummyVecEnv([lambda: env])
                 
                 model = PPO(policy=Policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=2e-4, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.01)
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.005)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())

@@ -100,7 +100,7 @@ DEFAULT_ENV = {
     "grayscale" : False,
     "num_vehicles" : 1,
     "num_pedestrians" : 0,
-    "max_steps" : 400,
+    "max_steps" : 10000,
     "next_command": None,
     "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -124,8 +124,6 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight",
     "semantic" : False,
-    "carla_gpu": "0",
-    "render_server": True,
     "carla_gpu": "0",
     "render_server": True
 }
@@ -358,6 +356,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
+        time.sleep(10)
         # Create new client
         self.client =  self._spawn_client()
 
@@ -365,7 +364,8 @@ class CarlaEnv(gym.Env):
 
         self._world = self.client.load_world(self.config['city_name'])
 
-        # self._world = self.client.get_world()
+        print("server_version", self.client.get_server_version())
+        self._world = self.client.get_world()
 
         settings = self._world.get_settings()
         if(self.config['sync_mode']):            
@@ -412,6 +412,9 @@ class CarlaEnv(gym.Env):
                 # Steer, Speed
                 self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
                 # self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
+            elif self.config["action_type"] == 'merged_speed_tanh':
+                # Steer, Speed
+                self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
             elif self.config["action_type"] == 'steer_only':
                 # Steer only
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
@@ -440,7 +443,7 @@ class CarlaEnv(gym.Env):
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
-        client.set_timeout(120.0)
+        client.set_timeout(240.0)
         return client
 
     def step(self, action):
@@ -713,6 +716,13 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "merged_speed_tanh":
+            # steer = float(action[0])
+            steer = np.clip(float(action[0]), -1.0, 1.0)
             # target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
             target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
@@ -952,9 +962,9 @@ class CarlaEnv(gym.Env):
         # print('Initializing environment')
         # print('-'*50)
 
+        # Ticking for 15 frames to handle car initialization in air
         for _ in range(15):
             world_frame = self._world.tick()
-            print(world_frame)
             # timestamp = self._world.wait_for_tick(120.0)
         
         # import pdb
@@ -1555,7 +1565,7 @@ class CarlaEnv(gym.Env):
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
         static = False
-        maxStepsTaken = False
+        # maxStepsTaken = False
 
         if success:
             termination_state = 'success'

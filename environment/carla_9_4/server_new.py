@@ -22,20 +22,24 @@ class CarlaServer():
             pass
         print(self.server_binary)
         
+        my_env = os.environ.copy()
         if self.carla_gpu is not None:
-            os.environ["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
+            my_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
+            del my_env['CUDA_VISIBLE_DEVICES']
+            print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
 
         if not self.render_server:
             os.environ["SDL_VIDEODRIVER"] = "offscreen"
             
-        
+        run = self.server_binary
         launch_command = [
-                self.server_binary, "-carla-rpc-port={}".format(self.server_port)
+                run, "-carla-rpc-port={}".format(self.server_port)
             ]
 
         self.server_process = subprocess.Popen(launch_command,
-            preexec_fn=os.setsid,
-            stdout=open(os.devnull, "w"))
+            preexec_fn=os.setsid, env=my_env)
+            # ,
+            # stdout=open(os.devnull, "w"))
 
         if self.server_process:
             print("Launched server at port:", self.server_port)
@@ -56,6 +60,7 @@ class CarlaServer():
 
 
 if __name__ == "__main__":
+
     DEFAULT_ENV = {
     "server_path" : CARLA_9_4_PATH,
     "server_binary" : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -93,4 +98,4 @@ if __name__ == "__main__":
     "render_server": True
     }
     server = CarlaServer(config=DEFAULT_ENV)
-    time.sleep(10)
+    time.sleep(100)
