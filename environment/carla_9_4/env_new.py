@@ -125,7 +125,8 @@ DEFAULT_ENV = {
     "scenarios" : "straight",
     "semantic" : False,
     "carla_gpu": "0",
-    "render_server": True
+    "render_server": True,
+    "steer_penalty_coeff": 0
 }
 # DISCRETE_ACTIONS = {
 #     # Coast
@@ -1485,7 +1486,7 @@ class CarlaEnv(gym.Env):
         prev_dist = prev["distance_to_goal"]
 
         steer = np.abs(self.episode_measurements['control_steer'])
-        steer_reward = -10 * steer
+        steer_reward = - self.config["steer_penalty_coeff"] * steer
 
         self.episode_measurements["steer_reward"] = steer_reward
 
