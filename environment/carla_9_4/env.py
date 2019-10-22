@@ -226,7 +226,7 @@ class CarlaEnv(gym.Env):
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         reward = compute_reward(name=self.config['reward_function'],
                              prev_measurement=self.prev_measurement,
                              cur_measurement=self.episode_measurements,
@@ -261,9 +261,9 @@ class CarlaEnv(gym.Env):
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
-            # encoded_image = encoded_image / 10.0
-            print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
-            print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
+            encoded_image = encoded_image / 10.0
+            # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
+            # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
@@ -284,15 +284,16 @@ class CarlaEnv(gym.Env):
 
         if self.config["train_config"] == "PPO":
             if self.config["videos"]:
-                if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
-                    self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
-                else:
-                    self.vis_wrapper.save_image(obs['image'], self.num_steps)
+                if self.vis_wrapper is not None:
+                    if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+                        self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
+                    else:
+                        self.vis_wrapper.save_image(obs['image'], self.num_steps)
                 if self.vis_wrapper_vae is not None:
                     self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
-            if not self.unseen:
+            if not self.unseen and self.logger is not None:
                 self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
-                self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
                 self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
                 self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
                 self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
@@ -300,7 +301,7 @@ class CarlaEnv(gym.Env):
                             
             if done:
                 self.episode_num += 1
-                if not self.unseen:
+                if not self.unseen and self.logger is not None:
                     self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
                     self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
                     self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
@@ -308,8 +309,9 @@ class CarlaEnv(gym.Env):
                     self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
                     self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
                 if self.config["videos"]:
-                    self.vis_wrapper.generate_video(self.episode_num)
-                    self.vis_wrapper.remove_images()
+                    if self.vis_wrapper is not None:
+                        self.vis_wrapper.generate_video(self.episode_num)
+                        self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         self.vis_wrapper_vae.generate_video(self.episode_num)
                         self.vis_wrapper_vae.remove_images()
@@ -458,14 +460,17 @@ class CarlaEnv(gym.Env):
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
-        sensor = self.config['sensors'][0]
+        if self.config["semantic"]:
+            sensor = self.config['sensors'][1]
+        else:
+            sensor = self.config['sensors'][0]
         camera = self.blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera.set_attribute('fov', '120')
         
-        camera_transform = carla.Transform(carla.Location(x=5.0, z=10.0), carla.Rotation(pitch=270.0))
+        camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
 
@@ -487,8 +492,6 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
-
-        self.spawn_npc(125)
 
         print('-'*50)
         print('Waiting for sensor to initialize')
@@ -516,7 +519,7 @@ class CarlaEnv(gym.Env):
         self.global_planner.set_global_plan(self.trace_route)
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
 
         obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
@@ -524,9 +527,9 @@ class CarlaEnv(gym.Env):
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
-            # encoded_image = encoded_image / 10.0
-            print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
-            print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
+            encoded_image = encoded_image / 10.0
+            # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
+            # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
@@ -630,7 +633,8 @@ class CarlaEnv(gym.Env):
         # NOTE: BGRA array is returned by RGB sensor
         data = image.reshape(x_res, y_res, 4)
         # Convert from BGRA to RGB image
-        data = cv2.cvtColor(data, cv2.COLOR_BGRA2RGB)
+        data = data[:, :, :3]
+        data = data[:, :, ::-1]
         
         if(self.config['grayscale']):
             data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)

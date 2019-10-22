@@ -11,35 +11,14 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
-import itertools
 import numpy as np
-import tensorflow as tf
-import tensorflow.contrib.layers as layers
 import time
-
-import baselines.common.tf_util as U
-
-# NOTE: not using baselines logger for now
-# from baselines import logger
-from baselines import deepq
-from baselines.deepq.deepq import ActWrapper
-from baselines.deepq.replay_buffer import ReplayBuffer
-from baselines.deepq.utils import ObservationInput
-from baselines.common.schedules import LinearSchedule
-from gym.spaces import Box, Discrete
-
-import matplotlib
-import matplotlib.pyplot as plt
-
 import vis_module
 
-from gym import wrappers
 from datetime import datetime
-import matplotlib.pyplot as plt
 import tensorboard_logging as tf_log
 
 # PPO specific
-from stable_baselines.ppo2.ppo2 import Runner
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
@@ -50,7 +29,6 @@ prefix = 'ppo_entcoeff_05_logstd_23_w_tanh/'
 
 ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
-SCRATH_DIR = '/home/scratch/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 
@@ -122,11 +100,11 @@ def get_best_model(total_timesteps, save_file, env):
     print("Best model appears at index: {}".format(ind))
     print("No of successes in best model: {}".format(total_successes[ind]))
     print("Max no of successes: {}".format(m))
-    SAVE_PATH = save_file + str(4 * (ind + 1)) + "0000"
-    best_model = PPO.load(SAVE_PATH, DummyVecEnv([lambda: env]))
+    path = save_file + str(4 * (ind + 1)) + "0000"
+    best_model = PPO.load(path, DummyVecEnv([lambda: env]))
     
     with open(ALTA_LOGS + "best_model.txt", "w") as f:
-        f.write("Best model: {}\n".format(SAVE_PATH))
+        f.write("Best model: {}\n".format(path))
         f.write("Best model appears at index: {}\n".format(ind))
         f.write("No of successes in best model: {}\n".format(total_successes[ind]))
         f.write("Max no of successes: {}\n".format(m))
@@ -159,15 +137,15 @@ if __name__ == '__main__':
                 env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
                 
-                with open(ALTA_LOGS + "best_model.txt", "r") as f:
-                    lines = [line for line in f.readlines()]
-                    ind = int(lines[1].split("index: ")[1])
-                    print("Index is: {}".format(ind))
+                # with open(ALTA_LOGS + "best_model.txt", "r") as f:
+                #     lines = [line for line in f.readlines()]
+                #     ind = int(lines[1].split("index: ")[1])
+                #     print("Index is: {}".format(ind))
                     
-                    path = SAVE_PATH + str(4 * (ind + 1)) + "0000"
-                    print(path)
-                    best_model = PPO.load(SAVE_PATH, DummyVecEnv([lambda: env]))
-                    best_model.save(SAVE_PATH)
+                #     path = SAVE_PATH + str(4 * (ind + 1)) + "0000"
+                #     print(path)
+                #     best_model = PPO.load(SAVE_PATH, DummyVecEnv([lambda: env]))
+                #     best_model.save(SAVE_PATH)
                 
                 model = PPO.load(SAVE_PATH, dummy_env)
                 success_episodes = 0
@@ -203,10 +181,7 @@ if __name__ == '__main__':
                     f.write("Total Success Episodes: {}".format(str(success_episodes)))
             elif os.path.exists(SAVE_PATH + str(steps) + ".pkl"):
                 print("All models exist. Finding best model !!")
-                IMAGES_PATH = ALTA_LOGS+'best_model_images/'
-                VIDEO_PATH = ALTA_LOGS+'best_model_videos/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                env = CarlaEnv(config=config.config)
                 best_model = get_best_model(steps, SAVE_PATH, env)
                 best_model.save(SAVE_PATH)
             else:
@@ -233,17 +208,17 @@ if __name__ == '__main__':
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))
-                    _ = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
+                    _ = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed, policy_plots=True)    
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
-                    random_model = model.learn(0, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+                    random_model = model.learn(0, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=True)
                     random_model.save(SAVE_PATH + "0")
                     plot_policy_and_value_fns(random_model, 0, POLICY_PLOTS)
-                    _ = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+                    _ = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=True)
                 
                 best_model = get_best_model(steps, SAVE_PATH, env)
                 best_model.save(SAVE_PATH)

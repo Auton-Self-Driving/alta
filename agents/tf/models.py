@@ -314,8 +314,8 @@ class CustomPolicy(ActorCriticPolicy):
             # features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
             # pi_latent = activ(tf.layers.dense(features, 64, name='pi_fc'))
             
-            pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 1, init_scale=np.sqrt(2)))
-            pi_latent = tf.reshape(pi_h, [-1, 1, 1])
+            pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
             pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
 
@@ -325,8 +325,8 @@ class CustomPolicy(ActorCriticPolicy):
             # features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
             # vf_latent = activ(tf.layers.dense(features, 64, name='vf_fc'))
             
-            vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 1, init_scale=np.sqrt(2)))
-            vf_latent = tf.reshape(vf_h, [-1, 1, 1])
+            vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(vf_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
@@ -342,10 +342,12 @@ class CustomPolicy(ActorCriticPolicy):
         if deterministic:
             action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
                                                    {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
         else:
-            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
-                                                   {self.obs_ph: obs})
-        return action, value, self.initial_state, neglogp
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                  self.logstd, self.mean],
+                                                                 {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
 
     def proba_step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy_proba, {self.obs_ph: obs})
