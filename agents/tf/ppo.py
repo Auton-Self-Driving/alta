@@ -217,6 +217,57 @@ class OverideRunner(Runner):
 
         return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
+def test(model, env):
+    dummy_env = DummyVecEnv([lambda: env])
+    success_episodes = 0
+    results = {}
+    total_reward = 0
+    for ind in range(25):
+        obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
+        obs[:] = env.reset(unseen=True, index=ind)
+        done = False
+        reward = 0
+        
+        while not done:
+            actions = model.step(obs, deterministic=True)[0]
+            info = env.step(actions)
+            reward += info[1]
+            done = info[2]
+            obs = np.expand_dims(info[0], axis=0)
+        
+        total_reward += reward
+        if info[3]['termination_state'] == 'success':
+            success_episodes += 1
+            results[ind] = 1
+        else:
+            results[ind] = 0
+    print("Results of train scenarios")
+    print(results)
+    print("Total Success Episodes: {}".format(success_episodes))
+    return total_reward, success_episodes, results
+
+def get_best_model(env, total_rewards, total_successes, model_file_names, path):
+    print("Searching for best model now!!!")
+    print("Rewards at intermediate training: {}".format(total_rewards))
+    print("Total success episodes: {}".format(total_successes))
+    m = max(total_successes)
+    max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
+    rewards = np.array(total_rewards)[max_inds]
+    ind = max_inds[np.argmax(rewards)]
+    print("Best model appears at index: {}".format(ind))
+    print("No of successes in best model: {}".format(total_successes[ind]))
+    print("Max no of successes: {}".format(m))
+    best_model = PPO.load(model_file_names[ind], DummyVecEnv([lambda: env]))
+    
+    with open(path + "best_model.txt", "w") as f:
+        f.write("Best model: {}\n".format(path))
+        f.write("Best model appears at index: {}\n".format(ind))
+        f.write("No of successes in best model: {}\n".format(total_successes[ind]))
+        f.write("Max no of successes: {}\n".format(m))
+        f.write("Rewards at intermediate training: {}\n".format(total_rewards))
+        f.write("Total success episodes: {}\n".format(total_successes))
+        
+    return best_model
 
 class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
@@ -244,9 +295,20 @@ class PPO(PPO2):
             print("No of updates: {}".format(nupdates))
             print("Total timesteps : {}".format(total_timesteps))
             print("Batch size: {}".format(self.n_batch))
-            # total_rewards = []
-            # total_successes = []
-            for update in range((trained_timesteps // self.n_batch) + 1, nupdates + 1):
+            total_rewards = []
+            total_successes = []
+            model_file_names = []
+            for update in range((trained_timesteps // self.n_batch), nupdates + 1):
+                if update == (trained_timesteps // self.n_batch):
+                    self.save(save_file + str(update * self.n_batch))
+                    plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
+                    total_reward, success_episodes, _ = test(self, env)
+                    env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
+                    env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                    total_rewards.append(total_reward)
+                    total_successes.append(success_episodes)
+                    model_file_names.append(save_file + str(update * self.n_batch))
+                    continue
                 # if (update * self.n_batch) <= trained_timesteps:
                 #     continue
                 assert self.n_batch % self.nminibatches == 0
@@ -277,11 +339,12 @@ class PPO(PPO2):
                     if (update * self.n_batch) % 10000 == 0:
                         self.save(save_file + str(update * self.n_batch))
                         plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                        # total_reward, success_episodes = self.test(env)
-                        # env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
-                        # env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
-                        # total_rewards.append(total_reward)
-                        # total_successes.append(success_episodes)
+                        total_reward, success_episodes, _ = test(self, env)
+                        env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
+                        env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                        total_rewards.append(total_reward)
+                        total_successes.append(success_episodes)
+                        model_file_names.append(save_file + str(update * self.n_batch))
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0
@@ -332,8 +395,7 @@ class PPO(PPO2):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
-            
-            return self
+            return get_best_model(env, total_rewards, total_successes, model_file_names, save_file.split('ppo2_me')[0])
         
     def setup_model(self):
         with SetVerbosity(self.verbose):
