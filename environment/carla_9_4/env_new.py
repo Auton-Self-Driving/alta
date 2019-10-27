@@ -363,7 +363,7 @@ class CarlaEnv(gym.Env):
 
         # Basic setup
 
-        self._world = self.client.load_world(self.config['city_name'])
+        # self._world = self.client.load_world(self.config['city_name'])
 
         print("server_version", self.client.get_server_version())
         self._world = self.client.get_world()

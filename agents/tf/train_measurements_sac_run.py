@@ -145,8 +145,6 @@ def run_sac(args, prefix, config):
 
     TEST = False
 
-    steps = 1000000
-
     print("Training begins")
     IMAGES_PATH = ALTA_LOGS+'images/'
     VIDEO_PATH = ALTA_LOGS+'videos/'
@@ -175,7 +173,7 @@ def run_sac(args, prefix, config):
         model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=256,
             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, verbose=1)
         
-        model.learn(env, args.max_steps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
+        model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
         model.save(SAVE_PATH)
     env.close()
 
