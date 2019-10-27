@@ -230,7 +230,7 @@ class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
-              reset_num_timesteps=True, save_file="default"):
+              reset_num_timesteps=True, save_file="default", policy_plots=False):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
@@ -284,7 +284,8 @@ class PPO(PPO2):
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
                     if (update * self.n_batch) % 10000 == 0:
                         self.save(save_file + str(update * self.n_batch))
-                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
+                        if policy_plots:
+                            plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
                         # total_reward, success_episodes = self.test(env)
                         # env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                         # env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)

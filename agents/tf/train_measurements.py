@@ -6,10 +6,10 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 from environment.carla_9_4.env import CarlaEnv
-from environment.carla_9_4.config import ConfigManager
+from environment.carla_9_4.config import ConfigManager, DISCRETE_ACTIONS
 
 import itertools
 import numpy as np
@@ -54,93 +54,6 @@ if not os.path.exists(TF_MODELS):
 IMAGES_PATH = ALTA_LOGS+prefix+'images/'
 VIDEO_PATH = ALTA_LOGS+prefix+'videos/'
 FRAME_SKIP = 4
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [0.5, -0.5],
-#     # Forward
-#     1: [0.5, -0.4],
-#     # Brake
-#     2: [0.5, -0.3],
-#     # Left
-#     3: [0.5, -0.2],
-#     # Right
-#     4: [0.5, -0.1],
-#     # Forward left
-#     5: [0.5, 0.0],
-#     # Forward right
-#     6: [0.5, 0.1],
-#     # Brake left
-#     7: [0.5, 0.2],
-#     # Brake right
-#     8: [0.5, 0.3],
-
-#     9: [0.5, 0.4],
-#     10: [0.5, 0.5]
-# }
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [10.0, 0.0],
-#     # Forward
-#     1: [20.0, 0.0],
-#     # Forward left
-#     2: [15.0, -0.3],
-#     3: [15.0, -0.1],
-#     # Forward right
-#     4: [15.0, 0.1],
-#     5: [15.0, 0.3],
-#     # Brake
-#     6: [0.0, 0.0],
-#     # Brake left
-#     7: [5.0, -0.3],
-#     8: [5.0, -0.1],
-#     # Brake right
-#     9: [5.0, 0.1],
-#     10: [5.0, 0.3]
-# }
-
-# DISCRETE_ACTIONS = {
-#     # Coast
-#     0: [10.0, 0.0],
-#     # Forward
-#     1: [10.0, 0.0],
-#     # Forward left
-#     2: [10.0, -0.3],
-#     3: [10.0, -0.1],
-#     # Forward right
-#     4: [10.0, 0.1],
-#     5: [10.0, 0.3],
-#     # Brake
-#     6: [0.0, 0.0],
-#     # Brake left
-#     7: [10.0, -0.3],
-#     8: [10.0, -0.1],
-#     # Brake right
-#     9: [10.0, 0.1],
-#     10: [10.0, 0.3]
-# }
-
-DISCRETE_ACTIONS = {
-    # Coast
-    0: [0.0, 0.0],
-    # Forward
-    1: [2.0, 0.0],
-    # Forward left
-    2: [4.0, 0.0],
-    3: [6.0, 0.0],
-    # Forward right
-    4: [8.0, 0.0],
-    5: [10.0, 0.0],
-    # Brake
-    6: [12.0, 0.0],
-    # Brake left
-    7: [14.0, 0.0],
-    8: [16.0, 0.0],
-    # Brake right
-    9: [18.0, 0.0],
-    10: [20.0, 0.0]
-}
 
 if __name__ == '__main__':
     with U.make_session():
