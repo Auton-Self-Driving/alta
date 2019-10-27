@@ -48,7 +48,7 @@ DEFAULT_ENV = {
     "grayscale" : False,
     "num_vehicles" : 1,
     "num_pedestrians" : 0,
-    "max_steps" : 400,
+    "max_steps" : 10000,
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -88,6 +88,27 @@ episode_measurements = {
     # intersection_otherlane
     # next_command
 }
+
+# DISCRETE_ACTIONS = {
+#     # Coast
+#     0: [0.0, 0.0],
+#     # Forward
+#     1: [0.5, 0.0],
+#     # Forward left
+#     2: [0.25, -0.3],
+#     3: [0.25, -0.1],
+#     # Forward right
+#     4: [0.25, 0.1],
+#     5: [0.25, 0.3],
+#     # Brake
+#     6: [-0.5, 0.0],
+#     # Brake left
+#     7: [-0.25, -0.3],
+#     8: [-0.25, -0.1],
+#     # Brake right
+#     9: [-0.25, 0.1],
+#     10: [-0.25, 0.3]
+# }
 
 # DISCRETE_ACTIONS = {
 #     # Coast

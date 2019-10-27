@@ -356,7 +356,7 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        # action = action.flatten()
+        action = action.flatten()
         if self.config["action_type"] is "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -660,9 +660,7 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        success = False
         static = False
-        # maxStepsTaken = False
 
         if success:
             termination_state = 'success'

@@ -145,16 +145,6 @@ if __name__ == '__main__':
                 
                 vae.load(PATH_MODEL_VAE)
                 env.set_vae(vae)
-                
-                # with open(ALTA_LOGS + "best_model.txt", "r") as f:
-                #     lines = [line for line in f.readlines()]
-                #     ind = int(lines[1].split("index: ")[1])
-                #     print("Index is: {}".format(ind))
-                    
-                #     path = SAVE_PATH + str(4 * (ind + 1)) + "0000"
-                #     print(path)
-                #     best_model = PPO.load(SAVE_PATH, DummyVecEnv([lambda: env]))
-                #     best_model.save(SAVE_PATH)
 
                 model = PPO.load(SAVE_PATH, dummy_env)
                 success_episodes = 0
