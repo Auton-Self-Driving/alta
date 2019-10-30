@@ -642,7 +642,7 @@ class CarlaEnv(gym.Env):
         if(self.config['preprocess_crop_image']):
             data = data[200:500, 300:500] 
 
-        data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_AREA)
+        data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
         # The cv2 resize converts to self.config["x_res"], self.config["y_res"]. We need the last channel to framestack later.
         if(self.config['grayscale']):
             data = data.reshape(self.config["x_res"], self.config["y_res"], 1)
