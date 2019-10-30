@@ -19,7 +19,7 @@ def parse_arguments():
     parser.add_argument('--carla-gpu',dest='carla_gpu',type=str,default='0')
     parser.add_argument('--code-gpu',dest='code_gpu',type=str,default='0')
     parser.add_argument('--base-log-dir',dest='base_log_dir',type=str, required=True, help='base log directory, Eg: /zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1/')
-    parser.add_argument('--timesteps',dest='timesteps',type=int,default=1000000)
+    parser.add_argument('--timesteps',dest='timesteps',type=int,default=1000000, help='total timesteps to train')
     
     return parser.parse_args()
 def main(args):
@@ -29,12 +29,14 @@ def main(args):
 
 def create_sac_prefix(args):
 
-    prefix = 'algo_' + args.algo + '_lr_' + str(args.lr)  \
+    base = 'algo_' + args.algo + '_lr_' + str(args.lr)  \
         + '_buffer_' + str(args.buffer_size) \
         + '_layers_' + str(args.layers) \
-        + '_steer_coeff' + str(args.steer_penalty_coeff) \
-        + '_runid_' + args.run_id +'/'
-    return prefix
+        + '_steer_coeff_' + str(args.steer_penalty_coeff) \
+    
+    prefix = base + '_runid_' + args.run_id +'/'
+    base_prefix = base +'/'
+    return base_prefix, prefix
 
 def create_ppo_prefix(args):
 
@@ -43,11 +45,9 @@ def create_ppo_prefix(args):
         + '_steer_coeff_' + str(args.steer_penalty_coeff) \
         + '_ent_coef_' + str(args.ent_coef) \
         + '_runid_' + args.run_id +'/'
-    return prefix
 
 if __name__ == '__main__':
     args = main(sys.argv)
-    
     print("args", args)
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -59,9 +59,9 @@ if __name__ == '__main__':
 
     try:
         if args.algo == "SAC":
-            prefix = create_sac_prefix(args)
+            base_prefix, prefix = create_sac_prefix(args)
             print("prefix", prefix)
-            run_sac(args, prefix, config)
+            run_sac(args, prefix, base_prefix, config)
         elif args.algo == "PPO":
             prefix = create_ppo_prefix(args)
             print("prefix", prefix)

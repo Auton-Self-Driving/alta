@@ -60,5 +60,5 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
-            self.config["verbose"] = True
+            self.config["verbose"] = False
             self.config["carla_gpu"] = "1"

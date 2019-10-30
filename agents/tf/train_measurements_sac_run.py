@@ -122,13 +122,13 @@ def test(model, env, model_step):
         
 #     return best_model
 
-def run_sac(args, prefix, config):
+def run_sac(args, prefix, base_prefix, config):
 
     # prefix = 'sac_nav_5_buf_1m_b_256_lr_3e_4_simple2_r_10_nn64_test1/'
 
     # ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1' + prefix
     
-    ALTA_LOGS = args.base_log_dir + prefix
+    ALTA_LOGS = args.base_log_dir + base_prefix + prefix
     POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
@@ -152,30 +152,57 @@ def run_sac(args, prefix, config):
     
     # config = ConfigManager(algo="PPO")
     logger = tf_log.Logger(TB_LOGS_DIR)
-    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
-    dummy_env = DummyVecEnv([lambda: env])
     
-    if TEST:
-        model = MY_SAC.load(MODEL_PATH, env)
-        test(model, env, model_step=0)
-    else:
+    RETRIES_ON_ERROR = 5
+    serverStartRetries = 0
+    serverStarted = False
+    while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+        try:
 
-        if args.layers == "1_layer":
-            policy = My_MlpPolicy_1layer
-        elif args.layers == "2_layer":
-            policy = My_MlpPolicy_2layer
-        else:
-            print("specify either 1_layer or 2_layer as layers input")
-            env.close()
-            print("exiting")
-            return
-
-        model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=256,
-            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, verbose=1)
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+            serverStarted = True
         
-        model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
-        model.save(SAVE_PATH)
-    env.close()
+        except Exception as identifier:
+            print(prefix, identifier)
+            if env is not None:
+                env.close()
+                serverStartRetries += 1
+                time.sleep(10)
+
+    
+    try:
+        # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+        dummy_env = DummyVecEnv([lambda: env])
+
+        if TEST:
+            model = MY_SAC.load(MODEL_PATH, env)
+            test(model, env, model_step=0)
+        else:
+
+            if args.layers == "1_layer":
+                policy = My_MlpPolicy_1layer
+            elif args.layers == "2_layer":
+                policy = My_MlpPolicy_2layer
+            else:
+                print("specify either 1_layer or 2_layer as layers input")
+                env.close()
+                print("exiting")
+                return
+
+            model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=512,learning_starts=5000,
+                tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, verbose=1)
+            
+            model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
+            model.save(SAVE_PATH)
+
+    except Exception as identifier:
+        with open(ALTA_LOGS + "error.txt", "w") as f:
+            print(prefix, identifier)
+            f.write(str(identifier))
+
+    finally:
+        if env is not None:
+            env.close()
 
 if __name__ == '__main__':
     

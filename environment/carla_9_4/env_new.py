@@ -125,7 +125,7 @@ DEFAULT_ENV = {
     "scenarios" : "straight",
     "semantic" : False,
     "carla_gpu": "0",
-    "render_server": True,
+    "render_server": False,
     "steer_penalty_coeff": 0
 }
 # DISCRETE_ACTIONS = {
@@ -806,8 +806,8 @@ class CarlaEnv(gym.Env):
         # Destroy
         self.destroy_all_existing_actors()
 
-        self.camera1_queue.queue.clear()
-        self.camera2_queue.queue.clear()
+        # self.camera1_queue.queue.clear()
+        # self.camera2_queue.queue.clear()
         
 
         # # Create new client

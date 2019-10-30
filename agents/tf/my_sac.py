@@ -19,11 +19,12 @@ from stable_baselines import logger
 import matplotlib.pyplot as plt
 import matplotlib
 import os
+import csv
 
 from stable_baselines.sac.policies import FeedForwardPolicy
 
 
-def test(model, env, model_step):
+def test(model, env, model_step, path=None):
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
@@ -53,6 +54,11 @@ def test(model, env, model_step):
     print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
     env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
     env.logger.log_scalar('test/total_reward', total_reward, model_step)
+
+    with open(path + 'test_results.csv','a') as f:
+        writer = csv.writer(f, delimiter=',')
+        writer.writerow([model_step, success_episodes, total_reward])
+
     return total_reward, success_episodes
 
 def plot_policy_and_value_fns(model, ind, path):
@@ -138,6 +144,29 @@ def plot_policy_and_value_fns(model, ind, path):
     # fig.suptitle('Mean plots for {} model'.format(ind))  
     # plt.savefig(path + 'value_{}.png'.format(ind))
 
+def get_save_best_model(total_rewards, total_successes, model_file_names, path):
+    print("Rewards at intermediate training: {}".format(total_rewards))
+    print("Total success episodes: {}".format(total_successes))
+    m = max(total_successes)
+    max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
+    rewards = np.array(total_rewards)[max_inds]
+    ind = max_inds[np.argmax(rewards)]
+    print("Best model appears at index: {}".format(ind))
+    print("No of successes in best model: {}".format(total_successes[ind]))
+    print("Max no of successes: {}".format(m))
+    best_file_name = model_file_names[ind]
+
+    best_model = MY_SAC.load(best_file_name)
+
+    with open(path + "best_model.txt", "w") as f:
+        f.write("Best model: {}\n".format(best_file_name))
+        f.write("Best model appears at index: {}\n".format(ind))
+        f.write("No of successes in best model: {}\n".format(total_successes[ind]))
+        f.write("Max no of successes: {}\n".format(m))
+        f.write("Rewards at intermediate training: {}\n".format(total_rewards))
+        f.write("Total success episodes: {}\n".format(total_successes))
+
+    return best_model
 
 class MY_SAC(SAC):
 
@@ -145,6 +174,10 @@ class MY_SAC(SAC):
               log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, save_file="sac_weights"):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        total_rewards = []
+        total_successes = []
+        model_file_names = []
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
@@ -170,6 +203,14 @@ class MY_SAC(SAC):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
+
+                if step % 10000 == 0:
+                    self.save(save_file + str(step))
+                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/')
+                    total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0])
+                    total_rewards.append(total_reward)
+                    total_successes.append(success_episodes)
+                    model_file_names.append(save_file + str(step))
 
                 # Before training starts, randomly sample actions
                 # from a uniform distribution for better exploration.
@@ -255,15 +296,10 @@ class MY_SAC(SAC):
                     logger.dumpkvs()
                     # Reset infos:
                     infos_values = []
-
-                if step % 10000 == 0:
-                    self.save(save_file + str(step))
-                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/')
-                    test(self, env, step)
                     
-                        
-            return self
-
+            best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('sac_me')[0])            
+            return best_model
+    
     def predict_proba_step(self, observation, state=None, mask=None):
         observation = np.array(observation)
         
