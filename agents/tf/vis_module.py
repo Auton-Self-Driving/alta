@@ -22,7 +22,7 @@ class vis():
     def generate_video(self, episode_number):
         vid_path = os.path.join(self.video_path, "log_{}.mp4".format(episode_number))
         im_path = os.path.join(self.images_path, "img%04d.png")
-        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "25", "-pix_fmt", "yuv420p",
+        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p",
         vid_path]
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         gen_vid_process.wait()

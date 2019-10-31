@@ -42,18 +42,9 @@ import tensorboard_logging as tf_log
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from my_sac import MY_SAC, plot_policy_and_value_fns, My_MlpPolicy_1layer, My_MlpPolicy_2layer
+from my_sac import MY_SAC, plot_policy_and_value_fns
+from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer
 import traceback
-# from models import CustomPolicy, CustomWPPolicy, Policy
-# from stable_baselines.sac.policies import MlpPolicy
-
-
-# def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
-#     list_of_files = glob.glob(log_dir + ext)
-#     latest_file = max(list_of_files, key=os.path.getctime)
-#     latest_file = latest_file.split('.')[0]
-#     ind = int(latest_file.split(sep)[1])
-#     return ind, latest_file
 
 def test(model, env, model_step):
     dummy_env = DummyVecEnv([lambda: env])
@@ -87,47 +78,8 @@ def test(model, env, model_step):
     env.logger.log_scalar('test/total_reward', total_reward, model_step)
     return total_reward, success_episodes
 
-# def get_best_model(total_timesteps, save_file, env):
-#     print("Searching for best model now!!!")
-#     total_rewards = []
-#     total_successes = []
-#     for model_step in range(0, total_timesteps + 1, 40000):
-#         model = MY_SAC.load(save_file + str(model_step))
-#         print("Loading model file: {}".format(save_file + str(model_step)))
-#         total_reward, success_episodes = test(model, env)
-#         print(total_reward, success_episodes)
-#         env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
-#         env.logger.log_scalar('test/total_reward', total_reward, model_step)
-#         total_rewards.append(total_reward)
-#         total_successes.append(success_episodes)
-#     print("Rewards at intermediate training: {}".format(total_rewards))
-#     print("Total success episodes: {}".format(total_successes))
-#     m = max(total_successes)
-#     max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
-#     rewards = np.array(total_rewards)[max_inds]
-#     ind = max_inds[np.argmax(rewards)]
-#     print("Best model appears at index: {}".format(ind))
-#     print("No of successes in best model: {}".format(total_successes[ind]))
-#     print("Max no of successes: {}".format(m))
-#     SAVE_PATH = save_file + str(4 * (ind + 1)) + "0000"
-#     best_model = MY_SAC.load(SAVE_PATH, DummyVecEnv([lambda: env]))
-    
-#     with open(ALTA_LOGS + "best_model.txt", "w") as f:
-#         f.write("Best model: {}\n".format(SAVE_PATH))
-#         f.write("Best model appears at index: {}\n".format(ind))
-#         f.write("No of successes in best model: {}\n".format(total_successes[ind]))
-#         f.write("Max no of successes: {}\n".format(m))
-#         f.write("Rewards at intermediate training: {}\n".format(total_rewards))
-#         f.write("Total success episodes: {}\n".format(total_successes))
-        
-#     return best_model
-
 def run_sac(args, prefix, base_prefix, config):
 
-    # prefix = 'sac_nav_5_buf_1m_b_256_lr_3e_4_simple2_r_10_nn64_test1/'
-
-    # ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1' + prefix
-    
     ALTA_LOGS = args.base_log_dir + base_prefix + prefix
     POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
     if not os.path.exists(ALTA_LOGS):
@@ -170,7 +122,7 @@ def run_sac(args, prefix, base_prefix, config):
                 serverStartRetries += 1
                 time.sleep(10)
 
-    
+    # TODO: Handle training resume logic for SAC.
     try:
         # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])

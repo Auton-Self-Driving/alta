@@ -44,74 +44,9 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns, test
 from models import CustomPolicy, CustomWPPolicy, Policy_1_layer, Policy_2_layer
 
-# def test(model, env):
-#     dummy_env = DummyVecEnv([lambda: env])
-#     success_episodes = 0
-#     results = {}
-#     total_reward = 0
-#     for ind in range(5):
-#         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-#         obs[:] = env.reset(unseen=True, index=ind)
-#         done = False
-#         reward = 0
-        
-#         while not done:
-#             actions = model.step(obs, deterministic=True)[0]
-#             info = env.step(actions)
-#             reward += info[1]
-#             done = info[2]
-#             obs = np.expand_dims(info[0], axis=0)
-        
-#         total_reward += reward
-#         if info[3]['termination_state'] == 'success':
-#             success_episodes += 1
-#             results[ind] = 1
-#         else:
-#             results[ind] = 0
-#     print("Results of train scenarios")
-#     print(results)
-#     print("Total Success Episodes: {}".format(success_episodes))
-#     return total_reward, success_episodes
-
-# def get_best_model(total_timesteps, save_file, env):
-#     print("Searching for best model now!!!")
-#     total_rewards = []
-#     total_successes = []
-#     model_file_names = []
-#     for model_step in range(0, total_timesteps + 1, 40000):
-#         model = PPO.load(save_file + str(model_step))
-#         model_file_names.append(save_file + str(model_step))
-#         print("Loading model file: {}".format(save_file + str(model_step)))
-#         total_reward, success_episodes = test(model, env)
-#         print(total_reward, success_episodes)
-#         env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
-#         env.logger.log_scalar('test/total_reward', total_reward, model_step)
-#         total_rewards.append(total_reward)
-#         total_successes.append(success_episodes)
-#     print("Rewards at intermediate training: {}".format(total_rewards))
-#     print("Total success episodes: {}".format(total_successes))
-#     m = max(total_successes)
-#     max_inds = np.array([i for i, j in enumerate(total_successes) if j == m])
-#     rewards = np.array(total_rewards)[max_inds]
-#     ind = max_inds[np.argmax(rewards)]
-#     print("Best model appears at index: {}".format(ind))
-#     print("No of successes in best model: {}".format(total_successes[ind]))
-#     print("Max no of successes: {}".format(m))
-#     best_model = PPO.load(model_file_names[ind], DummyVecEnv([lambda: env]))
-    
-#     with open(ALTA_LOGS + "best_model.txt", "w") as f:
-#         f.write("Best model: {}\n".format(path))
-#         f.write("Best model appears at index: {}\n".format(ind))
-#         f.write("No of successes in best model: {}\n".format(total_successes[ind]))
-#         f.write("Max no of successes: {}\n".format(m))
-#         f.write("Rewards at intermediate training: {}\n".format(total_rewards))
-#         f.write("Total success episodes: {}\n".format(total_successes))
-        
-#     return best_model
-
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix)
-    config.config['LOG_DIR'] = ALTA_LOGS
+    # config.config['LOG_DIR'] = ALTA_LOGS
     
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)

@@ -54,7 +54,7 @@ def test(model, env):
     success_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(5):
+    for ind in range(25):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -141,7 +141,7 @@ if __name__ == '__main__':
                 success_episodes = 0
                 results = {}
                 with open(ALTA_LOGS + config.config["scenarios"] + config.config["city_name"] + ".txt", "w") as f:
-                    for ind in range(5):
+                    for ind in range(25):
                         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
                         obs[:] = env.reset(unseen=True, index=ind)
                         done = False
