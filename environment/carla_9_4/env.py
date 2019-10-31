@@ -209,6 +209,7 @@ class CarlaEnv(gym.Env):
         self.num_steps += 1
 
         if not self.unseen:
+        # if True:
             self.total_steps +=1
         self.episode_measurements['num_steps'] = self.num_steps
 
@@ -217,7 +218,7 @@ class CarlaEnv(gym.Env):
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
@@ -295,9 +296,13 @@ class CarlaEnv(gym.Env):
                 self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
                 self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
-                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
                 self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
                 self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/dist_to_trajectory_reward', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/speed_reward', self.episode_measurements['speed_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/step_reward', self.episode_measurements['step_reward'], self.total_steps)
                             
             if done:
                 self.episode_num += 1
@@ -487,16 +492,16 @@ class CarlaEnv(gym.Env):
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        print('-'*50)
-        print('Waiting for sensor to initialize')
-        print('-'*50)
-        time.sleep(2)
+        # print('-'*50)
+        # print('Waiting for sensor to initialize')
+        # print('-'*50)
+        time.sleep(1)
 
         # TODO: fix bug with no sensor_image. empty image for now
         # x_res = int(self.config["sensor_x_res"])
@@ -521,7 +526,7 @@ class CarlaEnv(gym.Env):
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
 
-        obs['image'] = image
+        # obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
             semantic_image = reduce_classes(semantic_image)

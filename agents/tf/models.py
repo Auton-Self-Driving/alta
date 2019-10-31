@@ -279,11 +279,29 @@ class FeedForwardPolicy(ActorCriticPolicy):
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
 
-class Policy(FeedForwardPolicy):
+class Policy_1_layer(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
-        super(Policy, self).__init__(*args, **kwargs,
+        super(Policy_1_layer, self).__init__(*args, **kwargs,
                                            net_arch=[dict(pi=[64],
                                                           vf=[64])],
+                                           feature_extraction="mlp")
+    
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp, 
+                                                                    self.logstd, self.mean],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+        
+class Policy_2_layer(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(Policy_2_layer, self).__init__(*args, **kwargs,
+                                           net_arch=[dict(pi=[64, 64],
+                                                          vf=[64, 64])],
                                            feature_extraction="mlp")
     
     def step(self, obs, state=None, mask=None, deterministic=False):

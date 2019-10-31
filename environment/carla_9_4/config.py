@@ -205,7 +205,26 @@ class ConfigManager(object):
             self.config["scenarios"] = "straight"
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
-            self.config["reward_function"] = "simple"
+            self.config["reward_function"] = "simple2"
+            self.config["discrete_actions"] = False
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "merged_speed_tanh"
+            self.config["preprocess_crop_image"] = False
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["semantic"] = False
+            self.config["scenarios"] = "navigation"
+            self.config["videos"] = False                                                                                                                                                                                                                  
+            # self.config["num_vehicles"] = 16
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["carla_gpu"] = "1"
+        elif algo == 'SAC':
+            self.config["algo"] = "SAC"
+            self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "merged_speed"
@@ -220,6 +239,8 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp_vae"
             self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["carla_gpu"] = "1"
         elif algo == 'VAE_seg':
             self.config["sensors"] = ["sensor.camera.semantic_segmentation"]
             self.config["x_res"] = 80
@@ -230,4 +251,4 @@ class ConfigManager(object):
             self.config["semantic"] = True
             self.config['max_steps'] = 10000
             self.config["framestack"] = 1
-            self.config["grayscale"] = False
+            self.config["grayscale"] = False            
