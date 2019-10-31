@@ -25,9 +25,9 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns
 from models import CustomPolicy, CustomWPPolicy, Policy
 
-prefix = 'ppo_entcoeff_05_logstd_23_w_tanh/'
+prefix = 'ppo_entcoeff_01_logstd_23_w_tanh_reward_10_nav_5_1/'
 
-ALTA_LOGS = '/zfsauton2/home/tanmaya/projects/alta-logs/ppo_pid_wp_scenarios_navigation_exps/entropy/' + prefix
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/ppo_tanh_runs1/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
@@ -184,7 +184,7 @@ if __name__ == '__main__':
                 dummy_env = DummyVecEnv([lambda: env])
                 
                 model = PPO(policy=Policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=2e-4, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.05)
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, ent_coef=0.005)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())

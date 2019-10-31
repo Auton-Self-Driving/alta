@@ -36,8 +36,6 @@ DEFAULT_ENV = {
     "frame_skip": 1,
     "enable_planner" : True,
     "reward_function" : 'corl',
-    "save_images_to_disk" : False,
-    "write_data": True,
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
@@ -62,7 +60,7 @@ DEFAULT_ENV = {
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
     "sensor_tick": '0.0',
-    "dist_for_success" : 4.0,
+    "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 500,
     "log_measurements_to_file": False,
@@ -71,7 +69,13 @@ DEFAULT_ENV = {
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
     "scenarios" : "straight",
-    "semantic" : False
+    "semantic" : False,
+    "client_timeout_seconds" : 240,
+    "enable_lane_invasion_sensor" : False,
+    "carla_gpu": "0",
+    "render_server": False,
+    "steer_penalty_coeff": 0,
+    "vae_encoding_norm_factor" : 10
 }
 
 episode_measurements = {
@@ -205,7 +209,26 @@ class ConfigManager(object):
             self.config["scenarios"] = "straight"
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
-            self.config["reward_function"] = "simple"
+            self.config["reward_function"] = "simple2"
+            self.config["discrete_actions"] = False
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "merged_speed_tanh"
+            self.config["preprocess_crop_image"] = True
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["semantic"] = False
+            self.config["scenarios"] = "navigation"
+            self.config["videos"] = False                                                                                                                                                                                                                  
+            # self.config["num_vehicles"] = 16
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["carla_gpu"] = "1"
+        elif algo == 'SAC':
+            self.config["algo"] = "SAC"
+            self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "merged_speed"
@@ -220,14 +243,15 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp_vae"
             self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["carla_gpu"] = "1"
         elif algo == 'VAE_seg':
-            self.config["sensors"] = ["sensor.camera.semantic_segmentation"]
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config['preprocess_crop_image'] = False
+            self.config['preprocess_crop_image'] = True
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
             self.config['max_steps'] = 10000
             self.config["framestack"] = 1
-            self.config["grayscale"] = False
+            self.config["grayscale"] = False            

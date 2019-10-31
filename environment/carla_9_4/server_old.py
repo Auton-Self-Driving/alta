@@ -1,3 +1,4 @@
+# ./CarlaUE4.sh Town01 -windowed -ResX=800 -ResY=800 -carla-server -benchmark -fps=10 -carla-world-port=2000 SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0
 import os
 import signal
 import subprocess
@@ -11,31 +12,27 @@ class CarlaServer():
         self.config = config
         self.server_port = config['server_port']
         self.server_binary = config['server_binary']
-        self.carla_gpu = config['carla_gpu']
-        self.render_server = config['render_server']
+        self.render_res_x = config['render_res_x']
+        self.render_res_y = config['render_res_y']
+        self.server_fps = config['server_fps']
         self.live_carla_processes = set()
         if not self.server_port:
             self.server_port = random.randint(10000, 60000)
         else:
             pass
         print(self.server_binary)
-
-        my_env = os.environ.copy()
-        if self.carla_gpu is not None:
-            my_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
-            del my_env['CUDA_VISIBLE_DEVICES']
-            print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
-
-        if not self.render_server:
-            os.environ["SDL_VIDEODRIVER"] = "offscreen"
         
         launch_command = [
-                self.server_binary, "-carla-rpc-port={}".format(self.server_port)
-        ]
-        
+                self.server_binary, self.config['city_name'], "-windowed",
+                "-ResX={}".format(self.render_res_x), "-ResY={}".format(self.render_res_y),
+                "-carla-server", "-benchmark", "-fps={}".format(self.server_fps),
+                "-carla-world-port={}".format(self.server_port), "SDL_VIDEODRIVER=offscreen",
+                "SDL_HINT_CUDA_DEVICE=0"
+            ]
 
         self.server_process = subprocess.Popen(launch_command,
-            preexec_fn=os.setsid, env=my_env)
+            preexec_fn=os.setsid,
+            stdout=open(os.devnull, "w"))
 
         if self.server_process:
             print("Launched server at port:", self.server_port)
