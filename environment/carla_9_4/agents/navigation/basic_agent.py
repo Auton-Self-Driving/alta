@@ -81,7 +81,7 @@ class BasicAgent(Agent):
 
         return route
 
-    def run_step(self, debug=True):
+    def run_step(self, debug=False):
         """
         Execute one step of navigation.
         :return: carla.VehicleControl
