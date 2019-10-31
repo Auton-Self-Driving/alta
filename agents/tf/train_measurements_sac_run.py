@@ -8,8 +8,7 @@ sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# from environment.carla_9_4.env import CarlaEnv
-from environment.carla_9_4.env_new import CarlaEnv
+from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
 import itertools
@@ -44,6 +43,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
 from my_sac import MY_SAC, plot_policy_and_value_fns, My_MlpPolicy_1layer, My_MlpPolicy_2layer
+import traceback
 # from models import CustomPolicy, CustomWPPolicy, Policy
 # from stable_baselines.sac.policies import MlpPolicy
 
@@ -164,6 +164,7 @@ def run_sac(args, prefix, base_prefix, config):
         
         except Exception as identifier:
             print(prefix, identifier)
+            traceback.print_exc()
             if env is not None:
                 env.close()
                 serverStartRetries += 1
@@ -198,6 +199,7 @@ def run_sac(args, prefix, base_prefix, config):
     except Exception as identifier:
         with open(ALTA_LOGS + "error.txt", "w") as f:
             print(prefix, identifier)
+            traceback.print_exc()
             f.write(str(identifier))
 
     finally:

@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
-from environment.carla_9_4.env_new import CarlaEnv
+from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
 import itertools
@@ -111,7 +111,7 @@ from models import CustomPolicy, CustomWPPolicy, Policy_1_layer, Policy_2_layer
 
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix)
-    config['LOG_DIR'] = ALTA_LOGS
+    config.config['LOG_DIR'] = ALTA_LOGS
     
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)

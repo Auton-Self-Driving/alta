@@ -46,6 +46,8 @@ def create_ppo_prefix(args):
         + '_ent_coef_' + str(args.ent_coef) \
         + '_runid_' + args.run_id +'/'
 
+    return prefix
+
 if __name__ == '__main__':
     args = main(sys.argv)
     print("args", args)

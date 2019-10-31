@@ -15,7 +15,6 @@ import math
 import copy
 import cv2
 import collections
-import queue
 import time
 
 import environment.carla_9_4.scenarios as scenarios
@@ -54,9 +53,11 @@ class CarlaEnv(gym.Env):
         self.total_reward = 0
         self.prev_measurement = None
         
+        # File to log measurements to
+        self.measurements_log = None
         # Can pass in train/test weather as an array
         self.weather = None
-        self.camera_queue = queue.Queue()
+        self._image_queue = collections.deque(maxlen=self.config['framestack'])
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -100,29 +101,15 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(10)
-
         # Create new client
         self.client =  self._spawn_client()
-        print("server_version", self.client.get_server_version())
 
-        # Commenting load_world, assuming default is set as Town01 in CARLA binary config
-        # since sometimes, it causes timeout issues in the beginning
-        # self._world = self.client.load_world(self.config['city_name'])
-        
         self._world = self.client.get_world()
 
-        settings = self._world.get_settings()
-        if(self.config['sync_mode']):            
+        if(self.config['sync_mode']):
+            settings = self._world.get_settings()
             settings.synchronous_mode = True
-        
-        if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
-            settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
-        
-        # We want to enable rendering
-        settings.no_rendering_mode = False
-
-        self._world.apply_settings(settings)
+            self._world.apply_settings(settings)
 
         self._map = self._world.get_map()
         
@@ -139,9 +126,6 @@ class CarlaEnv(gym.Env):
                 # Streer, Throttle
                 self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
             elif self.config["action_type"] == 'merged_speed':
-                # Steer, Speed
-                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
-            elif self.config["action_type"] == 'merged_speed_tanh':
                 # Steer, Speed
                 self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
             elif self.config["action_type"] == 'steer_only':
@@ -168,7 +152,7 @@ class CarlaEnv(gym.Env):
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
         client = carla.Client(hostname, port_number)
-        client.set_timeout(self.config["client_timeout_seconds"])
+        client.set_timeout(120.0)
         return client
 
     def step(self, action):
@@ -182,7 +166,7 @@ class CarlaEnv(gym.Env):
     def _step(self, action):
         if(self.config['discrete_actions']):
             action = DISCRETE_ACTIONS[int(action)]
-            target_speed = float(np.clip(action[0] + 10.0, 0, self.target_speed))
+            target_speed = float(np.clip((action[0] + 1) * 10.0, 0, self.target_speed))
             self.episode_measurements['target_speed'] = target_speed
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
@@ -216,27 +200,25 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['control_brake'] = control.brake
         self.episode_measurements['control_reverse'] = control.reverse
         self.episode_measurements['control_hand_brake'] = control.hand_brake
-        
-
-        world_frame = None
 
         #TODO: Increment steps inside of frame_skip?
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
-            world_frame = self._world.tick()
+            self._world.tick()
+            timestamp = self._world.wait_for_tick(120.0)
         self.num_steps += 1
 
         if not self.unseen:
+        # if True:
             self.total_steps +=1
         self.episode_measurements['num_steps'] = self.num_steps
 
         # Read in preprocessed image
-        sensor_image = self._read_data(world_frame)
+        sensor_image = self._read_data()
 
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        if self.config["enable_lane_invasion_sensor"]:
-            self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
@@ -245,11 +227,10 @@ class CarlaEnv(gym.Env):
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
-        
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
         reward = compute_reward(name=self.config['reward_function'],
                              prev_measurement=self.prev_measurement,
                              cur_measurement=self.episode_measurements,
-                             config=self.config,
                              verbose=self.config["verbose"])
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
@@ -260,16 +241,30 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['done'] = done
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
+        if self.config["log_measurements_to_file"] and CARLA_LOGS:
+            if not self.measurements_log:
+                self.measurements_log = open(os.path.join(CARLA_LOGS,
+                "measurements_{}.json".format(self.episode_id)), "a")
+            self.measurements_log.write(json.dumps(self.episode_measurements))
+            self.measurements_log.write("\n")
+
+            if done:
+                self.measurements_log.close()
+                self.measurements_file = None
+        #Only increment step after writing log (successful)
+
         obs = {}
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
         
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
-            semantic_image = sensor_image[:,:,0]
+            semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
-            encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
+            encoded_image = encoded_image / 10.0
+            # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
+            # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
@@ -277,6 +272,7 @@ class CarlaEnv(gym.Env):
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
             [self.episode_measurements['distance_to_goal']])
+        obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
 
         obs['orientation'] = np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
@@ -396,17 +392,11 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "merged_speed_tanh":
-            # steer = float(action[0])
-            steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
+        
         
         self.episode_measurements["target_speed"] = target_speed
             
@@ -453,8 +443,6 @@ class CarlaEnv(gym.Env):
         # Destroy
         self.destroy_all_existing_actors()
 
-        self.camera_queue.queue.clear()
-
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
@@ -481,36 +469,38 @@ class CarlaEnv(gym.Env):
             sensor = self.config['sensors'][1]
         else:
             sensor = self.config['sensors'][0]
-
         camera = self.blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera.set_attribute('fov', '120')
-
+        
         camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
-        
-        self.camera_actor.listen(self.camera_queue.put)
-        
+
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
 
-        if self.config["enable_lane_invasion_sensor"]:
-            self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
-            self.actor_list.append(self.lane_invasion_sensor.sensor)
-            
+        self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
+        self.actor_list.append(self.lane_invasion_sensor.sensor)
+        
+        if(self.config['write_data']):
+            self.camera_actor.listen(lambda image: self._write_data(image))
+        if(self.config['save_images_to_disk']):
+            self.camera_actor.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame_number))
+
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        if self.config["enable_lane_invasion_sensor"]:
-            self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+        # self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
         self.location = self.vehicle_actor.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        
+        # print('-'*50)
+        # print('Waiting for sensor to initialize')
+        # print('-'*50)
         time.sleep(1)
 
         # TODO: fix bug with no sensor_image. empty image for now
@@ -520,12 +510,13 @@ class CarlaEnv(gym.Env):
         # TODO: Change this to return the full measurement vector (like the step function)
 
         obs = {}
+        #TODO: Get branch_idx from planner and set accordingly.
+        branch_idx = 1
 
-        # Ticking for 15 frames to handle car initialization in air
-        for _ in range(15):
-            world_frame = self._world.tick()
-
-        image = self._read_data(world_frame)
+        for _ in range(60):
+            self._world.tick()
+            timestamp = self._world.wait_for_tick(120.0)
+        image = self._read_data()
 
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
@@ -533,20 +524,22 @@ class CarlaEnv(gym.Env):
         self.global_planner.set_global_plan(self.trace_route)
 
         next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        
-        obs['image'] = image
+        # next_orientation_old, _ = self.global_planner.get_next_orientation(self.vehicle_actor.get_transform())
+
+        # obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
-            semantic_image = image[:,:,0]
+            semantic_image = self._preprocess_core(self.semantic_image)[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = self.vae_observation(image_labels)
-            encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
+            encoded_image = encoded_image / 10.0
             # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
             # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
+        obs['branch_mask'] = np.expand_dims(np.eye(4)[branch_idx], axis=0)
         obs['orientation']= np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
             obs['orientation'] = np.array([next_orientation, 0.0])
@@ -600,37 +593,68 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def _read_data(self, world_frame, timeout=2.0):
+    def _write_data(self, image):
+        if self.config["semantic"]:
+            self.semantic_image = np.array(image.raw_data)
+            image.convert(cc.CityScapesPalette)
+        sensor_data = image.raw_data
+        
+        if(self.config['framestack'] == 1):
+            self._save_sensor_data(sensor_data)
+        else:
+            # NOTE: Typecasting here since can't do a deepcopy with 'memoryview objects'
+            # TODO: Find a workaround, since typecasting then discarding is inefficient.
+            self._image_queue.append(np.array(sensor_data))
 
-        cam_image = self._read_camera_data(world_frame, timeout)
-        cam_image_p = self._preprocess_image(cam_image)
-        return cam_image_p
+    def _save_sensor_data(self, sensor_data):
+        self.image_data = sensor_data
 
-    def _preprocess_image(self, image):
-        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        array = np.reshape(array, (image.height, image.width, 4))
-        array = array[:, :, :3]
-        array = array[:, :, ::-1]
+    def _read_sensor_data(self):
+        return np.array(self.image_data)
+
+    def _read_data(self):
+        # Read data in from sensor callback and then call preprocess function
+
+        if(self.config['framestack'] == 1):
+            sensor_data = self._read_sensor_data()
+            im_processed = self._preprocess_core(sensor_data)
+        else:
+            data_array = []
+            # Use this loop since the callback is continuously writing into the queue
+            # hence we only read in 'framestack' number of images
+            _image_queue_snapshot = copy.deepcopy(self._image_queue)
+            for image in _image_queue_snapshot:
+                data_array.append(self._preprocess_core(image))
+            # data_array = list(copy.deepcopy(self._image_queue))
+            #Compute ndims (to compute which axis to stack along)
+            ndim = self.config['framestack']
+            # Stack all the images along last axis
+            im_processed = np.concatenate((data_array[:]), axis=2)
+        return im_processed
+
+    def _preprocess_core(self, image):
+        x_res =int(self.config["sensor_x_res"])
+        y_res =int(self.config["sensor_y_res"])
+        # NOTE: BGRA array is returned by RGB sensor
+        data = image.reshape(x_res, y_res, 4)
+        # Convert from BGRA to RGB image
+        data = data[:, :, :3]
+        data = data[:, :, ::-1]
+        
+        if(self.config['grayscale']):
+            data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
 
         if(self.config['preprocess_crop_image']):
-            array = array[200:500, 300:500] 
+            data = data[200:500, 300:500] 
 
-        array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
-
-        return array
-
-    def _read_camera_data(self, world_frame, timeout):
-
-        data  = self._retrieve_data(self.camera_queue, timeout, world_frame)
+        data = cv2.resize(data, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
+        # The cv2 resize converts to self.config["x_res"], self.config["y_res"]. We need the last channel to framestack later.
+        if(self.config['grayscale']):
+            data = data.reshape(self.config["x_res"], self.config["y_res"], 1)
+        # TODO: Need to check better forms of normalization. Add a config flag for normalization
+        # image = (image.astype(np.float32) - 128) / 128
+        # data = data / 255.0
         return data
-
-    def _retrieve_data(self, sensor_queue, timeout, world_frame):
-        while True:
-            data = sensor_queue.get(timeout=timeout)
-            if data.frame == world_frame:
-                return data
-            else:
-                print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
     def _compute_done_condition(self):
 
