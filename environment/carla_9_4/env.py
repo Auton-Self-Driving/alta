@@ -243,7 +243,11 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        if self.config["train_config"] == "VAE_seg":
+            next_orientation, self.dist_to_trajectory = 0, 0
+        else:
+            next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
         
         reward = compute_reward(name=self.config['reward_function'],

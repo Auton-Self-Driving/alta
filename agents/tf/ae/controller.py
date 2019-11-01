@@ -95,6 +95,8 @@ class AEController:
         # self.buffer_reset()
 
         num_batches = int(np.floor(len(ds) / self.batch_size))
+        train_step = 0
+        my_confusion_matrix_normalized = 0
 
         for epoch in range(self.epoch_per_optimization):
             np.random.shuffle(ds)

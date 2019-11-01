@@ -254,10 +254,10 @@ class ConfigManager(object):
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
-            self.config['max_steps'] = 10000
+            self.config['max_steps'] = 25000
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["city_name"] = "Town01"
             self.config["spawn_npc"] = True
-            self.config["num_npc"] = 2
+            self.config["num_npc"] = 60
             self.config["input_type"] = "vae_train"

@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sn                                                    
 import pandas as pd
+import os
 # import sklearn.metrics
 
 # print("TensorFlow version: ", tf.__version__)
@@ -109,6 +110,14 @@ def get_cm_image(cm):
 
     return cm_image_png, cm_image
 
+def save_cm(cm, path, ind):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    df_cm = pd.DataFrame(cm, index = [REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)], columns = [REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)])
+    figure = plt.figure(figsize = (12,7))
+    sn.heatmap(df_cm, annot=True)
+    plt.savefig(path + 'cm_{}.png'.format(ind))
+    plt.close()
 
 
 
