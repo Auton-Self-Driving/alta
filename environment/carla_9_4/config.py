@@ -39,12 +39,11 @@ DEFAULT_ENV = {
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions": True,
+    "discrete_actions": False,
 
     # Number of frames stacked together
     "framestack" : 1,
     "grayscale" : False,
-    "num_vehicles" : 1,
     "num_pedestrians" : 0,
     "max_steps" : 10000,
     "next_command": None,
@@ -75,7 +74,11 @@ DEFAULT_ENV = {
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
-    "vae_encoding_norm_factor" : 10
+    "vae_encoding_norm_factor" : 10,
+    "input_type": None,
+    "use_scenarios": True,
+    "spawn_npc" : False,
+    "num_npc" : 125
 }
 
 episode_measurements = {
@@ -218,8 +221,7 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["semantic"] = False
             self.config["scenarios"] = "navigation"
-            self.config["videos"] = False                                                                                                                                                                                                                  
-            # self.config["num_vehicles"] = 16
+            self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
@@ -237,15 +239,15 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["semantic"] = True
             self.config["scenarios"] = "straight"
-            self.config["videos"] = True                                                                                                                                                                                                                  
-            # self.config["num_vehicles"] = 16
+            self.config["videos"] = True
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp_vae"
+            self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
         elif algo == 'VAE_seg':
+            self.config["train_config"] = "VAE_seg"
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config['preprocess_crop_image'] = True
@@ -256,4 +258,6 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["city_name"] = "Town01"
-            self.config["num_npc"] = 125
+            self.config["spawn_npc"] = True
+            self.config["num_npc"] = 2
+            self.config["input_type"] = "vae_train"

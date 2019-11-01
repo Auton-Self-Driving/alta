@@ -40,15 +40,16 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 
-from ae.controller import VAEController
+from ae.controller import AEController
 import ae.util as util
 import ae.plot_cm as plot_cm
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 import csv
+import traceback
 
-prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_c5_fs_10_1/'
+prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_c5_fs_10_test/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/test/ae'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     print('Launched environment!')
     print('-'*50)
 
-    vae = VAEController(image_size=(160, 80, 5), learning_rate=5e-3, batch_size=64)
+    vae = AEController(image_size=(160, 80, 5), learning_rate=5e-3, batch_size=64)
 
     obs = env.reset()
     print('-'*50)
@@ -129,13 +130,17 @@ if __name__ == '__main__':
             vis_wrapper_vae.save_image(decoded_image , t)
 
         control = agent.run_step()
-        new_obs, rew, done, eps_measurements = env.step(control)
+        try:
+            new_obs, rew, done, eps_measurements = env.step(control)
+        except Exception as identifier:
+            print(identifier)
+            traceback.print_exc()
         
         
         # new_encoded_image = get_vae_observation(vae, new_obs['image'])
         # Store transition in the replay buffer.
         # Read only sensor image part of the observation (sensor_image, [measurements_array])
-        rew = float(rew[0, 0])
+        # rew = float(rew[0, 0])
         done = bool(done[0, 0])
 
         obs = new_obs
@@ -219,7 +224,7 @@ if __name__ == '__main__':
                 new_obs, rew, done, eps_measurements = env.step(control)
                 
                 
-                rew = float(rew[0, 0])
+                # rew = float(rew[0, 0])
                 done = bool(done[0, 0])
 
                 obs = new_obs

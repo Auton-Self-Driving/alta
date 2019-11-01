@@ -45,9 +45,9 @@ import ae.util as util
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 import csv
 
-prefix = 'vae_v125_sem_lr_1e4_nn_16_32_64_128_z1024_kl_05_2/'
+prefix = 'vae_v125_sem_lr_1e4_nn_16_32_64_128_z1024_kl_05_test/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/myvae/'
+ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/test/myvae/'
 # ALTA_LOGS = '/home/hitesh/research/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
@@ -64,7 +64,7 @@ FRAME_SKIP = 4
 TOTAL_TIMESTEPS = 200000
 VAL_TIMESTEPS = 10000
 VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
-
+NUM_CLASSES  = 5
 Accuracy_File = ALTA_LOGS+prefix+"acurracy_town1.csv"
 confusion_matrix_file = ALTA_LOGS+prefix+"cm_town1.txt"
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     print('Launched environment!')
     print('-'*50)
 
-    vae = VAEController(z_size=1024, image_size=(160, 80, 13), learning_rate=1e-4, batch_size=64, kl_tolerance=0.5)
+    vae = VAEController(z_size=1024, image_size=(160, 80, 5), learning_rate=1e-4, batch_size=64, kl_tolerance=0.5)
 
     obs = env.reset()
     print('-'*50)
@@ -108,15 +108,15 @@ if __name__ == '__main__':
     for t in range(TOTAL_TIMESTEPS):
 
         semantic_image = obs['semantic_image']
-        # print("semantic_image", semantic_image, np.max(semantic_image), np.min(semantic_image))
-        semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
+        semantic_image_rgb = util.convert_to_rgb(semantic_image).astype(np.uint8)
 
         print("type of obs[image]", type(obs['image']))
         print("type of semantic_image_rgb", type(semantic_image_rgb))
 
         # print("semantic_image_rgb", semantic_image_rgb, np.max(semantic_image_rgb), np.min(semantic_image_rgb))
         # print("semantic_image", np.shape(semantic_image))
-        semantic_image_onehot = util.convert_to_one_hot(semantic_image)
+        semantic_image_reduced = util.reduce_classes(semantic_image)
+        semantic_image_onehot = util.convert_to_one_hot(semantic_image_reduced, num_classes=5)
         # print("semantic_image_onehot", np.shape(semantic_image_onehot))
         # print("semantic_image_onehot", semantic_image_onehot[0,0,:])
         encoded_image = get_and_add_vae_observation(vae, semantic_image_onehot)
@@ -193,15 +193,15 @@ if __name__ == '__main__':
             obs = env.reset()
             agent = RoamingAgent(env.vehicle_actor)
 
-            confusion_matrix = np.zeros((13, 13))
+            confusion_matrix = np.zeros((NUM_CLASSES, NUM_CLASSES))
             val_accuracy_array = []
             for valT in range(VAL_TIMESTEPS):
 
                 semantic_image = obs['semantic_image']
-                semantic_image_rgb = util.convert_to_rgb(np.expand_dims(semantic_image, axis=-1)).astype(np.uint8)
+                semantic_image_rgb = util.convert_to_rgb(semantic_image).astype(np.uint8)
 
-                
-                semantic_image_onehot = util.convert_to_one_hot(semantic_image)
+                semantic_image_reduced = util.reduce_classes(semantic_image)
+                semantic_image_onehot = util.convert_to_one_hot(semantic_image_reduced, num_classes=5)
                 encoded_image = get_vae_observation(vae, semantic_image_onehot)
                 decoded_image_onehot = vae.decode(encoded_image)[0]
                 decoded_image = util.convert_from_one_hot(decoded_image_onehot)

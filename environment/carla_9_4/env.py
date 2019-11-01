@@ -271,6 +271,10 @@ class CarlaEnv(gym.Env):
             encoded_image = self.vae_observation(image_labels)
             encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
+        
+        if self.config["input_type"] == "vae_train":
+            semantic_image = sensor_image[:,:,0]
+            obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
         obs['speed'] = np.expand_dims(
@@ -330,8 +334,10 @@ class CarlaEnv(gym.Env):
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             fused_input = np.hstack([encoded_image, orientation])
             return fused_input, reward, done, self.episode_measurements
-        else:
+        elif self.config["input_type"] == "wp":
             return obs['orientation'], reward, done, self.episode_measurements
+        else:
+            return obs, reward, done, self.episode_measurements
 
     def _set_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
@@ -365,7 +371,6 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        action = action.flatten()
         if self.config["action_type"] is "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -407,6 +412,8 @@ class CarlaEnv(gym.Env):
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
+        elif self.config["action_type"] == "control":
+            return action
         
         self.episode_measurements["target_speed"] = target_speed
             
@@ -463,7 +470,7 @@ class CarlaEnv(gym.Env):
 
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
-        if self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02":
+        if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
             self._set_scenario(unseen=unseen, index=index, town=self.config["city_name"])
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
@@ -472,8 +479,8 @@ class CarlaEnv(gym.Env):
         self.actor_list.append(self.vehicle_actor)
         self.location = self.vehicle_actor.get_location()
 
-        if self.config["scenarios"] == "dynamic_navigation":
-            self.spawn_npc(self.config["num_vehicles"] - 1)    
+        if self.config["spawn_npc"]: 
+            self.spawn_npc(self.config["num_npc"])    
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -532,7 +539,10 @@ class CarlaEnv(gym.Env):
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
-        next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        if self.config["train_config"] == "VAE_seg":
+            next_orientation, self.dist_to_trajectory = 0, 0
+        else:
+            next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         
         obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
@@ -543,6 +553,10 @@ class CarlaEnv(gym.Env):
             encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
             # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
             # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
+            obs['semantic_image'] = semantic_image
+        
+        if self.config["input_type"] == "vae_train":
+            semantic_image = image[:,:,0]
             obs['semantic_image'] = semantic_image
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
@@ -560,9 +574,11 @@ class CarlaEnv(gym.Env):
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             fused_input = np.hstack([encoded_image, orientation])
             return fused_input
-        else:
+        elif self.config["input_type"] == "wp":
             return obs['orientation']
-    
+        else:
+            return obs
+        
     def try_spawn_random_vehicle_at(self, blueprints, transform):
         blueprint = random.choice(blueprints)
         if blueprint.has_attribute('color'):
@@ -642,6 +658,11 @@ class CarlaEnv(gym.Env):
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
         static = False
+
+        # Do not want to terminate on reaching goal
+        # in case of VAE training
+        if self.config["train_config"] == "VAE_seg":
+            success = False
 
         if success:
             termination_state = 'success'
