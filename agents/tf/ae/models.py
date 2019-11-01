@@ -67,9 +67,15 @@ class ConvAutoEncoder(object):
                 # cross-entropy pixel wise loss
                 decoded = tf.nn.softmax(self.y, name='decoded')
                 
+                # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 500.0, 1.0, 1.0]])
+
                 labels = tf.reshape(self.x, (-1, num_classes))
                 logits = tf.reshape(self.y, (-1, num_classes))
+
+                # weights = tf.reduce_sum(class_weights * labels, axis=1)
                 entropy_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+                # weighted_losses = entropy_loss * weights
+                # self.entropy_loss = tf.reduce_mean(weighted_losses)
                 self.entropy_loss = tf.reduce_mean(entropy_loss)
                 input_labels = tf.argmax(self.x, axis=-1)
                 output_labels = tf.argmax(self.y, axis=-1)
