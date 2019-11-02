@@ -316,7 +316,26 @@ class Policy_2_layer(FeedForwardPolicy):
             return action, value, self.initial_state, neglogp, logstd, mean
 
 
-class CustomPolicy1(ActorCriticPolicy):
+class CustomPolicy(ActorCriticPolicy):
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                  self.logstd, self.mean],
+                                                                 {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
+
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
+
+
+class CustomPolicy1(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
         super(CustomPolicy1, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
@@ -346,25 +365,8 @@ class CustomPolicy1(ActorCriticPolicy):
         self._value_fn = value_fn
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None, deterministic=False):
-        if deterministic:
-            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
-                                                   {self.obs_ph: obs})
-            return action, value, self.initial_state, neglogp, None, None
-        else:
-            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
-                                                                  self.logstd, self.mean],
-                                                                 {self.obs_ph: obs})
-            return action, value, self.initial_state, neglogp, logstd, mean
 
-    def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
-
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
-
-
-class CustomPolicy2(ActorCriticPolicy):
+class CustomPolicy2(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
         super(CustomPolicy2, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
@@ -398,24 +400,8 @@ class CustomPolicy2(ActorCriticPolicy):
         self._value_fn = value_fn
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None, deterministic=False):
-        if deterministic:
-            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
-                                                   {self.obs_ph: obs})
-            return action, value, self.initial_state, neglogp, None, None
-        else:
-            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
-                                                                  self.logstd, self.mean],
-                                                                 {self.obs_ph: obs})
-            return action, value, self.initial_state, neglogp, logstd, mean
 
-    def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
-
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
-
-class CustomWPPolicy(ActorCriticPolicy):
+class CustomWPPolicy(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
         super(CustomWPPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
@@ -438,19 +424,3 @@ class CustomWPPolicy(ActorCriticPolicy):
 
         self._value_fn = value_fn
         self._setup_init()
-
-    def step(self, obs, state=None, mask=None, deterministic=False):
-        if deterministic:
-            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
-                                                   {self.obs_ph: obs})
-        else:
-            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
-                                                   {self.obs_ph: obs})
-        return action, value, self.initial_state, neglogp
-
-    def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
-
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
-

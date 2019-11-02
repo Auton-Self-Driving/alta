@@ -652,6 +652,9 @@ class CarlaEnv(gym.Env):
             data = sensor_queue.get(timeout=timeout)
             if data.frame == world_frame:
                 return data
+            else:
+                if self.config["verbose"]:
+                    print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
     def _compute_done_condition(self):
 

@@ -12,7 +12,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
-    parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type for training')
+    parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp" or "wp_vae"')
+    parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
@@ -36,7 +37,8 @@ def create_sac_prefix(args):
         + '_input_' + args.input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
-        + '_buffer_' + str(args.buffer_size)
+        + '_buffer_' + str(args.buffer_size) \
+        + '_' + args.scenarios \
     
     prefix = base + '_runid_' + args.run_id + '/'
     base_prefix = base + '/'
@@ -48,7 +50,8 @@ def create_ppo_prefix(args):
         + '_input_' + args.input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
-        + '_navigation_scenarios' \
+        + '_' + args.scenarios \
+        # + '_reduced_' + args.scenarios \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -64,6 +67,7 @@ if __name__ == '__main__':
     config.config["carla_gpu"] = str(args.carla_gpu)
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
     config.config["input_type"] = args.input_type
+    config.config["scenarios"] = args.scenarios
 
     try:
         if args.algo == "SAC":

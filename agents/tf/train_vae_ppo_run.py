@@ -1,9 +1,6 @@
 import sys, os, time, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
-
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
