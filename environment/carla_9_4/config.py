@@ -63,7 +63,7 @@ DEFAULT_ENV = {
     "max_offlane_steps" : 20,
     "max_static_steps" : 500,
     "log_measurements_to_file": False,
-    "train_config": 'baselines',
+    "train_config": None,
     "sync_mode": True,
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
@@ -77,8 +77,7 @@ DEFAULT_ENV = {
     "vae_encoding_norm_factor" : 10,
     "input_type": None,
     "use_scenarios": True,
-    "spawn_npc" : False,
-    "num_npc" : 125
+    "num_npc" : 0
 }
 
 episode_measurements = {
@@ -246,18 +245,15 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
-        elif algo == 'VAE_seg':
-            self.config["train_config"] = "VAE_seg"
+        elif algo == 'AE':
+            self.config["algo"] = "AE"
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config['preprocess_crop_image'] = True
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
-            self.config['max_steps'] = 25000
-            self.config["framestack"] = 1
-            self.config["grayscale"] = False
+            self.config['max_steps'] = 10000
             self.config["city_name"] = "Town01"
-            self.config["spawn_npc"] = True
             self.config["num_npc"] = 60
-            self.config["input_type"] = "vae_train"
+            self.config["input_type"] = "ae_train"

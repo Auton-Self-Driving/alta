@@ -32,8 +32,6 @@ def create_prefix(args):
         + '_lr_' + str(args.lr) \
         + '_batchsize_' + str(args.batch_size) \
         + '_npc_' + str(args.num_npc) \
-    
-    
     base += '_zsize_' + str(args.vae_zsize)
 
     prefix = base + '_runid_' + args.run_id +'/'
@@ -47,7 +45,7 @@ if __name__ == '__main__':
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(args.code_gpu)
 
-    config = ConfigManager(algo='VAE_seg')
+    config = ConfigManager(algo='AE')
     config.config["carla_gpu"] = str(args.carla_gpu)
     config.config["num_npc"] = args.num_npc
 
@@ -59,7 +57,8 @@ if __name__ == '__main__':
     
     except Exception as e:
         print(e)
-        with open(args.base_log_dir + prefix + "error.txt", "w") as f:
+        error_file = os.path.join(args.base_log_dir,prefix, "error.txt")
+        with open(error_file, "w") as f:
             print(prefix, e)
             traceback.print_exc()
             f.write(str(e))

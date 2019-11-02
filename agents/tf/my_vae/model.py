@@ -3,7 +3,7 @@
 # MIT License
 
 '''
-AE models.
+VAE models.
 '''
 
 import numpy as np
@@ -20,15 +20,16 @@ def denormalize(data):
     return data * 255.0
 
 
-class ConvAutoEncoder(object):
-    def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, is_training=True,
+class ConvVAE(object):
+    def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, kl_tolerance=0.5, is_training=True,
                  reuse=False, gpu_mode=True):
         self.z_size = z_size
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.is_training = is_training
+        self.kl_tolerance = kl_tolerance
         self.reuse = reuse
-        with tf.variable_scope('conv_ae', reuse=self.reuse):
+        with tf.variable_scope('conv_vae', reuse=self.reuse):
             if not gpu_mode:
                 with tf.device('/cpu:0'):
                     tf.logging.info('Model using cpu.')
@@ -41,22 +42,31 @@ class ConvAutoEncoder(object):
     def _build_graph(self):
         self.g = tf.Graph()
         with self.g.as_default():
-            num_classes = 5
-            self.x = tf.placeholder(tf.float32, shape=[None, 160, 80, num_classes])
+            # self.x = tf.placeholder(tf.float32, shape=[None, 80, 160, 3])
+            self.x = tf.placeholder(tf.float32, shape=[None, 160, 80, 5])
 
             # Encoder
             h = tf.layers.conv2d(self.x, 16, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
             h = tf.layers.conv2d(h, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
             h = tf.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
-            h = tf.layers.conv2d(h, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
-            self.encoded = tf.reshape(h, [-1, 8 * 3 * 32])
+            h = tf.layers.conv2d(h, 128, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            h = tf.reshape(h, [-1, 8 * 3 * 128])
+
+            # VAE
+            self.mu = tf.layers.dense(h, self.z_size, name="enc_fc_mu")
+            self.logvar = tf.layers.dense(h, self.z_size, name="enc_fc_log_var")
+            self.sigma = tf.exp(self.logvar / 2.0)
+            self.epsilon = tf.random_normal([self.batch_size, self.z_size])
+            self.z = self.mu + self.sigma * self.epsilon
 
             # Decoder
-            h = tf.reshape(self.encoded, [-1, 8, 3, 32])
+            h = tf.layers.dense(self.z, 3 * 8 * 128, name="dec_fc")
+            # h = tf.reshape(h, [-1, 3, 8, 256])
+            h = tf.reshape(h, [-1, 8, 3, 128])
             h = tf.layers.conv2d_transpose(h, 64, 4, strides=2, activation=tf.nn.relu, name="dec_deconv1")
             h = tf.layers.conv2d_transpose(h, 32, 4, strides=2, activation=tf.nn.relu, name="dec_deconv2")
             h = tf.layers.conv2d_transpose(h, 16, 5, strides=2, activation=tf.nn.relu, name="dec_deconv3")
-            self.y = tf.layers.conv2d_transpose(h, num_classes, 4, strides=2, activation=None, name="dec_deconv4")
+            self.y = tf.layers.conv2d_transpose(h, 5, 4, strides=2, activation=tf.nn.sigmoid, name="dec_deconv4")
 
             # train ops
             if self.is_training:
@@ -67,11 +77,9 @@ class ConvAutoEncoder(object):
                 # cross-entropy pixel wise loss
                 decoded = tf.nn.softmax(self.y, name='decoded')
                 
-                # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 500.0, 1.0, 1.0]])
-
-                labels = tf.reshape(self.x, (-1, num_classes))
-                logits = tf.reshape(self.y, (-1, num_classes))
-
+                labels = tf.reshape(self.x, (-1, 5))
+                logits = tf.reshape(self.y, (-1, 5))
+                # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 100.0, 1.0, 1.0]])
                 # weights = tf.reduce_sum(class_weights * labels, axis=1)
                 entropy_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
                 # weighted_losses = entropy_loss * weights
@@ -82,18 +90,31 @@ class ConvAutoEncoder(object):
                 
                 input_labels_flattened = tf.reshape(input_labels, [-1])
                 output_labels_flattened = tf.reshape(output_labels,[-1])
-                confusion_matrix = np.zeros((num_classes, num_classes))
                 
                 my_accuracy = tf.reduce_mean(tf.cast(tf.equal(input_labels_flattened, output_labels_flattened), tf.float32))
                 self.my_accuracy = my_accuracy
                 
                 self.accuracy, self.accuracy_op = tf.metrics.accuracy(input_labels, output_labels)
 
-                self.confusion_matrix = tf.confusion_matrix(tf.reshape(input_labels, [-1]), tf.reshape(output_labels, [-1]), num_classes=num_classes)
-                self.loss = self.entropy_loss
-
-                self.my_confusion_matrix = self.confusion_matrix
+                self.confusion_matrix = tf.confusion_matrix(tf.reshape(input_labels, [-1]), tf.reshape(output_labels, [-1]), num_classes=5)
                 self.my_confusion_matrix_normalized = self.confusion_matrix / tf.reshape(tf.reduce_sum(self.confusion_matrix, axis=1), [-1,1])
+                
+                # # reconstruction loss
+                # self.r_loss = tf.reduce_sum(
+                #     tf.square(self.x - self.y),
+                #     reduction_indices=[1, 2, 3]
+                # )
+                # self.r_loss = tf.reduce_mean(self.r_loss)
+
+                # augmented kl loss per dim
+                self.kl_loss = - 0.5 * tf.reduce_sum(
+                    (1 + self.logvar - tf.square(self.mu) - tf.exp(self.logvar)),
+                    reduction_indices=1
+                )
+                self.kl_loss = tf.maximum(self.kl_loss, self.kl_tolerance * self.z_size)
+                self.kl_loss = tf.reduce_mean(self.kl_loss)
+
+                self.loss = self.entropy_loss + self.kl_loss
 
                 # training
                 self.lr = tf.Variable(self.learning_rate, trainable=False)
@@ -118,10 +139,10 @@ class ConvAutoEncoder(object):
         self.sess.close()
 
     def encode(self, x):
-        return self.sess.run(self.encoded, feed_dict={self.x: x})
+        return self.sess.run(self.z, feed_dict={self.x: x})
 
     def decode(self, z):
-        return self.sess.run(self.y, feed_dict={self.encoded: z})
+        return self.sess.run(self.y, feed_dict={self.z: z})
 
     def get_model_params(self):
         # get trainable params.
@@ -160,12 +181,12 @@ class ConvAutoEncoder(object):
                 self.sess.run(assign_op)
                 idx += 1
 
-    def load_json(self, jsonfile='ae.json'):
+    def load_json(self, jsonfile='vae.json'):
         with open(jsonfile, 'r') as f:
             params = json.load(f)
         self.set_model_params(params)
 
-    def save_json(self, jsonfile='ae.json'):
+    def save_json(self, jsonfile='vae.json'):
         model_params, model_shapes, model_names = self.get_model_params()
         qparams = []
         for p in model_params:
@@ -181,7 +202,7 @@ class ConvAutoEncoder(object):
         sess = self.sess
         with self.g.as_default():
             saver = tf.train.Saver(tf.global_variables())
-        checkpoint_path = os.path.join(model_save_path, 'ae')
+        checkpoint_path = os.path.join(model_save_path, 'vae')
         tf.logging.info('saving model %s.', checkpoint_path)
         saver.save(sess, checkpoint_path, 0)  # just keep one
 

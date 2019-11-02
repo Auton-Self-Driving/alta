@@ -243,7 +243,7 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        if self.config["train_config"] == "VAE_seg":
+        if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
             next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
@@ -276,7 +276,7 @@ class CarlaEnv(gym.Env):
             encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
         
-        if self.config["input_type"] == "vae_train":
+        if self.config["input_type"] == "ae_train":
             semantic_image = sensor_image[:,:,0]
             obs['semantic_image'] = semantic_image
 
@@ -483,7 +483,7 @@ class CarlaEnv(gym.Env):
         self.actor_list.append(self.vehicle_actor)
         self.location = self.vehicle_actor.get_location()
 
-        if self.config["spawn_npc"]: 
+        if self.config["num_npc"] > 0:
             self.spawn_npc(self.config["num_npc"])    
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
@@ -543,7 +543,7 @@ class CarlaEnv(gym.Env):
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
-        if self.config["train_config"] == "VAE_seg":
+        if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
             next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
@@ -559,7 +559,7 @@ class CarlaEnv(gym.Env):
             # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
             obs['semantic_image'] = semantic_image
         
-        if self.config["input_type"] == "vae_train":
+        if self.config["input_type"] == "ae_train":
             semantic_image = image[:,:,0]
             obs['semantic_image'] = semantic_image
     
@@ -665,7 +665,7 @@ class CarlaEnv(gym.Env):
 
         # Do not want to terminate on reaching goal
         # in case of VAE training
-        if self.config["train_config"] == "VAE_seg":
+        if self.config["algo"] == "AE":
             success = False
 
         if success:
