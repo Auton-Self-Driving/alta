@@ -230,8 +230,8 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         current["step_reward"] = reward
 
         if verbose:
-            print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, steer_reward, reward")
-            print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, steer_reward, reward)
+            print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward")
+            print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward)
         
         # Update state variables
         # if np.absolute(lane_intersection_reward) > 0:

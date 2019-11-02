@@ -8,6 +8,7 @@ import gym
 from collections import deque
 import os
 import sys
+import csv
 import multiprocessing
 from collections import deque
 import matplotlib
@@ -309,13 +310,17 @@ class PPO(PPO2):
             for update in range((trained_timesteps // self.n_batch), nupdates + 1):
                 if update == (trained_timesteps // self.n_batch):
                     self.save(save_file + str(update * self.n_batch))
-                    plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
+                    if policy_plots:
+                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
                     total_reward, success_episodes, _ = test(self, env)
                     env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                     env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(update * self.n_batch))
+                    with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
+                        csvwriter = csv.writer(f, delimiter=',')
+                        csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
                     continue
                 # if (update * self.n_batch) <= trained_timesteps:
                 #     continue
@@ -348,13 +353,15 @@ class PPO(PPO2):
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                        
                         total_reward, success_episodes, _ = test(self, env)
                         env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                         env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))
+                        with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
+                            csvwriter = csv.writer(f, delimiter=',')
+                            csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0

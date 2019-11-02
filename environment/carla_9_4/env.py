@@ -155,11 +155,11 @@ class CarlaEnv(gym.Env):
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 1536), dtype=np.float32)
+                                        shape=(1, 768), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 1537), dtype=np.float32)
+                                        shape=(1, 769), dtype=np.float32)
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -375,6 +375,9 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
+        if self.config["action_type"] != "control":
+            action = action.flatten()
+
         if self.config["action_type"] is "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -649,8 +652,6 @@ class CarlaEnv(gym.Env):
             data = sensor_queue.get(timeout=timeout)
             if data.frame == world_frame:
                 return data
-            else:
-                print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
     def _compute_done_condition(self):
 

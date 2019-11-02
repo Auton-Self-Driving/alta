@@ -1,5 +1,8 @@
-import sys, os, glob
+import sys, os, time, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
@@ -12,18 +15,20 @@ import traceback
 from datetime import datetime
 import tensorboard_logging as tf_log
 
+from ae.controller import AEController
+
 # PPO specific
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from ppo import PPO, plot_policy_and_value_fns, test
-from models import Policy_1_layer, Policy_2_layer
+from ppo import PPO, test
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 
-def run_ppo(args, prefix, config):
+def run_ppo_vae(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
-    # config.config['LOG_DIR'] = ALTA_LOGS
     
-    POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
+    vae = AEController()
+    
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
 
@@ -33,12 +38,15 @@ def run_ppo(args, prefix, config):
 
     FRAME_SKIP = 1
     SAVE_PATH = ALTA_LOGS + 'ppo2_measurements_weights'
-    TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
+    TB_LOGS_DIR = ALTA_LOGS+'tb/'
 
     MAX_TRIALS = 5
     
+    # Register the policy, it will check that the name is not already taken
+    register_policy('CustomPolicy1', CustomPolicy1)
+    register_policy('CustomPolicy2', CustomPolicy2)
     steps = args.timesteps
-    
+
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)
         latest_file = max(list_of_files, key=os.path.getctime)
@@ -46,7 +54,7 @@ def run_ppo(args, prefix, config):
         ind = int(latest_file.split(sep)[1])
         return ind, latest_file
 
-    
+
     for i in range(MAX_TRIALS):
         try:
             # Create the environment
@@ -60,10 +68,17 @@ def run_ppo(args, prefix, config):
 
                 IMAGES_PATH = ALTA_LOGS+'final_images_' + config.config["city_name"] + '/'
                 VIDEO_PATH = ALTA_LOGS+'final_videos_' + config.config["city_name"] + '/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                IMAGES_PATH_VAE = ALTA_LOGS+'final_vae_images_' + config.config["city_name"] + '/'
+                VIDEO_PATH_VAE = ALTA_LOGS+'final_vae_videos_' + config.config["city_name"] + '/'
                 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP)
+                
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
+                
+                vae.load(args.vae_model_path)
+                env.set_vae(vae)
 
                 model = PPO.load(SAVE_PATH, dummy_env)
                 with open(ALTA_LOGS + config.config["scenarios"] + config.config["city_name"] + ".txt", "w") as f:
@@ -82,23 +97,33 @@ def run_ppo(args, prefix, config):
                 print("Training begins")
                 IMAGES_PATH = ALTA_LOGS+'images/'
                 VIDEO_PATH = ALTA_LOGS+'videos/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                IMAGES_PATH_VAE = ALTA_LOGS+'vae_images/'
+                VIDEO_PATH_VAE = ALTA_LOGS+'vae_videos/'
                 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP)
+
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
+                vae.load(args.vae_model_path)
+                env.set_vae(vae)
                 
                 if args.network == "1_layer":
                     policy = Policy_1_layer
                 elif args.network == "2_layer":
                     policy = Policy_2_layer
+                elif args.network == "CustomPolicy1":
+                    policy = CustomPolicy1
+                elif args.network == "CustomPolicy2":
+                    policy = CustomPolicy2
                 else:
-                    print("specify either 1_layer or 2_layer as network input")
+                    print("specify either 1_layer, 2_layer CustomPolicy1 or CustomPolicy2 as network input")
                     env.close()
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
+                model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())

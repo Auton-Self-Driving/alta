@@ -5,16 +5,19 @@ sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
+from train_vae_ppo_run import run_ppo_vae
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC')
+    parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
+    parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type for training')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
     parser.add_argument('--run-id',dest='run_id',type=str, required=True, help='Unique identifier for the run. It is appended to log directory name.')
-    parser.add_argument('--layers',dest='layers',type=str,default='1_layer', help='layers: 1_layer or 2_layer')
+    parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2')
     parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0)
     parser.add_argument('--carla-gpu',dest='carla_gpu',type=str,default='0')
     parser.add_argument('--code-gpu',dest='code_gpu',type=str,default='0')
@@ -29,22 +32,24 @@ def main(args):
 
 def create_sac_prefix(args):
 
-    base = 'algo_' + args.algo + '_lr_' + str(args.lr)  \
-        + '_buffer_' + str(args.buffer_size) \
-        + '_layers_' + str(args.layers) \
-        + '_steer_coeff_' + str(args.steer_penalty_coeff) \
+    base = 'algo_' + args.algo \
+        + '_input_' + args.input_type \
+        + '_network_' + str(args.network) \
+        + '_lr_' + str(args.lr)  \
+        + '_buffer_' + str(args.buffer_size)
     
-    prefix = base + '_runid_' + args.run_id +'/'
-    base_prefix = base +'/'
+    prefix = base + '_runid_' + args.run_id + '/'
+    base_prefix = base + '/'
     return base_prefix, prefix
 
 def create_ppo_prefix(args):
 
-    prefix = 'algo_' + args.algo + '_lr_' + str(args.lr)  \
-        + '_layers_' + str(args.layers) \
-        + '_steer_coeff_' + str(args.steer_penalty_coeff) \
-        + '_ent_coef_' + str(args.ent_coef) \
-        + '_runid_' + args.run_id +'/'
+    prefix = 'algo_' + args.algo \
+        + '_input_' + args.input_type \
+        + '_network_' + str(args.network) \
+        + '_lr_' + str(args.lr)  \
+        + '_navigation_scenarios' \
+        + '_runid_' + args.run_id + '/'
 
     return prefix
 
@@ -58,6 +63,7 @@ if __name__ == '__main__':
     config = ConfigManager(algo=args.algo)
     config.config["carla_gpu"] = str(args.carla_gpu)
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
+    config.config["input_type"] = args.input_type
 
     try:
         if args.algo == "SAC":
@@ -67,7 +73,13 @@ if __name__ == '__main__':
         elif args.algo == "PPO":
             prefix = create_ppo_prefix(args)
             print("prefix", prefix)
-            run_ppo(args, prefix, config)
+            if args.input_type == "wp":
+                run_ppo(args, prefix, config)
+            elif args.input_type == "wp_vae":
+                run_ppo_vae(args, prefix, config)
+            else:
+                print("specify correct input_type: wp, wp_vae")
+                print("exiting")
     except Exception as e:
         print(e)
 

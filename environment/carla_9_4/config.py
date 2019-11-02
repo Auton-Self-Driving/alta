@@ -218,7 +218,7 @@ class ConfigManager(object):
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["semantic"] = False
+            self.config["semantic"] = True
             self.config["scenarios"] = "navigation"
             self.config["videos"] = False
             self.config["x_res"] = 80

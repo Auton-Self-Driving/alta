@@ -316,9 +316,9 @@ class Policy_2_layer(FeedForwardPolicy):
             return action, value, self.initial_state, neglogp, logstd, mean
 
 
-class CustomPolicy(ActorCriticPolicy):
+class CustomPolicy1(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
-        super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+        super(CustomPolicy1, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
 
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.nn.tanh
@@ -327,22 +327,12 @@ class CustomPolicy(ActorCriticPolicy):
             vae_features = self.processed_obs[:, :, :-1]
             vae_features_flat = tf.layers.flatten(vae_features)
             
-            # pi_h = activ(tf.layers.dense(vae_features_flat, 1, name='pi_vae_fc'))
-            # pi_latent = tf.reshape(pi_h, [-1, 1, 1])
-            # features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
-            # pi_latent = activ(tf.layers.dense(features, 64, name='pi_fc'))
-            
             pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
             pi_latent = tf.reshape(pi_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
             pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
 
-            
-            # vf_h = activ(tf.layers.dense(vae_features_flat, 1, name='vf_vae_fc'))
-            # vf_latent = tf.reshape(vf_h, [-1, 1, 1])
-            # features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
-            # vf_latent = activ(tf.layers.dense(features, 64, name='vf_fc'))
-            
+
             vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
             vf_latent = tf.reshape(vf_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
@@ -374,6 +364,57 @@ class CustomPolicy(ActorCriticPolicy):
         return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
 
+class CustomPolicy2(ActorCriticPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy2, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+            
+            measurement_features = self.processed_obs[:, :, -1]
+            vae_features = self.processed_obs[:, :, :-1]
+            vae_features_flat = tf.layers.flatten(vae_features)
+            
+            vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
+            meas_pi_h = activ(linear(measurement_features, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
+            meas_vf_h = activ(linear(measurement_features, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+            
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                  self.logstd, self.mean],
+                                                                 {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
+
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
+
 class CustomWPPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
         super(CustomWPPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
@@ -384,15 +425,11 @@ class CustomWPPolicy(ActorCriticPolicy):
             measurement_features = tf.expand_dims(self.processed_obs[:, -1], axis=1)
             measurement_features_flat = tf.layers.flatten(measurement_features)
             
-            pi_h = activ(tf.layers.dense(measurement_features_flat, 64, name='pi_vae_fc'))
-            pi_latent = activ(tf.layers.dense(pi_h, 64, name='pi_fc'))
-            # pi_h = activ(linear(measurement_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
-            # pi_latent = activ(linear(pi_h, "pi_fc", 64, init_scale=np.sqrt(2)))
+            pi_h = activ(linear(measurement_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            pi_latent = activ(linear(pi_h, "pi_fc", 64, init_scale=np.sqrt(2)))
             
-            vf_h = activ(tf.layers.dense(measurement_features_flat, 64, name='vf_vae_fc'))
-            vf_latent = activ(tf.layers.dense(vf_h, 64, name='vf_fc'))
-            # vf_h = activ(linear(measurement_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
-            # vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
+            vf_h = activ(linear(measurement_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
 
