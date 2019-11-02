@@ -75,7 +75,7 @@ def get_and_add_vae_observation(vae, observation_image):
 if __name__ == '__main__':
 
     # Create the environment
-    config = ConfigManager(algo="VAE_seg")
+    config = ConfigManager(algo="AE")
     env = CarlaEnv(config.config)
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP)

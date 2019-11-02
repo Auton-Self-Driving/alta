@@ -39,12 +39,11 @@ DEFAULT_ENV = {
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
-    "discrete_actions": True,
+    "discrete_actions": False,
 
     # Number of frames stacked together
     "framestack" : 1,
     "grayscale" : False,
-    "num_vehicles" : 1,
     "num_pedestrians" : 0,
     "max_steps" : 10000,
     "next_command": None,
@@ -64,7 +63,7 @@ DEFAULT_ENV = {
     "max_offlane_steps" : 20,
     "max_static_steps" : 500,
     "log_measurements_to_file": False,
-    "train_config": 'baselines',
+    "train_config": None,
     "sync_mode": True,
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
@@ -75,7 +74,10 @@ DEFAULT_ENV = {
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
-    "vae_encoding_norm_factor" : 10
+    "vae_encoding_norm_factor" : 10,
+    "input_type": None,
+    "use_scenarios": True,
+    "num_npc" : 0
 }
 
 episode_measurements = {
@@ -218,8 +220,7 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["semantic"] = False
             self.config["scenarios"] = "navigation"
-            self.config["videos"] = False                                                                                                                                                                                                                  
-            # self.config["num_vehicles"] = 16
+            self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
@@ -237,15 +238,15 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["semantic"] = True
             self.config["scenarios"] = "straight"
-            self.config["videos"] = True                                                                                                                                                                                                                  
-            # self.config["num_vehicles"] = 16
+            self.config["videos"] = True
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp_vae"
+            self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
-        elif algo == 'VAE_seg':
+        elif algo == 'AE':
+            self.config["algo"] = "AE"
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config['preprocess_crop_image'] = True
@@ -253,7 +254,6 @@ class ConfigManager(object):
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
             self.config['max_steps'] = 10000
-            self.config["framestack"] = 1
-            self.config["grayscale"] = False
             self.config["city_name"] = "Town01"
-            self.config["num_npc"] = 125
+            self.config["num_npc"] = 60
+            self.config["input_type"] = "ae_train"
