@@ -5,9 +5,6 @@ from __future__ import print_function
 import sys, os
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
@@ -25,7 +22,7 @@ import matplotlib.pyplot as plt
 import tensorboard_logging as tf_log
 
 from ae.controller import AEController
-from my_vae.controller import VAEController
+from vae_semantic.controller import VAEController
 import ae.util as util
 import ae.plot_cm as plot_cm
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
@@ -57,7 +54,6 @@ def train_vae_ae(args, prefix, config):
     FRAME_SKIP = 10
     TOTAL_TIMESTEPS = 200000 * FRAME_SKIP
     VAL_TIMESTEPS = 1000 * FRAME_SKIP
-    VAE_WEIGHTS_PATH = ALTA_LOGS + 'ppo_vae_right_rgb.json'
     NUM_CLASSES  = 5
     Accuracy_File = ALTA_LOGS+"acurracy_town1.csv"
     confusion_matrix_file = ALTA_LOGS+"cm_town1.txt"
@@ -85,7 +81,6 @@ def train_vae_ae(args, prefix, config):
     agent = RoamingAgent(env.vehicle_actor)
 
     num_episodes = 0
-    num_done = 0
     val_accuracy_total = []
 
     for t in range(TOTAL_TIMESTEPS):
@@ -114,10 +109,6 @@ def train_vae_ae(args, prefix, config):
         obs = new_obs
         if done:
             num_episodes += 1
-            num_done += 1
-            # print('-'*50)
-            # print('Generating video')
-            # print('-'*50)
             vis_wrapper.generate_video(num_episodes)
             vis_wrapper.remove_images()
             vis_wrapper_vae.generate_video(num_episodes)
@@ -161,7 +152,8 @@ def train_vae_ae(args, prefix, config):
 
         # Validation
         if(t % VAL_FREQ == 0):
-                
+
+            # Terminating current episode for validation
             num_episodes += 1
             vis_wrapper.generate_video(num_episodes)
             vis_wrapper.remove_images()
@@ -215,7 +207,6 @@ def train_vae_ae(args, prefix, config):
             normalization = np.sum(confusion_matrix, axis=1).reshape((-1, 1)) + eps
             confusion_matrix_normalized =  confusion_matrix / normalization
             
-            
             logger.log_scalar('timesteps/train/town1_accuracy_avg', val_accuracy_avg, t)
 
             plot_cm.save_cm(confusion_matrix_normalized, CM_PATH , t)
@@ -247,6 +238,9 @@ def train_vae_ae(args, prefix, config):
         f.write(str(best_val_accuracy_index))
     
 if __name__ == '__main__':
+
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
     prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_c5_fs_10_test3/'
 
