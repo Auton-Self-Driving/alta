@@ -12,7 +12,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
-    parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp" or "wp_vae"')
+    parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
@@ -50,8 +50,7 @@ def create_ppo_prefix(args):
         + '_input_' + args.input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
-        + '_' + args.scenarios \
-        # + '_reduced_' + args.scenarios \
+        + '_reduced_' + args.scenarios + '_1' \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -79,7 +78,7 @@ if __name__ == '__main__':
             print("prefix", prefix)
             if args.input_type == "wp":
                 run_ppo(args, prefix, config)
-            elif args.input_type == "wp_vae":
+            elif args.input_type == "wp_vae" or args.input_type == "wp_noise":
                 run_ppo_vae(args, prefix, config)
             else:
                 print("specify correct input_type: wp, wp_vae")

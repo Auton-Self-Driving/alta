@@ -623,7 +623,7 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def _read_data(self, world_frame, timeout=2.0):
+    def _read_data(self, world_frame, timeout=10.0):
 
         cam_image = self._read_camera_data(world_frame, timeout)
         cam_image_p = self._preprocess_image(cam_image)
