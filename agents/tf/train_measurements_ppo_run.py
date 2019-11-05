@@ -17,7 +17,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns, test
-from models import Policy_1_layer, Policy_2_layer
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
@@ -91,8 +91,12 @@ def run_ppo(args, prefix, config):
                     policy = Policy_1_layer
                 elif args.network == "2_layer":
                     policy = Policy_2_layer
+                elif args.network == "CustomPolicy1":
+                    policy = CustomPolicy1
+                elif args.network == "CustomPolicy2":
+                    policy = CustomPolicy2
                 else:
-                    print("specify either 1_layer or 2_layer as network input")
+                    print("specify either 1_layer, 2_layer CustomPolicy1 or CustomPolicy2 as network input")
                     env.close()
                     print("exiting")
                     return

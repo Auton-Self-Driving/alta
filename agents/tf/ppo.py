@@ -282,7 +282,7 @@ class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
-              reset_num_timesteps=True, save_file="default", policy_plots=False):
+              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
@@ -382,6 +382,17 @@ class PPO(PPO2):
                                                                  writer=writer, states=mb_states))
                     self.num_timesteps += (self.n_envs * self.noptepochs) // envs_per_batch * update_fac
 
+                if train_vae:
+                    """Optimize the VAE"""
+                    time_start = time.time()
+                    vae.optimize()
+                    print("Time to optimize the AE: ", time.time() - time_start)
+                    if (update * self.n_batch) % 10000 == 0:
+                        base_path = save_file.split('ppo2_me')[0] + 'ae_weights/'
+                        if not os.path.exists(base_path):
+                            os.makedirs(base_path)
+                        vae.save(os.path.join(base_path, 'ae_' + str(update * self.n_batch)))
+                    
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
@@ -534,7 +545,7 @@ class PPO(PPO2):
 
                 self.summary = tf.summary.merge_all()
 
-        
+ 
 class PPOWithVAE(PPO2):
     """A modification to the PPO algorithm to put in VAE optimization step"""
 

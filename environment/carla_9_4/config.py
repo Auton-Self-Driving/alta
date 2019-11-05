@@ -77,7 +77,8 @@ DEFAULT_ENV = {
     "vae_encoding_norm_factor" : 10,
     "input_type": None,
     "use_scenarios": True,
-    "num_npc" : 0
+    "num_npc" : 0,
+    "train_vae" : False
 }
 
 episode_measurements = {

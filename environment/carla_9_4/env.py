@@ -151,7 +151,7 @@ class CarlaEnv(gym.Env):
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
             elif self.config["input_type"] == 'wp_constant' or self.config["input_type"] == 'wp_noise':
-                self.observation_space = Box(low=np.array([-4.0, -4.0]), high=np.array([4.0, 4.0]), dtype=np.float32)
+                self.observation_space = Box(low=-4.0, high=4.0, shape=(1, 2), dtype=np.float32)
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -288,9 +288,9 @@ class CarlaEnv(gym.Env):
 
         obs['orientation'] = np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
-            obs['orientation'] = np.array([next_orientation, 0.0])
+            obs['orientation'] = np.array([0.0, next_orientation])
         elif self.config["input_type"] == 'wp_noise':
-            obs['orientation'] = np.array([next_orientation, np.random.normal(0.0, 1.0)])
+            obs['orientation'] = np.array([np.random.normal(0.0, 1.0), next_orientation])
 
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
@@ -340,6 +340,9 @@ class CarlaEnv(gym.Env):
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
             return obs['orientation'], reward, done, self.episode_measurements
+        elif self.config["input_type"] == "wp_noise":
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
+            return orientation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
 
@@ -365,6 +368,8 @@ class CarlaEnv(gym.Env):
         self.vae = vae
     
     def vae_observation(self, observation_image):
+        if self.config["train_vae"]:
+            self.vae.buffer_append(observation_image)
         ob = self.vae.encode(observation_image)
         return ob
 
@@ -570,9 +575,9 @@ class CarlaEnv(gym.Env):
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
         obs['orientation']= np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
-            obs['orientation'] = np.array([next_orientation, 0.0])
+            obs['orientation'] = np.array([0.0, next_orientation])
         elif self.config["input_type"] == 'wp_noise':
-            obs['orientation'] = np.array([next_orientation, np.random.normal(0.0, 1.0)])
+            obs['orientation'] = np.array([np.random.normal(0.0, 1.0), next_orientation])
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         if self.config["input_type"] == 'vae':
@@ -583,6 +588,9 @@ class CarlaEnv(gym.Env):
             return fused_input
         elif self.config["input_type"] == "wp":
             return obs['orientation']
+        elif self.config["input_type"] == "wp_noise":
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
+            return orientation
         else:
             return obs
         

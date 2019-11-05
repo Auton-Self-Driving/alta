@@ -24,6 +24,9 @@ def parse_arguments():
     parser.add_argument('--code-gpu',dest='code_gpu',type=str,default='0')
     parser.add_argument('--base-log-dir',dest='base_log_dir',type=str, required=True, help='base log directory, Eg: /zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1/')
     parser.add_argument('--timesteps',dest='timesteps',type=int,default=1000000, help='total timesteps to train')
+    parser.add_argument('--finetune-vae', dest='finetune_vae', action='store_true', help='Whether to finetune vae')
+    parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
+    
     
     return parser.parse_args()
 def main(args):
@@ -46,11 +49,28 @@ def create_sac_prefix(args):
 
 def create_ppo_prefix(args):
 
+    # prefix = 'algo_' + args.algo \
+    #     + '_input_' + args.input_type \
+    #     + '_network_' + str(args.network) \
+    #     + '_lr_' + str(args.lr)  \
+    #     + '_reduced_' + args.scenarios + '_5' \
+    #     + '_finetunevae_' + str(args.finetune_vae) \
+    #     + '_pretrainedvae_' + str(not args.train_vae) \
+    #     + '_runid_' + args.run_id + '/'
+    
+    if args.finetune_vae:
+        vae = "_finetune_vae"
+    elif args.train_vae:
+        vae = "_train_vae"
+    else:
+        vae = ""
+        
     prefix = 'algo_' + args.algo \
         + '_input_' + args.input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
-        + '_reduced_' + args.scenarios + '_1' \
+        + '_' + args.scenarios \
+        + vae \ 
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -67,6 +87,7 @@ if __name__ == '__main__':
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
     config.config["input_type"] = args.input_type
     config.config["scenarios"] = args.scenarios
+    config.config["train_vae"] = (args.train_vae or args.finetune_vae)
 
     try:
         if args.algo == "SAC":
@@ -76,9 +97,9 @@ if __name__ == '__main__':
         elif args.algo == "PPO":
             prefix = create_ppo_prefix(args)
             print("prefix", prefix)
-            if args.input_type == "wp":
+            if args.input_type == "wp" or args.input_type == "wp_noise":
                 run_ppo(args, prefix, config)
-            elif args.input_type == "wp_vae" or args.input_type == "wp_noise":
+            elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)
             else:
                 print("specify correct input_type: wp, wp_vae")

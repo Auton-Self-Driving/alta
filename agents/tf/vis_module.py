@@ -4,13 +4,14 @@ import os
 import glob
 
 class vis():
-    def __init__(self, images_path, video_path, frame_skip):
+    def __init__(self, images_path, video_path, frame_skip, videos=False):
         self.frame_skip = frame_skip
         self.images_path = images_path
         self.video_path = video_path
         # Keeps track of internal image ID
         self.image_idx = 0
-        self.create_directories_if_not_exist(images_path, video_path)
+        if videos:
+            self.create_directories_if_not_exist(images_path, video_path)
 
     def save_image(self, image, step_number):
         if(step_number % self.frame_skip == 0):
