@@ -18,8 +18,9 @@ def parse_arguments():
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
     parser.add_argument('--run-id',dest='run_id',type=str, required=True, help='Unique identifier for the run. It is appended to log directory name.')
-    parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2')
-    parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0)
+    parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2.')
+    parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0, help='Coefficient of steer penalty in reward.')
+    parser.add_argument('--noise-dim',dest='noise_dim',type=int,default=1, help='Dimension of noise vector.')
     parser.add_argument('--carla-gpu',dest='carla_gpu',type=str,default='0')
     parser.add_argument('--code-gpu',dest='code_gpu',type=str,default='0')
     parser.add_argument('--base-log-dir',dest='base_log_dir',type=str, required=True, help='base log directory, Eg: /zfsauton2/home/hiteshar/research/alta-logs/new_env/sac_runs1/')
@@ -64,9 +65,12 @@ def create_ppo_prefix(args):
         vae = "_train_vae"
     else:
         vae = ""
+    
+    if args.input_type:
+        input_type = args.input_type + str(args.noise_dim)
         
     prefix = 'algo_' + args.algo \
-        + '_input_' + args.input_type \
+        + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_' + args.scenarios \
@@ -88,6 +92,7 @@ if __name__ == '__main__':
     config.config["input_type"] = args.input_type
     config.config["scenarios"] = args.scenarios
     config.config["train_vae"] = (args.train_vae or args.finetune_vae)
+    config.config["noise_dim"] = args.noise_dim
 
     try:
         if args.algo == "SAC":

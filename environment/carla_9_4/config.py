@@ -78,7 +78,8 @@ DEFAULT_ENV = {
     "input_type": None,
     "use_scenarios": True,
     "num_npc" : 0,
-    "train_vae" : False
+    "train_vae" : False,
+    "noise_dim" : 1
 }
 
 episode_measurements = {
