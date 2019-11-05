@@ -356,6 +356,8 @@ class CarlaEnv(gym.Env):
             self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
         elif self.config["scenarios"] == "left_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
+        elif self.config["scenarios"] == "t_junction":
+            self.source_transform, self.destination_transform = scenarios.get_t_junction_path(unseen)
         elif self.config["scenarios"] == "curved":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)

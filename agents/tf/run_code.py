@@ -70,7 +70,7 @@ def create_ppo_prefix(args):
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_' + args.scenarios \
-        + vae \ 
+        + vae \
         + '_runid_' + args.run_id + '/'
 
     return prefix
