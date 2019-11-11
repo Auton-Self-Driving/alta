@@ -31,7 +31,7 @@ def create_prefix(args):
     base = 'algo_' + args.algo  \
         + '_lr_' + str(args.lr) \
         + '_batchsize_' + str(args.batch_size) \
-        + '_npc_' + str(args.num_npc) \
+        + '_npc_' + str(args.num_npc)
     base += '_zsize_' + str(args.vae_zsize)
 
     prefix = base + '_runid_' + args.run_id +'/'

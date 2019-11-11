@@ -27,6 +27,8 @@ def parse_arguments():
     parser.add_argument('--timesteps',dest='timesteps',type=int,default=1000000, help='total timesteps to train')
     parser.add_argument('--finetune-vae', dest='finetune_vae', action='store_true', help='Whether to finetune vae')
     parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
+    parser.add_argument('--num-npc',dest='num_npc',type=int,default=0, help='number of other vehicles')
+    parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
     
     
     return parser.parse_args()
@@ -66,8 +68,15 @@ def create_ppo_prefix(args):
     else:
         vae = ""
     
-    if args.input_type:
+    if args.num_npc != 0:
+        num_npc_str = '_npc_' + str(args.num_npc)
+    else:
+        num_npc_str = ""
+    
+    if args.input_type == "wp_noise":
         input_type = args.input_type + str(args.noise_dim)
+    else:
+        input_type = args.input_type
         
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
@@ -75,6 +84,7 @@ def create_ppo_prefix(args):
         + '_lr_' + str(args.lr)  \
         + '_' + args.scenarios \
         + vae \
+        + num_npc_str \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -93,6 +103,8 @@ if __name__ == '__main__':
     config.config["scenarios"] = args.scenarios
     config.config["train_vae"] = (args.train_vae or args.finetune_vae)
     config.config["noise_dim"] = args.noise_dim
+    config.config["num_npc"] = args.num_npc
+    config.config["videos"] = args.videos
 
     try:
         if args.algo == "SAC":
