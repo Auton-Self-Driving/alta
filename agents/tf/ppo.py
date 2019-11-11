@@ -160,6 +160,23 @@ def plot_policy_and_value_fns(model, ind, path):
     fig.suptitle('Valuex plots for {} model'.format(ind))  
     plt.savefig(path + 'value_{}.png'.format(ind))
 
+def plot_test_results(total_successes, total_rewards, total_updates, path):
+    fig, (ax1, ax2)  = plt.subplots(1, 2)
+    fig.suptitle('Test Results v/s training timesteps')
+
+    ax1.plot(np.array(total_updates), np.array(total_successes), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax1.set_xlabel('Timesteps')
+    ax1.set_ylabel('Success Episodes')
+    ax2.plot(np.array(total_updates), np.array(total_rewards), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax2.set_xlabel('Total Reward')
+    ax2.set_ylabel('Timesteps')
+    
+    ax1.grid(True)
+    ax2.grid(True)
+    
+    plt.grid(True)
+    plt.savefig(path + 'test_results.png')
+    plt.close()
 
 class OverideRunner(Runner):
     
@@ -240,7 +257,7 @@ def test(model, env):
         while not done:
             actions = model.step(obs, deterministic=True)[0]
             info = env.step(actions)
-            reward += info[1]
+            reward += info[1][0][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
         
@@ -307,6 +324,7 @@ class PPO(PPO2):
             total_rewards = []
             total_successes = []
             model_file_names = []
+            total_updates = []
             for update in range((trained_timesteps // self.n_batch), nupdates + 1):
                 if update == (trained_timesteps // self.n_batch):
                     self.save(save_file + str(update * self.n_batch))
@@ -318,6 +336,7 @@ class PPO(PPO2):
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(update * self.n_batch))
+                    total_updates.append(update * self.n_batch)
                     with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
                         csvwriter = csv.writer(f, delimiter=',')
                         csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
@@ -359,9 +378,11 @@ class PPO(PPO2):
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))
+                        total_updates.append(update * self.n_batch)
                         with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
                             csvwriter = csv.writer(f, delimiter=',')
                             csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
+                        plot_test_results(total_successes, total_rewards, total_updates, save_file.split('ppo2_me')[0])
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0
