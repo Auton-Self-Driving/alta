@@ -121,7 +121,7 @@ class ActorCriticPolicy(BasePolicy):
         """
         with tf.variable_scope("output", reuse=True):
             assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
-            self.logstd = self.proba_distribution.get_logstd()
+            self.logstd = self.proba_distribution.logstd
             self.mean = self.proba_distribution.mode() 
             self._action = self.proba_distribution.sample()
             self._deterministic_action = self.proba_distribution.mode()
