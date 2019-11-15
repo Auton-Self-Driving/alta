@@ -17,15 +17,6 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import time
 
-import baselines.common.tf_util as U
-
-# NOTE: not using baselines logger for now
-# from baselines import logger
-from baselines import deepq
-from baselines.deepq.deepq import ActWrapper
-from baselines.deepq.replay_buffer import ReplayBuffer
-from baselines.deepq.utils import ObservationInput
-from baselines.common.schedules import LinearSchedule
 from gym.spaces import Box, Discrete
 
 import matplotlib
