@@ -144,7 +144,7 @@ class CarlaEnv(gym.Env):
             elif self.config["action_type"] == 'merged_speed':
                 # Steer, Speed
                 self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
-            elif self.config["action_type"] == 'merged_speed_tanh':
+            elif self.config["action_type"] == 'merged_speed_tanh' or self.config["action_type"] == 'merged_speed_scaled_tanh':
                 # Steer, Speed
                 self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
             elif self.config["action_type"] == "merged_speed_pid_test":
@@ -319,7 +319,7 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO":
-            if self.config["videos"]:
+            if self.config["videos"] and ((self.episode_num + 1) % 10 == 0):
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                         # self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
@@ -406,7 +406,7 @@ class CarlaEnv(gym.Env):
                     self.logger.log_scalar('episodes/train/out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
                     self.logger.log_scalar('episodes/train/collision_occured', self.episode_measurements['is_collision'], self.episode_num)
 
-                if self.config["videos"]:
+                if self.config["videos"] and (self.episode_num % 10 == 0):
                     if self.vis_wrapper is not None:
                         self.vis_wrapper.generate_video(self.episode_num)
                         self.vis_wrapper.remove_images()
