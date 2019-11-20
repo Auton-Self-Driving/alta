@@ -28,7 +28,7 @@ def run_ppo_vae(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
     SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     
-    vae = AEController()
+    vae = AEController(image_size=(128, 128, 5))
     
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
