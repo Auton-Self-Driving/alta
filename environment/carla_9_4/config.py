@@ -265,7 +265,7 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["num_npc"] = 60
             self.config["input_type"] = "ae_train"
-<<<<<<< Updated upstream
+            self.config["videos"] = True
         elif algo == 'PID_TUNE':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"
@@ -285,6 +285,3 @@ class ConfigManager(object):
             self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
             self.config["max_static_steps"] = 20
-=======
-            self.config["videos"] = True
->>>>>>> Stashed changes
