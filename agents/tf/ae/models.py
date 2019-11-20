@@ -42,21 +42,21 @@ class ConvAutoEncoder(object):
         self.g = tf.Graph()
         with self.g.as_default():
             num_classes = 5
-            self.x = tf.placeholder(tf.float32, shape=[None, 160, 80, num_classes])
+            self.x = tf.placeholder(tf.float32, shape=[None, 128, 128, num_classes])
 
             # Encoder
-            h = tf.layers.conv2d(self.x, 16, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
-            h = tf.layers.conv2d(h, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
-            h = tf.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
-            h = tf.layers.conv2d(h, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
-            self.encoded = tf.reshape(h, [-1, 8 * 3 * 32])
+            h = tf.layers.conv2d(self.x, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv1")
+            h = tf.layers.conv2d(h, 32, 5, strides=2, activation=tf.nn.relu, name="enc_conv2")
+            h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="enc_conv3")
+            h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
 
             # Decoder
-            h = tf.reshape(self.encoded, [-1, 8, 3, 32])
-            h = tf.layers.conv2d_transpose(h, 64, 4, strides=2, activation=tf.nn.relu, name="dec_deconv1")
-            h = tf.layers.conv2d_transpose(h, 32, 4, strides=2, activation=tf.nn.relu, name="dec_deconv2")
-            h = tf.layers.conv2d_transpose(h, 16, 5, strides=2, activation=tf.nn.relu, name="dec_deconv3")
-            self.y = tf.layers.conv2d_transpose(h, num_classes, 4, strides=2, activation=None, name="dec_deconv4")
+            h = tf.reshape(self.encoded, [-1, 5, 5, 16])
+            h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
+            h = tf.layers.conv2d_transpose(h, 32, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
+            h = tf.layers.conv2d_transpose(h, 16, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
+            self.y = tf.layers.conv2d_transpose(h, num_classes, 6, strides=2, activation=None, name="dec_deconv4")
 
             # train ops
             if self.is_training:

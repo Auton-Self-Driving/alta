@@ -616,9 +616,11 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        camera.set_attribute('fov', '120')
+        # camera.set_attribute('fov', '120')
+        camera.set_attribute('fov', '90')
 
-        camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
         
@@ -777,10 +779,9 @@ class CarlaEnv(gym.Env):
         array = array[:, :, :3]
         array = array[:, :, ::-1]
 
-        if(self.config['preprocess_crop_image']):
-            array = array[200:500, 300:500] 
-
-        array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
+        # if(self.config['preprocess_crop_image']):
+        #     array = array[200:500, 300:500]
+        # array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
 
         return array
 
