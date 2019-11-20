@@ -66,14 +66,14 @@ def train_vae_ae(args, prefix, config):
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
 
-    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP)
-    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP)
+    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
+    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
     
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
     logger = tf_log.Logger(ALTA_LOGS)
 
     if args.algo == "AE":
-        model = AEController(z_size=args.vae_zsize, image_size=(160, 80, 5), learning_rate=args.lr, batch_size=args.batch_size)
+        model = AEController(z_size=args.vae_zsize, image_size=(128, 128, 5), learning_rate=args.lr, batch_size=args.batch_size)
     elif args.algo == "VAE":
         model = VAEController(z_size=args.vae_zsize, image_size=(160, 80, 5), learning_rate=args.lr, batch_size=args.batch_size, kl_tolerance=0.5)
 

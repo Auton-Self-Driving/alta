@@ -531,7 +531,7 @@ def benchmark_paths_straight_Town01():
            WAYPOINT_DICT_Town01[69]
        ]
     ]
-    
+    return paths[0:1]
     return paths
 
 def benchmark_paths_straight_Town02():
@@ -746,6 +746,7 @@ def benchmark_paths_turn_Town01():
        ]
     ]
     
+    return paths[1:2]
     return paths
 
 def benchmark_paths_turn_Town02():

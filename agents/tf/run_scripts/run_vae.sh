@@ -1,5 +1,2 @@
-python ../run_vae.py --algo VAE --run-id 1 --base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env_runs/vae_1/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --vae-zsize 64 --code-gpu 1 --carla-gpu 0 &
-sleep 60
-python ../run_vae.py --algo VAE --run-id 1 --base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env_runs/vae_1/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --vae-zsize 128 --code-gpu 2 --carla-gpu 0 &
-sleep 60
-python ../run_vae.py --algo VAE --run-id 1 --base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env_runs/vae_1/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --vae-zsize 256 --code-gpu 3 --carla-gpu 0 &
+python run_vae.py --algo AE --run-id 1 --base-log-dir '/media/hdd/tanmaya/research/alta-logs/new_env/ppo_runs/vae_8_16_32_64/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --code-gpu 0 --carla-gpu 0 --batch-size 128 &
+python run_vae.py --algo AE --run-id 1 --base-log-dir '/media/hdd/tanmaya/research/alta-logs/new_env/ppo_runs/vae_1/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --code-gpu 0 --carla-gpu 0 --batch-size 256 &

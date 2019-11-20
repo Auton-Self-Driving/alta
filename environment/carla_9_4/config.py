@@ -23,8 +23,8 @@ DEFAULT_ENV = {
     "render_res_x" : 800,
     # Y Rendering Resolution
     "render_res_y" : 800,
-    "sensor_x_res" : '800',
-    "sensor_y_res" : '800',
+    "sensor_x_res" : '128',
+    "sensor_y_res" : '128',
     # Input X Res (Default set to Atari)
     "x_res": 84,
     # Input Y Res (Default set to Atari)
@@ -86,6 +86,7 @@ DEFAULT_ENV = {
     "enable_brake": False,
     "log_freq": 1,
     "zero_speed_threshold": 0.1    
+    "videos" : False
 }
 
 episode_measurements = {
@@ -257,9 +258,6 @@ class ConfigManager(object):
             self.config["carla_gpu"] = "1"
         elif algo == 'AE':
             self.config["algo"] = "AE"
-            self.config["x_res"] = 80
-            self.config["y_res"] = 160
-            self.config['preprocess_crop_image'] = True
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
@@ -267,6 +265,7 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["num_npc"] = 60
             self.config["input_type"] = "ae_train"
+<<<<<<< Updated upstream
         elif algo == 'PID_TUNE':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"
@@ -286,3 +285,6 @@ class ConfigManager(object):
             self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
             self.config["max_static_steps"] = 20
+=======
+            self.config["videos"] = True
+>>>>>>> Stashed changes
