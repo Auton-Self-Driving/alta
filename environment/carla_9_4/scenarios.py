@@ -1056,6 +1056,20 @@ def benchmark_paths_navigation_Town02():
     
     return paths
 
+def paths_t_junction_Town01():
+    paths = [
+        [
+            WAYPOINT_DICT_Town01[17],
+            WAYPOINT_DICT_Town01[53]
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            WAYPOINT_DICT_Town01[46]
+        ] 
+    ]
+    
+    return paths
+
 def paths_left_Town01_train():
     
     paths = [
@@ -1311,17 +1325,12 @@ def paths_left_and_right_test():
 
 def get_straight_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
-    # if not unseen:
-    #     return random.choice(paths_straight_Town01_train())
-    # else:
-    #     return random.choice(paths_straight_Town01_test())
     if not unseen:
         if town == "Town01":
             return random.choice(benchmark_paths_straight_Town01())
         elif town == "Town02":
             return random.choice(benchmark_paths_straight_Town02())
     else:
-        # TODO: Change Town
         if town == "Town01":
             return benchmark_paths_straight_Town01()[index]
         elif town == "Town02":
@@ -1329,17 +1338,12 @@ def get_straight_path(unseen=False, town="Town01", index=0):
 
 def get_curved_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
-    # if not unseen:
-    #     return random.choice(paths_straight_Town01_train())
-    # else:
-    #     return random.choice(paths_straight_Town01_test())
     if not unseen:
         if town == "Town01":
             return random.choice(benchmark_paths_turn_Town01())
         elif town == "Town02":
             return random.choice(benchmark_paths_turn_Town02()) 
     else:
-        # TODO: Change town
         if town == "Town01":
             return benchmark_paths_turn_Town01()[index]
         elif town == "Town02":
@@ -1347,10 +1351,6 @@ def get_curved_path(unseen=False, town="Town01", index=0):
 
 def get_navigation_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
-    # if not unseen:
-    #     return random.choice(paths_straight_Town01_train())
-    # else:
-    #     return random.choice(paths_straight_Town01_test())
     if not unseen:
         if town == "Town01":
             return random.choice(benchmark_paths_navigation_Town01())
@@ -1362,6 +1362,19 @@ def get_navigation_path(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return benchmark_paths_navigation_Town02()[index]
 
+def get_t_junction_path(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_transform, target_transform]"
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_t_junction_Town01())
+        else:
+            raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
+    else:
+        if town == "Town01":
+            return paths_t_junction_Town01()[index]
+        else:
+            raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
+        
 
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"

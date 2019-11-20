@@ -17,15 +17,6 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import time
 
-import baselines.common.tf_util as U
-
-# NOTE: not using baselines logger for now
-# from baselines import logger
-from baselines import deepq
-from baselines.deepq.deepq import ActWrapper
-from baselines.deepq.replay_buffer import ReplayBuffer
-from baselines.deepq.utils import ObservationInput
-from baselines.common.schedules import LinearSchedule
 from gym.spaces import Box, Discrete
 
 import matplotlib
@@ -132,12 +123,12 @@ def run_sac(args, prefix, base_prefix, config):
             test(model, env, model_step=0)
         else:
 
-            if args.layers == "1_layer":
+            if args.network == "1_layer":
                 policy = My_MlpPolicy_1layer
-            elif args.layers == "2_layer":
+            elif args.network == "2_layer":
                 policy = My_MlpPolicy_2layer
             else:
-                print("specify either 1_layer or 2_layer as layers input")
+                print("specify either 1_layer or 2_layer as network input")
                 env.close()
                 print("exiting")
                 return

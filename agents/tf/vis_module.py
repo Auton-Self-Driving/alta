@@ -1,22 +1,51 @@
 import matplotlib.pyplot as plt
 import subprocess
+from PIL import Image, ImageFont, ImageDraw
 import os
 import glob
 
 class vis():
-    def __init__(self, images_path, video_path, frame_skip):
+    def __init__(self, images_path, video_path, frame_skip, videos=False):
         self.frame_skip = frame_skip
         self.images_path = images_path
         self.video_path = video_path
         # Keeps track of internal image ID
         self.image_idx = 0
-        self.create_directories_if_not_exist(images_path, video_path)
+        if videos:
+            self.create_directories_if_not_exist(images_path, video_path)
 
     def save_image(self, image, step_number):
         if(step_number % self.frame_skip == 0):
             img_id = "{:04d}".format(self.image_idx)
             im_path = os.path.join(self.images_path, 'img'+img_id+'.png')
             plt.imsave(im_path, image)
+            self.image_idx += 1
+    
+    def convert_image(self, image):
+        return Image.fromarray(image, 'RGB').convert('RGBA')
+    
+    def modify_image(self, image, step_info):
+        overlay = Image.new('RGBA', image.size, (255,255,255,0))
+        draw_overlay = ImageDraw.Draw(overlay)
+        draw_overlay.text((10, 10), 
+                          "Sp={}\nTgS={}\nSt={}\nTr={}\nBr={}\nd={}".format(
+                              step_info['speed'], 
+                              step_info['target_speed'],
+                              step_info['control_steer'], 
+                              step_info['control_throttle'], 
+                              step_info['control_brake'], 
+                              step_info['dist_to_trajectory_reward']), 
+                          fill=(255,255,255,255))
+        
+        return Image.alpha_composite(image, overlay)
+
+    def save_pil_image(self, image, step_number, step_info):
+        image = self.convert_image(image)
+        image = self.modify_image(image, step_info)
+        if(step_number % self.frame_skip == 0):
+            img_id = "{:04d}".format(self.image_idx)
+            im_path = os.path.join(self.images_path, 'img'+img_id+'.png')
+            image.save(im_path)
             self.image_idx += 1
 
     def generate_video(self, episode_number):

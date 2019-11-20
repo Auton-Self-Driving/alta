@@ -8,6 +8,7 @@ import gym
 from collections import deque
 import os
 import sys
+import csv
 import multiprocessing
 from collections import deque
 import matplotlib
@@ -159,6 +160,23 @@ def plot_policy_and_value_fns(model, ind, path):
     fig.suptitle('Valuex plots for {} model'.format(ind))  
     plt.savefig(path + 'value_{}.png'.format(ind))
 
+def plot_test_results(total_successes, total_rewards, total_updates, path):
+    fig, (ax1, ax2)  = plt.subplots(1, 2)
+    fig.suptitle('Test Results v/s training timesteps')
+
+    ax1.plot(np.array(total_updates), np.array(total_successes), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax1.set_xlabel('Timesteps')
+    ax1.set_ylabel('Success Episodes')
+    ax2.plot(np.array(total_updates), np.array(total_rewards), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax2.set_xlabel('Total Reward')
+    ax2.set_ylabel('Timesteps')
+    
+    ax1.grid(True)
+    ax2.grid(True)
+    
+    plt.grid(True)
+    plt.savefig(path + 'test_results.png')
+    plt.close()
 
 class OverideRunner(Runner):
     
@@ -239,7 +257,7 @@ def test(model, env):
         while not done:
             actions = model.step(obs, deterministic=True)[0]
             info = env.step(actions)
-            reward += info[1]
+            reward += info[1][0][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
         
@@ -281,7 +299,7 @@ class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
-              reset_num_timesteps=True, save_file="default", policy_plots=False):
+              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
@@ -306,16 +324,22 @@ class PPO(PPO2):
             total_rewards = []
             total_successes = []
             model_file_names = []
+            total_updates = []
             for update in range((trained_timesteps // self.n_batch), nupdates + 1):
                 if update == (trained_timesteps // self.n_batch):
                     self.save(save_file + str(update * self.n_batch))
-                    plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
+                    if policy_plots:
+                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
                     total_reward, success_episodes, _ = test(self, env)
                     env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                     env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(update * self.n_batch))
+                    total_updates.append(update * self.n_batch)
+                    with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
+                        csvwriter = csv.writer(f, delimiter=',')
+                        csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
                     continue
                 # if (update * self.n_batch) <= trained_timesteps:
                 #     continue
@@ -348,13 +372,17 @@ class PPO(PPO2):
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                        
                         total_reward, success_episodes, _ = test(self, env)
                         env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
                         env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))
+                        total_updates.append(update * self.n_batch)
+                        with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
+                            csvwriter = csv.writer(f, delimiter=',')
+                            csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
+                        plot_test_results(total_successes, total_rewards, total_updates, save_file.split('ppo2_me')[0])
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0
@@ -375,6 +403,17 @@ class PPO(PPO2):
                                                                  writer=writer, states=mb_states))
                     self.num_timesteps += (self.n_envs * self.noptepochs) // envs_per_batch * update_fac
 
+                if train_vae:
+                    """Optimize the VAE"""
+                    time_start = time.time()
+                    vae.optimize()
+                    print("Time to optimize the AE: ", time.time() - time_start)
+                    if (update * self.n_batch) % 10000 == 0:
+                        base_path = save_file.split('ppo2_me')[0] + 'ae_weights/'
+                        if not os.path.exists(base_path):
+                            os.makedirs(base_path)
+                        vae.save(os.path.join(base_path, 'ae_' + str(update * self.n_batch)))
+                    
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
@@ -527,7 +566,7 @@ class PPO(PPO2):
 
                 self.summary = tf.summary.merge_all()
 
-        
+ 
 class PPOWithVAE(PPO2):
     """A modification to the PPO algorithm to put in VAE optimization step"""
 

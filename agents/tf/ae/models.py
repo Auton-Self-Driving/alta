@@ -109,7 +109,9 @@ class ConvAutoEncoder(object):
 
     def _init_session(self):
         """Launch TensorFlow session and initialize variables"""
-        self.sess = tf.Session(graph=self.g)
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(graph=self.g, config=config)
         self.sess.run(self.init)
         self.sess.run(self.init_l)
 

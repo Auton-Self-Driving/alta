@@ -69,7 +69,7 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight",
     "semantic" : False,
-    "client_timeout_seconds" : 240,
+    "client_timeout_seconds" : 600,
     "enable_lane_invasion_sensor" : False,
     "carla_gpu": "0",
     "render_server": False,
@@ -77,7 +77,9 @@ DEFAULT_ENV = {
     "vae_encoding_norm_factor" : 10,
     "input_type": None,
     "use_scenarios": True,
-    "num_npc" : 0
+    "num_npc" : 0,
+    "train_vae" : False,
+    "noise_dim" : 1
 }
 
 episode_measurements = {
@@ -218,7 +220,7 @@ class ConfigManager(object):
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["semantic"] = False
+            self.config["semantic"] = True
             self.config["scenarios"] = "navigation"
             self.config["videos"] = False
             self.config["x_res"] = 80
