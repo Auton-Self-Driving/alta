@@ -160,11 +160,11 @@ class CarlaEnv(gym.Env):
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 768), dtype=np.float32)
+                                        shape=(1, 400), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 769), dtype=np.float32)
+                                        shape=(1, 401), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
