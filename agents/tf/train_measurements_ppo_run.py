@@ -101,7 +101,7 @@ def run_ppo(args, prefix, config):
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr, 
+                model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr, 
                         tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
@@ -116,14 +116,14 @@ def run_ppo(args, prefix, config):
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))
-                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed)    
+                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed, policy_plots=True)
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
-                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis)
+                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=True)
                 
                 best_model.save(SAVE_PATH)
             break

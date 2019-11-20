@@ -82,6 +82,7 @@ class LaneInvasionSensor(object):
         self.sensor = None
         self._parent = parent_actor
         self.num_laneintersections = 0
+        self.out_of_road = False
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
@@ -97,6 +98,10 @@ class LaneInvasionSensor(object):
             return
         # TODO : Handle case of lane invasion for dashed vs solid lane markings
         self.num_laneintersections += 1
+        
+        lane_types = set(x.type for x in event.crossed_lane_markings)
+        if carla.libcarla.LaneMarkingType.NONE in lane_types:
+            self.out_of_road = True
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
 

@@ -49,6 +49,7 @@ DEFAULT_ENV = {
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
+    "disable_two_wheeler" : False,
     "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
@@ -70,7 +71,7 @@ DEFAULT_ENV = {
     "scenarios" : "straight",
     "semantic" : False,
     "client_timeout_seconds" : 600,
-    "enable_lane_invasion_sensor" : False,
+    "enable_lane_invasion_sensor" : True,
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
@@ -79,7 +80,12 @@ DEFAULT_ENV = {
     "use_scenarios": True,
     "num_npc" : 0,
     "train_vae" : False,
-    "noise_dim" : 1
+    "noise_dim" : 1,
+    "const_collision_penalty": 0,
+    "collision_penalty_speed_coeff": 0,
+    "enable_brake": False,
+    "log_freq": 1,
+    "zero_speed_threshold": 0.1    
 }
 
 episode_measurements = {
@@ -216,7 +222,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_speed_tanh"
+            self.config["action_type"] = "merged_speed_scaled_tanh"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
@@ -229,6 +235,8 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
+            self.config["disable_two_wheeler"] = True
+            self.config["enable_lane_invasion_sensor"] = True
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
             self.config["reward_function"] = "simple2"
@@ -259,3 +267,22 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["num_npc"] = 60
             self.config["input_type"] = "ae_train"
+        elif algo == 'PID_TUNE':
+            self.config["algo"] = "PPO"
+            self.config["reward_function"] = "simple2"
+            self.config["discrete_actions"] = False
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "merged_speed_pid_test"
+            self.config["preprocess_crop_image"] = True
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["semantic"] = False
+            self.config["scenarios"] = "straight_dynamic"
+            self.config["videos"] = False
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = True
+            self.config["carla_gpu"] = "1"
+            self.config["max_static_steps"] = 20

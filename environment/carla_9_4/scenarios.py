@@ -412,6 +412,20 @@ def paths_straight_Town01_test():
     ]
     
     return paths[0:1]
+def paths_straight_Town01_dynamic():
+    
+    paths = [
+        # [
+        #     WAYPOINT_DICT_Town01[96],
+        #     WAYPOINT_DICT_Town01[17]
+        # ]
+        [
+            WAYPOINT_DICT_Town01[96],
+            WAYPOINT_DICT_Town01[140]
+        ]
+    ]
+    
+    return paths
 
 def benchmark_paths_straight_Town01():
     
@@ -1322,6 +1336,19 @@ def paths_left_and_right_test():
     ]
     return paths
 '''
+
+def get_straight_dynamic_path(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_transform, target_transform]"
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_straight_Town01_dynamic())
+        elif town == "Town02":
+            return random.choice(benchmark_paths_straight_Town02())
+    else:
+        if town == "Town01":
+            return paths_straight_Town01_dynamic()[index]
+        elif town == "Town02":
+            return benchmark_paths_straight_Town02()[index]
 
 def get_straight_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"

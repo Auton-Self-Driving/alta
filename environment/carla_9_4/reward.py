@@ -194,51 +194,59 @@ def _compute_reward_simple(prev, current, verbose=False):
     return reward
 
 def _compute_reward_simple2(prev, current, config=None, verbose=False):
-        cur_dist = current["distance_to_goal"]
-        prev_dist = prev["distance_to_goal"]
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
 
-        steer = np.abs(current['control_steer'])
-        steer_reward = - config["steer_penalty_coeff"] * steer
+    steer = np.abs(current['control_steer'])
+    steer_reward = - config["steer_penalty_coeff"] * steer
 
-        current["steer_reward"] = steer_reward
+    current["steer_reward"] = steer_reward
 
-        if verbose:
-            print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+    if verbose:
+        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-        dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
-        current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
-        speed_reward = current["speed"]
-        acceleration_reward = (current["speed"] - prev["speed"])
-        
-        current["speed_reward"] = speed_reward
-        # Collision damage
-        if((current["num_collisions"] - prev["num_collisions"]) > 0):
-            collision_reward = -1
-        else:
-            collision_reward = 0
-        current["collision_reward"] = collision_reward
+    dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
+    current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
+    speed_reward = current["speed"]
+    acceleration_reward = (current["speed"] - prev["speed"])
+    
+    current["speed_reward"] = speed_reward
+    
+    is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+    
+    # count out_of_road also as a collision
+    if config["enable_lane_invasion_sensor"]:
+        is_collision |= current["out_of_road"] 
+    
+    current["is_collision"] = is_collision
+    # Collision damage
+    if(is_collision):
+        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+    else:
+        collision_reward = 0
+    current["collision_reward"] = collision_reward
 
-        # # New sidewalk intersection
-        # if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
-        #     lane_intersection_reward = -1
-        # else:
-        #     lane_intersection_reward = 0
-        # current["lane_intersection_reward"] = lane_intersection_reward
+    # # New sidewalk intersection
+    # if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
+    #     lane_intersection_reward = -1
+    # else:
+    #     lane_intersection_reward = 0
+    # current["lane_intersection_reward"] = lane_intersection_reward
 
-        reward = dist_to_trajectory_reward + speed_reward + steer_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward
 
-        current["step_reward"] = reward
+    current["step_reward"] = reward
 
-        if verbose:
-            print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward")
-            print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward)
-        
-        # Update state variables
-        # if np.absolute(lane_intersection_reward) > 0:
-        #     current["offlane_steps"] += 1
-        if current["speed"] == 0:
-            current["static_steps"] += 1
-        return reward
+    if verbose:
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward)
+    
+    # Update state variables
+    # if np.absolute(lane_intersection_reward) > 0:
+    #     current["offlane_steps"] += 1
+    if current["speed"] <= config["zero_speed_threshold"]:
+        current["static_steps"] += 1
+    return reward
 
 def _compute_reward_corlT(prev, current, verbose=False):
     cur_dist = current["distance_to_goal"]
@@ -269,4 +277,3 @@ def _compute_reward_corlT(prev, current, verbose=False):
     if current["speed"] == 0:
         current["static_steps"] += 1
     return reward
-

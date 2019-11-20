@@ -6,11 +6,12 @@ from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
+from test_pid import test_pid_method
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
-    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC')
+    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
@@ -29,8 +30,12 @@ def parse_arguments():
     parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
     parser.add_argument('--num-npc',dest='num_npc',type=int,default=0, help='number of other vehicles')
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
-    
-    
+    parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=0.0, help='Constant penalty for collision.')
+    parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
+    parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
+    parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
+    parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
+
     return parser.parse_args()
 def main(args):
 
@@ -52,15 +57,6 @@ def create_sac_prefix(args):
 
 def create_ppo_prefix(args):
 
-    # prefix = 'algo_' + args.algo \
-    #     + '_input_' + args.input_type \
-    #     + '_network_' + str(args.network) \
-    #     + '_lr_' + str(args.lr)  \
-    #     + '_reduced_' + args.scenarios + '_5' \
-    #     + '_finetunevae_' + str(args.finetune_vae) \
-    #     + '_pretrainedvae_' + str(not args.train_vae) \
-    #     + '_runid_' + args.run_id + '/'
-    
     if args.finetune_vae:
         vae = "_finetune_vae"
     elif args.train_vae:
@@ -72,19 +68,55 @@ def create_ppo_prefix(args):
         num_npc_str = '_npc_' + str(args.num_npc)
     else:
         num_npc_str = ""
+
+    if args.const_collision_penalty != 0:
+        const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
+    else:
+        const_collision_penalty_str = ""
+    
+    if args.collision_penalty_speed_coeff != 0:
+        collision_penalty_speed_coeff_str = '_col_sp_' + str(args.collision_penalty_speed_coeff)
+    else:
+        collision_penalty_speed_coeff_str = ""
+    
+    if args.enable_brake != False:
+        enable_brake_str = '_brake'
+    else:
+        enable_brake_str = ''
+
+    if args.ent_coef != 0.005:
+        ent_coef_str = '_ent_' + str(args.ent_coef)
+    else:
+        ent_coef_str = ''
     
     if args.input_type == "wp_noise":
         input_type = args.input_type + str(args.noise_dim)
     else:
         input_type = args.input_type
+    
+    if args.frame_skip != 1:
+        frame_skip_str = '_fs_' + str(args.frame_skip)
+    else:
+        frame_skip_str = ''
+    
+    if args.n_steps != 500:
+        n_steps_str = '_n_' + str(args.n_steps)
+    else:
+        n_steps_str = ''
         
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_' + args.scenarios \
-        + vae \
         + num_npc_str \
+        + enable_brake_str \
+        + const_collision_penalty_str \
+        + collision_penalty_speed_coeff_str \
+        + ent_coef_str \
+        + frame_skip_str \
+        + n_steps_str \
+        + vae \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -105,6 +137,11 @@ if __name__ == '__main__':
     config.config["noise_dim"] = args.noise_dim
     config.config["num_npc"] = args.num_npc
     config.config["videos"] = args.videos
+    config.config["const_collision_penalty"] = args.const_collision_penalty
+    config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
+    config.config["enable_brake"] = args.enable_brake
+    config.config["frame_skip"] = args.frame_skip
+    
 
     try:
         if args.algo == "SAC":
@@ -121,6 +158,9 @@ if __name__ == '__main__':
             else:
                 print("specify correct input_type: wp, wp_vae")
                 print("exiting")
+        elif args.algo == "PID_TUNE":
+            prefix = create_ppo_prefix(args)
+            test_pid_method(args, prefix, config)
     except Exception as e:
         print(e)
 

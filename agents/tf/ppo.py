@@ -180,7 +180,7 @@ def plot_test_results(total_successes, total_rewards, total_updates, path):
 
 class OverideRunner(Runner):
     
-    def run(self):
+    def run(self, logger=None):
         """
         Run a learning step of the model
 
@@ -200,6 +200,7 @@ class OverideRunner(Runner):
         ep_infos = []
         for _ in range(self.n_steps):
             actions, values, self.states, neglogpacs, logstd, mean = self.model.step(self.obs, self.states, self.dones)
+            # import pdb; pdb.set_trace()
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
@@ -210,6 +211,21 @@ class OverideRunner(Runner):
             if isinstance(self.env.action_space, gym.spaces.Box):
                 clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
             self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
+
+            if logger is not None:
+                steer_mean = mean[0][0]
+                steer_std = np.exp(logstd[0][0])
+
+                tspeed_mean = mean[0][1]
+                tspeed_std = np.exp(logstd[0][1])
+
+                total_steps = infos[0]['total_steps']
+            
+                logger.log_scalar('train/steer_mean', steer_mean, total_steps)
+                logger.log_scalar('train/steer_std', steer_std, total_steps)
+                logger.log_scalar('train/tspeed_mean', tspeed_mean, total_steps)
+                logger.log_scalar('train/tspeed_std', tspeed_std, total_steps)
+
             for info in infos:
                 maybe_ep_info = info.get('episode')
                 if maybe_ep_info is not None:
@@ -248,7 +264,7 @@ def test(model, env):
     success_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(25):
+    for ind in range(1):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -351,7 +367,7 @@ class PPO(PPO2):
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 # true_reward is the reward without discount
-                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run()
+                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(logger=env.logger)
                 ep_info_buf.extend(ep_infos)
                 mb_loss_vals = []
                 if states is None:  # nonrecurrent version
