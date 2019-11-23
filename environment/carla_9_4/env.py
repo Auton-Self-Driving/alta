@@ -77,6 +77,7 @@ class CarlaEnv(gym.Env):
         self.total_steps = 0
         self.semantic_image = None
         self.unseen = False
+        self.index = 0
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
@@ -172,12 +173,13 @@ class CarlaEnv(gym.Env):
         
         self.episode_measurements["episode_num"] = 0
         self.episode_measurements['obstacle_visible'] = False
+        self.episode_measurements['obstacle_dist'] = -1
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_dist_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -242,55 +244,60 @@ class CarlaEnv(gym.Env):
 
         world_frame = None
 
+        reward = 0
+
         for _ in range(self.config["frame_skip"]):
             self.vehicle_actor.apply_control(control)
             world_frame = self._world.tick()
             self.num_steps += 1
+
+            if not self.unseen:
+                self.total_steps +=1
         
+            self.episode_measurements['num_steps'] = self.num_steps
 
-        if not self.unseen:
-            self.total_steps +=1
-        self.episode_measurements['num_steps'] = self.num_steps
+            # Set state variables for reward calculation
+            self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+            if self.config["enable_lane_invasion_sensor"]:
+                self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
+                self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
+            self.location = self.vehicle_actor.get_location()
+            self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
+            if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
+                self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
+            self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-        # Read in preprocessed image
-        sensor_image = self._read_data(world_frame)
+            if self.config["algo"] == "AE":
+                next_orientation, self.dist_to_trajectory = 0, 0
+            else:
+                next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            
+            self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
+            
+            reward += compute_reward(name=self.config['reward_function'],
+                                prev_measurement=self.prev_measurement,
+                                cur_measurement=self.episode_measurements,
+                                config=self.config,
+                                verbose=self.config["verbose"])
+            
+            done = self._compute_done_condition()
 
-        # Set state variables for reward calculation
-        self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
-        if self.config["enable_lane_invasion_sensor"]:
-            self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
-            self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
-        self.location = self.vehicle_actor.get_location()
-        self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
-        if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
-            self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
-        self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
+            self.episode_measurements['done'] = done
+            self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        if self.config["algo"] == "AE":
-            next_orientation, self.dist_to_trajectory = 0, 0
-        else:
-            next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            if done:
+                break
         
-        self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
-        
-        reward = compute_reward(name=self.config['reward_function'],
-                             prev_measurement=self.prev_measurement,
-                             cur_measurement=self.episode_measurements,
-                             config=self.config,
-                             verbose=self.config["verbose"])
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
-
-        done = self._compute_done_condition()
-
-        self.episode_measurements['done'] = done
-        self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         obs = {}
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
         
+        # Read in preprocessed image
+        sensor_image = self._read_data(world_frame)
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
@@ -330,81 +337,116 @@ class CarlaEnv(gym.Env):
                 if self.vis_wrapper_vae is not None:
                     # self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-            if not self.unseen and self.logger is not None and self.num_steps % self.config["log_freq"] == 0:
-                self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
+            if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
+                # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-                self.logger.log_scalar('timesteps/train/throttle', control.throttle, self.total_steps)
-                self.logger.log_scalar('timesteps/train/speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
-                self.logger.log_scalar('timesteps/train/steer', control.steer, self.total_steps)
-                self.logger.log_scalar('timesteps/train/brake', self.episode_measurements['control_brake'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/target_speed', self.episode_measurements['target_speed'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/dist_to_trajectory_reward', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/speed_reward', self.episode_measurements['speed_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/step_reward', self.episode_measurements['step_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/collision_reward', self.episode_measurements['collision_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
 
 
                 # TODO: remove hard coded logic
-                car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
-                location = self.vehicle_actor.get_location()
-                distance_to_car = location.distance(car_spawn_point.location)
+                if self.config["scenarios"] == "straight_dynamic":
+                    car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
+                    location = self.vehicle_actor.get_location()
+                    distance_to_car = location.distance(car_spawn_point.location)
 
-                if distance_to_car < 10:
-                    speed_near_car = self.episode_measurements['speed'] * 3.6
-                    target_speed_near_car = self.episode_measurements['target_speed']
-                else:
-                    speed_near_car = -10
-                    target_speed_near_car = -10
-        
-                self.logger.log_scalar('timesteps/train/speed_near_car', speed_near_car, self.total_steps)
-                self.logger.log_scalar('timesteps/train/target_speed_near_car', target_speed_near_car, self.total_steps)
+                    self.episode_measurements['obstacle_dist'] = distance_to_car
 
-                if distance_to_car < 20:
-                    self.episode_measurements['obstacle_visible'] = True
-                else:
-                    self.episode_measurements['obstacle_visible'] = False
+                    if distance_to_car < 10:
+                        speed_near_car = self.episode_measurements['speed'] * 3.6
+                        target_speed_near_car = self.episode_measurements['target_speed']
+                    else:
+                        speed_near_car = -10
+                        target_speed_near_car = -10
+            
+                    self.logger.log_scalar('timesteps/train/near_car_speed', speed_near_car, self.total_steps)
+                    self.logger.log_scalar('timesteps/train/near_car_target_speed', target_speed_near_car, self.total_steps)
+
+                    if distance_to_car < 20:
+                        self.episode_measurements['obstacle_visible'] = True
+                    else:
+                        self.episode_measurements['obstacle_visible'] = False
             
             self.target_speeds_array.append(self.episode_measurements['target_speed'])
             self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
-            self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
+            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
             
             if done:
-                self.episode_num += 1
+
+                # Training runs
+                if not self.unseen:
+                    self.episode_num += 1
+                    path = self.log_dir + 'episode_info_plots/'
+                    ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
+                    plot_episode_info(path,
+                        self.target_speeds_array,
+                        self.speeds_array,
+                        self.throttles_array,
+                        self.steers_array,
+                        self.brakes_array,
+                        self.obstacle_dist_array,
+                        self.step_reward_array,
+                        self.collision_reward_array,
+                        self.dist_to_trajectory_reward_array,
+                        self.speed_reward_array,
+                        ep_idx)
+
+                # Validation runs
+                else:
+                    val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index)
+                    path = self.log_dir + 'val_episode_info_plots/'
+                    plot_episode_info(path,
+                        self.target_speeds_array,
+                        self.speeds_array,
+                        self.throttles_array,
+                        self.steers_array,
+                        self.brakes_array,
+                        self.obstacle_dist_array,
+                        self.step_reward_array,
+                        self.collision_reward_array,
+                        self.dist_to_trajectory_reward_array,
+                        self.speed_reward_array,
+                        val_ep_idx)
+                
                 self.episode_measurements["episode_num"] = self.episode_num
-                path = self.log_dir + 'episode_info_plots/'
-                plot_episode_info(path,
-                    self.target_speeds_array,
-                    self.speeds_array,
-                    self.throttles_array,
-                    self.steers_array,
-                    self.brakes_array,
-                    self.obstacle_visible_array,
-                    self.step_reward_array,
-                    self.collision_reward_array,
-                    self.dist_to_trajectory_reward_array,
-                    self.speed_reward_array,
-                    self.episode_num)
 
-                if not self.unseen and self.logger is not None:
-                    self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
-                    self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
-                    self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
-                    self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
-                    self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
-                    self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
+                if self.logger is not None:
 
-                    # New logs
-                    self.logger.log_scalar('episodes/train/collision_reward', self.episode_measurements['collision_reward'], self.episode_num)
-                    self.logger.log_scalar('episodes/train/out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                    self.logger.log_scalar('episodes/train/collision_occured', self.episode_measurements['is_collision'], self.episode_num)
+                    if not self.unseen:
+                        self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
+                        # self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
+                        self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
+                        self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
+                        # self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
+                        self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
+
+                        # New logs
+                        self.logger.log_scalar('episodes/train/reward_collision', self.episode_measurements['collision_reward'], self.episode_num)
+                        self.logger.log_scalar('episodes/train/out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+                        self.logger.log_scalar('episodes/train/collision_occured', self.episode_measurements['is_collision'], self.episode_num)
+
+                    elif self.unseen:
+
+                        self.logger.log_scalar('test/dist_to_target_' + str(self.index), self.episode_measurements['distance_to_goal'], self.total_steps)
+                        self.logger.log_scalar('test/reward_' + str(self.index), self.episode_measurements['total_reward'], self.total_steps)
+
+                        self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
+                        self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 if self.config["videos"] and (self.episode_num % 10 == 0):
                     if self.vis_wrapper is not None:
@@ -579,6 +621,7 @@ class CarlaEnv(gym.Env):
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
         self.unseen = unseen
+        self.index = index
 
         # Destroy
         self.destroy_all_existing_actors()
@@ -700,7 +743,7 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_dist_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -727,12 +770,14 @@ class CarlaEnv(gym.Env):
             blueprint.set_attribute('color', color)
         
         # TODO: uncomment below to enable autopilot
-        # blueprint.set_attribute('role_name', 'autopilot')
+        if not self.config["scenarios"] == "straight_dynamic":
+            blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
         if vehicle is not None:
             self.actor_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
-            # vehicle.set_autopilot()
+            if not self.config["scenarios"] == "straight_dynamic":
+                vehicle.set_autopilot()
 
             if self.config["verbose"]:
                 print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
@@ -741,13 +786,14 @@ class CarlaEnv(gym.Env):
     
     def spawn_npc(self, number_of_vehicles):
         
-        # TODO: uncomment below to spawn at random locations.
-        # spawn_points = list(self._world.get_map().get_spawn_points())
-        # random.shuffle(spawn_points)
-
         # TODO: remove hard coded logic
-        spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
-        Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
+        if not self.config["scenarios"] == "straight_dynamic":
+            spawn_points = list(self._world.get_map().get_spawn_points())
+            random.shuffle(spawn_points)            
+        else:
+            spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
+            Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
+
 
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
@@ -855,7 +901,7 @@ def plot_episode_info(path,
                 throttles_array,
                 steers_array,
                 brakes_array,
-                obstacle_visible_array,
+                obstacle_dist_array,
                 step_reward_array,
                 collision_reward_array,
                 dist_to_trajectory_reward_array,
@@ -873,12 +919,12 @@ def plot_episode_info(path,
     brakes_array = np.array(brakes_array)
     step_reward_array = np.array(step_reward_array)
     collision_reward_array = np.array(collision_reward_array)
-    obstacle_visible_array = np.array(obstacle_visible_array)
+    obstacle_dist_array = np.array(obstacle_dist_array)
     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
     speed_reward_array = np.array(speed_reward_array)
     
     fig, axs = plt.subplots(5, 2, figsize=(12, 12))
-    fig.suptitle('Epsiode info plots for episode {} '.format(episode_num))
+    fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
 
     axs[0, 0].plot(observations, target_speeds_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[0, 0].set_xlabel('Timesteps')
@@ -907,9 +953,9 @@ def plot_episode_info(path,
     axs[0, 1].set_ylabel('Steer - Stochastic')
 
 
-    axs[1, 1].plot(observations, obstacle_visible_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[1, 1].plot(observations, obstacle_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 1].set_xlabel('Timesteps')
-    axs[1, 1].set_ylabel('Obstacle visible ahead')
+    axs[1, 1].set_ylabel('Obstacle distance')
 
     axs[2, 1].plot(observations, brakes_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Timesteps')

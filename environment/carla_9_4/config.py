@@ -62,7 +62,7 @@ DEFAULT_ENV = {
     "sensor_tick": '0.0',
     "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
-    "max_static_steps" : 75,
+    "max_static_steps" : 200,
     "log_measurements_to_file": False,
     "train_config": None,
     "sync_mode": True,
@@ -85,7 +85,7 @@ DEFAULT_ENV = {
     "collision_penalty_speed_coeff": 0,
     "enable_brake": False,
     "log_freq": 1,
-    "zero_speed_threshold": 0.1, 
+    "zero_speed_threshold": 0.05, 
     "videos" : False
 }
 
