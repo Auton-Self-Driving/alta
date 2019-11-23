@@ -35,6 +35,7 @@ def parse_arguments():
     parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
+    parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
 
     return parser.parse_args()
 def main(args):
@@ -141,6 +142,7 @@ if __name__ == '__main__':
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
     config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
+    config.config["semantic"] = not args.disable_semantic
     
 
     try:
@@ -151,7 +153,8 @@ if __name__ == '__main__':
         elif args.algo == "PPO":
             prefix = create_ppo_prefix(args)
             print("prefix", prefix)
-            if args.input_type == "wp" or args.input_type == "wp_noise":
+            if args.input_type == "wp" or args.input_type == "wp_noise" \
+                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
                 run_ppo(args, prefix, config)
             elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)

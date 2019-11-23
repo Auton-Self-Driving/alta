@@ -86,7 +86,8 @@ DEFAULT_ENV = {
     "enable_brake": False,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
-    "videos" : False
+    "videos" : False,
+    "obstacle_dist_norm" : 60
 }
 
 episode_measurements = {

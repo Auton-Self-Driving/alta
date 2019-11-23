@@ -60,9 +60,9 @@ def run_ppo(args, prefix, config):
 
                 IMAGES_PATH = ALTA_LOGS+'final_images_' + config.config["city_name"] + '/'
                 VIDEO_PATH = ALTA_LOGS+'final_videos_' + config.config["city_name"] + '/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
                 dummy_env = DummyVecEnv([lambda: env])
 
                 model = PPO.load(SAVE_PATH, dummy_env)
@@ -82,9 +82,9 @@ def run_ppo(args, prefix, config):
                 print("Training begins")
                 IMAGES_PATH = ALTA_LOGS+'images/'
                 VIDEO_PATH = ALTA_LOGS+'videos/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
                 dummy_env = DummyVecEnv([lambda: env])
                 
                 if args.network == "1_layer":
@@ -116,14 +116,14 @@ def run_ppo(args, prefix, config):
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))
-                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed, policy_plots=True)
+                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed, policy_plots=False)
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
-                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=True)
+                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=False)
                 
                 best_model.save(SAVE_PATH)
             break

@@ -5,7 +5,7 @@ import os
 import glob
 
 class vis():
-    def __init__(self, images_path, video_path, frame_skip, videos=False):
+    def __init__(self, images_path, video_path, frame_skip, videos=True):
         self.frame_skip = frame_skip
         self.images_path = images_path
         self.video_path = video_path
