@@ -28,7 +28,7 @@ def run_ppo_vae(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
     SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     
-    vae = AEController(image_size=(128, 128, 5))
+    vae = AEController(image_size=(128, 128, 5), learning_rate=args.ae_lr)
     
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
@@ -126,7 +126,11 @@ def run_ppo_vae(args, prefix, config):
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
+                if args.use_pretrained_agent:
+                    print("Loading pretrained agent!!!")
+                    model = PPO.load(args.agent_model_path, dummy_env)
+                else:
+                    model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
                             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:

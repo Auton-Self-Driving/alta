@@ -132,6 +132,8 @@ class CarlaEnv(gym.Env):
         
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
+        
+        self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
 
         if(self.config['train_config'] == 'baselines'):
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
@@ -187,6 +189,7 @@ class CarlaEnv(gym.Env):
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
         self.speed_reward_array = []
+        self.dist_to_target_array = []
         
     def _update_config(self, config):
         for key, val in config.items():
@@ -207,49 +210,69 @@ class CarlaEnv(gym.Env):
             self.reset()
 
     def _step(self, action):
-        if(self.config['discrete_actions']):
-            action = DISCRETE_ACTIONS[int(action)]
-            target_speed = float(np.clip(action[0] + 10.0, 0, self.target_speed))
-            self.episode_measurements['target_speed'] = target_speed
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
-            brake = 0.0
-            # throttle = float(np.clip(action[0], 0, 1))
-            # brake = float(np.abs(np.clip(action[0], -1, 0)))
-            steer = float(np.clip(action[1], -1, 1))
-            reverse = False
-            hand_brake = False
+        # if(self.config['discrete_actions']):
+        #     action = DISCRETE_ACTIONS[int(action)]
+        #     target_speed = float(np.clip(action[0] + 10.0, 0, self.target_speed))
+        #     self.episode_measurements['target_speed'] = target_speed
+        #     current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+        #     throttle = self.controller.pid_control(target_speed, current_speed)
+        #     brake = 0.0
+        #     # throttle = float(np.clip(action[0], 0, 1))
+        #     # brake = float(np.abs(np.clip(action[0], -1, 0)))
+        #     steer = float(np.clip(action[1], -1, 1))
+        #     reverse = False
+        #     hand_brake = False
 
-            control = carla.VehicleControl(
-                throttle=throttle,
-                steer=steer,
-                brake=brake,
-                hand_brake=False,
-                reverse=False,
-                manual_gear_shift=False,
-                gear=0
-            )
-        else:
-            control = self.get_control(action)
+        #     control = carla.VehicleControl(
+        #         throttle=throttle,
+        #         steer=steer,
+        #         brake=brake,
+        #         hand_brake=False,
+        #         reverse=False,
+        #         manual_gear_shift=False,
+        #         gear=0
+        #     )
+        # else:
+        #     control = self.get_control(action)
 
-        #Print actions
-        if self.config['verbose']:
-            print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
-                  "reverse", control.reverse)
+        # #Print actions
+        # if self.config['verbose']:
+        #     print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
+        #           "reverse", control.reverse)
 
-        #Store control for this step
-        self.episode_measurements['control_steer'] = control.steer
-        self.episode_measurements['control_throttle'] = control.throttle
-        self.episode_measurements['control_brake'] = control.brake
-        self.episode_measurements['control_reverse'] = control.reverse
-        self.episode_measurements['control_hand_brake'] = control.hand_brake
+        # #Store control for this step
+        # self.episode_measurements['control_steer'] = control.steer
+        # self.episode_measurements['control_throttle'] = control.throttle
+        # self.episode_measurements['control_brake'] = control.brake
+        # self.episode_measurements['control_reverse'] = control.reverse
+        # self.episode_measurements['control_hand_brake'] = control.hand_brake
         
 
         world_frame = None
 
         reward = 0
+        # # compute control using PID for each timestep
+        # control = self.get_control(action)
+
+        # #Store control for this step
+        # self.episode_measurements['control_steer'] = control.steer
+        # self.episode_measurements['control_throttle'] = control.throttle
+        # self.episode_measurements['control_brake'] = control.brake
+        # self.episode_measurements['control_reverse'] = control.reverse
+        # self.episode_measurements['control_hand_brake'] = control.hand_brake
 
         for _ in range(self.config["frame_skip"]):
+
+            # compute control using PID for each timestep
+            control = self.get_control(action)
+
+            #Store control for this step
+            self.episode_measurements['control_steer'] = control.steer
+            self.episode_measurements['control_throttle'] = control.throttle
+            self.episode_measurements['control_brake'] = control.brake
+            self.episode_measurements['control_reverse'] = control.reverse
+            self.episode_measurements['control_hand_brake'] = control.hand_brake
+
             self.vehicle_actor.apply_control(control)
             world_frame = self._world.tick()
             self.num_steps += 1
@@ -342,6 +365,7 @@ class CarlaEnv(gym.Env):
             if self.config["videos"] and ((self.episode_num + 1) % 10 == 0):
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+                        # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
                         # self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
                         self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
@@ -400,26 +424,30 @@ class CarlaEnv(gym.Env):
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
+            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
             
             if done:
 
                 # Training runs
                 if not self.unseen:
                     self.episode_num += 1
-                    path = self.log_dir + 'episode_info_plots/'
-                    ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
-                    plot_episode_info(path,
-                        self.target_speeds_array,
-                        self.speeds_array,
-                        self.throttles_array,
-                        self.steers_array,
-                        self.brakes_array,
-                        self.obstacle_dist_array,
-                        self.step_reward_array,
-                        self.collision_reward_array,
-                        self.dist_to_trajectory_reward_array,
-                        self.speed_reward_array,
-                        ep_idx)
+                    
+                    # Commenting out plots for all episodes
+                    
+                    # path = self.log_dir + 'episode_info_plots/'
+                    # ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
+                    # plot_episode_info(path,
+                    #     self.target_speeds_array,
+                    #     self.speeds_array,
+                    #     self.throttles_array,
+                    #     self.steers_array,
+                    #     self.brakes_array,
+                    #     self.dist_to_target_array,
+                    #     self.step_reward_array,
+                    #     self.collision_reward_array,
+                    #     self.dist_to_trajectory_reward_array,
+                    #     self.speed_reward_array,
+                    #     ep_idx)
 
                 # Validation runs
                 else:
@@ -431,7 +459,7 @@ class CarlaEnv(gym.Env):
                         self.throttles_array,
                         self.steers_array,
                         self.brakes_array,
-                        self.obstacle_dist_array,
+                        self.dist_to_target_array,
                         self.step_reward_array,
                         self.collision_reward_array,
                         self.dist_to_trajectory_reward_array,
@@ -677,7 +705,7 @@ class CarlaEnv(gym.Env):
         self.location = self.vehicle_actor.get_location()
 
         if self.config["num_npc"] > 0:
-            self.spawn_npc(self.config["num_npc"])    
+            self.spawn_npc(self.config["num_npc"], unseen)    
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -789,6 +817,7 @@ class CarlaEnv(gym.Env):
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
         self.speed_reward_array = []
+        self.dist_to_target_array = []
 
         if self.config["input_type"] == 'vae':
             return encoded_image
@@ -827,12 +856,24 @@ class CarlaEnv(gym.Env):
             return True
         return False
     
-    def spawn_npc(self, number_of_vehicles):
+    def spawn_npc(self, number_of_vehicles, unseen):
         
         # TODO: remove hard coded logic
         if not self.config["scenarios"] == "straight_dynamic":
-            spawn_points = list(self._world.get_map().get_spawn_points())
-            random.shuffle(spawn_points)            
+            
+            # Testing
+            if unseen:
+                if self.config["test_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+                    random.shuffle(spawn_points)
+            else:
+                if self.config["train_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+                    random.shuffle(spawn_points)
         else:
             spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
             Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
@@ -849,6 +890,7 @@ class CarlaEnv(gym.Env):
                 break
 
         while count > 0:
+            print("in while loop")
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, random.choice(spawn_points)):
                 count -= 1
 
@@ -897,7 +939,8 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        # static = False
+        static = False
+        # collision = False
 
         # Do not want to terminate on reaching goal
         # in case of VAE training
@@ -944,7 +987,7 @@ def plot_episode_info(path,
                 throttles_array,
                 steers_array,
                 brakes_array,
-                obstacle_dist_array,
+                dist_to_target_array,
                 step_reward_array,
                 collision_reward_array,
                 dist_to_trajectory_reward_array,
@@ -962,7 +1005,7 @@ def plot_episode_info(path,
     brakes_array = np.array(brakes_array)
     step_reward_array = np.array(step_reward_array)
     collision_reward_array = np.array(collision_reward_array)
-    obstacle_dist_array = np.array(obstacle_dist_array)
+    dist_to_target_array = np.array(dist_to_target_array)
     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
     speed_reward_array = np.array(speed_reward_array)
     
@@ -996,9 +1039,9 @@ def plot_episode_info(path,
     axs[0, 1].set_ylabel('Steer - Stochastic')
 
 
-    axs[1, 1].plot(observations, obstacle_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[1, 1].plot(observations, dist_to_target_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 1].set_xlabel('Timesteps')
-    axs[1, 1].set_ylabel('Obstacle distance')
+    axs[1, 1].set_ylabel('Distance to target')
 
     axs[2, 1].plot(observations, brakes_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Timesteps')

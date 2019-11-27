@@ -21,6 +21,10 @@ class vis():
             plt.imsave(im_path, image)
             self.image_idx += 1
     
+    def save_semantic_image(self, image, step_number):
+        im_path = os.path.join(self.images_path, str(step_number))
+        np.save(im_path, image)
+
     def convert_image(self, image):
         return Image.fromarray(image, 'RGB').convert('RGBA')
     

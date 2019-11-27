@@ -36,6 +36,9 @@ def parse_arguments():
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
+    parser.add_argument('--use-pretrained-agent', dest='use_pretrained_agent', action='store_true', help='Whether to use pretrained agent.')
+    parser.add_argument('--agent-model-path',dest='agent_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='Pretrained agent model path.')
+    parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
 
     return parser.parse_args()
 def main(args):
@@ -104,12 +107,24 @@ def create_ppo_prefix(args):
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
+    
+    if args.use_pretrained_agent == True:
+        use_pretrained_agent_str = '_pretrained_agent_'
+    else:
+        use_pretrained_agent_str = ''
+
+    if args.ae_lr != 1e-4:
+        ae_lr_str = '_ae_lr_' + str(args.ae_lr)
+    else:
+        ae_lr_str = ''
         
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
+        + ae_lr_str \
         + '_' + args.scenarios \
+        + use_pretrained_agent_str \
         + num_npc_str \
         + enable_brake_str \
         + const_collision_penalty_str \
