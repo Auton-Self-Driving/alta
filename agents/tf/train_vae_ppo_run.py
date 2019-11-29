@@ -26,10 +26,16 @@ def get_scratch_dir(base_log_dir):
 
 def run_ppo_vae(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
-    SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    if ALTA_LOGS[-1] != '/':
+        ALTA_LOGS += '/'
+
+    if os.path.exists('/home/scratch'):
+        SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    else:
+        SCRATCH_DIR = ALTA_LOGS
     
-    vae = AEController(image_size=(128, 128, 5), learning_rate=args.ae_lr)
-    
+    vae = AEController(image_size=(160, 80, 5), learning_rate=args.ae_lr)
+
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
 
@@ -60,41 +66,67 @@ def run_ppo_vae(args, prefix, config):
         try:
             # Create the environment
             logger = tf_log.Logger(TB_LOGS_DIR)
-            if os.path.exists(SAVE_PATH + ".pkl"):
-                print("Best model exists, Validating !!!!")
-                with open(ALTA_LOGS + "seed.txt", "r") as f:
+            # if os.path.exists(SAVE_PATH + ".pkl"):
+                # print("Best model exists, Validating !!!!")
+            if args.test:
+                print('Testing Begins')
+                np.random.seed(10)
+                if args.city_name == 'Town01':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                elif args.city_name == 'Town02':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
+                with open(ALTA_LOGS + "/seed.txt", "r") as f:
                     seed = int(f.readline())
                 print("Using the pre-initialized seed: {}".format(seed))
                 set_global_seeds(seed)
 
-                IMAGES_PATH = SCRATCH_DIR+'final_images_' + config.config["city_name"] + '/'
-                VIDEO_PATH = SCRATCH_DIR+'final_videos_' + config.config["city_name"] + '/'
-                IMAGES_PATH_VAE = SCRATCH_DIR+'final_vae_images_' + config.config["city_name"] + '/'
-                VIDEO_PATH_VAE = SCRATCH_DIR+'final_vae_videos_' + config.config["city_name"] + '/'
-                
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
-                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
-                
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
-                dummy_env = DummyVecEnv([lambda: env])
-                if not args.train_vae:
-                    print("Loading pretrained AE!!!")
-                    vae.load(args.vae_model_path)
-                env.set_vae(vae)
+                rewards = []
+                successes = []
+                for test_idx in range(args.test_trails):
+                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
 
-                model = PPO.load(SAVE_PATH, dummy_env)
-                with open(ALTA_LOGS + config.config["scenarios"] + config.config["city_name"] + ".txt", "w") as f:
-                    total_reward, success_episodes, results = test(model, env)
-                    print("Task Name: {}".format(config.config["scenarios"]))
-                    print("Town Name: {}".format(config.config["city_name"]))
-                    print("Results of test scenarios")
-                    print(results)
-                    print("Total Success Episodes: {}".format(success_episodes))
-                    f.write("Task Name: {}".format(config.config["scenarios"]))
-                    f.write("Town Name: {}".format(config.config["city_name"]))
-                    f.write("Results of test scenarios")
-                    # f.write(results)
-                    f.write("Total Success Episodes: {}".format(str(success_episodes)))
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
+
+                    config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
+                    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                    dummy_env = DummyVecEnv([lambda: env])
+                    if not args.train_vae:
+                        print("Loading pretrained AE!!!")
+                        vae.load(args.vae_model_path)
+                    env.set_vae(vae)
+                    model = PPO.load(args.agent_model_path, dummy_env)
+
+                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] + '_run_' + str(test_idx) + ".txt", "w") as f:
+                        total_reward, success_episodes, results = test(model, env)
+                        print("Task Name: {}".format(config.config["scenarios"]))
+                        print("Town Name: {}".format(config.config["city_name"]))
+                        print("Results of test scenarios")
+                        print(results)
+                        print("Total Success Episodes: {}".format(success_episodes))
+                        f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                        f.write("Town Name: {}\n".format(config.config["city_name"]))
+                        f.write("Results of test scenarios\n")
+                        f.write(str(results))
+                        f.write("Total Success Episodes: {}\n".format(str(success_episodes)))
+                        f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
+                    rewards.append(total_reward)
+                    successes.append(success_episodes)
+                    env.close()
+                rewards = np.array(rewards)
+                successes = np.array(successes)
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+ ".txt", "w") as f:
+                    f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                    f.write("Town Name: {}\n".format(config.config["city_name"]))
+                    f.write("Model path used for testing: {}\n".format(args.agent_model_path))
+                    f.write("Results of final testing\n")
+                    f.write("Rewards: {}\n".format(" ".join(map(str, rewards))))
+                    f.write("Success: {}\n".format(" ".join(map(str, successes))))
+                    f.write("Avg Success: {}\n".format(np.mean(successes)))
+                    f.write("Std Success: {}\n".format(np.std(successes)))
             else:
                 print("Training begins")
                 IMAGES_PATH = SCRATCH_DIR+'images/'
@@ -126,12 +158,6 @@ def run_ppo_vae(args, prefix, config):
                     print("exiting")
                     return
                 
-                if args.use_pretrained_agent:
-                    print("Loading pretrained agent!!!")
-                    model = PPO.load(args.agent_model_path, dummy_env)
-                else:
-                    model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
-                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
                 if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
@@ -152,6 +178,12 @@ def run_ppo_vae(args, prefix, config):
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
+                    if args.agent_model_path is None:
+                        model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
+                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
+                    else:
+                        model = PPO.load(args.agent_model_path, dummy_env)
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, vae=vae, train_vae=(args.train_vae or args.finetune_vae))
                 
                 best_model.save(SAVE_PATH)

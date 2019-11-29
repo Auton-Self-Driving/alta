@@ -12,7 +12,11 @@ from test_pid import test_pid_method
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
+    parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
+    parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
+    parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
+    parser.add_argument('--agent_model_path',dest='agent_model_path',type=str, default=None, help='Agent Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
@@ -36,8 +40,9 @@ def parse_arguments():
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
-    parser.add_argument('--use-pretrained-agent', dest='use_pretrained_agent', action='store_true', help='Whether to use pretrained agent.')
-    parser.add_argument('--agent-model-path',dest='agent_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='Pretrained agent model path.')
+    parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
+    parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
+    parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
 
     return parser.parse_args()
@@ -88,6 +93,16 @@ def create_ppo_prefix(args):
     else:
         enable_brake_str = ''
 
+    if args.disable_collision != False:
+        disable_collision_str = "_disable_collision_"
+    else:
+        disable_collision_str = ''
+
+    if args.enable_static != False:
+        enable_static_str = "_enable_static_" + str(args.static_steps) + "_"
+    else:
+        enable_static_str = ''
+
     if args.ent_coef != 0.005:
         ent_coef_str = '_ent_' + str(args.ent_coef)
     else:
@@ -108,7 +123,7 @@ def create_ppo_prefix(args):
     else:
         n_steps_str = ''
     
-    if args.use_pretrained_agent == True:
+    if args.agent_model_path is not None:
         use_pretrained_agent_str = '_pretrained_agent_'
     else:
         use_pretrained_agent_str = ''
@@ -127,6 +142,8 @@ def create_ppo_prefix(args):
         + use_pretrained_agent_str \
         + num_npc_str \
         + enable_brake_str \
+        + disable_collision_str \
+        + enable_static_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
         + ent_coef_str \
@@ -135,6 +152,10 @@ def create_ppo_prefix(args):
         + vae \
         + '_runid_' + args.run_id + '/'
 
+    return prefix
+
+def extract_prefix(args):
+    prefix = args.agent_model_path.split('/')[-2]
     return prefix
 
 if __name__ == '__main__':
@@ -158,7 +179,11 @@ if __name__ == '__main__':
     config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
     config.config["semantic"] = not args.disable_semantic
-    
+    config.config["disable_collision"] = args.disable_collision
+    config.config["enable_static"] = args.enable_static
+    config.config["max_static_steps"] = args.static_steps
+    config.config["city_name"] = args.city_name
+    config.config["testing"] = args.test
 
     try:
         if args.algo == "SAC":
@@ -166,7 +191,10 @@ if __name__ == '__main__':
             print("prefix", prefix)
             run_sac(args, prefix, base_prefix, config)
         elif args.algo == "PPO":
-            prefix = create_ppo_prefix(args)
+            if not args.test:
+                prefix = create_ppo_prefix(args)
+            else:
+                prefix = extract_prefix(args)
             print("prefix", prefix)
             if args.input_type == "wp" or args.input_type == "wp_noise" \
                 or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":

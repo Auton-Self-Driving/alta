@@ -113,7 +113,7 @@ class CarlaEnv(gym.Env):
 
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
-        # self._world = self.client.load_world(self.config['city_name'])
+        self._world = self.client.load_world(self.config['city_name'])
         
         self._world = self.client.get_world()
 
@@ -172,11 +172,11 @@ class CarlaEnv(gym.Env):
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 400), dtype=np.float32)
+                                        shape=(1, 768), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 401), dtype=np.float32)
+                                        shape=(1, 769), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
@@ -185,6 +185,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements["episode_num"] = 0
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_dist'] = -1
+        self.episode_measurements['out_of_road'] = 0
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
@@ -729,11 +730,11 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # camera.set_attribute('fov', '120')
-        camera.set_attribute('fov', '90')
+        camera.set_attribute('fov', '120')
+        # camera.set_attribute('fov', '90')
 
-        # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
         
@@ -921,9 +922,9 @@ class CarlaEnv(gym.Env):
         array = array[:, :, :3]
         array = array[:, :, ::-1]
 
-        # if(self.config['preprocess_crop_image']):
-        #     array = array[200:500, 300:500]
-        # array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
+        if(self.config['preprocess_crop_image']):
+            array = array[200:500, 300:500]
+        array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
 
         return array
 
@@ -950,8 +951,10 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        static = False
-        # collision = False
+        if not self.config["enable_static"]:
+            static = False
+        if self.config["disable_collision"]:
+            collision = False
 
         # Do not want to terminate on reaching goal
         # in case of VAE training

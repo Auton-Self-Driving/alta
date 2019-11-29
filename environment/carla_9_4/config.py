@@ -23,8 +23,8 @@ DEFAULT_ENV = {
     "render_res_x" : 800,
     # Y Rendering Resolution
     "render_res_y" : 800,
-    "sensor_x_res" : '128',
-    "sensor_y_res" : '128',
+    "sensor_x_res" : '800',
+    "sensor_y_res" : '800',
     # Input X Res (Default set to Atari)
     "x_res": 84,
     # Input Y Res (Default set to Atari)
@@ -110,7 +110,9 @@ DEFAULT_ENV = {
        225,  31, 229, 250, 110, 177, 199, 184, 144],
     "test_fixed_spawn_points" : True,
     "train_fixed_spawn_points": False,
-    "testing" : False
+    "testing" : False,
+    "disable_collision" : False,
+    "enable_static" : False
 }
 
 episode_measurements = {
@@ -247,7 +249,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_speed_scaled_tanh"
+            self.config["action_type"] = "merged_speed_tanh"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
