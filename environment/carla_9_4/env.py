@@ -948,7 +948,7 @@ class CarlaEnv(gym.Env):
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        collision = self.episode_measurements["is_collision"]
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
         if not self.config["enable_static"]:
