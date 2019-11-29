@@ -74,6 +74,7 @@ class CarlaEnv(gym.Env):
         self.global_planner = None
         self.trace_route = None
         self.episode_num = 0
+        self.validation_episode_num = 0
         self.total_steps = 0
         self.semantic_image = None
         self.unseen = False
@@ -133,7 +134,12 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
         
-        self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
+        if self.config["testing"]:
+            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
+        else:
+            spawn_pt_idx = np.random.permutation(len(self.spawn_points))
+            np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
+            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         if(self.config['train_config'] == 'baselines'):
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
@@ -311,6 +317,18 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['done'] = done
             self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
+            self.target_speeds_array.append(self.episode_measurements['target_speed'])
+            self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
+            self.throttles_array.append(control.throttle)
+            self.steers_array.append(control.steer)
+            self.brakes_array.append(control.brake)
+            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
+            self.step_reward_array.append(self.episode_measurements['step_reward'])
+            self.collision_reward_array.append(self.episode_measurements['collision_reward'])
+            self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
+            self.speed_reward_array.append(self.episode_measurements['speed_reward'])
+            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
+
             if done:
                 break
         
@@ -362,7 +380,8 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO":
-            if self.config["videos"] and ((self.episode_num + 1) % 10 == 0):
+            # Save videos now only for validation runs
+            if self.config["videos"] and self.unseen:
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                         # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
@@ -414,18 +433,6 @@ class CarlaEnv(gym.Env):
                     # else:
                     #     self.episode_measurements['obstacle_visible'] = False
             
-            self.target_speeds_array.append(self.episode_measurements['target_speed'])
-            self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
-            self.throttles_array.append(control.throttle)
-            self.steers_array.append(control.steer)
-            self.brakes_array.append(control.brake)
-            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
-            self.step_reward_array.append(self.episode_measurements['step_reward'])
-            self.collision_reward_array.append(self.episode_measurements['collision_reward'])
-            self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
-            self.speed_reward_array.append(self.episode_measurements['speed_reward'])
-            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
-            
             if done:
 
                 # Training runs
@@ -433,7 +440,7 @@ class CarlaEnv(gym.Env):
                     self.episode_num += 1
                     
                     # Commenting out plots for all episodes
-                    
+
                     # path = self.log_dir + 'episode_info_plots/'
                     # ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
                     # plot_episode_info(path,
@@ -451,7 +458,8 @@ class CarlaEnv(gym.Env):
 
                 # Validation runs
                 else:
-                    val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index)
+                    self.validation_episode_num += 1
+                    val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index) + '_v_' + str(self.validation_episode_num)
                     path = self.log_dir + 'val_episode_info_plots/'
                     plot_episode_info(path,
                         self.target_speeds_array,
@@ -492,12 +500,15 @@ class CarlaEnv(gym.Env):
                         self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
                         self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
-                if self.config["videos"] and (self.episode_num % 10 == 0):
+                # Save videos now only for validation runs
+                if self.config["videos"] and self.unseen:
                     if self.vis_wrapper is not None:
-                        self.vis_wrapper.generate_video(self.episode_num)
+                        # self.vis_wrapper.generate_video(self.episode_num)
+                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
                         self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
-                        self.vis_wrapper_vae.generate_video(self.episode_num)
+                        # self.vis_wrapper_vae.generate_video(self.episode_num)
+                        self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
                         self.vis_wrapper_vae.remove_images()
         if self.config["input_type"] == 'vae':
             return encoded_image, reward, done, self.episode_measurements
