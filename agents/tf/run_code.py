@@ -165,6 +165,12 @@ if __name__ == '__main__':
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(args.code_gpu)
 
+    if args.test:
+        if args.city_name == 'Town02':
+            args.num_npc = 15
+        elif args.city_name == 'Town01':
+            args.num_npc = 20
+
     config = ConfigManager(algo=args.algo)
     config.config["carla_gpu"] = str(args.carla_gpu)
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
