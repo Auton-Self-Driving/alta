@@ -105,7 +105,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(10)
+        time.sleep(60)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -113,7 +113,9 @@ class CarlaEnv(gym.Env):
 
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
-        # self._world = self.client.load_world(self.config['city_name'])
+        self._world = self.client.load_world(self.config['city_name'])
+
+        # time.sleep(20)
         
         self._world = self.client.get_world()
 
@@ -128,6 +130,8 @@ class CarlaEnv(gym.Env):
         settings.no_rendering_mode = False
 
         self._world.apply_settings(settings)
+
+        time.sleep(20)
 
         self._map = self._world.get_map()
         
@@ -257,18 +261,8 @@ class CarlaEnv(gym.Env):
         world_frame = None
 
         reward = 0
-        # # compute control using PID for each timestep
-        # control = self.get_control(action)
 
-        # #Store control for this step
-        # self.episode_measurements['control_steer'] = control.steer
-        # self.episode_measurements['control_throttle'] = control.throttle
-        # self.episode_measurements['control_brake'] = control.brake
-        # self.episode_measurements['control_reverse'] = control.reverse
-        # self.episode_measurements['control_hand_brake'] = control.hand_brake
-
-        for _ in range(self.config["frame_skip"]):
-
+        if not self.config["use_pid_in_frame_skip"]:
             # compute control using PID for each timestep
             control = self.get_control(action)
 
@@ -278,6 +272,19 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['control_brake'] = control.brake
             self.episode_measurements['control_reverse'] = control.reverse
             self.episode_measurements['control_hand_brake'] = control.hand_brake
+
+        for _ in range(self.config["frame_skip"]):
+
+            if self.config["use_pid_in_frame_skip"]:
+                # compute control using PID for each timestep
+                control = self.get_control(action)
+
+                #Store control for this step
+                self.episode_measurements['control_steer'] = control.steer
+                self.episode_measurements['control_throttle'] = control.throttle
+                self.episode_measurements['control_brake'] = control.brake
+                self.episode_measurements['control_reverse'] = control.reverse
+                self.episode_measurements['control_hand_brake'] = control.hand_brake
 
             self.vehicle_actor.apply_control(control)
             world_frame = self._world.tick()
@@ -385,14 +392,14 @@ class CarlaEnv(gym.Env):
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                         # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-                        # self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
-                        self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
+                        # self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        # self.vis_wrapper.save_image(obs['image'], self.num_steps)
-                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_image(obs['image'], self.num_steps)
+                        # self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
-                    # self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
+                    # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -460,7 +467,11 @@ class CarlaEnv(gym.Env):
                 else:
                     self.validation_episode_num += 1
                     val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index) + '_v_' + str(self.validation_episode_num)
-                    path = self.log_dir + 'val_episode_info_plots/'
+                    
+                    if self.config["testing"]:
+                        path = self.log_dir + 'test_episode_info_plots/'
+                    else:
+                        path = self.log_dir + 'val_episode_info_plots/'
                     plot_episode_info(path,
                         self.target_speeds_array,
                         self.speeds_array,
@@ -909,7 +920,7 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def _read_data(self, world_frame, timeout=20.0):
+    def _read_data(self, world_frame, timeout=240.0):
 
         cam_image = self._read_camera_data(world_frame, timeout)
         cam_image_p = self._preprocess_image(cam_image)
@@ -950,8 +961,11 @@ class CarlaEnv(gym.Env):
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
-        static = False
-        # collision = False
+
+        if not self.config["enable_static"]:
+            static = False
+        if self.config["disable_collision"]:
+            collision = False
 
         # Do not want to terminate on reaching goal
         # in case of VAE training

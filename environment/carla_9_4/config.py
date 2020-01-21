@@ -110,7 +110,10 @@ DEFAULT_ENV = {
        225,  31, 229, 250, 110, 177, 199, 184, 144],
     "test_fixed_spawn_points" : True,
     "train_fixed_spawn_points": False,
-    "testing" : False
+    "testing" : False,
+    "disable_collision" : False,
+    "enable_static" : False,
+    "use_pid_in_frame_skip" : False
 }
 
 episode_measurements = {
@@ -278,7 +281,7 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
-            self.config["verbose"] = False
+            self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
         elif algo == 'AE':
             self.config["algo"] = "AE"
