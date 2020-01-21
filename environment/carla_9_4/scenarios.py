@@ -9,7 +9,7 @@ if CARLA_9_4_PATH == None:
     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
 
 try:
-    sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
