@@ -33,6 +33,9 @@ def run_ppo_vae(args, prefix, config):
         SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     else:
         SCRATCH_DIR = ALTA_LOGS
+        
+    if SCRATCH_DIR[-1] != '/':
+        SCRATCH_DIR += '/'
     
     vae = AEController(image_size=(160, 80, 5), learning_rate=args.ae_lr)
 
@@ -52,7 +55,6 @@ def run_ppo_vae(args, prefix, config):
     # Register the policy, it will check that the name is not already taken
     register_policy('CustomPolicy1', CustomPolicy1)
     register_policy('CustomPolicy2', CustomPolicy2)
-    steps = args.timesteps
 
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)
@@ -69,24 +71,26 @@ def run_ppo_vae(args, prefix, config):
             # if os.path.exists(SAVE_PATH + ".pkl"):
                 # print("Best model exists, Validating !!!!")
             if args.test:
+
                 print('Testing Begins')
+
                 np.random.seed(10)
                 if args.city_name == 'Town01':
                     spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
                 elif args.city_name == 'Town02':
                     spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
-                with open(ALTA_LOGS + "/seed.txt", "r") as f:
-                    seed = int(f.readline())
-                print("Using the pre-initialized seed: {}".format(seed))
-                set_global_seeds(seed)
+                # with open(ALTA_LOGS + "/seed.txt", "r") as f:
+                #     seed = int(f.readline())
+                # print("Using the pre-initialized seed: {}".format(seed))
+                # set_global_seeds(seed)
 
                 rewards = []
                 successes = []
                 for test_idx in range(args.test_trails):
-                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
-                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
-                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
-                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["scenarios"] + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["scenarios"] + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["scenarios"] + config.config["city_name"] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["scenarios"] + config.config["city_name"] + '_run_' + str(test_idx) + '/'
 
                     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
@@ -100,7 +104,7 @@ def run_ppo_vae(args, prefix, config):
                     env.set_vae(vae)
                     model = PPO.load(args.agent_model_path, dummy_env)
 
-                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] + '_run_' + str(test_idx) + ".txt", "w") as f:
+                    with open(ALTA_LOGS + 'test_results_' + config.config["scenarios"] + config.config["city_name"] + '_run_' + str(test_idx) + ".txt", "w") as f:
                         total_reward, success_episodes, results = test(model, env)
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
@@ -118,7 +122,7 @@ def run_ppo_vae(args, prefix, config):
                     env.close()
                 rewards = np.array(rewards)
                 successes = np.array(successes)
-                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+ ".txt", "w") as f:
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["scenarios"] + config.config["city_name"]+ ".txt", "w") as f:
                     f.write("Task Name: {}\n".format(config.config["scenarios"]))
                     f.write("Town Name: {}\n".format(config.config["city_name"]))
                     f.write("Model path used for testing: {}\n".format(args.agent_model_path))
@@ -128,7 +132,10 @@ def run_ppo_vae(args, prefix, config):
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
             else:
+
                 print("Training begins")
+
+                steps = args.timesteps
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'
