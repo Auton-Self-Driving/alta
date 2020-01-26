@@ -44,8 +44,9 @@ def parse_arguments():
     parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
     parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
-    parser.add_argument('--use-pid-fs',dest='use_pid_fs', action='store_true', help='Whether to use pid within each frameskip. (Right way to do it)')
+    parser.add_argument('--disable-pid-fs',dest='disable_pid_fs', action='store_true', help='Disable using pid within each frameskip. (Default way is to use pid within frameskip)')
     parser.add_argument('--fstack',dest='frame_stack',type=int,default=1, help='Input frame stack size (default:1)')
+    parser.add_argument('--verbose', dest='verbose', action='store_true', help='Enable verbose mode')
 
     return parser.parse_args()
 def main(args):
@@ -140,10 +141,10 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.use_pid_fs:
-        use_pid_fs_str = '_use_pid_fs_'
+    if args.disable_pid_fs:
+        disable_pid_fs_str = '_disable_pid_fs_'
     else:
-        use_pid_fs_str = ''
+        disable_pid_fs_str = ''
         
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
@@ -161,7 +162,7 @@ def create_ppo_prefix(args):
         + ent_coef_str \
         + frame_skip_str \
         + frame_stack_str \
-        + use_pid_fs_str \
+        + disable_pid_fs_str \
         + n_steps_str \
         + vae \
         + '_runid_' + args.run_id + '/'
@@ -201,7 +202,8 @@ if __name__ == '__main__':
     config.config["max_static_steps"] = args.static_steps
     config.config["city_name"] = args.city_name
     config.config["testing"] = args.test
-    config.config["use_pid_in_frame_skip"] = args.use_pid_fs
+    config.config["use_pid_in_frame_skip"] = not args.disable_pid_fs
+    config.config["verbose"] = args.verbose
 
     try:
         if args.algo == "SAC":

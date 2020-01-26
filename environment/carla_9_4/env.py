@@ -69,7 +69,7 @@ class CarlaEnv(gym.Env):
         self.actor_list = []
 
         # Queue for stacked frames and measurements
-        self.stacked_frame_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
+        self.stacked_encoded_image_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
         self.stacked_measurements_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
 
         self.image_data = None
@@ -181,7 +181,7 @@ class CarlaEnv(gym.Env):
                 obs_shape = 400 * self.config['frame_stack_size']
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 400), dtype=np.float32)
+                                        shape=(1, obs_shape), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
                 obs_shape = 401 * self.config['frame_stack_size']
                 self.observation_space = Box(low=np.finfo(np.float32).min,
@@ -531,15 +531,15 @@ class CarlaEnv(gym.Env):
         
         # Update stacked frames and measurements
         if encoded_image is not None:
-            self._add_to_stacked_queue(self.stacked_frame_queue, encoded_image)
-            stacked_encoded_image = np.concatenate(list(self.stacked_frame_queue.queue), axis=1)
+            self._add_to_stacked_queue(self.stacked_encoded_image_queue, encoded_image)
+            stacked_encoded_image = np.concatenate(list(self.stacked_encoded_image_queue.queue), axis=1)
 
         if obs['orientation'] is not None:
             self._add_to_stacked_queue(self.stacked_measurements_queue, obs['orientation'])
             stacked_measurement_obs = np.concatenate(list(self.stacked_measurements_queue.queue), axis=0)
 
         # # Print statements to verify stack
-        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_frame_queue.queue))), np.sum(list(self.stacked_frame_queue.queue), axis=(-1)))
+        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_encoded_image_queue.queue))), np.sum(list(self.stacked_encoded_image_queue.queue), axis=(-1)))
         # print("stacked_measurement_obs", stacked_measurement_obs)
 
         if self.config["input_type"] == 'vae':
@@ -754,7 +754,7 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
-        self.stacked_frame_queue.queue.clear()
+        self.stacked_encoded_image_queue.queue.clear()
         self.stacked_measurements_queue.queue.clear()
 
         try:
@@ -895,18 +895,18 @@ class CarlaEnv(gym.Env):
             
             # Update stacked frames and measurements
             if encoded_image is not None:
-                self._add_to_stacked_queue(self.stacked_frame_queue, encoded_image)
+                self._add_to_stacked_queue(self.stacked_encoded_image_queue, encoded_image)
             if obs['orientation'] is not None:
                 self._add_to_stacked_queue(self.stacked_measurements_queue, obs['orientation'])
                 
 
         if encoded_image is not None:
-            stacked_encoded_image = np.concatenate(list(self.stacked_frame_queue.queue), axis=1)
+            stacked_encoded_image = np.concatenate(list(self.stacked_encoded_image_queue.queue), axis=1)
         if obs['orientation'] is not None:
             stacked_measurement_obs = np.concatenate(list(self.stacked_measurements_queue.queue), axis=0)
         
         # # Print statements to verify stack
-        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_frame_queue.queue))), np.sum(list(self.stacked_frame_queue.queue), axis=(-1)))
+        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_encoded_image_queue.queue))), np.sum(list(self.stacked_encoded_image_queue.queue), axis=(-1)))
         # print("stacked_measurement_obs", stacked_measurement_obs)
 
         if self.config["input_type"] == 'vae':
