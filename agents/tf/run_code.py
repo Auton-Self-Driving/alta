@@ -45,7 +45,7 @@ def parse_arguments():
     parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
     parser.add_argument('--use-pid-fs',dest='use_pid_fs', action='store_true', help='Whether to use pid within each frameskip. (Right way to do it)')
-    
+    parser.add_argument('--fstack',dest='frame_stack',type=int,default=1, help='Input frame stack size (default:1)')
 
     return parser.parse_args()
 def main(args):
@@ -120,6 +120,11 @@ def create_ppo_prefix(args):
     else:
         frame_skip_str = ''
     
+    if args.frame_stack != 1:
+        frame_stack_str = '_fstack_' + str(args.frame_stack)
+    else:
+        frame_stack_str = ''
+    
     if args.n_steps != 500:
         n_steps_str = '_n_' + str(args.n_steps)
     else:
@@ -135,7 +140,7 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.args.use_pid_fs:
+    if args.use_pid_fs:
         use_pid_fs_str = '_use_pid_fs_'
     else:
         use_pid_fs_str = ''
@@ -155,6 +160,7 @@ def create_ppo_prefix(args):
         + collision_penalty_speed_coeff_str \
         + ent_coef_str \
         + frame_skip_str \
+        + frame_stack_str \
         + use_pid_fs_str \
         + n_steps_str \
         + vae \
@@ -167,6 +173,8 @@ def extract_prefix(args):
     return prefix
 
 if __name__ == '__main__':
+    # import pdb
+    # pdb.set_trace()
     args = main(sys.argv)
     print("args", args)
 
@@ -186,6 +194,7 @@ if __name__ == '__main__':
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
     config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
+    config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic
     config.config["disable_collision"] = args.disable_collision
     config.config["enable_static"] = args.enable_static
