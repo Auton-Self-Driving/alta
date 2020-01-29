@@ -69,8 +69,7 @@ class CarlaEnv(gym.Env):
         self.actor_list = []
 
         # Queue for stacked frames and measurements
-        self.stacked_encoded_image_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
-        self.stacked_measurements_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
+        self.stacked_observation_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
 
         self.image_data = None
         self.source_transform = None
@@ -178,15 +177,13 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=-4.0, high=4.0, shape=(1, 2), dtype=np.float32)
             
             elif self.config["input_type"] == 'vae':
-                obs_shape = 400 * self.config['frame_stack_size']
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, obs_shape), dtype=np.float32)
+                                        shape=(1, 400), dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae':
-                obs_shape = 401 * self.config['frame_stack_size']
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, obs_shape), dtype=np.float32)
+                                        shape=(1, 401), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
@@ -359,13 +356,16 @@ class CarlaEnv(gym.Env):
         
         # Read in preprocessed image
         sensor_image = self._read_data(world_frame)
-        encoded_image = None
+        encoded_observation = None
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
-            encoded_image = self.vae_observation(image_labels)
-            encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
+            self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
+            stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            # encoded_observation = self.vae_observation(image_labels)
+            encoded_observation = self.vae_observation(stacked_observation)
+            encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
         
         if self.config["input_type"] == "ae_train":
@@ -405,8 +405,8 @@ class CarlaEnv(gym.Env):
                         self.vis_wrapper.save_image(obs['image'], self.num_steps)
                         # self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
-                    self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
-                    # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps)
+                    # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -528,51 +528,22 @@ class CarlaEnv(gym.Env):
                         # self.vis_wrapper_vae.generate_video(self.episode_num)
                         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
                         self.vis_wrapper_vae.remove_images()
-        
-        # Update stacked frames and measurements
-        if encoded_image is not None:
-            self._add_to_stacked_queue(self.stacked_encoded_image_queue, encoded_image)
-            stacked_encoded_image = np.concatenate(list(self.stacked_encoded_image_queue.queue), axis=1)
-
-        if obs['orientation'] is not None:
-            self._add_to_stacked_queue(self.stacked_measurements_queue, obs['orientation'])
-            stacked_measurement_obs = np.concatenate(list(self.stacked_measurements_queue.queue), axis=0)
-
-        # # Print statements to verify stack
-        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_encoded_image_queue.queue))), np.sum(list(self.stacked_encoded_image_queue.queue), axis=(-1)))
-        # print("stacked_measurement_obs", stacked_measurement_obs)
 
         if self.config["input_type"] == 'vae':
-            return stacked_encoded_image, reward, done, self.episode_measurements
+            return encoded_observation, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp_vae":
-            orientation = np.expand_dims(stacked_measurement_obs, axis = 0)
-            fused_input = np.hstack([stacked_encoded_image, orientation])
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, orientation])
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
-            return stacked_measurement_obs, reward, done, self.episode_measurements
+            return obs['orientation'], reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp_noise" or \
             self.config["input_type"] == 'wp_obs_dist' or \
             self.config["input_type"] == 'wp_obs_bool':
-            orientation = np.expand_dims(stacked_measurement_obs, axis = 0)
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
-
-        # if self.config["input_type"] == 'vae':
-        #     return encoded_image, reward, done, self.episode_measurements
-        # elif self.config["input_type"] == "wp_vae":
-        #     orientation = np.expand_dims(obs['orientation'], axis = 0)
-        #     fused_input = np.hstack([encoded_image, orientation])
-        #     return fused_input, reward, done, self.episode_measurements
-        # elif self.config["input_type"] == "wp":
-        #     return obs['orientation'], reward, done, self.episode_measurements
-        # elif self.config["input_type"] == "wp_noise" or \
-        #     self.config["input_type"] == 'wp_obs_dist' or \
-        #     self.config["input_type"] == 'wp_obs_bool':
-        #     orientation = np.expand_dims(obs['orientation'], axis = 0)
-        #     return orientation, reward, done, self.episode_measurements
-        # else:
-        #     return obs, reward, done, self.episode_measurements
     
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
@@ -754,8 +725,7 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
-        self.stacked_encoded_image_queue.queue.clear()
-        self.stacked_measurements_queue.queue.clear()
+        self.stacked_observation_queue.queue.clear()
 
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
@@ -848,15 +818,20 @@ class CarlaEnv(gym.Env):
             self._update_obs_dist_measurements()
 
         obs['image'] = image
-        encoded_image = None
+        encoded_observation = None
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
-            encoded_image = self.vae_observation(image_labels)
-            encoded_image = encoded_image / self.config["vae_encoding_norm_factor"]
-            # print("Maximum value in encoded VAE features: {}".format(np.amax(encoded_image)))
-            # print("Minimum value in encoded VAE features: {}".format(np.amin(encoded_image)))
+            
+            for _ in range(self.config['frame_stack_size']):
+                # Update stacked frames and measurements
+                self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
+
+            stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            # encoded_observation = self.vae_observation(image_labels)
+            encoded_observation = self.vae_observation(stacked_observation)
+            encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
         
         if self.config["input_type"] == "ae_train":
@@ -890,37 +865,18 @@ class CarlaEnv(gym.Env):
         self.speed_reward_array = []
         self.dist_to_target_array = []
 
-        # Fill a copy of observations in the stacked_queue in reset
-        for _ in range(self.config['frame_stack_size']):
-            
-            # Update stacked frames and measurements
-            if encoded_image is not None:
-                self._add_to_stacked_queue(self.stacked_encoded_image_queue, encoded_image)
-            if obs['orientation'] is not None:
-                self._add_to_stacked_queue(self.stacked_measurements_queue, obs['orientation'])
-                
-
-        if encoded_image is not None:
-            stacked_encoded_image = np.concatenate(list(self.stacked_encoded_image_queue.queue), axis=1)
-        if obs['orientation'] is not None:
-            stacked_measurement_obs = np.concatenate(list(self.stacked_measurements_queue.queue), axis=0)
-        
-        # # Print statements to verify stack
-        # print("stacked_encoded_image", np.shape(np.array(list(self.stacked_encoded_image_queue.queue))), np.sum(list(self.stacked_encoded_image_queue.queue), axis=(-1)))
-        # print("stacked_measurement_obs", stacked_measurement_obs)
-
         if self.config["input_type"] == 'vae':
-            return stacked_encoded_image
+            return encoded_observation
         elif self.config["input_type"] == "wp_vae":
-            orientation = np.expand_dims(stacked_measurement_obs, axis = 0)
-            fused_input = np.hstack([stacked_encoded_image, orientation])
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, orientation])
             return fused_input
         elif self.config["input_type"] == "wp":
-            return stacked_measurement_obs
+            return obs['orientation']
         elif self.config["input_type"] == "wp_noise" or \
             self.config["input_type"] == 'wp_obs_dist' or \
             self.config["input_type"] == 'wp_obs_bool':
-            orientation = np.expand_dims(stacked_measurement_obs, axis = 0)
+            orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation
         else:
             return obs

@@ -12,12 +12,14 @@ from .models import ConvAutoEncoder
 
 class AEController:
     def __init__(self, z_size=512, image_size=(160, 80, 5),
+                 frame_stack=1,
                  learning_rate=0.0001, kl_tolerance=0.5,
                  epoch_per_optimization=10, batch_size=64,
                  buffer_size=500):
         # AE input and output shapes
         self.z_size = z_size
-        self.image_size = image_size
+        self.frame_stack = frame_stack
+        self.image_size = (image_size[0], image_size[1], image_size[2] * self.frame_stack)
 
         # AE params
         self.learning_rate = learning_rate
@@ -38,12 +40,16 @@ class AEController:
                            learning_rate=self.learning_rate,
                            is_training=True,
                            reuse=False,
+                           num_classes=5,
+                           frame_stack=self.frame_stack,
                            gpu_mode=True)
 
         self.target_ae = ConvAutoEncoder(z_size=self.z_size,
                                   batch_size=1,
                                   is_training=False,
                                   reuse=False,
+                                  num_classes=5,
+                                  frame_stack=self.frame_stack,
                                   gpu_mode=True)
 
     def buffer_append(self, arr):

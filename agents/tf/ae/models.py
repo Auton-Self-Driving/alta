@@ -22,12 +22,14 @@ def denormalize(data):
 
 class ConvAutoEncoder(object):
     def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, is_training=True,
-                 reuse=False, gpu_mode=True):
+                 reuse=False, num_classes=5, frame_stack=1, gpu_mode=True):
         self.z_size = z_size
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.is_training = is_training
         self.reuse = reuse
+        self.num_classes = num_classes
+        self.frame_stack = frame_stack
         with tf.variable_scope('conv_ae', reuse=self.reuse):
             if not gpu_mode:
                 with tf.device('/cpu:0'):
@@ -41,8 +43,7 @@ class ConvAutoEncoder(object):
     def _build_graph(self):
         self.g = tf.Graph()
         with self.g.as_default():
-            num_classes = 5
-            self.x = tf.placeholder(tf.float32, shape=[None, 128, 128, num_classes])
+            self.x = tf.placeholder(tf.float32, shape=[None, 128, 128, self.num_classes * self.frame_stack])
 
             # Encoder
             h = tf.layers.conv2d(self.x, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv1")
@@ -56,7 +57,7 @@ class ConvAutoEncoder(object):
             h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
             h = tf.layers.conv2d_transpose(h, 32, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
             h = tf.layers.conv2d_transpose(h, 16, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
-            self.y = tf.layers.conv2d_transpose(h, num_classes, 6, strides=2, activation=None, name="dec_deconv4")
+            self.y = tf.layers.conv2d_transpose(h, self.num_classes * self.frame_stack, 6, strides=2, activation=None, name="dec_deconv4")
 
             # train ops
             if self.is_training:
@@ -64,33 +65,34 @@ class ConvAutoEncoder(object):
 
                 eps = 1e-6  # avoid taking log of zero
 
-                # cross-entropy pixel wise loss
-                decoded = tf.nn.softmax(self.y, name='decoded')
+                # # cross-entropy pixel wise loss
+                # decoded = tf.nn.softmax(self.y, name='decoded')
                 
                 # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 500.0, 1.0, 1.0]])
 
-                labels = tf.reshape(self.x, (-1, num_classes))
-                logits = tf.reshape(self.y, (-1, num_classes))
+                labels = tf.reshape(self.x, (-1, self.frame_stack, self.num_classes))
+                logits = tf.reshape(self.y, (-1, self.frame_stack, self.num_classes))
 
                 # weights = tf.reduce_sum(class_weights * labels, axis=1)
-                entropy_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+                entropy_loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels, logits=logits)
                 # weighted_losses = entropy_loss * weights
                 # self.entropy_loss = tf.reduce_mean(weighted_losses)
                 self.entropy_loss = tf.reduce_mean(entropy_loss)
-                input_labels = tf.argmax(self.x, axis=-1)
-                output_labels = tf.argmax(self.y, axis=-1)
+                self.loss = self.entropy_loss
+                
+                input_labels = tf.argmax(labels, axis=-1)
+                output_labels = tf.argmax(logits, axis=-1)
                 
                 input_labels_flattened = tf.reshape(input_labels, [-1])
                 output_labels_flattened = tf.reshape(output_labels,[-1])
-                confusion_matrix = np.zeros((num_classes, num_classes))
+                confusion_matrix = np.zeros((self.num_classes, self.num_classes))
                 
                 my_accuracy = tf.reduce_mean(tf.cast(tf.equal(input_labels_flattened, output_labels_flattened), tf.float32))
                 self.my_accuracy = my_accuracy
                 
                 self.accuracy, self.accuracy_op = tf.metrics.accuracy(input_labels, output_labels)
 
-                self.confusion_matrix = tf.confusion_matrix(tf.reshape(input_labels, [-1]), tf.reshape(output_labels, [-1]), num_classes=num_classes)
-                self.loss = self.entropy_loss
+                self.confusion_matrix = tf.confusion_matrix(input_labels_flattened, output_labels_flattened, num_classes=self.num_classes)
 
                 self.my_confusion_matrix = self.confusion_matrix
                 self.my_confusion_matrix_normalized = self.confusion_matrix / tf.reshape(tf.reduce_sum(self.confusion_matrix, axis=1), [-1,1])
