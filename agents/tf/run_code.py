@@ -169,7 +169,7 @@ if __name__ == '__main__':
             prefix = create_ppo_prefix(args)
             print("prefix", prefix)
             if args.input_type == "wp" or args.input_type == "wp_noise" \
-                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
+                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool" or args.input_type == "wp_ma_bool":
                 run_ppo(args, prefix, config)
             elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)

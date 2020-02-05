@@ -264,7 +264,7 @@ def test(model, env):
     success_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(25):
+    for ind in range(5):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -273,6 +273,8 @@ def test(model, env):
         while not done:
             actions = model.step(obs, deterministic=True)[0]
             info = env.step(actions)
+            if info == None: 
+                import ipdb; ipdb.set_trace()
             reward += info[1][0][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)

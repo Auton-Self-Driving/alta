@@ -25,9 +25,10 @@ from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns
 from models import CustomPolicy, CustomWPPolicy, Policy
 
-prefix = 'ppo_entcoeff_01_logstd_23_w_tanh_reward_10_nav_5_1/'
+prefix = 'algo_PPO_input_wp_network_1_layer_lr_0.0002_crowded_runid_1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/ppo_tanh_runs1/' + prefix
+#ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/ppo_tanh_runs1/' + prefix
+ALTA_LOGS = '/zfsauton2/home/audreyh/alta-logs/ppo/' + prefix
 POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
@@ -54,9 +55,10 @@ def test(model, env):
     success_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(25):
+    for ind in range(1):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
+        print('testing: ', env.source_transform, env.destination_transform)
         done = False
         reward = 0
         
@@ -141,7 +143,8 @@ if __name__ == '__main__':
                 success_episodes = 0
                 results = {}
                 with open(ALTA_LOGS + config.config["scenarios"] + config.config["city_name"] + ".txt", "w") as f:
-                    for ind in range(25):
+                    # i changed this
+                    for ind in range(1):
                         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
                         obs[:] = env.reset(unseen=True, index=ind)
                         done = False
