@@ -262,7 +262,273 @@ WAYPOINT_DICT_Town02 = {
     82: Transform(Location(x=-7.529999732971191, y=142.19000244140625, z=1.32), Rotation(yaw=89.99995422363281))
 }
 
-
+WAYPOINT_DICT_Town03 = {
+    0 : Transform(Location(x=-6.446170, y=-79.055023, z=1.842997), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    1 : Transform(Location(x=65.516594, y=7.808423, z=1.843102), Rotation(pitch=0.000000, yaw=0.855823, roll=0.000000)) ,
+    2 : Transform(Location(x=65.568863, y=4.308813, z=1.843102), Rotation(pitch=0.000000, yaw=0.855823, roll=0.000000)) ,
+    3 : Transform(Location(x=-2.419357, y=204.005676, z=1.843104), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    4 : Transform(Location(x=-2.410624, y=207.505676, z=1.843104), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    5 : Transform(Location(x=-20.033100, y=204.005676, z=1.843238), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    6 : Transform(Location(x=-20.024366, y=207.505676, z=1.843238), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    7 : Transform(Location(x=-2.948311, y=-78.932617, z=1.842997), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    8 : Transform(Location(x=-55.049702, y=0.545833, z=1.843102), Rotation(pitch=0.000000, yaw=1.666941, roll=0.000000)) ,
+    9 : Transform(Location(x=-117.493454, y=-3.221493, z=1.843102), Rotation(pitch=0.000000, yaw=-179.705399, roll=0.000000)) ,
+    10 : Transform(Location(x=-77.887169, y=21.444204, z=1.805250), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    11 : Transform(Location(x=-74.387177, y=21.434658, z=1.805250), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    12 : Transform(Location(x=-77.887169, y=40.306927, z=1.805265), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    13 : Transform(Location(x=-74.387177, y=40.297382, z=1.805265), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    14 : Transform(Location(x=-77.887169, y=57.541164, z=1.805267), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    15 : Transform(Location(x=-74.387177, y=57.531620, z=1.805267), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    16 : Transform(Location(x=-77.887169, y=75.658577, z=1.805257), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    17 : Transform(Location(x=140.592041, y=5.371150, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    18 : Transform(Location(x=140.539780, y=8.870760, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    19 : Transform(Location(x=120.127945, y=5.371150, z=1.843097), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    20 : Transform(Location(x=120.075668, y=8.870760, z=1.843097), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    21 : Transform(Location(x=192.449112, y=6.308762, z=1.843052), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    22 : Transform(Location(x=192.396835, y=9.808371, z=1.843052), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    23 : Transform(Location(x=174.485291, y=6.308762, z=1.843052), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    24 : Transform(Location(x=174.432999, y=9.808371, z=1.843052), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    25 : Transform(Location(x=-74.387177, y=75.649033, z=1.805257), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    26 : Transform(Location(x=-77.887169, y=99.725639, z=1.805257), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    27 : Transform(Location(x=-74.387177, y=99.716110, z=1.805257), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    28 : Transform(Location(x=-88.154869, y=108.906883, z=1.843102), Rotation(pitch=0.000000, yaw=89.787704, roll=0.000000)) ,
+    29 : Transform(Location(x=-84.654892, y=108.895164, z=1.843102), Rotation(pitch=0.000000, yaw=89.787674, roll=0.000000)) ,
+    30 : Transform(Location(x=-88.167549, y=36.942276, z=1.842973), Rotation(pitch=0.000000, yaw=89.787704, roll=0.000000)) ,
+    31 : Transform(Location(x=-84.767197, y=37.030930, z=1.842973), Rotation(pitch=0.000000, yaw=89.787674, roll=0.000000)) ,
+    32 : Transform(Location(x=-95.444824, y=136.115875, z=1.843221), Rotation(pitch=0.000000, yaw=-0.597992, roll=0.000000)) ,
+    33 : Transform(Location(x=-107.510582, y=136.115875, z=1.843285), Rotation(pitch=0.000000, yaw=-0.597992, roll=0.000000)) ,
+    34 : Transform(Location(x=-117.501511, y=136.115875, z=1.843284), Rotation(pitch=0.000000, yaw=-0.597992, roll=0.000000)) ,
+    35 : Transform(Location(x=-66.303299, y=131.964951, z=1.843102), Rotation(pitch=0.000000, yaw=176.631271, roll=0.000000)) ,
+    36 : Transform(Location(x=-53.170971, y=131.964951, z=1.843102), Rotation(pitch=0.000000, yaw=176.631271, roll=0.000000)) ,
+    37 : Transform(Location(x=-5.924474, y=111.378662, z=1.843097), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    38 : Transform(Location(x=-9.424404, y=111.396446, z=1.843099), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    39 : Transform(Location(x=-5.941558, y=87.476509, z=1.843094), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    40 : Transform(Location(x=-9.441488, y=87.494293, z=1.843097), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    41 : Transform(Location(x=-6.448509, y=63.542019, z=1.843089), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    42 : Transform(Location(x=-9.948440, y=63.559803, z=1.843092), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    43 : Transform(Location(x=240.112717, y=119.093483, z=1.843102), Rotation(pitch=0.000000, yaw=-88.605339, roll=0.000000)) ,
+    44 : Transform(Location(x=-149.063583, y=91.171509, z=1.843102), Rotation(pitch=0.000000, yaw=89.622032, roll=0.000000)) ,
+    45 : Transform(Location(x=243.611694, y=119.178131, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    46 : Transform(Location(x=9.284539, y=-105.343163, z=1.843105), Rotation(pitch=0.000000, yaw=-88.586418, roll=0.000000)) ,
+    47 : Transform(Location(x=6.078289, y=-105.429489, z=1.843106), Rotation(pitch=0.000000, yaw=-88.876099, roll=0.000000)) ,
+    48 : Transform(Location(x=-24.304346, y=-135.292160, z=0.995580), Rotation(pitch=1.217140, yaw=1.227265, roll=0.000000)) ,
+    49 : Transform(Location(x=-36.630997, y=-194.923615, z=1.843102), Rotation(pitch=0.000000, yaw=1.439547, roll=0.000000)) ,
+    50 : Transform(Location(x=-36.542839, y=-198.422501, z=1.843102), Rotation(pitch=0.000000, yaw=1.439544, roll=0.000000)) ,
+    51 : Transform(Location(x=120.364235, y=-190.399994, z=1.843102), Rotation(pitch=0.000000, yaw=0.000000, roll=0.000000)) ,
+    52 : Transform(Location(x=120.364235, y=-193.899994, z=1.843102), Rotation(pitch=0.000000, yaw=0.000000, roll=0.000000)) ,
+    53 : Transform(Location(x=151.030304, y=-163.982391, z=4.947135), Rotation(pitch=0.000000, yaw=90.996483, roll=0.000000)) ,
+    54 : Transform(Location(x=149.958023, y=-102.336494, z=9.843105), Rotation(pitch=0.000000, yaw=90.996483, roll=0.000000)) ,
+    55 : Transform(Location(x=-148.989471, y=-36.040218, z=1.843102), Rotation(pitch=0.000000, yaw=90.029823, roll=0.000000)) ,
+    56 : Transform(Location(x=-78.124168, y=-95.038681, z=1.277069), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    57 : Transform(Location(x=-74.624176, y=-95.048233, z=1.277069), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    58 : Transform(Location(x=-77.985069, y=-44.039780, z=1.587068), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    59 : Transform(Location(x=-74.485085, y=-44.049332, z=1.587068), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    60 : Transform(Location(x=-84.956627, y=-33.578300, z=1.030320), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    61 : Transform(Location(x=-88.456612, y=-33.568760, z=1.030320), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    62 : Transform(Location(x=-85.040810, y=-64.377121, z=1.283939), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    63 : Transform(Location(x=-88.540787, y=-64.367584, z=1.283939), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    64 : Transform(Location(x=-85.146881, y=-103.275650, z=1.604257), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    65 : Transform(Location(x=-88.646866, y=-103.266113, z=1.604257), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    66 : Transform(Location(x=-148.970520, y=-72.440216, z=1.843102), Rotation(pitch=0.000000, yaw=90.029823, roll=0.000000)) ,
+    67 : Transform(Location(x=-34.225540, y=131.243164, z=1.843102), Rotation(pitch=0.000000, yaw=178.703156, roll=0.000000)) ,
+    68 : Transform(Location(x=-49.565033, y=135.091202, z=1.843102), Rotation(pitch=0.000000, yaw=-1.296814, roll=0.000000)) ,
+    69 : Transform(Location(x=-30.669865, y=134.663498, z=1.843102), Rotation(pitch=0.000000, yaw=-1.296814, roll=0.000000)) ,
+    70 : Transform(Location(x=31.282980, y=-207.221069, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    71 : Transform(Location(x=31.195051, y=-203.722168, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    72 : Transform(Location(x=54.040394, y=-192.644958, z=1.843102), Rotation(pitch=0.000000, yaw=1.439547, roll=0.000000)) ,
+    73 : Transform(Location(x=54.128548, y=-196.143845, z=1.843102), Rotation(pitch=0.000000, yaw=1.439544, roll=0.000000)) ,
+    74 : Transform(Location(x=117.401649, y=-205.057190, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    75 : Transform(Location(x=117.313583, y=-201.558304, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    76 : Transform(Location(x=154.557892, y=-165.535995, z=3.895221), Rotation(pitch=-2.322660, yaw=-89.003517, roll=0.000000)) ,
+    77 : Transform(Location(x=-145.519318, y=21.290268, z=1.843102), Rotation(pitch=0.000000, yaw=-89.970146, roll=0.000000)) ,
+    78 : Transform(Location(x=153.459579, y=-102.397400, z=9.843105), Rotation(pitch=0.000000, yaw=-89.003517, roll=0.000000)) ,
+    79 : Transform(Location(x=124.949852, y=-132.094757, z=9.843105), Rotation(pitch=0.000000, yaw=1.227265, roll=0.000000)) ,
+    80 : Transform(Location(x=110.063339, y=-135.914536, z=9.843105), Rotation(pitch=0.000000, yaw=-178.772690, roll=0.000000)) ,
+    81 : Transform(Location(x=84.183815, y=-105.191704, z=9.843105), Rotation(pitch=0.000000, yaw=-87.975883, roll=0.000000)) ,
+    82 : Transform(Location(x=115.532143, y=-76.355240, z=9.843105), Rotation(pitch=0.000000, yaw=-178.490875, roll=0.000000)) ,
+    83 : Transform(Location(x=230.824677, y=32.609890, z=1.751008), Rotation(pitch=0.167927, yaw=91.393204, roll=0.000000)) ,
+    84 : Transform(Location(x=234.323654, y=32.695038, z=1.751008), Rotation(pitch=0.167927, yaw=91.393204, roll=0.000000)) ,
+    85 : Transform(Location(x=-54.750820, y=-2.898878, z=1.843102), Rotation(pitch=0.000000, yaw=-179.705383, roll=0.000000)) ,
+    86 : Transform(Location(x=-149.024933, y=31.959774, z=1.843102), Rotation(pitch=0.000000, yaw=90.029823, roll=0.000000)) ,
+    87 : Transform(Location(x=131.038910, y=62.489872, z=1.843102), Rotation(pitch=0.000000, yaw=-0.147400, roll=0.000000)) ,
+    88 : Transform(Location(x=124.700043, y=59.006218, z=1.843102), Rotation(pitch=0.000000, yaw=179.852554, roll=0.000000)) ,
+    89 : Transform(Location(x=204.702850, y=58.800388, z=1.843102), Rotation(pitch=0.000000, yaw=179.852554, roll=0.000000)) ,
+    90 : Transform(Location(x=-117.975456, y=33.972942, z=1.843102), Rotation(pitch=0.000000, yaw=134.676804, roll=0.000000)) ,
+    91 : Transform(Location(x=-114.782623, y=35.864052, z=1.843102), Rotation(pitch=0.000000, yaw=134.676804, roll=0.000000)) ,
+    92 : Transform(Location(x=125.359840, y=-135.586823, z=9.843105), Rotation(pitch=0.000000, yaw=-178.772690, roll=0.000000)) ,
+    93 : Transform(Location(x=109.653336, y=-132.422455, z=9.843105), Rotation(pitch=0.000000, yaw=1.227265, roll=0.000000)) ,
+    94 : Transform(Location(x=34.646507, y=-193.132416, z=1.843102), Rotation(pitch=0.000000, yaw=1.439547, roll=0.000000)) ,
+    95 : Transform(Location(x=34.734661, y=-196.631302, z=1.843102), Rotation(pitch=0.000000, yaw=1.439544, roll=0.000000)) ,
+    96 : Transform(Location(x=55.675301, y=-206.608185, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    97 : Transform(Location(x=55.587372, y=-203.109268, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    98 : Transform(Location(x=-118.079285, y=0.275539, z=1.843102), Rotation(pitch=0.000000, yaw=0.294608, roll=0.000000)) ,
+    99 : Transform(Location(x=199.419632, y=-5.502129, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    100 : Transform(Location(x=199.367340, y=-2.002518, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    101 : Transform(Location(x=172.722595, y=-5.900934, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    102 : Transform(Location(x=172.670303, y=-2.401323, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    103 : Transform(Location(x=127.130280, y=-6.581954, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    104 : Transform(Location(x=127.077606, y=-3.082350, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    105 : Transform(Location(x=106.032616, y=-6.897115, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    106 : Transform(Location(x=105.979942, y=-3.397510, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    107 : Transform(Location(x=-87.967049, y=91.041870, z=1.842973), Rotation(pitch=0.000000, yaw=89.787704, roll=0.000000)) ,
+    108 : Transform(Location(x=-84.566696, y=91.130524, z=1.842973), Rotation(pitch=0.000000, yaw=89.787674, roll=0.000000)) ,
+    109 : Transform(Location(x=-88.056679, y=66.842079, z=1.842973), Rotation(pitch=0.000000, yaw=89.787704, roll=0.000000)) ,
+    110 : Transform(Location(x=-84.656326, y=66.930733, z=1.842973), Rotation(pitch=0.000000, yaw=89.787674, roll=0.000000)) ,
+    111 : Transform(Location(x=80.517311, y=-104.026123, z=9.891966), Rotation(pitch=-0.190398, yaw=92.024086, roll=0.000000)) ,
+    112 : Transform(Location(x=4.997698, y=55.387558, z=1.843089), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    113 : Transform(Location(x=1.498355, y=55.319832, z=1.843089), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    114 : Transform(Location(x=4.672596, y=69.624977, z=1.843080), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    115 : Transform(Location(x=239.623291, y=98.075317, z=1.843102), Rotation(pitch=0.000000, yaw=-88.605339, roll=0.000000)) ,
+    116 : Transform(Location(x=243.122284, y=98.159966, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    117 : Transform(Location(x=245.194214, y=17.595139, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    118 : Transform(Location(x=1.173256, y=69.557251, z=1.843080), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    119 : Transform(Location(x=241.695251, y=17.510042, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    120 : Transform(Location(x=57.014038, y=-7.778184, z=1.843103), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    121 : Transform(Location(x=56.961758, y=-4.278575, z=1.843103), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    122 : Transform(Location(x=-6.446170, y=-61.717133, z=1.843102), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    123 : Transform(Location(x=-2.948311, y=-61.594730, z=1.843102), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    124 : Transform(Location(x=227.309662, y=-5.085508, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144211, roll=0.000000)) ,
+    125 : Transform(Location(x=227.257401, y=-1.585898, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144211, roll=0.000000)) ,
+    126 : Transform(Location(x=-88.710991, y=-126.865234, z=1.798586), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+    127 : Transform(Location(x=-74.546471, y=-148.432693, z=1.843102), Rotation(pitch=0.000000, yaw=-88.434715, roll=0.000000)) ,
+    128 : Transform(Location(x=-78.045143, y=-148.528915, z=1.843102), Rotation(pitch=0.000000, yaw=-88.434692, roll=0.000000)) ,
+    129 : Transform(Location(x=-2.798443, y=-189.813995, z=1.843102), Rotation(pitch=0.000000, yaw=91.413536, roll=0.000000)) ,
+    130 : Transform(Location(x=-6.682256, y=-204.674316, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    131 : Transform(Location(x=0.700499, y=-189.727951, z=1.843102), Rotation(pitch=0.000000, yaw=91.413536, roll=0.000000)) ,
+    132 : Transform(Location(x=15.552521, y=-193.612244, z=1.843102), Rotation(pitch=0.000000, yaw=1.439547, roll=0.000000)) ,
+    133 : Transform(Location(x=-6.594831, y=-208.173233, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    134 : Transform(Location(x=15.640681, y=-197.111130, z=1.843102), Rotation(pitch=0.000000, yaw=1.439544, roll=0.000000)) ,
+    135 : Transform(Location(x=82.695610, y=-184.773468, z=1.728263), Rotation(pitch=-0.396629, yaw=90.153564, roll=0.000000)) ,
+    136 : Transform(Location(x=-26.262718, y=-7.955658, z=1.843102), Rotation(pitch=0.000000, yaw=143.077484, roll=0.000000)) ,
+    137 : Transform(Location(x=94.797409, y=-191.620804, z=1.843102), Rotation(pitch=0.000000, yaw=1.439547, roll=0.000000)) ,
+    138 : Transform(Location(x=74.169441, y=-206.143616, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    139 : Transform(Location(x=74.081512, y=-202.644699, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    140 : Transform(Location(x=94.885727, y=-195.119690, z=1.843102), Rotation(pitch=0.000000, yaw=1.439544, roll=0.000000)) ,
+    141 : Transform(Location(x=163.864227, y=-193.899994, z=1.843102), Rotation(pitch=0.000000, yaw=0.000000, roll=0.000000)) ,
+    142 : Transform(Location(x=143.193497, y=-204.409012, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    143 : Transform(Location(x=143.105438, y=-200.910126, z=1.843102), Rotation(pitch=0.000000, yaw=-178.560471, roll=0.000000)) ,
+    144 : Transform(Location(x=163.864227, y=-197.399994, z=1.843102), Rotation(pitch=0.000000, yaw=0.000000, roll=0.000000)) ,
+    145 : Transform(Location(x=80.874001, y=-11.542412, z=1.993637), Rotation(pitch=2.348458, yaw=-87.975861, roll=0.000000)) ,
+    146 : Transform(Location(x=71.362877, y=-7.414977, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    147 : Transform(Location(x=86.206383, y=7.808423, z=1.843102), Rotation(pitch=0.000000, yaw=0.855823, roll=0.000000)) ,
+    148 : Transform(Location(x=86.258659, y=4.308813, z=1.843102), Rotation(pitch=0.000000, yaw=0.855823, roll=0.000000)) ,
+    149 : Transform(Location(x=71.310326, y=-3.915372, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    150 : Transform(Location(x=81.363167, y=-124.476494, z=9.843105), Rotation(pitch=0.000000, yaw=92.024109, roll=0.000000)) ,
+    151 : Transform(Location(x=73.193413, y=-136.704315, z=9.837398), Rotation(pitch=-0.647311, yaw=-178.772690, roll=0.000000)) ,
+    152 : Transform(Location(x=85.590614, y=-144.997437, z=9.731206), Rotation(pitch=-4.122893, yaw=-87.975883, roll=0.000000)) ,
+    153 : Transform(Location(x=93.756905, y=-132.762970, z=9.843105), Rotation(pitch=0.000000, yaw=1.227265, roll=0.000000)) ,
+    154 : Transform(Location(x=-88.644112, y=144.550552, z=1.843102), Rotation(pitch=0.000000, yaw=89.787704, roll=0.000000)) ,
+    155 : Transform(Location(x=-95.432480, y=132.628662, z=1.843102), Rotation(pitch=0.000000, yaw=178.703156, roll=0.000000)) ,
+    156 : Transform(Location(x=-85.144127, y=144.538834, z=1.843102), Rotation(pitch=0.000000, yaw=89.787674, roll=0.000000)) ,
+    157 : Transform(Location(x=-66.160751, y=135.466934, z=1.843102), Rotation(pitch=0.000000, yaw=-1.296814, roll=0.000000)) ,
+    158 : Transform(Location(x=-77.526985, y=123.926384, z=1.883463), Rotation(pitch=0.395058, yaw=-90.156242, roll=0.000000)) ,
+    159 : Transform(Location(x=-74.027000, y=123.916832, z=1.883463), Rotation(pitch=0.395058, yaw=-90.156242, roll=0.000000)) ,
+    160 : Transform(Location(x=-9.437694, y=143.109421, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    161 : Transform(Location(x=-5.937763, y=143.087265, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    162 : Transform(Location(x=1.930856, y=122.298492, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    163 : Transform(Location(x=5.430785, y=122.276344, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    164 : Transform(Location(x=13.994347, y=134.392639, z=1.843102), Rotation(pitch=0.000000, yaw=-0.816833, roll=0.000000)) ,
+    165 : Transform(Location(x=-16.630026, y=130.844788, z=1.843102), Rotation(pitch=0.000000, yaw=178.703156, roll=0.000000)) ,
+    166 : Transform(Location(x=-149.063583, y=107.705582, z=1.843102), Rotation(pitch=0.000000, yaw=89.622032, roll=0.000000)) ,
+    167 : Transform(Location(x=-13.384322, y=193.564453, z=1.843102), Rotation(pitch=0.000000, yaw=179.856995, roll=0.000000)) ,
+    168 : Transform(Location(x=-13.375589, y=197.064423, z=1.843102), Rotation(pitch=0.000000, yaw=179.856995, roll=0.000000)) ,
+    169 : Transform(Location(x=10.181385, y=204.005676, z=1.843102), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    170 : Transform(Location(x=10.190118, y=207.505676, z=1.843102), Rotation(pitch=0.000000, yaw=-0.142975, roll=0.000000)) ,
+    171 : Transform(Location(x=2.354272, y=189.215149, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    172 : Transform(Location(x=5.854201, y=189.192886, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    173 : Transform(Location(x=-145.560196, y=99.700966, z=1.843102), Rotation(pitch=0.000000, yaw=-89.970146, roll=0.000000)) ,
+    174 : Transform(Location(x=151.357269, y=-182.784271, z=1.978469), Rotation(pitch=3.294118, yaw=90.996483, roll=0.000000)) ,
+    175 : Transform(Location(x=97.278854, y=63.117493, z=1.843102), Rotation(pitch=0.000000, yaw=-10.416641, roll=0.000000)) ,
+    176 : Transform(Location(x=-149.047928, y=76.143700, z=1.843102), Rotation(pitch=0.000000, yaw=90.029823, roll=0.000000)) ,
+    177 : Transform(Location(x=2.294559, y=179.778244, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    178 : Transform(Location(x=5.794489, y=179.756088, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    179 : Transform(Location(x=-9.205211, y=179.851013, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    180 : Transform(Location(x=-5.705280, y=179.828857, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    181 : Transform(Location(x=142.528610, y=-6.351933, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    182 : Transform(Location(x=151.938690, y=-14.957595, z=1.968941), Rotation(pitch=2.312470, yaw=-89.003517, roll=0.000000)) ,
+    183 : Transform(Location(x=-145.535782, y=52.828339, z=1.843102), Rotation(pitch=0.000000, yaw=-89.970146, roll=0.000000)) ,
+    184 : Transform(Location(x=142.475937, y=-2.852329, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    185 : Transform(Location(x=157.377090, y=5.371150, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    186 : Transform(Location(x=157.324814, y=8.870760, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    187 : Transform(Location(x=6.316784, y=-25.297159, z=1.843102), Rotation(pitch=0.000000, yaw=-108.033249, roll=0.000000)) ,
+    188 : Transform(Location(x=9.644855, y=-26.380650, z=1.843102), Rotation(pitch=0.000000, yaw=-108.033249, roll=0.000000)) ,
+    189 : Transform(Location(x=220.145645, y=6.308762, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    190 : Transform(Location(x=-136.979019, y=0.178358, z=1.843102), Rotation(pitch=0.000000, yaw=0.294608, roll=0.000000)) ,
+    191 : Transform(Location(x=220.093353, y=9.808371, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    192 : Transform(Location(x=220.317398, y=-5.189955, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    193 : Transform(Location(x=220.265106, y=-1.690346, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    194 : Transform(Location(x=-59.603539, y=187.931732, z=1.843102), Rotation(pitch=0.000000, yaw=-144.446411, roll=0.000000)) ,
+    195 : Transform(Location(x=-61.638359, y=190.779465, z=1.843102), Rotation(pitch=0.000000, yaw=-144.447281, roll=0.000000)) ,
+    196 : Transform(Location(x=-50.591991, y=203.186874, z=1.843102), Rotation(pitch=0.000000, yaw=12.333570, roll=0.000000)) ,
+    197 : Transform(Location(x=-51.339600, y=206.606094, z=1.843102), Rotation(pitch=0.000000, yaw=12.333570, roll=0.000000)) ,
+    198 : Transform(Location(x=-149.010956, y=5.159778, z=1.843102), Rotation(pitch=0.000000, yaw=90.029823, roll=0.000000)) ,
+    199 : Transform(Location(x=245.865112, y=-9.996704, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    200 : Transform(Location(x=-145.503876, y=-8.409729, z=1.843102), Rotation(pitch=0.000000, yaw=-89.970146, roll=0.000000)) ,
+    201 : Transform(Location(x=104.794487, y=62.557415, z=1.843102), Rotation(pitch=0.000000, yaw=-0.147430, roll=0.000000)) ,
+    202 : Transform(Location(x=-9.261773, y=170.911835, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    203 : Transform(Location(x=-5.761843, y=170.889679, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    204 : Transform(Location(x=2.184859, y=162.441132, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    205 : Transform(Location(x=242.366150, y=-10.081800, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    206 : Transform(Location(x=5.684789, y=162.419006, z=1.843102), Rotation(pitch=0.000000, yaw=-90.362541, roll=0.000000)) ,
+    207 : Transform(Location(x=-13.931132, y=168.728027, z=1.843102), Rotation(pitch=0.000000, yaw=168.900085, roll=0.000000)) ,
+    208 : Transform(Location(x=79.494911, y=-71.614845, z=9.842793), Rotation(pitch=-0.190398, yaw=92.024086, roll=0.000000)) ,
+    209 : Transform(Location(x=83.276054, y=-79.507767, z=9.843105), Rotation(pitch=0.000000, yaw=-87.975883, roll=0.000000)) ,
+    210 : Transform(Location(x=4.926103, y=40.578606, z=1.843102), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    211 : Transform(Location(x=1.426758, y=40.510876, z=1.843102), Rotation(pitch=0.000000, yaw=-88.891235, roll=0.000000)) ,
+    212 : Transform(Location(x=-10.073487, y=42.628510, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    213 : Transform(Location(x=-6.573557, y=42.606361, z=1.843102), Rotation(pitch=0.000000, yaw=89.637466, roll=0.000000)) ,
+    214 : Transform(Location(x=144.755371, y=-135.171249, z=9.843105), Rotation(pitch=0.000000, yaw=-178.772690, roll=0.000000)) ,
+    215 : Transform(Location(x=154.126831, y=-140.758759, z=9.804370), Rotation(pitch=-2.322660, yaw=-89.003517, roll=0.000000)) ,
+    216 : Transform(Location(x=234.769882, y=14.350552, z=1.843102), Rotation(pitch=0.000000, yaw=91.393204, roll=0.000000)) ,
+    217 : Transform(Location(x=150.365875, y=-125.786667, z=9.843105), Rotation(pitch=0.000000, yaw=90.996483, roll=0.000000)) ,
+    218 : Transform(Location(x=-6.446170, y=-42.193752, z=1.843102), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    219 : Transform(Location(x=-2.948311, y=-42.071350, z=1.843102), Rotation(pitch=0.000000, yaw=92.004189, roll=0.000000)) ,
+    220 : Transform(Location(x=7.603518, y=-43.829613, z=1.843102), Rotation(pitch=0.000000, yaw=-88.586418, roll=0.000000)) ,
+    221 : Transform(Location(x=4.104583, y=-43.915955, z=1.843102), Rotation(pitch=0.000000, yaw=-88.586418, roll=0.000000)) ,
+    222 : Transform(Location(x=240.817612, y=53.589058, z=1.843102), Rotation(pitch=0.000000, yaw=-88.605339, roll=0.000000)) ,
+    223 : Transform(Location(x=231.270920, y=14.265452, z=1.843102), Rotation(pitch=0.000000, yaw=91.393204, roll=0.000000)) ,
+    224 : Transform(Location(x=225.702789, y=58.746357, z=1.843102), Rotation(pitch=0.000000, yaw=179.852554, roll=0.000000)) ,
+    225 : Transform(Location(x=229.973785, y=67.599396, z=1.853589), Rotation(pitch=0.167927, yaw=91.393204, roll=0.000000)) ,
+    226 : Transform(Location(x=233.472748, y=67.684540, z=1.853589), Rotation(pitch=0.167927, yaw=91.393204, roll=0.000000)) ,
+    227 : Transform(Location(x=244.316589, y=53.673721, z=1.843102), Rotation(pitch=0.000000, yaw=-88.606743, roll=0.000000)) ,
+    228 : Transform(Location(x=-42.350990, y=-2.835118, z=1.843102), Rotation(pitch=0.000000, yaw=-179.705383, roll=0.000000)) ,
+    229 : Transform(Location(x=-40.411064, y=0.685463, z=1.843102), Rotation(pitch=0.000000, yaw=1.666941, roll=0.000000)) ,
+    230 : Transform(Location(x=-11.748788, y=26.601166, z=1.843102), Rotation(pitch=0.000000, yaw=78.624901, roll=0.000000)) ,
+    231 : Transform(Location(x=-8.317538, y=25.910858, z=1.843102), Rotation(pitch=0.000000, yaw=78.624901, roll=0.000000)) ,
+    232 : Transform(Location(x=-21.252514, y=11.105013, z=1.843102), Rotation(pitch=0.000000, yaw=61.806828, roll=0.000000)) ,
+    233 : Transform(Location(x=-18.167728, y=9.451503, z=1.843102), Rotation(pitch=0.000000, yaw=61.807007, roll=0.000000)) ,
+    234 : Transform(Location(x=143.722351, y=-75.612572, z=9.843105), Rotation(pitch=0.000000, yaw=-178.490875, roll=0.000000)) ,
+    235 : Transform(Location(x=149.391037, y=-69.741432, z=9.843105), Rotation(pitch=0.000000, yaw=90.996483, roll=0.000000)) ,
+    236 : Transform(Location(x=153.030029, y=-77.701157, z=9.843105), Rotation(pitch=0.000000, yaw=-89.003517, roll=0.000000)) ,
+    237 : Transform(Location(x=10.139042, y=-146.582535, z=1.843102), Rotation(pitch=0.000000, yaw=-88.586418, roll=0.000000)) ,
+    238 : Transform(Location(x=6.640107, y=-146.668869, z=1.843102), Rotation(pitch=0.000000, yaw=-88.586418, roll=0.000000)) ,
+    239 : Transform(Location(x=-0.865857, y=-126.250847, z=1.843102), Rotation(pitch=0.000000, yaw=91.413536, roll=0.000000)) ,
+    240 : Transform(Location(x=-4.364792, y=-126.337181, z=1.843102), Rotation(pitch=0.000000, yaw=91.413536, roll=0.000000)) ,
+    241 : Transform(Location(x=-11.102114, y=-138.510193, z=1.843102), Rotation(pitch=0.000000, yaw=-178.772690, roll=0.000000)) ,
+    242 : Transform(Location(x=16.876915, y=-134.409973, z=1.870730), Rotation(pitch=1.217140, yaw=1.227265, roll=0.000000)) ,
+    243 : Transform(Location(x=26.509409, y=7.425340, z=1.843102), Rotation(pitch=0.000000, yaw=-13.668415, roll=0.000000)) ,
+    244 : Transform(Location(x=25.682356, y=4.024460, z=1.843102), Rotation(pitch=0.000000, yaw=-13.668415, roll=0.000000)) ,
+    245 : Transform(Location(x=11.530827, y=16.089361, z=1.843102), Rotation(pitch=0.000000, yaw=-38.797035, roll=0.000000)) ,
+    246 : Transform(Location(x=13.723803, y=18.817156, z=1.843102), Rotation(pitch=0.000000, yaw=-38.797035, roll=0.000000)) ,
+    247 : Transform(Location(x=42.648182, y=-7.843905, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    248 : Transform(Location(x=42.595901, y=-4.344296, z=1.843102), Rotation(pitch=0.000000, yaw=-179.144165, roll=0.000000)) ,
+    249 : Transform(Location(x=44.476276, y=3.684685, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    250 : Transform(Location(x=44.424007, y=7.184294, z=1.843102), Rotation(pitch=0.000000, yaw=0.855804, roll=0.000000)) ,
+    251 : Transform(Location(x=161.899918, y=58.910496, z=1.843102), Rotation(pitch=0.000000, yaw=179.852554, roll=0.000000)) ,
+    252 : Transform(Location(x=167.173080, y=71.142326, z=1.946012), Rotation(pitch=0.362574, yaw=89.989159, roll=0.000000)) ,
+    253 : Transform(Location(x=175.938858, y=62.374382, z=1.843102), Rotation(pitch=0.000000, yaw=-0.147400, roll=0.000000)) ,
+    254 : Transform(Location(x=-100.468056, y=16.266956, z=1.843102), Rotation(pitch=0.000000, yaw=134.676804, roll=0.000000)) ,
+    255 : Transform(Location(x=-97.623611, y=19.079279, z=1.843102), Rotation(pitch=0.000000, yaw=134.676804, roll=0.000000)) ,
+    256 : Transform(Location(x=-95.793716, y=-3.109917, z=1.843102), Rotation(pitch=0.000000, yaw=-179.705399, roll=0.000000)) ,
+    257 : Transform(Location(x=-67.323837, y=0.536519, z=1.843102), Rotation(pitch=0.000000, yaw=0.294601, roll=0.000000)) ,
+    258 : Transform(Location(x=-88.306274, y=21.530605, z=1.862779), Rotation(pitch=0.356591, yaw=89.843613, roll=-0.000000)) ,
+    259 : Transform(Location(x=-84.806297, y=21.521088, z=1.862779), Rotation(pitch=0.356591, yaw=89.843742, roll=-0.000000)) ,
+    260 : Transform(Location(x=-77.887169, y=-8.140573, z=1.805281), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    261 : Transform(Location(x=-74.387177, y=-8.150118, z=1.805281), Rotation(pitch=-0.348271, yaw=-90.156235, roll=-0.000000)) ,
+    262 : Transform(Location(x=-67.154907, y=-136.210205, z=1.843102), Rotation(pitch=0.000000, yaw=1.227276, roll=0.000000)) ,
+    263 : Transform(Location(x=-96.520119, y=-140.340103, z=1.983913), Rotation(pitch=0.848767, yaw=-178.772690, roll=0.000000)) ,
+    264 : Transform(Location(x=-85.211014, y=-126.874771, z=1.798586), Rotation(pitch=-0.471802, yaw=89.843742, roll=0.000000)) ,
+}
 
 def paths_straight_Town01_train():
 
@@ -425,6 +691,43 @@ def paths_straight_Town01_dynamic():
         ]
     ]
     
+    return paths
+
+def paths_straight_crowded(): 
+    paths = [
+        [
+            WAYPOINT_DICT_Town01[113],
+            WAYPOINT_DICT_Town01[119]
+        ]
+    ]
+    
+    return paths
+
+
+def paths_crowded():
+    
+    paths = [
+        [
+            WAYPOINT_DICT_Town01[15],
+            WAYPOINT_DICT_Town01[53]
+        ]
+    ]
+    
+    return paths
+
+def paths_curved_town03(): 
+    # paths = [
+    #     [
+    #         WAYPOINT_DICT_Town03[247],
+    #         WAYPOINT_DICT_Town03[136]
+    #     ]
+    # ]
+    paths = [
+        [
+            WAYPOINT_DICT_Town03[247],
+            WAYPOINT_DICT_Town03[243]
+        ]
+    ]
     return paths
 
 def benchmark_paths_straight_Town01():
@@ -1346,9 +1649,133 @@ def get_straight_dynamic_path(unseen=False, town="Town01", index=0):
             return random.choice(benchmark_paths_straight_Town02())
     else:
         if town == "Town01":
-            return paths_straight_Town01_dynamic()[index]
+            return random.choice(paths_straight_Town01_dynamic())
+            # return paths_straight_Town01_dynamic()[index]
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
+
+def get_crowded_path(unseen=False, town="Town01", index=0):
+    return random.choice(paths_crowded())
+
+def get_straight_crowded_path(unseen=False, town="Town01", index=0):
+    return random.choice(paths_straight_crowded())
+
+def get_curved_town03_path(unseen=False, town="Town03", index=0):
+    if town != 'Town03': 
+        print('error: must be town 03')
+        return -1
+    return random.choice(paths_curved_town03())
+
+def get_crowded_npcs(num_npcs): 
+    npc_list = [
+        WAYPOINT_DICT_Town01[50],
+        WAYPOINT_DICT_Town01[51], 
+        WAYPOINT_DICT_Town01[52],
+        WAYPOINT_DICT_Town01[16], 
+        WAYPOINT_DICT_Town01[17],
+        WAYPOINT_DICT_Town01[18], 
+        WAYPOINT_DICT_Town01[46],
+        WAYPOINT_DICT_Town01[47], 
+        WAYPOINT_DICT_Town01[48], 
+        WAYPOINT_DICT_Town01[49], 
+    ]
+    random.shuffle(npc_list)
+    return npc_list[:num_npcs]
+
+def get_straight_crowded_npcs(num_npcs): 
+    npc_list = [
+        WAYPOINT_DICT_Town01[101],
+        WAYPOINT_DICT_Town01[102], 
+        WAYPOINT_DICT_Town01[103],
+        WAYPOINT_DICT_Town01[104], 
+        WAYPOINT_DICT_Town01[105],
+        WAYPOINT_DICT_Town01[106], 
+        WAYPOINT_DICT_Town01[107],
+        WAYPOINT_DICT_Town01[108], 
+        WAYPOINT_DICT_Town01[109], 
+        WAYPOINT_DICT_Town01[110], 
+        WAYPOINT_DICT_Town01[111],
+        WAYPOINT_DICT_Town01[112], 
+        #WAYPOINT_DICT_Town01[113],
+        WAYPOINT_DICT_Town01[114], 
+        WAYPOINT_DICT_Town01[115],
+        WAYPOINT_DICT_Town01[116], 
+        WAYPOINT_DICT_Town01[117],
+        WAYPOINT_DICT_Town01[118], 
+        #WAYPOINT_DICT_Town01[119], 
+        WAYPOINT_DICT_Town01[120], 
+        WAYPOINT_DICT_Town01[121], 
+        WAYPOINT_DICT_Town01[122], 
+    ]
+    random.shuffle(npc_list)
+    return npc_list[:num_npcs]
+
+'''
+todo: this was only for points inside the circle
+do it for points outside as well 
+'''
+def get_curved_town03_npcs(num_npcs): 
+    npc_list = [
+        WAYPOINT_DICT_Town03[257],
+        WAYPOINT_DICT_Town03[85], 
+        WAYPOINT_DICT_Town03[86],
+        WAYPOINT_DICT_Town03[228], 
+        WAYPOINT_DICT_Town03[229],
+        WAYPOINT_DICT_Town03[232], 
+        WAYPOINT_DICT_Town03[233],
+        WAYPOINT_DICT_Town03[230], 
+        WAYPOINT_DICT_Town03[231], 
+        WAYPOINT_DICT_Town03[245], 
+        WAYPOINT_DICT_Town03[246], 
+        # WAYPOINT_DICT_Town03[243], 
+        WAYPOINT_DICT_Town03[136], 
+        WAYPOINT_DICT_Town03[244],
+        WAYPOINT_DICT_Town03[187], 
+        WAYPOINT_DICT_Town03[188], 
+        WAYPOINT_DICT_Town03[218],
+        WAYPOINT_DICT_Town03[219], 
+        WAYPOINT_DICT_Town03[122],
+        WAYPOINT_DICT_Town03[123], 
+        WAYPOINT_DICT_Town03[0],
+        WAYPOINT_DICT_Town03[7], 
+        WAYPOINT_DICT_Town03[221],
+        WAYPOINT_DICT_Town03[220], 
+        WAYPOINT_DICT_Town03[248], 
+        WAYPOINT_DICT_Town03[121], 
+        WAYPOINT_DICT_Town03[120], 
+        WAYPOINT_DICT_Town03[149], 
+        WAYPOINT_DICT_Town03[146],
+        WAYPOINT_DICT_Town03[250], 
+        WAYPOINT_DICT_Town03[249], 
+        WAYPOINT_DICT_Town03[1],
+        WAYPOINT_DICT_Town03[2], 
+        WAYPOINT_DICT_Town03[243],
+        WAYPOINT_DICT_Town03[244], 
+        WAYPOINT_DICT_Town03[211],
+        WAYPOINT_DICT_Town03[210], 
+        WAYPOINT_DICT_Town03[113],
+        WAYPOINT_DICT_Town03[112], 
+        WAYPOINT_DICT_Town03[118], 
+        WAYPOINT_DICT_Town03[114], 
+        WAYPOINT_DICT_Town03[212], 
+        WAYPOINT_DICT_Town03[213], 
+        WAYPOINT_DICT_Town03[42],
+        WAYPOINT_DICT_Town03[41], 
+        WAYPOINT_DICT_Town03[40], 
+        WAYPOINT_DICT_Town03[39], 
+        WAYPOINT_DICT_Town03[8],
+        WAYPOINT_DICT_Town03[85], 
+        WAYPOINT_DICT_Town03[257],
+        WAYPOINT_DICT_Town03[162], 
+        WAYPOINT_DICT_Town03[163],
+        WAYPOINT_DICT_Town03[47], 
+        WAYPOINT_DICT_Town03[46],
+        WAYPOINT_DICT_Town03[145], 
+        WAYPOINT_DICT_Town03[84], 
+    ]
+    random.shuffle(npc_list)
+    # return npc_list[:num_npcs]
+    return npc_list
 
 def get_straight_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
