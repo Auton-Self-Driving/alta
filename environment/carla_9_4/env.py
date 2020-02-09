@@ -69,6 +69,7 @@ class CarlaEnv(gym.Env):
             'K_I': 0.4,
             'dt': 1/10.0}
         self.actor_list = []
+        self.actor_vehicle_list = []
 
         self.image_data = None
         self.source_transform = None
@@ -138,7 +139,7 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self._proximity_threshold = 10.0
+        self._proximity_threshold = 20.0
 
         # with open('./spawnpoints.txt', 'w') as f: 
         #     for i, sp in enumerate(self.spawn_points):
@@ -355,7 +356,7 @@ class CarlaEnv(gym.Env):
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
-        if self.config['scenarios'] == 'straight_crowded': 
+        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3': 
             self._update_obs_bool()
         
         # Read in preprocessed image
@@ -422,7 +423,7 @@ class CarlaEnv(gym.Env):
                 self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
 
 
-                if self.config['scenarios'] == 'straight_crowded': 
+                if self.config['scenarios'] == 'straight_crowded' or self.config["scenarios"] == "town3": 
                     self._update_obs_bool()
                     self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
                 # TODO: remove hard coded logic
@@ -552,6 +553,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['obstacle_dist'] = distance_to_car
 
         self._update_obs_bool()
+        # print('measure: ', self.episode_measurements['obstacle_dist'], self.episode_measurements['obstacle_visible'])
+        # print('\n')
 
         # if distance_to_car < 20:
         #     self.episode_measurements['obstacle_visible'] = True
@@ -572,39 +575,46 @@ class CarlaEnv(gym.Env):
         norm_target = np.linalg.norm(target_vector)
 
         # If the vector is too short, we can simply stop here
+
         if norm_target < 0.001:
-            return True
+            return True, None
 
         if norm_target > max_distance:
-            return False
+            return False, None
 
         fwd = current_transform.get_forward_vector()
         forward_vector = np.array([fwd.x, fwd.y])
         d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
-        return d_angle < 90.0
+        return d_angle < 90.0, d_angle
 
     def _update_obs_bool(self): 
         ego_vehicle_location = self.vehicle_actor.get_location()
         ego_vehicle_waypoint = self._map.get_waypoint(ego_vehicle_location)
         self.episode_measurements['obstacle_visible'] = False
 
-        for target_vehicle in self.actor_list:
+
+        for target_vehicle in self.actor_list[1:(1+self.config["num_npc"])]:
             # do not account for the ego vehicle
             if target_vehicle.id == self.vehicle_actor.id:
                 continue
 
-            # if the object is not in our lane it's not an obstacle
+            # # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
             if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id or \
                     target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
                 continue
 
-            if self.is_within_distance_ahead(target_vehicle.get_transform(),
+            d_bool, d_angle = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
-                                        self._proximity_threshold):
+                                        self._proximity_threshold)
+            # print(target_vehicle.id, d_bool, d_angle)
+            
+            if d_bool:
                 # return (True, target_vehicle)
+
                 self.episode_measurements['obstacle_visible'] = True
+        # import ipdb; ipdb.set_trace()
 
         # return (False, None)
         # self.episode_measurements['obstacle_visible'] = False
@@ -756,6 +766,13 @@ class CarlaEnv(gym.Env):
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
+        # for _ in range(len(self.actor_vehicle_list)):
+        #     try:
+        #         actor = self.actor_vehicle_list.pop()
+        #         actor.destroy()
+        #     except Exception as e:
+        #         print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+
     def clear_episode_measurements(self):
         for key, val in self.episode_measurements.items():
             self.episode_measurements[key] = 0
@@ -795,6 +812,8 @@ class CarlaEnv(gym.Env):
 
         if self.config["num_npc"] > 0:
             self.spawn_npc(self.config["num_npc"], unseen)    
+
+        # import ipdb; ipdb.set_trace()
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -865,8 +884,9 @@ class CarlaEnv(gym.Env):
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
-        if self.config['scenarios'] == 'straight_crowded': 
+        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3': 
             self._update_obs_bool()
+            # self._update_obs_dist_measurements()
 
         obs['image'] = image
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
@@ -938,6 +958,7 @@ class CarlaEnv(gym.Env):
         vehicle = self._world.try_spawn_actor(blueprint, transform)
         if vehicle is not None:
             self.actor_list.append(vehicle)
+            # self.actor_vehicle_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
             if not self.config["scenarios"] == "straight_dynamic":
                 vehicle.set_autopilot()
