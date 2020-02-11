@@ -105,7 +105,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(60)
+        time.sleep(120)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -113,7 +113,7 @@ class CarlaEnv(gym.Env):
 
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
-        self._world = self.client.load_world(self.config['city_name'])
+        # self._world = self.client.load_world(self.config['city_name'])
 
         # time.sleep(20)
         
@@ -145,10 +145,10 @@ class CarlaEnv(gym.Env):
             np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
-        if(self.config['train_config'] == 'baselines'):
-            self.action_space = Discrete(len(DISCRETE_ACTIONS))
-            image_space = Box(0, 255, shape=(self.config["y_res"], self.config["x_res"], self.im_channels * self.config["framestack"]), dtype=np.uint8)
-            self.observation_space = image_space
+        # if(self.config['train_config'] == 'baselines'):
+        #     self.action_space = Discrete(len(DISCRETE_ACTIONS))
+        #     image_space = Box(0, 255, shape=(self.config["y_res"], self.config["x_res"], self.im_channels * self.config["framestack"]), dtype=np.uint8)
+        #     self.observation_space = image_space
 
         if(self.config['train_config'] == 'PPO'):
             if self.config["action_type"] == 'merged_gas':
@@ -165,6 +165,10 @@ class CarlaEnv(gym.Env):
             elif self.config["action_type"] == 'steer_only':
                 # Steer only
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+            elif self.config["action_type"] == 'discrete':
+                # Discrete actions
+                self.action_space = Discrete(len(DISCRETE_ACTIONS))
+            
  
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
@@ -172,7 +176,8 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=-4.0, high=4.0, shape=(1, 1 + self.config["noise_dim"]), dtype=np.float32)
             elif self.config["input_type"] == 'wp_obs_dist' or self.config["input_type"] == 'wp_obs_bool':
                 self.observation_space = Box(low=-4.0, high=4.0, shape=(1, 2), dtype=np.float32)
-            
+            elif self.config["input_type"] == 'wp_speed':
+                self.observation_space = Box(low=np.array([[0.0, -4.0]]), high=np.array([[12.0,4.0]]), dtype=np.float32)
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -382,6 +387,9 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_bool':
             obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
             obs['orientation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
+        elif self.config["input_type"] == 'wp_speed':
+            obs_speed = self.episode_measurements['speed'] / 10
+            obs['orientation'] = np.concatenate((np.array([obs_speed]), np.array([next_orientation])))
 
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
@@ -395,8 +403,8 @@ class CarlaEnv(gym.Env):
                         self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
                         # self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        self.vis_wrapper.save_image(obs['image'], self.num_steps)
-                        # self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                        # self.vis_wrapper.save_image(obs['image'], self.num_steps)
+                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
                     self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
                     # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
@@ -531,7 +539,8 @@ class CarlaEnv(gym.Env):
             return obs['orientation'], reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp_noise" or \
             self.config["input_type"] == 'wp_obs_dist' or \
-            self.config["input_type"] == 'wp_obs_bool':
+            self.config["input_type"] == 'wp_obs_bool' or \
+            self.config["input_type"] == 'wp_speed':
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation, reward, done, self.episode_measurements
         else:
@@ -563,7 +572,7 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "left_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
         elif self.config["scenarios"] == "t_junction":
-            self.source_transform, self.destination_transform = scenarios.get_t_junction_path(unseen)
+            self.source_transform, self.destination_transform = scenarios.get_t_junction_path(unseen, town, index)
         elif self.config["scenarios"] == "curved":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
@@ -653,6 +662,20 @@ class CarlaEnv(gym.Env):
             # steer = float(action[0])
             steer = (float(action[0]))
             target_speed = float(action[1])
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "discrete":            
+            # Discrete actions
+            # No need to clip actions in case of discrete state-space
+            # since it is chosen to be in range.
+            discrete_actions = DISCRETE_ACTIONS[int(action)]
+            target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
@@ -827,6 +850,9 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_bool':
             obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
             obs['orientation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
+        elif self.config["input_type"] == 'wp_speed':
+            obs_speed = self.episode_measurements['speed'] / 10
+            obs['orientation'] = np.concatenate((np.array([obs_speed]), np.array([next_orientation])))
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         self.target_speeds_array = []
@@ -851,7 +877,8 @@ class CarlaEnv(gym.Env):
             return obs['orientation']
         elif self.config["input_type"] == "wp_noise" or \
             self.config["input_type"] == 'wp_obs_dist' or \
-            self.config["input_type"] == 'wp_obs_bool':
+            self.config["input_type"] == 'wp_obs_bool'or \
+            self.config["input_type"] == 'wp_speed':
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation
         else:

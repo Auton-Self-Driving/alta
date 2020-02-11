@@ -7,11 +7,12 @@ from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
+from train_measurements_dqn_run import run_dqn
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
-    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
+    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or DQN or PID_TUNE')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
@@ -45,7 +46,9 @@ def parse_arguments():
     parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
     parser.add_argument('--use-pid-fs',dest='use_pid_fs', action='store_true', help='Whether to use pid within each frameskip. (Right way to do it)')
-    
+    parser.add_argument('--dqn-param-noise',dest='param_noise', action='store_true', help='Whether to enable param_noise in dqn.')
+    parser.add_argument('--dqn-prioritized-replay',dest='prioritized_replay', action='store_true', help='Whether to enable prioritized replay in dqn.')
+    parser.add_argument('--full-tb-log',dest='full_tensorboard_log', action='store_true', help='Whether to enable full tensorboard logging.')
 
     return parser.parse_args()
 def main(args):
@@ -80,6 +83,11 @@ def create_ppo_prefix(args):
     else:
         num_npc_str = ""
 
+    if args.buffer_size != 0:
+        buffer_size_str = '_buffer_' + str(args.buffer_size)
+    else:
+        buffer_size_str = ""
+    
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
     else:
@@ -135,11 +143,21 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.args.use_pid_fs:
+    if args.use_pid_fs:
         use_pid_fs_str = '_use_pid_fs_'
     else:
         use_pid_fs_str = ''
-        
+    
+    if args.param_noise:
+        param_noise_str = '_param_noise_'
+    else:
+        param_noise_str = ''
+    
+    if args.prioritized_replay:
+        prioritized_replay_str = '_prioritized_replay_'
+    else:
+        prioritized_replay_str = ''
+
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
@@ -148,6 +166,7 @@ def create_ppo_prefix(args):
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
         + num_npc_str \
+        + buffer_size_str \
         + enable_brake_str \
         + disable_collision_str \
         + enable_static_str \
@@ -156,6 +175,8 @@ def create_ppo_prefix(args):
         + ent_coef_str \
         + frame_skip_str \
         + use_pid_fs_str \
+        + param_noise_str \
+        + prioritized_replay_str \
         + n_steps_str \
         + vae \
         + '_runid_' + args.run_id + '/'
@@ -216,5 +237,12 @@ if __name__ == '__main__':
         elif args.algo == "PID_TUNE":
             prefix = create_ppo_prefix(args)
             test_pid_method(args, prefix, config)
+        elif args.algo == "DQN":
+            if not args.test:
+                prefix = create_ppo_prefix(args)
+            else:
+                prefix = extract_prefix(args)
+            run_dqn(args, prefix, config)
+
     except Exception as e:
         print(e)
