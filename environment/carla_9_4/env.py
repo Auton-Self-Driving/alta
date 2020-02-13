@@ -356,7 +356,7 @@ class CarlaEnv(gym.Env):
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
-        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3': 
+        if self.config['scenarios'] in ['straight_crowded', 'town3', 'long_straight']: 
             self._update_obs_bool()
         
         # Read in preprocessed image
@@ -423,7 +423,7 @@ class CarlaEnv(gym.Env):
                 self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
 
 
-                if self.config['scenarios'] == 'straight_crowded' or self.config["scenarios"] == "town3": 
+                if self.config['scenarios'] in ['straight_crowded', 'town3', 'long_straight']: 
                     self._update_obs_bool()
                     self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
                 # TODO: remove hard coded logic
@@ -604,6 +604,8 @@ class CarlaEnv(gym.Env):
             if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id or \
                     target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
                 continue
+            # if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id:
+            #     continue
 
             d_bool, d_angle = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
@@ -625,6 +627,8 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+        elif self.config["scenarios"] == "long_straight":
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
         elif self.config["scenarios"] == "straight_dynamic":
             self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town, index)
         elif self.config["scenarios"] == "crowded":
@@ -884,7 +888,7 @@ class CarlaEnv(gym.Env):
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
-        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3': 
+        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or self.config['scenarios'] == 'long_straight': 
             self._update_obs_bool()
             # self._update_obs_dist_measurements()
 
@@ -977,11 +981,24 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "crowded":
             spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
             print('CROWDED SPAWNING: ', spawn_points)
+        elif self.config["scenarios"] == "long_straight":
+            spawn_points_1 = scenarios.get_long_straight_npcs()
+            if unseen:
+                if self.config["test_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+                    random.shuffle(spawn_points)
+            else:
+                if self.config["train_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+        
         elif self.config["scenarios"] == "straight_crowded":
             spawn_points = scenarios.get_straight_crowded_npcs(number_of_vehicles)
             print('STRAIGHT CROWDED SPAWNING: ', spawn_points)
         elif self.config["scenarios"] == "town3":
-            # spawn_points = scenarios.get_curved_town03_npcs(number_of_vehicles)
             spawn_points = scenarios.get_curved_town03_npcs(number_of_vehicles)
             print('TOWN 3 SPAWNING: ', spawn_points)
         
@@ -1004,6 +1021,10 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
         
+        if self.config["scenarios"] == "long_straight":
+            for spawn_point in spawn_points_1:
+                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
+
         count = number_of_vehicles
         for spawn_point in spawn_points:
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):

@@ -703,6 +703,16 @@ def paths_straight_crowded():
     
     return paths
 
+def paths_long_straight(): 
+    paths = [
+        [
+            WAYPOINT_DICT_Town01[96],
+            WAYPOINT_DICT_Town01[17]
+        ]
+    ]
+    
+    return paths
+
 
 def paths_crowded():
     
@@ -725,9 +735,15 @@ def paths_curved_town03():
     paths = [
         [
             WAYPOINT_DICT_Town03[247],
-            WAYPOINT_DICT_Town03[243]
+            WAYPOINT_DICT_Town03[232]
         ]
     ]
+    # paths = [
+    #     [
+    #         WAYPOINT_DICT_Town03[247],
+    #         WAYPOINT_DICT_Town03[243]
+    #     ]
+    # ]
     return paths
 
 def benchmark_paths_straight_Town01():
@@ -1654,6 +1670,9 @@ def get_straight_dynamic_path(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
 
+def get_long_straight_path(unseen=False, town='Town01', index=0): 
+    return random.choice(paths_long_straight())
+
 def get_crowded_path(unseen=False, town="Town01", index=0):
     return random.choice(paths_crowded())
 
@@ -1681,6 +1700,33 @@ def get_crowded_npcs(num_npcs):
     ]
     random.shuffle(npc_list)
     return npc_list[:num_npcs]
+
+def get_long_straight_npcs(): 
+    npc_list = [
+        WAYPOINT_DICT_Town01[15],
+        WAYPOINT_DICT_Town01[16], 
+        WAYPOINT_DICT_Town01[18],
+        WAYPOINT_DICT_Town01[19], 
+        WAYPOINT_DICT_Town01[20],
+        WAYPOINT_DICT_Town01[22], 
+        WAYPOINT_DICT_Town01[23],
+        WAYPOINT_DICT_Town01[24], 
+        WAYPOINT_DICT_Town01[25], 
+        WAYPOINT_DICT_Town01[26], 
+        WAYPOINT_DICT_Town01[27],
+        WAYPOINT_DICT_Town01[28], 
+        WAYPOINT_DICT_Town01[29], 
+        WAYPOINT_DICT_Town01[151], 
+        WAYPOINT_DICT_Town01[140],
+        WAYPOINT_DICT_Town01[128], 
+        WAYPOINT_DICT_Town01[129], 
+        WAYPOINT_DICT_Town01[96], 
+        WAYPOINT_DICT_Town01[107], 
+    ]
+
+    random.shuffle(npc_list)
+
+    return npc_list
 
 def get_straight_crowded_npcs(num_npcs): 
     npc_list = [
@@ -1721,13 +1767,14 @@ def get_curved_town03_npcs(num_npcs):
         WAYPOINT_DICT_Town03[86],
         WAYPOINT_DICT_Town03[228], 
         WAYPOINT_DICT_Town03[229],
-        WAYPOINT_DICT_Town03[232], 
+        # WAYPOINT_DICT_Town03[232],
+        WAYPOINT_DICT_Town03[136], 
         WAYPOINT_DICT_Town03[233],
         WAYPOINT_DICT_Town03[230], 
         WAYPOINT_DICT_Town03[231], 
         WAYPOINT_DICT_Town03[245], 
         WAYPOINT_DICT_Town03[246], 
-        # WAYPOINT_DICT_Town03[243], 
+        WAYPOINT_DICT_Town03[243], 
         WAYPOINT_DICT_Town03[136], 
         WAYPOINT_DICT_Town03[244],
         WAYPOINT_DICT_Town03[187], 
