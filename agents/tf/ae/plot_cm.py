@@ -116,7 +116,7 @@ def save_cm(cm, path, ind):
     df_cm = pd.DataFrame(cm, index = [REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)], columns = [REDUCED_SEMANTIC_COLOR_MAP[i][0] for i in range(5)])
     figure = plt.figure(figsize = (12,7))
     sn.heatmap(df_cm, annot=True)
-    plt.savefig(path + 'cm_{}.png'.format(ind))
+    plt.savefig(os.path.join(path, 'cm_{}.png'.format(ind)))
     plt.close()
 
 

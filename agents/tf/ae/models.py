@@ -23,7 +23,7 @@ def denormalize(data):
 class ConvAutoEncoder(object):
     def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, is_training=True,
                  reuse=False, num_classes=5, frame_stack=1, gpu_mode=True):
-        self.z_size = z_size
+        self.z_size = z_size # Unused
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.is_training = is_training
@@ -66,7 +66,7 @@ class ConvAutoEncoder(object):
                 eps = 1e-6  # avoid taking log of zero
 
                 # # cross-entropy pixel wise loss
-                # decoded = tf.nn.softmax(self.y, name='decoded')
+                self.decoded = tf.nn.softmax(self.y, name='decoded')
                 
                 # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 500.0, 1.0, 1.0]])
 
@@ -80,19 +80,20 @@ class ConvAutoEncoder(object):
                 self.entropy_loss = tf.reduce_mean(entropy_loss)
                 self.loss = self.entropy_loss
                 
+                probs = tf.reshape(self.decoded, (-1, self.frame_stack, self.num_classes))
                 input_labels = tf.argmax(labels, axis=-1)
-                output_labels = tf.argmax(logits, axis=-1)
+                self.output_preds = tf.argmax(probs, axis=-1)
                 
                 input_labels_flattened = tf.reshape(input_labels, [-1])
-                output_labels_flattened = tf.reshape(output_labels,[-1])
+                output_preds_flattened = tf.reshape(self.output_preds,[-1])
                 confusion_matrix = np.zeros((self.num_classes, self.num_classes))
                 
-                my_accuracy = tf.reduce_mean(tf.cast(tf.equal(input_labels_flattened, output_labels_flattened), tf.float32))
+                my_accuracy = tf.reduce_mean(tf.cast(tf.equal(input_labels_flattened, output_preds_flattened), tf.float32))
                 self.my_accuracy = my_accuracy
                 
-                self.accuracy, self.accuracy_op = tf.metrics.accuracy(input_labels, output_labels)
+                self.accuracy, self.accuracy_op = tf.metrics.accuracy(input_labels, self.output_preds)
 
-                self.confusion_matrix = tf.confusion_matrix(input_labels_flattened, output_labels_flattened, num_classes=self.num_classes)
+                self.confusion_matrix = tf.confusion_matrix(input_labels_flattened, output_preds_flattened, num_classes=self.num_classes)
 
                 self.my_confusion_matrix = self.confusion_matrix
                 self.my_confusion_matrix_normalized = self.confusion_matrix / tf.reshape(tf.reduce_sum(self.confusion_matrix, axis=1), [-1,1])

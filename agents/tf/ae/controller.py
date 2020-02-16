@@ -17,13 +17,13 @@ class AEController:
                  epoch_per_optimization=10, batch_size=64,
                  buffer_size=500):
         # AE input and output shapes
-        self.z_size = z_size
+        self.z_size = z_size # Unused
         self.frame_stack = frame_stack
         self.image_size = (image_size[0], image_size[1], image_size[2] * self.frame_stack)
 
         # AE params
         self.learning_rate = learning_rate
-        self.kl_tolerance = kl_tolerance
+        self.kl_tolerance = kl_tolerance # Unused
 
         # Training params
         self.epoch_per_optimization = epoch_per_optimization

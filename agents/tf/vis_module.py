@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import subprocess
 from PIL import Image, ImageFont, ImageDraw
 import os
 import glob
 
 class vis():
-    def __init__(self, images_path, video_path, frame_skip, videos=True):
+    def __init__(self, images_path, video_path, frame_skip=1, videos=True):
         self.frame_skip = frame_skip
         self.images_path = images_path
         self.video_path = video_path
@@ -16,10 +17,10 @@ class vis():
 
     def save_image(self, image, step_number):
         if(step_number % self.frame_skip == 0):
-            img_id = "{:04d}".format(self.image_idx)
-            im_path = os.path.join(self.images_path, 'img'+img_id+'.png')
-            plt.imsave(im_path, image)
             self.image_idx += 1
+            img_id = "{:08d}".format(self.image_idx)
+            im_path = os.path.join(self.images_path, img_id+'.png')
+            plt.imsave(im_path, image)
     
     def save_semantic_image(self, image, step_number):
         im_path = os.path.join(self.images_path, str(step_number))
@@ -73,5 +74,6 @@ class vis():
 
     def create_directories_if_not_exist(self,*directories):
         for d in directories:
-            if not os.path.exists(d):
-                os.makedirs(d)
+            if d is not None:
+                if not os.path.exists(d):
+                    os.makedirs(d)
