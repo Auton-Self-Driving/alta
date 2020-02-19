@@ -56,11 +56,11 @@ def run_ppo_vae(args, prefix, config):
     register_policy('CustomPolicy2', CustomPolicy2)
     steps = args.timesteps
 
-    def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
+    def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_', ind_token=1):
         list_of_files = glob.glob(log_dir + ext)
         latest_file = max(list_of_files, key=os.path.getctime)
         latest_file = latest_file.split('{}'.format(ext[1:]))[0]
-        ind = int(latest_file.split(sep)[1])
+        ind = int(latest_file.split(sep)[ind_token])
         return ind, latest_file
 
 
@@ -169,9 +169,9 @@ def run_ppo_vae(args, prefix, config):
                     set_global_seeds(seed)
                     completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
                     env.total_steps = completed_steps
-                    if config.config["videos"]:
-                        completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
-                        env.episode_num = completed_episodes
+                    completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep='_', ind_token=5)
+                    env.episode_num = completed_episodes
+                    print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))

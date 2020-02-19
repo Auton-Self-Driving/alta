@@ -48,10 +48,10 @@ class vis():
         image = self.convert_image(image)
         image = self.modify_image(image, step_info)
         if(step_number % self.frame_skip == 0):
-            img_id = "{:04d}".format(self.image_idx)
-            im_path = os.path.join(self.images_path, 'img'+img_id+'.png')
-            image.save(im_path)
             self.image_idx += 1
+            img_id = "{:08d}".format(self.image_idx)
+            im_path = os.path.join(self.images_path, img_id+'.png')
+            image.save(im_path)
 
     def generate_video(self, episode_number, total_steps, index):
         file_name = 'ValEp_' + str(episode_number) + '_step_' + str(total_steps) + "_ind_" + str(index) + '.mp4'

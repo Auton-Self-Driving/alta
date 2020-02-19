@@ -399,14 +399,15 @@ class CarlaEnv(gym.Env):
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                         # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-                        self.vis_wrapper.save_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps)
-                        # self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        self.vis_wrapper.save_image(obs['image'], self.num_steps)
-                        # self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                        # path = os.path.join(self.log_dir, "ae_images")
+                        # if not os.path.exists(path):
+                        #     os.makedirs(path)
+                        # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
-                    self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps)
-                    # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -473,7 +474,7 @@ class CarlaEnv(gym.Env):
                 # Validation runs
                 else:
                     self.validation_episode_num += 1
-                    val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index) + '_v_' + str(self.validation_episode_num)
+                    plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
                     
                     if self.config["testing"]:
                         path = self.log_dir + 'test_episode_info_plots/'
@@ -490,7 +491,7 @@ class CarlaEnv(gym.Env):
                         self.collision_reward_array,
                         self.dist_to_trajectory_reward_array,
                         self.speed_reward_array,
-                        val_ep_idx)
+                        plotname)
                 
                 self.episode_measurements["episode_num"] = self.episode_num
 
@@ -571,8 +572,18 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "long_straight":
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town, index)
+            self.config["num_episodes"] = 1
         elif self.config["scenarios"] == "straight_dynamic":
             self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town, index)
+        elif self.config["scenarios"] == "crowded":
+            self.source_transform, self.destination_transform = scenarios.get_crowded_path(unseen, town, index)
+        elif self.config["scenarios"] == "straight_crowded":
+            self.source_transform, self.destination_transform = scenarios.get_straight_crowded_path(unseen, town, index)
+        elif self.config["scenarios"] == "town3":
+            self.source_transform, self.destination_transform = scenarios.get_curved_town03_path(unseen, town, index)
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -584,8 +595,10 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "curved":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
+            self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
             self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
+            self.config["num_episodes"] = 25
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -713,8 +726,8 @@ class CarlaEnv(gym.Env):
     def _reset(self, unseen=False, index=0):
         self.clear_episode_measurements()
 
-        self.num_steps = 0
-        self.total_reward = 0
+        self.num_steps = 0 # Episode level step count
+        self.total_reward = 0 # Episode level total reward
         self.prev_measurement = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
@@ -905,8 +918,32 @@ class CarlaEnv(gym.Env):
     def spawn_npc(self, number_of_vehicles, unseen):
         
         # TODO: remove hard coded logic
-        if not self.config["scenarios"] == "straight_dynamic":
-            
+        if self.config["scenarios"] == "straight_dynamic":
+            spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
+            Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
+        elif self.config["scenarios"] == "crowded":
+            spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
+            # print('CROWDED SPAWNING: ', spawn_points)
+        elif self.config["scenarios"] == "long_straight":
+            spawn_points_1 = scenarios.get_long_straight_npcs()
+            if unseen:
+                if self.config["test_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+                    random.shuffle(spawn_points)
+            else:
+                if self.config["train_fixed_spawn_points"]:
+                    spawn_points = self.spawn_points_fixed_order
+                else:
+                    spawn_points = self.spawn_points
+        elif self.config["scenarios"] == "straight_crowded":
+            spawn_points = scenarios.get_straight_crowded_npcs(number_of_vehicles)
+            # print('STRAIGHT CROWDED SPAWNING: ', spawn_points)
+        elif self.config["scenarios"] == "town3":
+            spawn_points = scenarios.get_curved_town03_npcs(number_of_vehicles)
+            # print('TOWN 3 SPAWNING: ', spawn_points)
+        else:
             # Testing
             if unseen:
                 if self.config["test_fixed_spawn_points"]:
@@ -920,14 +957,15 @@ class CarlaEnv(gym.Env):
                 else:
                     spawn_points = self.spawn_points
                     random.shuffle(spawn_points)
-        else:
-            spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
-            Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
 
 
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
-        
+
+        if self.config["scenarios"] == "long_straight":
+            for spawn_point in spawn_points_1:
+                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
+
         count = number_of_vehicles
         for spawn_point in spawn_points:
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
@@ -1116,7 +1154,7 @@ def plot_episode_info(path,
     axs[4,1].grid(True)
     
     plt.grid(True)
-    plt.savefig(path + 'episode_info_{}.png'.format(episode_num))
+    plt.savefig(path + '{}.png'.format(episode_num))
     plt.close()
 
 if __name__ == "__main__":
