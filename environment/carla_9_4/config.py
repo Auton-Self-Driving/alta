@@ -114,7 +114,8 @@ DEFAULT_ENV = {
     "disable_collision" : False,
     "enable_static" : False,
     "use_pid_in_frame_skip" : True,
-    "frame_stack_size" : 1
+    "frame_stack_size" : 1,
+    "num_episodes" : 1
 }
 
 episode_measurements = {

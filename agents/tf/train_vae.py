@@ -1,5 +1,6 @@
 import glob
 import os
+import time
 import tensorflow as tf
 import numpy as np
 
@@ -32,6 +33,8 @@ def prepare_for_training(dataset, args, cache=True, shuffle_buffer_size=1000):
 def convert_if_not_one_hot(arr):
     if arr.ndim == 2:
         return (np.arange(arr.max() + 1) == arr[...,None]).astype(int)
+    else:
+        return arr
 
 def read_npy_file(paths):
     final_data = []
@@ -187,7 +190,7 @@ def train_vae(args, prefix, config):
         test_epoch_cms = []
 
         for epoch in range(args.epochs):
-            
+            time_start = time.time()
             train_batch_losses = []
             train_batch_accuracies = []
             train_batch_my_accuracies = []
@@ -244,10 +247,13 @@ def train_vae(args, prefix, config):
                 logger.log_scalar('train/epoch_accuracies', epoch_accuracy, epoch + 1)
                 logger.log_scalar('train/epoch_my_accuracies', epoch_my_accuracy, epoch + 1)
                 plot_cm.save_cm(train_epoch_cm_normalized, CM_PATH , epoch + 1)
+                epoch_time = time.time() - time_start
+                logger.log_scalar('train/epoch_time', epoch_time, epoch + 1)
             
             ae_controller.set_target_params()
             
-            if epoch % 1 == 0:
+            if epoch % 2 == 0:
+                time_start = time.time()
                 test_batch_losses = []
                 test_batch_accuracies = []
                 test_batch_my_accuracies = []
@@ -305,6 +311,8 @@ def train_vae(args, prefix, config):
                     logger.log_scalar('test/epoch_accuracies', epoch_accuracy, epoch + 1)
                     logger.log_scalar('test/epoch_my_accuracies', epoch_my_accuracy, epoch + 1)
                     plot_cm.save_cm(test_epoch_cm_normalized, CM_PATH_TEST , epoch + 1)
+                    epoch_time = time.time() - time_start
+                    logger.log_scalar('test/epoch_time', epoch_time, epoch + 1)
 
         train_epoch_losses = np.array(train_epoch_losses)
         train_epoch_accuracies = np.array(train_epoch_accuracies)
