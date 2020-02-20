@@ -47,13 +47,13 @@ class RoamingAgent(Agent):
         lights_list = actor_list.filter("*traffic_light*")
 
         # check possible obstacles
-        vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
-        if vehicle_state:
-            if debug:
-                print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
+        # vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
+        # if vehicle_state:
+        #     if debug:
+        #         print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
 
-            self._state = AgentState.BLOCKED_BY_VEHICLE
-            hazard_detected = True
+        #     self._state = AgentState.BLOCKED_BY_VEHICLE
+        #     hazard_detected = True
 
         # check for the state of the traffic lights
         # light_state, traffic_light = self._is_light_red(lights_list)

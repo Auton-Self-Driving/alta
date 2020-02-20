@@ -25,7 +25,7 @@ def parse_arguments():
     parser.add_argument('--code-gpu',dest='code_gpu',type=str,default='0')
     parser.add_argument('--new-data-split',dest='new_data_split', action='store_true', help='Generate a new train-val data split.')
     parser.add_argument('--base-log-dir',dest='base_log_dir',type=str, required=True, help='base log directory, Eg: /zfsauton2/home/tanmaya/projects/alta-logs/new_env/sac_runs1/')
-    parser.add_argument('--data-dir',dest='data_dir',type=str, required=True, help='Data directory, Eg: /zfsauton2/home/tanmaya/projects/alta-logs/new_env/sac_runs1/')
+    parser.add_argument('--data-dir',dest='data_dir',type=str, help='Data directory, Eg: /zfsauton2/home/tanmaya/projects/alta-logs/new_env/sac_runs1/')
     parser.add_argument('--timesteps',dest='timesteps',type=int,default=2000000, help='total timesteps to train')
     
     return parser.parse_args()

@@ -368,9 +368,9 @@ class CarlaEnv(gym.Env):
             encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
         
-        if self.config["input_type"] == "ae_train":
-            semantic_image = sensor_image[:,:,0]
-            obs['semantic_image'] = semantic_image
+        # if self.config["input_type"] == "ae_train":
+        #     semantic_image = sensor_image[:,:,0]
+        #     obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
         obs['speed'] = np.expand_dims(
@@ -395,16 +395,17 @@ class CarlaEnv(gym.Env):
 
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
-            if self.config["videos"] and self.unseen:
+            # if self.config["videos"] and self.unseen:
+            if self.config["videos"]:
                 if self.vis_wrapper is not None:
                     if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
                         # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
                         self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        # path = os.path.join(self.log_dir, "ae_images")
-                        # if not os.path.exists(path):
-                        #     os.makedirs(path)
-                        # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
+                        path = os.path.join(self.log_dir, "ae_images")
+                        if not os.path.exists(path):
+                            os.makedirs(path)
+                        np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
                         self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
                     self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
@@ -520,11 +521,13 @@ class CarlaEnv(gym.Env):
                         self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
-                if self.config["videos"] and self.unseen:
+                # if self.config["videos"] and self.unseen:
+                if self.config["videos"]:
                     if self.vis_wrapper is not None:
                         # self.vis_wrapper.generate_video(self.episode_num)
-                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                        self.vis_wrapper.remove_images()
+                        pass
+                        # self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                        # self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         # self.vis_wrapper_vae.generate_video(self.episode_num)
                         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
@@ -692,6 +695,8 @@ class CarlaEnv(gym.Env):
                 throttle = gas
                 brake = 0.0
         elif self.config["action_type"] == "control":
+            target_speed = 20
+            self.episode_measurements["target_speed"] = target_speed
             return action
         
         self.episode_measurements["target_speed"] = target_speed
@@ -847,9 +852,9 @@ class CarlaEnv(gym.Env):
             encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
             obs['semantic_image'] = semantic_image
         
-        if self.config["input_type"] == "ae_train":
-            semantic_image = image[:,:,0]
-            obs['semantic_image'] = semantic_image
+        # if self.config["input_type"] == "ae_train":
+        #     semantic_image = image[:,:,0]
+        #     obs['semantic_image'] = semantic_image
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
@@ -1020,7 +1025,8 @@ class CarlaEnv(gym.Env):
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        collision = self.episode_measurements['is_collision']
+        # np.absolute(self.episode_measurements["collision_reward"]) > 0
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
 

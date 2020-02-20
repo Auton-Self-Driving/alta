@@ -83,7 +83,7 @@ DEFAULT_ENV = {
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
-    "enable_brake": False,
+    "enable_brake": True,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
     "videos" : False,
@@ -287,14 +287,20 @@ class ConfigManager(object):
             self.config["carla_gpu"] = "1"
         elif algo == 'AE':
             self.config["algo"] = "AE"
+            self.config["train_config"] = "PPO"
+            self.config["reward_function"] = "simple2"
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
             self.config['max_steps'] = 10000
             self.config["city_name"] = "Town01"
             self.config["num_npc"] = 60
-            self.config["input_type"] = "ae_train"
+            self.config["input_type"] = "wp"
             self.config["videos"] = True
+            self.config["disable_two_wheeler"] = True
+            self.config["enable_lane_invasion_sensor"] = True
+            self.config["enable_static"] = True
+            self.config["max_static_steps"] = 50
         elif algo == 'PID_TUNE':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"
