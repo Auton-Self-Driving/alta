@@ -83,7 +83,7 @@ DEFAULT_ENV = {
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
-    "enable_brake": False,
+    "enable_brake": True,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
     "videos" : False,
