@@ -15,6 +15,8 @@ import tensorboard_logging as tf_log
 frame_stack = None
 fmt = None
 
+num_classes = None
+
 
 def prepare_for_training(dataset, args, cache=True, shuffle_buffer_size=1000):
     if cache:
@@ -36,6 +38,10 @@ def convert_if_not_one_hot(arr):
     else:
         return arr
 
+def apply_class_weights(sample):
+    weights = np.array([1.0, 1.0, 1.0, 1.0, 1.0])
+    return np.multiply(sample, weights)
+
 def read_npy_file(paths):
     final_data = []
     for path in paths:
@@ -49,15 +55,16 @@ def read_npy_file(paths):
             path = os.path.join(parent_dir, "{:08d}{}".format(index + fs, fmt))
             if os.path.exists(path):
                 if fmt == '.npy':
-                    data.append(convert_if_not_one_hot(np.load(path)))
+                    sample = np.load(path)
                 else:
-                    data.append(convert_if_not_one_hot(np.load(path)['img']))
+                    sample = np.load(path)['img']
             else:
                 path = os.path.join(parent_dir, "{:08d}{}".format(index, fmt))
                 if fmt == '.npy':
-                    data.append(convert_if_not_one_hot(np.load(path)))
+                    sample = np.load(path)
                 else:
-                    data.append(convert_if_not_one_hot(np.load(path)['img']))
+                    sample = np.load(path)['img']
+            data.append(apply_class_weights(convert_if_not_one_hot(sample)))
         data = np.concatenate(data, axis=2)
         final_data.append(data)
     final_data = np.array(final_data).astype(np.float32)
@@ -67,63 +74,106 @@ def read_npy_file(paths):
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
-def write_inds_to_file(filename, image_paths):
+def write_inds_to_file(filename, inds):
     with open("ae/{}.txt".format(filename), "w") as f:
-        for path in image_paths:
-            f.write(path + "\n")
+        for ind in inds:
+            f.write("{:08d}\n".format(ind))
             
 def read_inds_from_file(filename):
     with open("ae/{}.txt".format(filename), "r") as f:
         inds = [ind.strip() for ind in f.readlines()]
     return inds
 
-def split_train_test_data(args):
-    image_inds = np.array([f.split(args.fmt)[0] for f in os.listdir(args.data_dir) if os.path.isfile(os.path.join(args.data_dir, f))])
-    import pdb; pdb.set_trace()
-    write_inds_to_file('trainval', image_inds)
+def split_dataset(args, inds, data_type='noisy60'):
     
-    total_elements = len(image_inds)
+    write_inds_to_file('trainval_{}'.format(data_type), inds)
+    total_elements = len(inds)
     test_elements = int(total_elements / 10)
     
     test_inds = np.random.choice(total_elements, test_elements, replace=False)
     train_inds = np.delete(np.arange(total_elements), test_inds)
 
-    test_image_inds = image_inds[test_inds]
-    write_inds_to_file('val', test_image_inds)
-    test_image_paths = np.array([os.path.join(args.data_dir, "{}{}".format(f, args.fmt)) for f in test_image_inds])
+    test_inds = inds[test_inds]
+    write_inds_to_file('val_{}'.format(data_type), test_inds)
+    test_image_paths = np.array([os.path.join(args.data_dir, data_type, "ae_images", "{:08d}{}".format(f, args.fmt)) for f in test_inds])
     
-    train_image_inds = image_inds[train_inds]
-    write_inds_to_file('train', train_image_inds)
-    train_image_paths = np.array([os.path.join(args.data_dir, "{}{}".format(f, args.fmt)) for f in train_image_inds])
+    train_inds = inds[train_inds]
+    write_inds_to_file('train_{}'.format(data_type), train_inds)
+    train_image_paths = np.array([os.path.join(args.data_dir, data_type, "ae_images", "{:08d}{}".format(f, args.fmt)) for f in train_inds])
     
     return train_image_paths, test_image_paths
 
-def load_train_test_data(args):
-    train_image_inds = read_inds_from_file('train')
-    train_image_paths = np.array([os.path.join(args.data_dir, "{}{}".format(f, args.fmt)) for f in train_image_inds])
+def get_inds(high, sample_size=100000):
+    inds = np.random.choice(np.arange(1, high), size=sample_size, replace=False)
+    return inds
 
-    test_image_inds = read_inds_from_file('val')
-    test_image_paths = np.array([os.path.join(args.data_dir, "{}{}".format(f, args.fmt)) for f in test_image_inds])
+def split_data(args):
+    # Create empty path lists
+    train_paths = []
+    test_paths = []
+
+    # Generate inds for 'noisy60', 'wp20', 'wp60', 'wp90' datasets
+    inds_noisy60 = get_inds(940456, sample_size=args.sample_size)
+    inds_wp20 = get_inds(1137287, sample_size=args.sample_size)
+    inds_wp60 = get_inds(1291977, sample_size=args.sample_size)
+    inds_wp90 = get_inds(1141568, sample_size=args.sample_size)
+
+    for data_type in ['noisy60', 'wp20', 'wp60', 'wp90']:
+        train_image_paths, test_image_paths = split_dataset(args, inds_noisy60, data_type=data_type)
+        train_paths.append(train_image_paths)
+        test_paths.append(test_image_paths)
+
+    train_paths = np.array(train_paths).flatten()
+    test_paths = np.array(test_paths).flatten()
+
+    return train_paths, test_paths
+
+def load_dataset(args, data_type='noisy60'):
+
+    train_inds = read_inds_from_file('train_{}'.format(data_type))
+    train_image_paths = np.array([os.path.join(args.data_dir, data_type, "ae_images", "{}{}".format(f, args.fmt)) for f in train_inds])
+
+    test_inds = read_inds_from_file('val_{}'.format(data_type))
+    test_image_paths = np.array([os.path.join(args.data_dir, data_type, "ae_images", "{}{}".format(f, args.fmt)) for f in test_inds])
     
     return train_image_paths, test_image_paths
+
+def load_data(args):
+    # Create empty path lists
+    train_paths = []
+    test_paths = []
+
+    # Load 'noisy60', 'wp20', 'wp60', 'wp90' datasets
+    for data_type in ['noisy60', 'wp20', 'wp60', 'wp90']:
+        train_image_paths, test_image_paths = load_dataset(args, data_type=data_type)
+        train_paths.append(train_image_paths)
+        test_paths.append(test_image_paths)
+
+    train_paths = np.array(train_paths).flatten()
+    test_paths = np.array(test_paths).flatten()
+
+    return train_paths, test_paths
 
 def train_vae(args, prefix, config):
     
     if args.new_data_split:
         # Generate Train & Test image paths
-        train_image_paths, test_image_paths = split_train_test_data(args)
+        train_image_paths, test_image_paths = split_data(args)
     else:
         # Load Train & Test image paths
-        train_image_paths, test_image_paths = load_train_test_data(args)
+        train_image_paths, test_image_paths = load_data(args)
 
-    global frame_stack, fmt
+    print("Train data size: {}".format(len(train_image_paths)))
+    print("Test data size: {}".format(len(test_image_paths)))
+
+    global frame_stack, fmt, num_classes
     
     if args.frame_stack:
         frame_stack = args.frame_stack
     
     fmt = args.fmt
 
-    ALTA_LOGS = args.base_log_dir + prefix
+    ALTA_LOGS = os.path.join(args.base_log_dir, prefix)
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
 
@@ -145,6 +195,7 @@ def train_vae(args, prefix, config):
     
     VIDEO_FRAME_SKIP = 1
     NUM_CLASSES = 5
+    num_classes = NUM_CLASSES
 
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP)
     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP)
