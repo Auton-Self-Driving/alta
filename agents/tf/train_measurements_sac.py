@@ -43,7 +43,7 @@ from stable_baselines import SAC
 
 prefix = 'sac_nav_dist_10_buf_2000k_batch_256_lr_3e_4_1/'
 
-ALTA_LOGS = '/zfsauton2/home/hiteshar/research/alta-logs/'
+ALTA_LOGS = '/zfsauton2/home/vkadi/projects/alta/alta-logs/'
 if not os.path.exists(ALTA_LOGS):
     os.makedirs(ALTA_LOGS)
 

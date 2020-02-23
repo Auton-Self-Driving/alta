@@ -102,7 +102,7 @@ def run_sac(args, prefix, base_prefix, config):
     while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
         try:
 
-            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir)
             serverStarted = True
         
         except Exception as identifier:
