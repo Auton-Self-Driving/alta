@@ -281,7 +281,9 @@ class GlobalPlanner():
                                     vehicle_transform,
                                     self.second_last_waypoint,
                                     self.last_waypoint)
-        return angle, self.dist_to_trajectory
+
+        dist_to_goal = len(self._waypoints_queue) *self._hop_resolution
+        return angle, self.dist_to_trajectory, dist_to_goal
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
 

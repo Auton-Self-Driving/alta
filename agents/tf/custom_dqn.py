@@ -24,7 +24,7 @@ def test(model, env, model_step, path=None):
     success_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(2):
+    for ind in range(25):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -79,6 +79,23 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
 
     return best_model
 
+def plot_test_results(total_successes, total_rewards, total_updates, path):
+    fig, (ax1, ax2)  = plt.subplots(1, 2)
+    fig.suptitle('Test Results v/s training timesteps')
+
+    ax1.plot(np.array(total_updates), np.array(total_successes), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax1.set_xlabel('Timesteps')
+    ax1.set_ylabel('Success Episodes')
+    ax2.plot(np.array(total_updates), np.array(total_rewards), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    ax2.set_xlabel('Total Reward')
+    ax2.set_ylabel('Timesteps')
+    
+    ax1.grid(True)
+    ax2.grid(True)
+    
+    plt.grid(True)
+    plt.savefig(path + 'test_results.png')
+    plt.close()
 
 class Custom_DQN(DQN):
     '''
@@ -94,6 +111,7 @@ class Custom_DQN(DQN):
         total_rewards = []
         total_successes = []
         model_file_names = []
+        total_updates = []
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
@@ -137,6 +155,8 @@ class Custom_DQN(DQN):
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(self.num_timesteps))
+                    total_updates.append(self.num_timesteps)                    
+                    plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
 
                 # Take action and update exploration to the newest value
                 kwargs = {}

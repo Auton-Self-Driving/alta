@@ -3,10 +3,10 @@ import sys, os
 
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
-from train_measurements_sac_run import run_sac
-from train_measurements_ppo_run import run_ppo
-from train_vae_ppo_run import run_ppo_vae
-from test_pid import test_pid_method
+# from train_measurements_sac_run import run_sac
+# from train_measurements_ppo_run import run_ppo
+# from train_vae_ppo_run import run_ppo_vae
+# from test_pid import test_pid_method
 from train_measurements_dqn_run import run_dqn
 
 
@@ -98,6 +98,11 @@ def create_ppo_prefix(args):
     else:
         collision_penalty_speed_coeff_str = ""
     
+    if args.steer_penalty_coeff != 0:
+        steer_penalty_coeff_str = '_steer_pen_' + str(args.steer_penalty_coeff)
+    else:
+        steer_penalty_coeff_str = ""
+
     if args.enable_brake != False:
         enable_brake_str = '_brake'
     else:
@@ -172,6 +177,7 @@ def create_ppo_prefix(args):
         + enable_static_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
+        + steer_penalty_coeff_str \
         + ent_coef_str \
         + frame_skip_str \
         + use_pid_fs_str \
@@ -219,24 +225,24 @@ if __name__ == '__main__':
         if args.algo == "SAC":
             base_prefix, prefix = create_sac_prefix(args)
             print("prefix", prefix)
-            run_sac(args, prefix, base_prefix, config)
-        elif args.algo == "PPO":
-            if not args.test:
-                prefix = create_ppo_prefix(args)
-            else:
-                prefix = extract_prefix(args)
-            print("prefix", prefix)
-            if args.input_type == "wp" or args.input_type == "wp_noise" \
-                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
-                run_ppo(args, prefix, config)
-            elif args.input_type == "wp_vae":
-                run_ppo_vae(args, prefix, config)
-            else:
-                print("specify correct input_type: wp, wp_vae")
-                print("exiting")
-        elif args.algo == "PID_TUNE":
-            prefix = create_ppo_prefix(args)
-            test_pid_method(args, prefix, config)
+        #     run_sac(args, prefix, base_prefix, config)
+        # elif args.algo == "PPO":
+        #     if not args.test:
+        #         prefix = create_ppo_prefix(args)
+        #     else:
+        #         prefix = extract_prefix(args)
+        #     print("prefix", prefix)
+        #     if args.input_type == "wp" or args.input_type == "wp_noise" \
+        #         or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
+        #         run_ppo(args, prefix, config)
+        #     elif args.input_type == "wp_vae":
+        #         run_ppo_vae(args, prefix, config)
+        #     else:
+        #         print("specify correct input_type: wp, wp_vae")
+        #         print("exiting")
+        # elif args.algo == "PID_TUNE":
+        #     prefix = create_ppo_prefix(args)
+        #     test_pid_method(args, prefix, config)
         elif args.algo == "DQN":
             if not args.test:
                 prefix = create_ppo_prefix(args)

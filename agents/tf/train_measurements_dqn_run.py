@@ -15,7 +15,8 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
-from custom_dqn import Custom_DQN
+# from custom_dqn import Custom_DQN
+from custom_dqn_new import Custom_DQN
 
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
@@ -147,7 +148,7 @@ def run_dqn(args, prefix, config):
                     #             exploration_final_eps=0.02, batch_size=32, prioritized_replay=False, param_noise=False,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
                     model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size, exploration_fraction=0.025,
-                                exploration_final_eps=0.02, batch_size=256, prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
+                                exploration_final_eps=0.05, batch_size=256, prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
                 else:
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)

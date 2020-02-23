@@ -1074,11 +1074,13 @@ def paths_t_junction_Town01():
     paths = [
         [
             WAYPOINT_DICT_Town01[17],
-            WAYPOINT_DICT_Town01[53]
+            # WAYPOINT_DICT_Town01[53]
+            WAYPOINT_DICT_Town01[56]
         ],
         [
             WAYPOINT_DICT_Town01[17],
-            WAYPOINT_DICT_Town01[46]
+            # WAYPOINT_DICT_Town01[46]
+            WAYPOINT_DICT_Town01[44]
         ] 
     ]
     
