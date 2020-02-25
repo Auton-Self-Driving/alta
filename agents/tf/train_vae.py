@@ -177,7 +177,7 @@ def train_vae(args, prefix, config):
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
 
-    if os.path.exists('/home/scratch'):
+    if "/home/scratch" not in args.base_log_dir and os.path.exists('/home/scratch'):
         SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     else:
         SCRATCH_DIR = ALTA_LOGS

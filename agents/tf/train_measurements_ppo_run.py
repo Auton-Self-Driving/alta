@@ -28,7 +28,7 @@ def run_ppo(args, prefix, config):
     if ALTA_LOGS[-1] != '/':
         ALTA_LOGS += '/'
 
-    if os.path.exists('/home/scratch'):
+    if "/home/scratch" not in args.base_log_dir and os.path.exists('/home/scratch'):
         SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     else:
         SCRATCH_DIR = ALTA_LOGS
@@ -55,8 +55,15 @@ def run_ppo(args, prefix, config):
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)
         latest_file = max(list_of_files, key=os.path.getctime)
-        latest_file = latest_file.split('{}'.format(ext[1:]))[0]
+        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
         ind = int(latest_file.split(sep)[1])
+        return ind, latest_file
+
+    def get_completed_episodes(log_dir=ALTA_LOGS, ext='*.pkl', sep1='_step_', sep2='_ind_'):
+        list_of_files = glob.glob(log_dir + ext)
+        latest_file = max(list_of_files, key=os.path.getctime)
+        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        ind = int(latest_file.split(sep1)[1].split(sep2)[0])
         return ind, latest_file
 
     
@@ -64,33 +71,62 @@ def run_ppo(args, prefix, config):
         try:
             # Create the environment
             logger = tf_log.Logger(TB_LOGS_DIR)
-            if os.path.exists(SAVE_PATH + ".pkl"):
-                print("Best model exists, Validating !!!!")
-                with open(ALTA_LOGS + "seed.txt", "r") as f:
-                    seed = int(f.readline())
-                print("Using the pre-initialized seed: {}".format(seed))
-                set_global_seeds(seed)
+            # if os.path.exists(SAVE_PATH + ".pkl"):
+            #     print("Best model exists, Validating !!!!")
+            if args.test:
+                print('Testing Begins')
+                np.random.seed(10)
+                if args.city_name == 'Town01':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                elif args.city_name == 'Town02':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
 
-                IMAGES_PATH = SCRATCH_DIR+'final_images_' + config.config["city_name"] + '/'
-                VIDEO_PATH = SCRATCH_DIR+'final_videos_' + config.config["city_name"] + '/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
-                
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
-                dummy_env = DummyVecEnv([lambda: env])
+                # with open(ALTA_LOGS + "seed.txt", "r") as f:
+                #     seed = int(f.readline())
+                # print("Using the pre-initialized seed: {}".format(seed))
+                # set_global_seeds(seed)
 
-                model = PPO.load(SAVE_PATH, dummy_env)
-                with open(ALTA_LOGS + config.config["scenarios"] + config.config["city_name"] + ".txt", "w") as f:
-                    total_reward, success_episodes, results = test(model, env)
-                    print("Task Name: {}".format(config.config["scenarios"]))
-                    print("Town Name: {}".format(config.config["city_name"]))
-                    print("Results of test scenarios")
-                    print(results)
-                    print("Total Success Episodes: {}".format(success_episodes))
-                    f.write("Task Name: {}".format(config.config["scenarios"]))
-                    f.write("Town Name: {}".format(config.config["city_name"]))
-                    f.write("Results of test scenarios")
-                    # f.write(results)
-                    f.write("Total Success Episodes: {}".format(str(success_episodes)))
+                rewards = []
+                successes = []
+                for test_idx in range(args.test_trails):
+                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+
+                    config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
+
+                    # Sending logger as None so as to not affect existing validation plots
+                    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                    dummy_env = DummyVecEnv([lambda: env])
+                    model = PPO.load(args.agent_model_path, dummy_env)
+
+                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
+                        total_reward, success_episodes, results = test(model, env)
+                        print("Task Name: {}".format(config.config["scenarios"]))
+                        print("Town Name: {}".format(config.config["city_name"]))
+                        print("Results of test scenarios")
+                        print(results)
+                        print("Total Success Episodes: {}".format(success_episodes))
+                        f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                        f.write("Town Name: {}\n".format(config.config["city_name"]))
+                        f.write("Results of test scenarios\n")
+                        f.write(str(results))
+                        f.write("Total Success Episodes: {}\n".format(str(success_episodes)))
+                        f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
+                    rewards.append(total_reward)
+                    successes.append(success_episodes)
+                    env.close()
+                rewards = np.array(rewards)
+                successes = np.array(successes)
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "w") as f:
+                    f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                    f.write("Town Name: {}\n".format(config.config["city_name"]))
+                    f.write("Model path used for testing: {}\n".format(args.agent_model_path))
+                    f.write("Results of final testing\n")
+                    f.write("Rewards: {}\n".format(" ".join(map(str, rewards))))
+                    f.write("Success: {}\n".format(" ".join(map(str, successes))))
+                    f.write("Avg Success: {}\n".format(np.mean(successes)))
+                    f.write("Std Success: {}\n".format(np.std(successes)))
             else:
                 print("Training begins")
                 IMAGES_PATH = SCRATCH_DIR+'images/'
@@ -121,11 +157,12 @@ def run_ppo(args, prefix, config):
                         seed = int(f.readline())
                     print("Using the pre-initialized seed: {}".format(seed))
                     set_global_seeds(seed)
-                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
+                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*[0-9].pkl', sep='hts')
                     env.total_steps = completed_steps
-                    if config.config["videos"]:
-                        completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'videos/', ext='*.mp4', sep='log_')
-                        env.episode_num = completed_episodes
+                    completed_episodes, _ = get_completed_episodes(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep1='_TrainEp_', sep2='_step_')
+                    env.episode_num = completed_episodes
+                    print(env.total_steps, env.episode_num)
+                    print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env)
                     print("Model: {} loaded successfully".format(latest_model))

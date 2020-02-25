@@ -29,7 +29,7 @@ def run_ppo_vae(args, prefix, config):
     if ALTA_LOGS[-1] != '/':
         ALTA_LOGS += '/'
 
-    if os.path.exists('/home/scratch'):
+    if "/home/scratch" not in args.base_log_dir and os.path.exists('/home/scratch'):
         SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
     else:
         SCRATCH_DIR = ALTA_LOGS
@@ -56,11 +56,18 @@ def run_ppo_vae(args, prefix, config):
     register_policy('CustomPolicy2', CustomPolicy2)
     steps = args.timesteps
 
-    def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_', ind_token=1):
+    def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)
         latest_file = max(list_of_files, key=os.path.getctime)
-        latest_file = latest_file.split('{}'.format(ext[1:]))[0]
-        ind = int(latest_file.split(sep)[ind_token])
+        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        ind = int(latest_file.split(sep)[1])
+        return ind, latest_file
+
+    def get_completed_episodes(log_dir=ALTA_LOGS, ext='*.pkl', sep1='_step_', sep2='_ind_'):
+        list_of_files = glob.glob(log_dir + ext)
+        latest_file = max(list_of_files, key=os.path.getctime)
+        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        ind = int(latest_file.split(sep1)[1].split(sep2)[0])
         return ind, latest_file
 
 
@@ -94,7 +101,7 @@ def run_ppo_vae(args, prefix, config):
                     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
 
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
-                    
+
                     # Sending logger as None so as to not affect existing validation plots
                     env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=None, log_dir=ALTA_LOGS)
                     dummy_env = DummyVecEnv([lambda: env])
@@ -167,9 +174,9 @@ def run_ppo_vae(args, prefix, config):
                         seed = int(f.readline())
                     print("Using the pre-initialized seed: {}".format(seed))
                     set_global_seeds(seed)
-                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='hts')
+                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*[0-9].pkl', sep='hts')
                     env.total_steps = completed_steps
-                    completed_episodes, _ = get_latest_model(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep='_', ind_token=5)
+                    completed_episodes, _ = get_completed_episodes(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep1='_TrainEp_', sep2='_step_')
                     env.episode_num = completed_episodes
                     print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
