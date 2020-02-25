@@ -111,7 +111,7 @@ def create_ppo_prefix(args):
     else:
         ent_coef_str = ''
     
-    if args.input_type == "wp_noise":
+    if args.input_type == "wp_noise" or args.input_type == "wp_obs_bool_noise":
         input_type = args.input_type + str(args.noise_dim)
     else:
         input_type = args.input_type
@@ -217,7 +217,8 @@ if __name__ == '__main__':
                 prefix = extract_prefix(args)
             print("prefix", prefix)
             if args.input_type == "wp" or args.input_type == "wp_noise" \
-                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
+                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool" \
+                or args.input_type == "wp_obs_bool_noise":
                 run_ppo(args, prefix, config)
             elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)
