@@ -275,7 +275,7 @@ class ConfigManager(object):
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["semantic"] = True
-            self.config["scenarios"] = "straight"
+            self.config["scenarios"] = "navigation"
             self.config["videos"] = True
             self.config["x_res"] = 80
             self.config["y_res"] = 160

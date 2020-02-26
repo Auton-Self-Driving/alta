@@ -15,13 +15,14 @@ def parse_arguments():
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
-    parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
+    parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/vkadi/projects/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
     parser.add_argument('--agent_model_path',dest='agent_model_path',type=str, default=None, help='Agent Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
+    parser.add_argument('--batch-size',dest='batch_size',type=int,default=512)
     parser.add_argument('--run-id',dest='run_id',type=str, required=True, help='Unique identifier for the run. It is appended to log directory name.')
     parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2.')
     parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0, help='Coefficient of steer penalty in reward.')
@@ -60,6 +61,7 @@ def create_sac_prefix(args):
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_buffer_' + str(args.buffer_size) \
+        + '_batchsz_'+ str(args.batch_size) \
         + '_' + args.scenarios \
     
     prefix = base + '_runid_' + args.run_id + '/'
@@ -193,6 +195,7 @@ if __name__ == '__main__':
     config.config["city_name"] = args.city_name
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
+    config.config["batch_size"] = args.batch_size
 
     try:
         if args.algo == "SAC":

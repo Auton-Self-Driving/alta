@@ -45,7 +45,7 @@ from carla.libcarla import Rotation
 
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
+    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None, base_prefix='', prefix=''):
         self.config = DEFAULT_ENV
         self._update_config(config)
         self.CarlaServer = None
@@ -79,6 +79,9 @@ class CarlaEnv(gym.Env):
         self.semantic_image = None
         self.unseen = False
         self.index = 0
+
+        self.base_prefix = base_prefix
+        self.prefix = prefix
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
@@ -472,7 +475,7 @@ class CarlaEnv(gym.Env):
                     if self.config["testing"]:
                         path = self.log_dir + 'test_episode_info_plots/'
                     else:
-                        path = self.log_dir + 'val_episode_info_plots/'
+                        path = self.log_dir + 'val_episode_info_plots/'+self.base_prefix+self.prefix 
                     plot_episode_info(path,
                         self.target_speeds_array,
                         self.speeds_array,
@@ -960,6 +963,7 @@ class CarlaEnv(gym.Env):
         offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
         collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
 

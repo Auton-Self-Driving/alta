@@ -59,10 +59,15 @@ def test(model, env, model_step, path=None):
 
     return total_reward, success_episodes
 
-def plot_policy_and_value_fns(model, ind, path):
+def plot_policy_and_value_fns(model, ind, path, inp_type):
     if not os.path.exists(path):
         os.makedirs(path)
-    observations = np.arange(-2, 2, 0.01).reshape((-1, 1))
+
+    if inp_type == "wp":
+        observations = np.arange(-2, 2, 0.01).reshape((-1, 1))
+    else:
+        return
+
     det_actions = []
     stoch_actions = []
     var_actions = []
@@ -167,6 +172,9 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     return best_model
 
 class MY_SAC(SAC):
+    def __init__(config, **kwargs):
+        self.config = config
+        super(MY_SAC, self).__init(**kwargs)
 
     def learn(self, env, total_timesteps, trained_timesteps, callback=None, seed=None,
               log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, save_file="sac_weights"):
@@ -195,7 +203,9 @@ class MY_SAC(SAC):
             n_updates = 0
             infos_values = []
 
-            for step in range(trained_timesteps, total_timesteps):
+            step = trained_timesteps
+            #for step in range(trained_timesteps, total_timesteps):
+            while(step<total_timesteps):
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
                     # compatibility with callbacks that have no return statement.
@@ -204,7 +214,7 @@ class MY_SAC(SAC):
 
                 if step % 10000 == 0:
                     self.save(save_file + str(step))
-                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/')
+                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', config["input_type"])
                     total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0])
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
@@ -294,7 +304,9 @@ class MY_SAC(SAC):
                     logger.dumpkvs()
                     # Reset infos:
                     infos_values = []
-                    
+
+                step +=1
+
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('sac_me')[0])            
             return best_model
     

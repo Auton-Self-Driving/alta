@@ -11,6 +11,8 @@ sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
+from ae.controller import AEController
+
 import itertools
 import numpy as np
 import tensorflow as tf
@@ -92,6 +94,8 @@ def run_sac(args, prefix, base_prefix, config):
     IMAGES_PATH = ALTA_LOGS+'images/'
     VIDEO_PATH = ALTA_LOGS+'videos/'
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+
+    vae = AEController(image_size=(128, 128, 5), learning_rate=args.ae_lr)
     
     # config = ConfigManager(algo="PPO")
     logger = tf_log.Logger(TB_LOGS_DIR)
@@ -101,8 +105,7 @@ def run_sac(args, prefix, base_prefix, config):
     serverStarted = False
     while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
         try:
-
-            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir)
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir, base_prefix = base_prefix, prefix = prefix)
             serverStarted = True
         
         except Exception as identifier:
@@ -117,7 +120,10 @@ def run_sac(args, prefix, base_prefix, config):
     try:
         # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
-
+        if not args.train_vae:
+            print("Loading pretrained AE!!!")
+            vae.load(args.vae_model_path)
+            env.set_vae(vae)
         if TEST:
             model = MY_SAC.load(MODEL_PATH, env)
             test(model, env, model_step=0)
@@ -133,7 +139,7 @@ def run_sac(args, prefix, base_prefix, config):
                 print("exiting")
                 return
 
-            model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=512,learning_starts=5000,
+            model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=config["batch_size"],learning_starts=5000,
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, verbose=1)
             
             model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
