@@ -36,11 +36,12 @@ def run_dqn(args, prefix, config):
     if ALTA_LOGS[-1] != '/':
         ALTA_LOGS += '/'
 
-    if os.path.exists('/home/scratch'):
-        SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
-    else:
-        SCRATCH_DIR = ALTA_LOGS
-    
+    # if os.path.exists('/home/scratch'):
+    #     SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    # else:
+    #     SCRATCH_DIR = ALTA_LOGS
+
+    SCRATCH_DIR = ALTA_LOGS
     if SCRATCH_DIR[-1] != '/':
         SCRATCH_DIR += '/'
 

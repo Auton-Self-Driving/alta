@@ -1432,6 +1432,47 @@ def get_left_turn(unseen = False):
     else:
         return random.choice(paths_left_Town01_train())
 
+def paths_long_straight(): 
+    paths = [
+        [
+            WAYPOINT_DICT_Town01[96],
+            WAYPOINT_DICT_Town01[17]
+        ]
+    ]
+
+    return paths
+
+def get_long_straight_path(unseen=False, town='Town01', index=0): 
+    return random.choice(paths_long_straight())
+
+def get_long_straight_npcs(): 
+    npc_list = [
+        WAYPOINT_DICT_Town01[15],
+        WAYPOINT_DICT_Town01[16], 
+        WAYPOINT_DICT_Town01[18],
+        WAYPOINT_DICT_Town01[19], 
+        WAYPOINT_DICT_Town01[20],
+        WAYPOINT_DICT_Town01[22], 
+        WAYPOINT_DICT_Town01[23],
+        WAYPOINT_DICT_Town01[24], 
+        WAYPOINT_DICT_Town01[25], 
+        WAYPOINT_DICT_Town01[26], 
+        WAYPOINT_DICT_Town01[27],
+        WAYPOINT_DICT_Town01[28], 
+        WAYPOINT_DICT_Town01[29], 
+        WAYPOINT_DICT_Town01[151], 
+        WAYPOINT_DICT_Town01[140],
+        WAYPOINT_DICT_Town01[128], 
+        WAYPOINT_DICT_Town01[129], 
+        WAYPOINT_DICT_Town01[96], 
+        WAYPOINT_DICT_Town01[107], 
+    ]
+
+    random.shuffle(npc_list)
+
+    return npc_list
+
+
 '''
 # Deprecated Helper functions
 def get_train_right_turn():

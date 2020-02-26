@@ -16,7 +16,7 @@ from stable_baselines.deepq.policies import DQNPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 from stable_baselines.common.vec_env import DummyVecEnv
-import csv
+import csv, os
 import matplotlib.pyplot as plt
 
 def test(model, env, model_step, path=None):
@@ -26,19 +26,28 @@ def test(model, env, model_step, path=None):
     collision_episodes = 0
     results = {}
     total_reward = 0
-    for ind in range(2):
+    for ind in range(1):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
         
+        q_values_matrix = []
+        q_values_matrix_normalized = []
+        validation_ep_index = '0'
         while not done:
-            action, _states = model.predict(obs, deterministic=True)
+            action, q_values, actions_proba = model.predict(obs, deterministic=True)
+            q_values_matrix.append(q_values[0])
+            q_values_matrix_normalized.append(actions_proba[0])
+            # import pdb; pdb.set_trace()
             info = env.step(action)
             # print(info)
             reward += info[1][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
+            
+            if done:
+                validation_ep_index = info[3]['val_ep_idx']
         
         total_reward += reward
         if info[3]['termination_state'] == 'success':
@@ -46,7 +55,10 @@ def test(model, env, model_step, path=None):
             results[ind] = 1
         else:
             results[ind] = 0
-    
+
+        # plot q_values for this validation episode
+        plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized), validation_ep_index, path)
+
     # Reset env after testing
     env.reset()
     print("Results of train scenarios")
@@ -84,6 +96,37 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
         f.write("Total success episodes: {}\n".format(total_successes))
 
     return best_model
+
+def plot_q_values(q_values_matrix, q_values_matrix_normalized, validation_ep_index, path):
+    
+    path = os.path.join(path, 'Validation_qvalue_plots')
+    if not os.path.exists(path):
+        os.makedirs(path)
+    # Transpose the matrix
+    q_values_matrix = q_values_matrix.T
+    q_values_matrix_normalized = q_values_matrix_normalized.T
+
+    figure_name = os.path.join(path, validation_ep_index + '_qvalues.png')
+    # fig, ax = plt.subplots()
+    fig, (ax1, ax2, ax3)  = plt.subplots(3, 1)
+    fig.suptitle('Q Values {}'.format(validation_ep_index))
+
+    ax1.matshow(q_values_matrix, cmap=plt.cm.Blues, aspect='auto')
+    ax2.matshow(q_values_matrix_normalized, cmap=plt.cm.Blues, aspect='auto')
+    ax3.hist(q_values_matrix.reshape(-1), bins=20, density=True)
+    # row, col = np.shape(q_values_matrix)
+    # for i in range(row):
+    #     for j in range(col):
+    #         c = q_values_matrix[i,j]
+    #         ax.text(j, i, str(c), va='center', ha='center')
+
+    ax1.set_ylabel('Actions')
+    
+    ax2.set_xlabel('Timesteps')
+    ax2.set_ylabel('Actions (Normalized))')
+    
+    plt.savefig(figure_name)
+    plt.close()
 
 def plot_test_results(total_successes, total_rewards, total_updates, path):
     fig, (ax1, ax2)  = plt.subplots(1, 2)
@@ -279,3 +322,16 @@ class Custom_DQN(DQN):
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('dqn_me')[0])
             return best_model
             # return self
+    
+    def predict(self, observation, state=None, mask=None, deterministic=True):
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        with self.sess.as_default():
+            actions, q_values, actions_proba = self.step_model.step(observation, deterministic=deterministic)
+
+        if not vectorized_env:
+            actions = actions[0]
+
+        return actions, q_values, actions_proba
