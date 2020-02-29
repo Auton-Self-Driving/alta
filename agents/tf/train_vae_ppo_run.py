@@ -8,6 +8,7 @@ import numpy as np
 import time
 import vis_module
 import traceback
+import csv
 
 from datetime import datetime
 import tensorboard_logging as tf_log
@@ -18,7 +19,7 @@ from ae.controller import AEController
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from ppo import PPO, test
+from ppo import PPO, test, plot_test_results
 from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 
 def get_scratch_dir(base_log_dir):
@@ -49,12 +50,11 @@ def run_ppo_vae(args, prefix, config):
     SAVE_PATH = ALTA_LOGS + 'ppo2_measurements_weights'
     TB_LOGS_DIR = ALTA_LOGS+'tb/'
 
-    MAX_TRIALS = 5
+    MAX_TRIALS = 1
     
     # Register the policy, it will check that the name is not already taken
     register_policy('CustomPolicy1', CustomPolicy1)
     register_policy('CustomPolicy2', CustomPolicy2)
-    steps = args.timesteps
 
     def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
         list_of_files = glob.glob(log_dir + ext)
@@ -92,10 +92,10 @@ def run_ppo_vae(args, prefix, config):
                 rewards = []
                 successes = []
                 for test_idx in range(args.test_trails):
-                    IMAGES_PATH = SCRATCH_DIR+'test_images1_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
-                    VIDEO_PATH = SCRATCH_DIR+'test_videos1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
-                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
-                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos1_' + config.config["city_name"] +  config.config['scenarios'] + '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["city_name"] +  config.config['scenarios'] + '_run_' + str(test_idx) + '/'
 
                     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
@@ -111,7 +111,7 @@ def run_ppo_vae(args, prefix, config):
                     env.set_vae(vae)
                     model = PPO.load(args.agent_model_path, dummy_env)
 
-                    with open(ALTA_LOGS + 'test_results1_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
+                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
                         total_reward, success_episodes, results = test(model, env)
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
@@ -129,7 +129,7 @@ def run_ppo_vae(args, prefix, config):
                     env.close()
                 rewards = np.array(rewards)
                 successes = np.array(successes)
-                with open(ALTA_LOGS + 'final_test_results1_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "w") as f:
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "w") as f:
                     f.write("Task Name: {}\n".format(config.config["scenarios"]))
                     f.write("Town Name: {}\n".format(config.config["city_name"]))
                     f.write("Model path used for testing: {}\n".format(args.agent_model_path))
@@ -138,8 +138,51 @@ def run_ppo_vae(args, prefix, config):
                     f.write("Success: {}\n".format(" ".join(map(str, successes))))
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
+            elif args.validation:
+                print('Validation Begins')
+                with open(ALTA_LOGS + "seed.txt", "r") as f:
+                    seed = int(f.readline())
+                print("Using the pre-initialized seed: {}".format(seed))
+                set_global_seeds(seed)
+
+                spawn_points_fixed_idx = np.load(ALTA_LOGS + "spawn_pt_order.npy")
+
+                rewards = []
+                successes = []
+
+                IMAGES_PATH = SCRATCH_DIR+'images/'
+                VIDEO_PATH = SCRATCH_DIR+'videos/'
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+
+                config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
+
+                # Sending logger as None so as to not affect existing validation plots
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                dummy_env = DummyVecEnv([lambda: env])
+
+                rewards = []
+                successes = []
+                updates = []
+                model_files = [os.path.join(ALTA_LOGS, model) for model in os.listdir(ALTA_LOGS) if model.endswith('.pkl')]
+                model_files = sorted(model_files, key=os.path.getctime)
+
+                update = 0
+                for model_file in model_files[:-1]:
+                    model = PPO.load(model_file, dummy_env)
+                    total_reward, success_episodes, results = test(model, env)
+                    print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
+                    rewards.append(total_reward)
+                    successes.append(success_episodes)
+                    updates.append(update)
+                    plot_test_results(successes, rewards, updates, ALTA_LOGS)
+                    with open(ALTA_LOGS + 'test_results.csv','a') as f:
+                        csvwriter = csv.writer(f, delimiter=',')
+                        csvwriter.writerow([update, success_episodes, total_reward])
+                    update += 10000
+                env.close()
             else:
                 print("Training begins")
+                steps = args.timesteps
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'

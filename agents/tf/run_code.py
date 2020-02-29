@@ -13,6 +13,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
+    parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
@@ -216,11 +217,9 @@ if __name__ == '__main__':
             else:
                 prefix = extract_prefix(args)
             print("prefix", prefix)
-            if args.input_type == "wp" or args.input_type == "wp_noise" \
-                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool" \
-                or args.input_type == "wp_obs_bool_noise":
+            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise']:
                 run_ppo(args, prefix, config)
-            elif args.input_type == "wp_vae":
+            elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal']:
                 run_ppo_vae(args, prefix, config)
             else:
                 print("specify correct input_type: wp, wp_vae")
