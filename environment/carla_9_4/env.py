@@ -186,6 +186,10 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
                                         shape=(1, 401), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 404), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
@@ -314,7 +318,7 @@ class CarlaEnv(gym.Env):
             if self.config["algo"] == "AE":
                 next_orientation, self.dist_to_trajectory = 0, 0
             else:
-                next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+                next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
             
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
             
@@ -352,16 +356,16 @@ class CarlaEnv(gym.Env):
         branch_idx = 1
 
         # Update obstacle distance measurements
-        if self.config["input_type"] in ["wp_obs_bool", "wp_obs_bool_noise"]:
-            self._update_obs_bool()
-            self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
+        # if self.config["input_type"] in ["wp_obs_bool", "wp_obs_bool_noise"]:
+        self._update_obs_bool()
+        self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
         
         # Read in preprocessed image
         sensor_image = self._read_data(world_frame)
         encoded_observation = None
-        if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
@@ -382,20 +386,25 @@ class CarlaEnv(gym.Env):
         obs['dist_to_target'] = np.array(
             [self.episode_measurements['distance_to_goal']])
 
-        obs['orientation'] = np.array([next_orientation])
+        obs['observation'] = np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
-            obs['orientation'] = np.array([0.0, next_orientation])
+            obs['observation'] = np.array([0.0, next_orientation])
         elif self.config["input_type"] == 'wp_noise':
-            obs['orientation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_dist':
             obs_dist = self.episode_measurements['obstacle_dist'] / self.config["obstacle_dist_norm"]
-            obs['orientation'] = np.concatenate((np.array([obs_dist]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.array([obs_dist]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_bool':
-            obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
-            obs['orientation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
+            obs_dist_bool = self.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_bool_noise':
-            obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
-            obs['orientation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_dist_bool]), np.array([next_orientation])))
+            obs_dist_bool = self.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_dist_bool]), np.array([next_orientation])))
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            obs_speed = self.episode_measurements['speed'] / 10
+            steer = self.episode_measurements['control_steer']
+            dist_to_goal = dist_to_goal_along_trajec / 100
+            obs['observation'] = np.concatenate((np.array([next_orientation]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal])))
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -403,7 +412,7 @@ class CarlaEnv(gym.Env):
             # Save videos now only for validation runs
             if self.config["videos"] and self.unseen:
                 if self.vis_wrapper is not None:
-                    if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+                    if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
                         # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
                         self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
@@ -537,18 +546,15 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] == 'vae':
             return encoded_observation, reward, done, self.episode_measurements
-        elif self.config["input_type"] == "wp_vae":
-            orientation = np.expand_dims(obs['orientation'], axis = 0)
-            fused_input = np.hstack([encoded_observation, orientation])
+        elif self.config["input_type"] in ["wp_vae", "wp_vae_speed_steer_goal"]:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, observation])
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
-            return obs['orientation'], reward, done, self.episode_measurements
-        elif self.config["input_type"] == "wp_noise" or \
-            self.config["input_type"] == 'wp_obs_dist' or \
-            self.config["input_type"] == 'wp_obs_bool' or \
-            self.config["input_type"] == 'wp_obs_bool_noise':
-            orientation = np.expand_dims(obs['orientation'], axis = 0)
-            return orientation, reward, done, self.episode_measurements
+            return obs['observation'], reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            return observation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
     
@@ -881,7 +887,7 @@ class CarlaEnv(gym.Env):
         if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
-            next_orientation, self.dist_to_trajectory = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         
         # Update obstacle distance measurements
         if self.config['input_type'] in ["wp_obs_bool", "wp_obs_bool_noise"]:
@@ -891,7 +897,7 @@ class CarlaEnv(gym.Env):
 
         obs['image'] = image
         encoded_observation = None
-        if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
+        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
             semantic_image = image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
@@ -912,20 +918,25 @@ class CarlaEnv(gym.Env):
     
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
-        obs['orientation']= np.array([next_orientation])
+        obs['observation']= np.array([next_orientation])
         if self.config["input_type"] == 'wp_constant':
-            obs['orientation'] = np.array([0.0, next_orientation])
+            obs['observation'] = np.array([0.0, next_orientation])
         elif self.config["input_type"] == 'wp_noise':
-            obs['orientation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_dist':
             obs_dist = self.episode_measurements['obstacle_dist'] / self.config["obstacle_dist_norm"]
-            obs['orientation'] = np.concatenate((np.array([obs_dist]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.array([obs_dist]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_bool':
             obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
-            obs['orientation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.array([obs_dist_bool]), np.array([next_orientation])))
         elif self.config["input_type"] == 'wp_obs_bool_noise':
             obs_dist_bool = int(self.episode_measurements['obstacle_visible'])
-            obs['orientation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_dist_bool]), np.array([next_orientation])))
+            obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_dist_bool]), np.array([next_orientation])))
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            obs_speed = 0
+            steer = 0
+            dist_to_goal = 0
+            obs['observation'] = np.concatenate((np.array([next_orientation]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal])))
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         self.target_speeds_array = []
@@ -942,18 +953,15 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] == 'vae':
             return encoded_observation
-        elif self.config["input_type"] == "wp_vae":
-            orientation = np.expand_dims(obs['orientation'], axis = 0)
-            fused_input = np.hstack([encoded_observation, orientation])
+        elif self.config["input_type"] in ["wp_vae", "wp_vae_speed_steer_goal"]:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, observation])
             return fused_input
         elif self.config["input_type"] == "wp":
-            return obs['orientation']
-        elif self.config["input_type"] == 'wp_noise' or \
-            self.config["input_type"] == 'wp_obs_dist' or \
-            self.config["input_type"] == 'wp_obs_bool' or \
-            self.config["input_type"] == 'wp_obs_bool_noise':
-            orientation = np.expand_dims(obs['orientation'], axis = 0)
-            return orientation
+            return obs['observation']
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            return observation
         else:
             return obs
         
@@ -1083,7 +1091,7 @@ class CarlaEnv(gym.Env):
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = np.absolute(self.episode_measurements["collision_reward"]) > 0
+        collision = self.episode_measurements["is_collision"]
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
 
