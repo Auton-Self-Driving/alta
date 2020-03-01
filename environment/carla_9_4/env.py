@@ -44,6 +44,7 @@ from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
 
+from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
@@ -179,7 +180,9 @@ class CarlaEnv(gym.Env):
                 limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
                 self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
             elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
-                self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0, -0.5, 0.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+                self.observation_space = Box(low=np.array([[-4.0, -1.0, -1.0, 0.0, -0.5, -1.0, 0.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -192,10 +195,10 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
                                         shape=(1, 404), dtype=np.float32)
-            elif self.config["input_type"] == 'wp_vae_speed_steer_goal_light':
+            elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 405), dtype=np.float32)
+                                        shape=(1, 406), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -206,12 +209,14 @@ class CarlaEnv(gym.Env):
         self.episode_measurements["episode_num"] = 0
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_dist'] = -1
+        self.episode_measurements['obstacle_speed'] = -1
+        self.next_waypoints = None
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_dist_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -245,27 +250,48 @@ class CarlaEnv(gym.Env):
             obs_bool = self.episode_measurements['obstacle_visible']
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.random.normal(0.0, 1.0, self.config["noise_dim"])))
         elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
-            obs_speed = self.episode_measurements['speed'] / 20
+            speed = self.episode_measurements['speed'] / 10
             obs_bool = self.episode_measurements['obstacle_visible']
             steer = self.episode_measurements['control_steer']
-            dist_to_goal = self.episode_measurements['dist_to_goal'] / 500
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
             light = self.episode_measurements['red_light_dist']
+            # normalization
             if light != -1:
                 light /= self.config['proximity_threshold']
-            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal]), np.array([light])))
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([light])))
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+
+            if light != -1:
+                light /= self.config['proximity_threshold']
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
         elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
-            obs_speed = self.episode_measurements['speed'] / 20
+            speed = self.episode_measurements['speed'] / 10
             steer = self.episode_measurements['control_steer']
-            dist_to_goal = self.episode_measurements['dist_to_goal'] / 500
-            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal])))
-        elif self.config["input_type"] == 'wp_vae_speed_steer_goal_light':
-            obs_speed = self.episode_measurements['speed'] / 20
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
+        elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+            speed = self.episode_measurements['speed'] / 10
             steer = self.episode_measurements['control_steer']
-            dist_to_goal = self.episode_measurements['dist_to_goal'] / 500
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
             light = self.episode_measurements['red_light_dist']
+            # normalization
             if light != -1:
                 light /= self.config['proximity_threshold']
-            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal]), np.array([light])))
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
     def step(self, action):
         try:
@@ -365,15 +391,15 @@ class CarlaEnv(gym.Env):
             if self.config["algo"] == "AE":
                 next_orientation, self.dist_to_trajectory = 0, 0
             else:
-                next_orientation, self.dist_to_trajectory, dist_to_goal = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+                next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
             self.episode_measurements['next_orientation'] = next_orientation
-            self.episode_measurements['dist_to_goal'] = dist_to_goal
+            self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
             # Update obstacle distance measurements
             # if self.config["input_type"] in ["wp_obs_bool", "wp_obs_bool_noise"]:
             self._update_env_obs()
-            self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
+            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
 
@@ -397,7 +423,7 @@ class CarlaEnv(gym.Env):
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
-            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
+            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
 
             if done:
                 break
@@ -450,10 +476,10 @@ class CarlaEnv(gym.Env):
         #     obs_bool = self.episode_measurements['obstacle_visible']
         #     obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_bool]), np.array([self.episode_measurements['next_orientation']])))
         # elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
-        #     obs_speed = self.episode_measurements['speed'] / 20
+        #     speed = self.episode_measurements['speed'] / 20
         #     steer = self.episode_measurements['control_steer']
-        #     dist_to_goal = dist_to_goal / 100
-        #     obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal])))
+        #     distance_to_goal_trajec = distance_to_goal_trajec / 100
+        #     obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -549,7 +575,7 @@ class CarlaEnv(gym.Env):
                         self.throttles_array,
                         self.steers_array,
                         self.brakes_array,
-                        self.obstacle_visible_array,
+                        self.obstacle_dist_array,
                         self.step_reward_array,
                         self.collision_reward_array,
                         self.dist_to_trajectory_reward_array,
@@ -595,13 +621,14 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] == 'vae':
             return encoded_observation, reward, done, self.episode_measurements
-        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_goal_light']:
+        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             fused_input = np.hstack([encoded_observation, observation])
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
             return obs['observation'], reward, done, self.episode_measurements
-        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_obs_bool_speed_steer_goal_light']:
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise',
+                                           'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             return observation, reward, done, self.episode_measurements
         else:
@@ -642,16 +669,16 @@ class CarlaEnv(gym.Env):
 
         # If the vector is too short, we can simply stop here
         if norm_target < 0.001:
-            return True, None
+            return True, norm_target
 
         if norm_target > max_distance:
-            return False, None
+            return False, norm_target
 
         fwd = current_transform.get_forward_vector()
         forward_vector = np.array([fwd.x, fwd.y])
         d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
-        return d_angle < 90.0, d_angle
+        return d_angle < 90.0, norm_target
 
     def _update_env_obs(self):
         ego_vehicle_location = self.vehicle_actor.get_location()
@@ -670,6 +697,8 @@ class CarlaEnv(gym.Env):
     def _update_obs_detector(self, ego_vehicle_waypoint):
         self.episode_measurements['obstacle_visible'] = False
 
+        min_obs_distance = 100000000
+        found_obstacle = False
         for target_vehicle in self.actor_list:
             # do not account for the ego vehicle
             if target_vehicle.id == self.vehicle_actor.id or "vehicle" not in target_vehicle.type_id:
@@ -677,18 +706,27 @@ class CarlaEnv(gym.Env):
 
             # # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-            if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id or \
-                    target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
-                continue
-            # if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id:
-            #     continue
-
-            d_bool, d_angle = self.is_within_distance_ahead(target_vehicle.get_transform(),
+            d_bool, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
                                         self.config['proximity_threshold'])
 
-            if d_bool:
+            if not d_bool:
+                continue
+            else:
+                if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
+                    continue
+                
+                found_obstacle = True
                 self.episode_measurements['obstacle_visible'] = True
+                
+                if distance < min_obs_distance:
+                    self.episode_measurements['obstacle_dist'] = distance
+                    self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
+                    min_obs_distance = distance
+        
+        if not found_obstacle:
+            self.episode_measurements['obstacle_dist'] = -1
+            self.episode_measurements['obstacle_speed'] = -1
 
     def _update_traffic_light_states(self):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
@@ -973,10 +1011,10 @@ class CarlaEnv(gym.Env):
         if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
-            next_orientation, self.dist_to_trajectory, dist_to_goal = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         
         self.episode_measurements['next_orientation'] = next_orientation
-        self.episode_measurements['dist_to_goal'] = dist_to_goal
+        self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
@@ -1024,10 +1062,10 @@ class CarlaEnv(gym.Env):
         #     obs_bool = int(self.episode_measurements['obstacle_visible'])
         #     obs['observation'] = np.concatenate((np.random.normal(0.0, 1.0, self.config["noise_dim"]), np.array([obs_bool]), np.array([self.episode_measurements['next_orientation']])))
         # elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
-        #     obs_speed = 0
+        #     speed = 0
         #     steer = 0
-        #     dist_to_goal = 0
-        #     obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_speed]), np.array([steer]), np.array([dist_to_goal])))
+        #     distance_to_goal_trajec = 0
+        #     obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
         self.target_speeds_array = []
@@ -1035,7 +1073,7 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_dist_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -1044,13 +1082,14 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] == 'vae':
             return encoded_observation
-        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_goal_light']:
+        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             fused_input = np.hstack([encoded_observation, observation])
             return fused_input
         elif self.config["input_type"] == "wp":
             return obs['observation']
-        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_obs_bool_speed_steer_goal_light']:
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise',
+                                           'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             return observation
         else:
@@ -1193,7 +1232,8 @@ class CarlaEnv(gym.Env):
             collision = False
         if not self.config["terminate_on_light"]:
             runover_light = False
-
+        if self.config["enable_lane_invasion_collision"]:
+            offlane = self.episode_measurements['num_laneintersections'] > 0
         # Do not want to terminate on reaching goal
         # in case of VAE training
         if self.config["algo"] == "AE":
@@ -1241,7 +1281,7 @@ def plot_episode_info(path,
                 throttles_array,
                 steers_array,
                 brakes_array,
-                obstacle_visible_array,
+                obstacle_dist_array,
                 step_reward_array,
                 collision_reward_array,
                 dist_to_trajectory_reward_array,
@@ -1259,7 +1299,7 @@ def plot_episode_info(path,
     brakes_array = np.array(brakes_array)
     step_reward_array = np.array(step_reward_array)
     collision_reward_array = np.array(collision_reward_array)
-    obstacle_visible_array = np.array(obstacle_visible_array)
+    obstacle_dist_array = np.array(obstacle_dist_array)
     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
     speed_reward_array = np.array(speed_reward_array)
     
@@ -1293,9 +1333,9 @@ def plot_episode_info(path,
     axs[0, 1].set_ylabel('Steer - Stochastic')
 
 
-    axs[1, 1].plot(observations, obstacle_visible_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+    axs[1, 1].plot(observations, obstacle_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 1].set_xlabel('Timesteps')
-    axs[1, 1].set_ylabel('Obstacle Visible')
+    axs[1, 1].set_ylabel('Obstacle Distance')
 
     axs[2, 1].plot(observations, brakes_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Timesteps')
