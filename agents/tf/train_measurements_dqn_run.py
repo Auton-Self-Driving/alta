@@ -149,7 +149,7 @@ def run_dqn(args, prefix, config):
                     #             exploration_final_eps=0.02, batch_size=32, prioritized_replay=False, param_noise=False,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
                     model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size, exploration_fraction=0.025,
-                                exploration_final_eps=0.05, batch_size=256, prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
+                                exploration_final_eps=0.05, gamma=0.95, batch_size=256, prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
                 else:
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)

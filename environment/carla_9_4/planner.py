@@ -31,7 +31,7 @@ class GlobalPlanner():
 
     def __init__(self):
         self._grp = None
-        self._hop_resolution = 2.0
+        self._hop_resolution = 4.0
         self.MIN_DISTANCE_PERCENTAGE = 0.9
         # queue with tuples of (waypoint, RoadOption)
         self._waypoints_queue = deque(maxlen=20000)
@@ -282,8 +282,9 @@ class GlobalPlanner():
                                     self.second_last_waypoint,
                                     self.last_waypoint)
 
+        # TODO: Find the exact distance to goal. Below is an approximation
         dist_to_goal = len(self._waypoints_queue) *self._hop_resolution
-        return angle, self.dist_to_trajectory, dist_to_goal
+        return angle, self.dist_to_trajectory, dist_to_goal, next_waypoints
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
 
