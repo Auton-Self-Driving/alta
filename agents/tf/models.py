@@ -373,13 +373,14 @@ class CustomPolicy2(CustomPolicy):
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.nn.tanh
             
-            measurement_features = self.processed_obs[:, :, -1]
+            observation_features = self.processed_obs[:, :, -1:]
+            observation_features_flat = tf.layers.flatten(observation_features)
             vae_features = self.processed_obs[:, :, :-1]
             vae_features_flat = tf.layers.flatten(vae_features)
 
             vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
             vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
-            meas_pi_h = activ(linear(measurement_features, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
             meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
             pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
@@ -387,7 +388,7 @@ class CustomPolicy2(CustomPolicy):
 
             vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
             vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
-            meas_vf_h = activ(linear(measurement_features, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
             meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
             features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
