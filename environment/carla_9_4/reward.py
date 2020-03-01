@@ -161,7 +161,7 @@ def _compute_reward_simple(prev, current, verbose=False):
     if verbose:
         print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-    dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
+    dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
     
     speed_reward = current["speed"]
     acceleration_reward = (current["speed"] - prev["speed"])
@@ -205,7 +205,7 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     if verbose:
         print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-    dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
+    dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
     current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
     speed_reward = current["speed"]
     acceleration_reward = (current["speed"] - prev["speed"])
@@ -218,6 +218,11 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     if config["enable_lane_invasion_sensor"]:
         is_collision |= current["out_of_road"] 
     
+        # count any lane change also as a collision
+        if config["enable_lane_invasion_collision"]:
+            lane_change = current['num_laneintersections'] > 0
+            is_collision |= lane_change
+
     current["is_collision"] = is_collision
     # Collision damage
     if(is_collision):

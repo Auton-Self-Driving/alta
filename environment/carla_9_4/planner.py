@@ -315,7 +315,8 @@ class GlobalPlanner():
     def getPointToLineDistanceHelper(self, point, point1_on_line, point2_on_line):
         a_vec = point2_on_line - point1_on_line
         b_vec = point - point1_on_line
-        return np.linalg.norm(np.cross(a_vec, b_vec) / np.linalg.norm(a_vec))
+        # returning signed distance
+        return np.cross(a_vec, b_vec) / np.linalg.norm(a_vec)
 
     def printwaypoint(self, waypoint):
         print("x:{}, y:{}".format(waypoint.transform.location.x, waypoint.transform.location.y))

@@ -113,7 +113,8 @@ DEFAULT_ENV = {
     "testing" : False,
     "disable_collision" : False,
     "enable_static" : False,
-    "use_pid_in_frame_skip" : False
+    "use_pid_in_frame_skip" : False,
+    "enable_lane_invasion_collision" : True
 }
 
 episode_measurements = {

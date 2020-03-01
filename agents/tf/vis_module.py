@@ -38,7 +38,7 @@ class vis():
                               step_info['control_throttle'], 
                               step_info['control_steer'], 
                               step_info['control_brake'], 
-                              step_info['dist_to_trajectory_reward'],
+                              step_info['dist_to_trajectory'],
                               step_info['obstacle_dist'],
                               step_info['obstacle_speed']), 
                           fill=(255,255,255,128))

@@ -1171,6 +1171,9 @@ class CarlaEnv(gym.Env):
         if self.config["disable_collision"]:
             collision = False
 
+        if self.config["enable_lane_invasion_collision"]:
+            offlane = self.episode_measurements['num_laneintersections'] > 0
+
         # Do not want to terminate on reaching goal
         # in case of VAE training
         if self.config["algo"] == "AE":
