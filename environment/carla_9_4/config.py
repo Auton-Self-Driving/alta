@@ -83,6 +83,9 @@ DEFAULT_ENV = {
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
+    "const_light_penalty": 0,
+    "light_penalty_speed_coeff": 0,
+    "terminate_on_light" : True,
     "enable_brake": True,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
@@ -116,7 +119,8 @@ DEFAULT_ENV = {
     "use_pid_in_frame_skip" : True,
     "frame_stack_size" : 1,
     "num_episodes" : 1,
-    "proximity_threshold" : 20
+    "proximity_threshold" : 15,
+    "min_dist_from_red_light" : 6
 }
 
 episode_measurements = {
@@ -128,7 +132,8 @@ episode_measurements = {
     "num_collisions": 0,
     "num_laneintersections": 0,
     "static_steps": 0,
-    "offlane_steps": 0
+    "offlane_steps": 0,
+    "control_steer": 0
     # intersection_offroad
     # intersection_otherlane
     # next_command

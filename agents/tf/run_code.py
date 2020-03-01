@@ -37,6 +37,8 @@ def parse_arguments():
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
     parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=0.0, help='Constant penalty for collision.')
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
+    parser.add_argument('--const-light-penalty',dest='const_light_penalty',type=float,default=0.0, help='Constant penalty for running traffic light.')
+    parser.add_argument('--light-penalty-speed-coeff',dest='light_penalty_speed_coeff',type=float,default=0.0, help='Speed-proportional penalty for running light.')
     parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
@@ -91,7 +93,17 @@ def create_ppo_prefix(args):
         collision_penalty_speed_coeff_str = '_col_sp_' + str(args.collision_penalty_speed_coeff)
     else:
         collision_penalty_speed_coeff_str = ""
-    
+
+    if args.const_light_penalty != 0:
+        const_light_penalty_str = '_light_' + str(args.const_light_penalty)
+    else:
+        const_light_penalty_str = ""
+
+    if args.light_penalty_speed_coeff != 0:
+        light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
+    else:
+        light_penalty_speed_coeff_str = ""
+
     if args.enable_brake != False:
         enable_brake_str = '_brake'
     else:
@@ -160,6 +172,8 @@ def create_ppo_prefix(args):
         + enable_static_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
+        + const_light_penalty_str \
+        + light_penalty_speed_coeff_str \
         + ent_coef_str \
         + frame_skip_str \
         + frame_stack_str \
@@ -194,6 +208,8 @@ if __name__ == '__main__':
     config.config["videos"] = args.videos
     config.config["const_collision_penalty"] = args.const_collision_penalty
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
+    config.config["const_light_penalty"] = args.const_light_penalty
+    config.config["light_penalty_speed_coeff"] = args.light_penalty_speed_coeff
     config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
     config.config["frame_stack_size"] = args.frame_stack
@@ -217,9 +233,9 @@ if __name__ == '__main__':
             else:
                 prefix = extract_prefix(args)
             print("prefix", prefix)
-            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise']:
+            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_obs_bool_speed_steer_goal_light']:
                 run_ppo(args, prefix, config)
-            elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal']:
+            elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_goal_light']:
                 run_ppo_vae(args, prefix, config)
             else:
                 print("specify correct input_type: wp, wp_vae")
