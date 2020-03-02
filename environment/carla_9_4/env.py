@@ -361,6 +361,7 @@ class CarlaEnv(gym.Env):
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
             self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
+            self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
 
             if done:
                 break
@@ -528,20 +529,21 @@ class CarlaEnv(gym.Env):
                     
                     # Commenting out plots for all episodes
 
-                    # path = self.log_dir + 'episode_info_plots/'
-                    # ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
-                    # plot_episode_info(path,
-                    #     self.target_speeds_array,
-                    #     self.speeds_array,
-                    #     self.throttles_array,
-                    #     self.steers_array,
-                    #     self.brakes_array,
-                    #     self.dist_to_target_array,
-                    #     self.step_reward_array,
-                    #     self.collision_reward_array,
-                    #     self.dist_to_trajectory_reward_array,
-                    #     self.speed_reward_array,
-                    #     ep_idx)
+                    if self.episode_num % 100 == 0:
+                        path = self.log_dir + 'episode_info_plots/'
+                        ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps)
+                        plot_episode_info(path,
+                            self.target_speeds_array,
+                            self.speeds_array,
+                            self.throttles_array,
+                            self.steers_array,
+                            self.brakes_array,
+                            self.obstacle_dist_array,
+                            self.step_reward_array,
+                            self.collision_reward_array,
+                            self.dist_to_trajectory_reward_array,
+                            self.red_light_dist_array,
+                            ep_idx)
 
                 # Validation runs
                 else:
@@ -563,7 +565,7 @@ class CarlaEnv(gym.Env):
                         self.step_reward_array,
                         self.collision_reward_array,
                         self.dist_to_trajectory_reward_array,
-                        self.speed_reward_array,
+                        self.red_light_dist_array,
                         val_ep_idx)
                 
                 self.episode_measurements["episode_num"] = self.episode_num
@@ -1099,6 +1101,7 @@ class CarlaEnv(gym.Env):
         self.dist_to_trajectory_reward_array = []
         self.speed_reward_array = []
         self.dist_to_target_array = []
+        self.red_light_dist_array = []
 
         if self.config["input_type"] == 'vae':
             return encoded_image
@@ -1372,7 +1375,7 @@ def plot_episode_info(path,
 
     axs[4, 1].plot(observations, speed_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[4, 1].set_xlabel('Timesteps')
-    axs[4, 1].set_ylabel('speed_reward')
+    axs[4, 1].set_ylabel('red_light_dist')
 
     axs[0,0].grid(True)
     axs[0,1].grid(True)

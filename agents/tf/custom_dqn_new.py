@@ -23,7 +23,11 @@ def test(model, env, model_step, path=None):
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
-    collision_episodes = 0
+    e_collision = 0
+    e_runover_light = 0
+    e_offlane = 0
+    e_static = 0
+    e_max_steps = 0
     results = {}
     total_reward = 0
     for ind in range(1):
@@ -55,6 +59,14 @@ def test(model, env, model_step, path=None):
             results[ind] = 1
         else:
             results[ind] = 0
+            if info[3]['termination_state'] == 'collision':
+                e_collision += 1
+            elif info[3]['termination_state'] == 'runover_light':
+                e_runover_light += 1
+            elif info[3]['termination_state'] == 'static':
+                e_static += 1
+            elif info[3]['termination_state'] == 'max_steps':
+                e_max_steps += 1
 
         # plot q_values for this validation episode
         plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized), validation_ep_index, path)
@@ -66,10 +78,14 @@ def test(model, env, model_step, path=None):
     print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
     env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
     env.logger.log_scalar('test/total_reward', total_reward, model_step)
+    env.logger.log_scalar('test/e_collision', e_collision, model_step)
+    env.logger.log_scalar('test/e_runover_light', e_runover_light, model_step)
+    env.logger.log_scalar('test/e_static', e_static, model_step)
+    env.logger.log_scalar('test/e_max_steps', e_max_steps, model_step)
 
     with open(path + 'test_results.csv','a') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerow([model_step, success_episodes, total_reward])
+        writer.writerow([model_step, success_episodes, total_reward, e_collision,  e_runover_light, e_static, e_max_steps])
 
     return total_reward, success_episodes
 
