@@ -31,7 +31,7 @@ class GlobalPlanner():
 
     def __init__(self):
         self._grp = None
-        self._hop_resolution = 4.0
+        self._hop_resolution = 3.0
         self.MIN_DISTANCE_PERCENTAGE = 0.9
         # queue with tuples of (waypoint, RoadOption)
         self._waypoints_queue = deque(maxlen=20000)

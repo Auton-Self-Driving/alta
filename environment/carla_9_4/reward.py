@@ -1,4 +1,5 @@
 import numpy as np
+import carla
 
 def compute_reward(name, prev_measurement, cur_measurement, config=None, verbose=False):
     if name == 'corl':
@@ -211,6 +212,16 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     acceleration_reward = (current["speed"] - prev["speed"])
     
     current["speed_reward"] = speed_reward
+
+    if (_check_if_signal_crossed(prev, current)
+        and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red)
+        and (current["speed"] > config["zero_speed_threshold"])
+        and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
+        current["runover_light"] = True
+        light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+    else:
+        current["runover_light"] = False
+        light_reward = 0
     
     is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
     
@@ -238,13 +249,13 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     #     lane_intersection_reward = 0
     # current["lane_intersection_reward"] = lane_intersection_reward
 
-    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
 
     current["step_reward"] = reward
 
     if verbose:
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward)
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, lane_intersection_reward, reward)
     
     # Update state variables
     # if np.absolute(lane_intersection_reward) > 0:
@@ -252,6 +263,16 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     if current["speed"] <= config["zero_speed_threshold"]:
         current["static_steps"] += 1
     return reward
+
+def _check_if_signal_crossed(prev, current):
+
+    # cross_from_one_light_to_no_light
+    cross_to_no_light = current['dist_to_light'] == -1 and prev['dist_to_light'] > 0
+
+    cross_to_next_light = (current['nearest_traffic_actor_id'] != -1 and prev['nearest_traffic_actor_id'] != -1 \
+        and current['nearest_traffic_actor_id'] != prev['nearest_traffic_actor_id'])
+
+    return cross_to_no_light or cross_to_next_light
 
 def _compute_reward_corlT(prev, current, verbose=False):
     cur_dist = current["distance_to_goal"]

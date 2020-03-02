@@ -83,6 +83,9 @@ DEFAULT_ENV = {
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
+    "const_light_penalty": 0,
+    "light_penalty_speed_coeff": 0,
+    "terminate_on_light" : True,
     "enable_brake": False,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
@@ -114,7 +117,9 @@ DEFAULT_ENV = {
     "disable_collision" : False,
     "enable_static" : False,
     "use_pid_in_frame_skip" : False,
-    "enable_lane_invasion_collision" : True
+    "enable_lane_invasion_collision" : True,
+    "proximity_threshold" : 15,
+    "min_dist_from_red_light" : 6
 }
 
 episode_measurements = {
