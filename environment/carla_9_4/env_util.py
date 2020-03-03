@@ -23,8 +23,7 @@ def _create_bb_points(vehicle):
         """
         Returns lower plane of 3D bounding box for a vehicle.
         """
-
-        cords = np.zeros((8, 4))
+        cords = np.zeros((4, 4))
         extent = vehicle.bounding_box.extent
         cords[0, :] = np.array([extent.x, extent.y, -extent.z, 1])
         cords[1, :] = np.array([-extent.x, extent.y, -extent.z, 1])
