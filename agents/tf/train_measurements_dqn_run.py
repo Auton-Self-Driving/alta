@@ -132,7 +132,23 @@ def run_dqn(args, prefix, config):
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                 vis_wrapper_vae = None
 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                RETRIES_ON_ERROR = 5
+                serverStartRetries = 0
+                serverStarted = False
+                while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+                    try:
+
+                        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                        serverStarted = True
+                    
+                    except Exception as identifier:
+                        print(prefix, identifier)
+                        traceback.print_exc()
+                        if env is not None:
+                            env.close()
+                            serverStartRetries += 1
+                            time.sleep(20)
+                
                 dummy_env = DummyVecEnv([lambda: env])
 
                 policy = MlpPolicy

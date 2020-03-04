@@ -221,7 +221,13 @@ class CarlaEnv(gym.Env):
         self.speed_reward_array = []
         self.dist_to_target_array = []
         self.next_waypoints = None
-        
+        self.episode_measurements['dist_to_light'] = -1
+        self.episode_measurements['nearest_traffic_actor_id'] = -1
+        self.episode_measurements['nearest_traffic_actor_state'] = -1
+        self.episode_measurements['initial_dist_to_red_light'] = -1
+        self.episode_measurements['red_light_dist'] = -1
+        self.episode_measurements["runover_light"] = False
+
     def _update_config(self, config):
         for key, val in config.items():
             self.config[key] = val
@@ -640,14 +646,16 @@ class CarlaEnv(gym.Env):
 
     def _update_env_obs(self):
         self._update_obs_detector()
-        self._update_traffic_light_states()
+        
+        if self.config['enable_light']:
 
-        if self.config['verbose']:
-            print(self.episode_measurements['dist_to_light'],
-                self.episode_measurements['nearest_traffic_actor_id'],
-                self.episode_measurements['nearest_traffic_actor_state'],
-                self.episode_measurements['initial_dist_to_red_light'],
-                self.episode_measurements['red_light_dist'])
+            self._update_traffic_light_states()
+            if self.config['verbose']:
+                print(self.episode_measurements['dist_to_light'],
+                    self.episode_measurements['nearest_traffic_actor_id'],
+                    self.episode_measurements['nearest_traffic_actor_state'],
+                    self.episode_measurements['initial_dist_to_red_light'],
+                    self.episode_measurements['red_light_dist'])
 
     def _update_obs_detector(self):
         self.episode_measurements['obstacle_visible'] = False
@@ -1257,7 +1265,7 @@ class CarlaEnv(gym.Env):
             static = False
         if self.config["disable_collision"]:
             collision = False
-        if not self.config["terminate_on_light"]:
+        if not self.config['enable_light'] or not self.config["terminate_on_light"]:
             runover_light = False
         if self.config["enable_lane_invasion_collision"]:
             offlane = self.episode_measurements['num_laneintersections'] > 0

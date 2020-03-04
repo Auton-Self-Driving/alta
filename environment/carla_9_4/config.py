@@ -119,7 +119,8 @@ DEFAULT_ENV = {
     "use_pid_in_frame_skip" : False,
     "enable_lane_invasion_collision" : True,
     "proximity_threshold" : 15,
-    "min_dist_from_red_light" : 6
+    "min_dist_from_red_light" : 6,
+    "enable_light" : False
 }
 
 episode_measurements = {
@@ -227,10 +228,10 @@ episode_measurements = {
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
     # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
-    steer = [0.0]
-    target_speed = [0, 10, 20]
+    steer = [-0.1, 0.0, 0.1]
+    # target_speed = [0, 10, 20]
     # target_speed = [10]
-    # target_speed = [0, 10]
+    target_speed = [0, 10]
 
     # Dictionary of discrete (Target_Speed, Steer) actions
     action_space = {}
