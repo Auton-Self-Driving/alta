@@ -488,18 +488,18 @@ class CarlaEnv(gym.Env):
                     self.vis_wrapper_vae.save_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps)
                     # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_image)[0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
-                # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
-                # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
+                # # self.logger.log_scalar('timesteps/train/orientation', next_orientation, self.total_steps)
+                # # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
+                # # self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
 
 
                 # TODO: remove hard coded logic
@@ -587,18 +587,30 @@ class CarlaEnv(gym.Env):
                         self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
 
                         # New logs
-                        self.logger.log_scalar('episodes/train/reward_collision', self.episode_measurements['collision_reward'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/collision_occured', self.episode_measurements['is_collision'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.episode_num)
+                        # self.logger.log_scalar('episodes/train/reward_collision', self.episode_measurements['collision_reward'], self.episode_num)
+                        # self.logger.log_scalar('episodes/train/out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+                        # self.logger.log_scalar('episodes/train/collision_occured', self.episode_measurements['is_collision'], self.episode_num)
+                        # self.logger.log_scalar('episodes/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.episode_num)
+
+                        # Termination logs
+                        self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
+                        self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+                        self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
+                        self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
+                        success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
+                        self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
+                        static = 1 if self.episode_measurements['termination_state'] == 'static' else 0
+                        self.logger.log_scalar('episodes/train/term_static', static, self.episode_num)
+                        max_steps = 1 if self.episode_measurements['termination_state'] == 'max_steps' else 0
+                        self.logger.log_scalar('episodes/train/term_max_steps', max_steps, self.episode_num)
 
                     elif self.unseen:
 
                         self.logger.log_scalar('test/dist_to_target_' + str(self.index), self.episode_measurements['distance_to_goal'], self.total_steps)
                         self.logger.log_scalar('test/reward_' + str(self.index), self.episode_measurements['total_reward'], self.total_steps)
 
-                        self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
-                        self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
+                        # self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
+                        # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
                 if self.config["videos"] and self.unseen:
@@ -1278,7 +1290,14 @@ class CarlaEnv(gym.Env):
         if success:
             termination_state = 'success'
         elif collision:
-            termination_state = 'collision'
+            if self.episode_measurements['obs_collision']:
+                termination_state = 'obs_collision'
+            elif self.episode_measurements["out_of_road"]:
+                termination_state = 'out_of_road'
+            elif self.episode_measurements['lane_change']:
+                termination_state = 'lane_invasion'
+            else:
+                termination_state = 'unexpected_collision'
         elif runover_light:
             termination_state = 'runover_light'
         elif offlane:

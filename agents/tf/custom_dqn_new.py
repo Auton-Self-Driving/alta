@@ -23,7 +23,9 @@ def test(model, env, model_step, path=None):
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
-    e_collision = 0
+    e_obs_collision = 0
+    e_out_of_road = 0
+    e_lane_change = 0
     e_runover_light = 0
     e_offlane = 0
     e_static = 0
@@ -59,8 +61,12 @@ def test(model, env, model_step, path=None):
             results[ind] = 1
         else:
             results[ind] = 0
-            if info[3]['termination_state'] == 'collision':
-                e_collision += 1
+            if info[3]['termination_state'] == 'obs_collision':
+                e_obs_collision += 1
+            elif info[3]['termination_state'] == 'out_of_road':
+                e_out_of_road += 1
+            elif info[3]['termination_state'] == 'lane_change':
+                e_lane_change += 1
             elif info[3]['termination_state'] == 'runover_light':
                 e_runover_light += 1
             elif info[3]['termination_state'] == 'static':
@@ -78,14 +84,18 @@ def test(model, env, model_step, path=None):
     print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
     env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
     env.logger.log_scalar('test/total_reward', total_reward, model_step)
-    env.logger.log_scalar('test/e_collision', e_collision, model_step)
+    env.logger.log_scalar('test/e_obs_collision', e_obs_collision, model_step)
+    env.logger.log_scalar('test/e_out_of_road', e_out_of_road, model_step)
+    env.logger.log_scalar('test/e_lane_change', e_lane_change, model_step)
     env.logger.log_scalar('test/e_runover_light', e_runover_light, model_step)
     env.logger.log_scalar('test/e_static', e_static, model_step)
     env.logger.log_scalar('test/e_max_steps', e_max_steps, model_step)
 
     with open(path + 'test_results.csv','a') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerow([model_step, success_episodes, total_reward, e_collision,  e_runover_light, e_static, e_max_steps])
+        writer.writerow([model_step, success_episodes, total_reward,
+            e_obs_collision,  e_out_of_road, e_lane_change,
+            e_runover_light, e_static, e_max_steps])
 
     return total_reward, success_episodes
 
@@ -167,7 +177,7 @@ class Custom_DQN(DQN):
     '''
 
     def learn(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights"):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
 
             new_tb_log = self._init_num_timesteps(reset_num_timesteps)
 
@@ -275,41 +285,57 @@ class Custom_DQN(DQN):
                     can_sample = self.replay_buffer.can_sample(self.batch_size)
                     if can_sample and self.num_timesteps > self.learning_starts \
                             and self.num_timesteps % self.train_freq == 0:
-                        # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                        # pytype:disable=bad-unpacking
-                        if self.prioritized_replay:
-                            assert self.beta_schedule is not None, \
-                                "BUG: should be LinearSchedule when self.prioritized_replay True"
-                            experience = self.replay_buffer.sample(self.batch_size,
-                                                                beta=self.beta_schedule.value(self.num_timesteps))
-                            (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
-                        else:
-                            obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
-                            weights, batch_idxes = np.ones_like(rewards), None
-                        # pytype:enable=bad-unpacking
 
-                        if writer is not None:
-                            # run loss backprop with summary, but once every 100 steps save the metadata
-                            # (memory, compute time, ...)
-                            if (1 + self.num_timesteps) % 100 == 0:
-                                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                                run_metadata = tf.RunMetadata()
-                                summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
-                                                                    dones, weights, sess=self.sess, options=run_options,
-                                                                    run_metadata=run_metadata)
-                                writer.add_run_metadata(run_metadata, 'step%d' % self.num_timesteps)
+                        # Running training optimizations for num_opt_epochs
+
+
+                        for i_opt in range(num_opt_epochs):
+
+                            # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
+                            # pytype:disable=bad-unpacking
+                            if self.prioritized_replay:
+                                assert self.beta_schedule is not None, \
+                                    "BUG: should be LinearSchedule when self.prioritized_replay True"
+                                experience = self.replay_buffer.sample(self.batch_size,
+                                                                    beta=self.beta_schedule.value(self.num_timesteps))
+                                (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
                             else:
-                                summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
-                                                                    dones, weights, sess=self.sess)
-                            writer.add_summary(summary, self.num_timesteps)
-                        else:
-                            _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
-                                                            sess=self.sess)
+                                obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
+                                weights, batch_idxes = np.ones_like(rewards), None
+                            # pytype:enable=bad-unpacking
 
-                        if self.prioritized_replay:
-                            new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
-                            assert isinstance(self.replay_buffer, PrioritizedReplayBuffer)
-                            self.replay_buffer.update_priorities(batch_idxes, new_priorities)
+                            summary = None
+                            run_metadata = None
+                            if writer is not None:
+                                # run loss backprop with summary, but once every 100 steps save the metadata
+                                # (memory, compute time, ...)
+                                if (1 + self.num_timesteps) % 100 == 0:
+                                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                                    run_metadata = tf.RunMetadata()
+                                    summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                        dones, weights, sess=self.sess, options=run_options,
+                                                                        run_metadata=run_metadata)
+                                    # writer.add_run_metadata(run_metadata, 'step%d' % self.num_timesteps)
+                                else:
+                                    summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                        dones, weights, sess=self.sess)
+                                # Removing summary from here and adding it after all optimizations in this training step
+                                # writer.add_summary(summary, self.num_timesteps)
+                            else:
+                                _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
+                                                                sess=self.sess)
+
+                            if self.prioritized_replay:
+                                new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
+                                assert isinstance(self.replay_buffer, PrioritizedReplayBuffer)
+                                self.replay_buffer.update_priorities(batch_idxes, new_priorities)
+                        
+                        # Adding summary after all optimizations in this training step
+                        if writer is not None and summary is not None:
+                            writer.add_summary(summary, self.num_timesteps)
+
+                            if (1 + self.num_timesteps) % 100 == 0 and run_metadata is not None:
+                                writer.add_run_metadata(run_metadata, 'step%d' % self.num_timesteps)
 
                     if can_sample and self.num_timesteps > self.learning_starts and \
                             self.num_timesteps % self.target_network_update_freq == 0:

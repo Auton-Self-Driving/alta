@@ -225,19 +225,24 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         else:
             current["runover_light"] = False
             light_reward = 0
-        
-    is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
-    
+
+    is_collision = False
+    lane_change = False
+    obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+
     # count out_of_road also as a collision
     if config["enable_lane_invasion_sensor"]:
-        is_collision |= current["out_of_road"] 
-    
+        is_collision = obs_collision or current["out_of_road"]
+        
         # count any lane change also as a collision
         if config["enable_lane_invasion_collision"]:
             lane_change = current['num_laneintersections'] > 0
-            is_collision |= lane_change
+            is_collision = is_collision or lane_change
 
+    current['obs_collision'] = obs_collision
+    current['lane_change'] = lane_change
     current["is_collision"] = is_collision
+    
     # Collision damage
     if(is_collision):
         collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
