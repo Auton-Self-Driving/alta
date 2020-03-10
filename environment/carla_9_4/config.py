@@ -121,7 +121,9 @@ DEFAULT_ENV = {
     "frame_stack_size" : 1,
     "num_episodes" : 1,
     "proximity_threshold" : 15,
-    "min_dist_from_red_light" : 6
+    "min_dist_from_red_light" : 6,
+    "disable_traffic_light": False,
+    "disable_obstacle_info" : False
 }
 
 episode_measurements = {

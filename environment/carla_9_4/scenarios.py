@@ -1704,7 +1704,8 @@ def get_crowded_npcs(num_npcs):
 def get_long_straight_npcs(): 
     npc_list = [
         WAYPOINT_DICT_Town01[15],
-        WAYPOINT_DICT_Town01[16], 
+        WAYPOINT_DICT_Town01[16],
+        WAYPOINT_DICT_Town01[17],
         WAYPOINT_DICT_Town01[18],
         WAYPOINT_DICT_Town01[19], 
         WAYPOINT_DICT_Town01[20],
@@ -1715,16 +1716,12 @@ def get_long_straight_npcs():
         WAYPOINT_DICT_Town01[26], 
         WAYPOINT_DICT_Town01[27],
         WAYPOINT_DICT_Town01[28], 
-        WAYPOINT_DICT_Town01[29], 
-        WAYPOINT_DICT_Town01[151], 
+        WAYPOINT_DICT_Town01[29],
         WAYPOINT_DICT_Town01[140],
-        WAYPOINT_DICT_Town01[128], 
-        WAYPOINT_DICT_Town01[129], 
-        WAYPOINT_DICT_Town01[96], 
-        WAYPOINT_DICT_Town01[107], 
+        WAYPOINT_DICT_Town01[118],
     ]
-
-    random.shuffle(npc_list)
+    random.sample(npc_list, 13)
+    # random.shuffle(npc_list)
 
     return npc_list
 

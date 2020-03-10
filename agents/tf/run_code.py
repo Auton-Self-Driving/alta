@@ -44,6 +44,8 @@ def parse_arguments():
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
+    parser.add_argument('--disable-traffic-light', dest='disable_traffic_light', action='store_true', help='Whether to disable traffic light.')
+    parser.add_argument('--disable-obstacle-info', dest='disable_obstacle_info', action='store_true', help='Whether to disable obstacle detector.')
     parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
     parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
@@ -114,6 +116,16 @@ def create_ppo_prefix(args):
     else:
         disable_collision_str = ''
 
+    if args.disable_traffic_light != False:
+        disable_traffic_light_str = "_disable_light_"
+    else:
+        disable_traffic_light_str = ''
+
+    if args.disable_obstacle_info != False:
+        disable_obstacle_info_str = "_disable_obs_"
+    else:
+        disable_obstacle_info_str = ''
+
     if args.enable_static != False:
         enable_static_str = "_enable_static_" + str(args.static_steps) + "_"
     else:
@@ -143,11 +155,6 @@ def create_ppo_prefix(args):
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
-    
-    if args.agent_model_path is not None:
-        use_pretrained_agent_str = '_pretrained_agent_'
-    else:
-        use_pretrained_agent_str = ''
 
     if args.ae_lr != 1e-4:
         ae_lr_str = '_ae_lr_' + str(args.ae_lr)
@@ -165,10 +172,11 @@ def create_ppo_prefix(args):
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
         + '_' + args.scenarios \
-        + use_pretrained_agent_str \
         + num_npc_str \
         + enable_brake_str \
         + disable_collision_str \
+        + disable_traffic_light_str \
+        + disable_obstacle_info_str \
         + enable_static_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
@@ -215,6 +223,8 @@ if __name__ == '__main__':
     config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic
     config.config["disable_collision"] = args.disable_collision
+    config.config["disable_traffic_light"] = args.disable_traffic_light
+    config.config["disable_obstacle_info"] = args.disable_obstacle_info
     config.config["enable_static"] = args.enable_static
     config.config["max_static_steps"] = args.static_steps
     config.config["city_name"] = args.city_name
@@ -233,7 +243,7 @@ if __name__ == '__main__':
             else:
                 prefix = extract_prefix(args)
             print("prefix", prefix)
-            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise',
+            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
                                    'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light']:
                 run_ppo(args, prefix, config)
             elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light']:

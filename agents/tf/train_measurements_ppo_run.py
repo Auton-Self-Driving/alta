@@ -46,15 +46,19 @@ def run_ppo(args, prefix, config):
         os.makedirs(TF_MODELS)
 
     FRAME_SKIP = 1
-    SAVE_PATH = ALTA_LOGS + 'ppo2_measurements_weights'
+    MODEL_PATH = os.path.join(ALTA_LOGS, 'models')
+    if not os.path.exists(MODEL_PATH):
+        os.makedirs(MODEL_PATH)
+    SAVE_PATH = os.path.join(MODEL_PATH, 'ppo2_weights')
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
     MAX_TRIALS = 1
     
     steps = args.timesteps
     
-    def get_latest_model(log_dir=ALTA_LOGS, ext='*.pkl', sep='_'):
-        list_of_files = glob.glob(log_dir + ext)
+    def get_latest_model(log_dir=MODEL_PATH, ext='*.pkl', sep='_'):
+        print(os.path.join(log_dir, ext))
+        list_of_files = glob.glob(os.path.join(log_dir, ext))
         latest_file = max(list_of_files, key=os.path.getctime)
         latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
         ind = int(latest_file.split(sep)[1])
@@ -195,12 +199,12 @@ def run_ppo(args, prefix, config):
                 
                 model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr, 
                         tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
-                if any(fname.endswith('.pkl') for fname in os.listdir(ALTA_LOGS)):
+                if any(fname.endswith('.pkl') for fname in os.listdir(MODEL_PATH)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
                     print("Using the pre-initialized seed: {}".format(seed))
                     set_global_seeds(seed)
-                    completed_steps, latest_model = get_latest_model(log_dir=ALTA_LOGS, ext='*[0-9].pkl', sep='hts')
+                    completed_steps, latest_model = get_latest_model(log_dir=MODEL_PATH, ext='*[0-9].pkl', sep='hts')
                     env.total_steps = completed_steps
                     completed_episodes, _ = get_completed_episodes(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep1='_TrainEp_', sep2='_step_')
                     env.episode_num = completed_episodes
