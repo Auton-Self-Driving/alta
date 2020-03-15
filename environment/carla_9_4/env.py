@@ -62,6 +62,8 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
+        # self.rgb_camera_queue = queue.Queue()
+        # self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -452,7 +454,9 @@ class CarlaEnv(gym.Env):
 
         
         # Read in preprocessed image
-        sensor_image = self._read_data(world_frame)
+        sensor_image = self._read_data(self.camera_queue, world_frame)
+        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        # front_image = self._read_data(self.front_camera_queue, world_frame)
         encoded_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
             semantic_image = sensor_image[:,:,0]
@@ -509,8 +513,16 @@ class CarlaEnv(gym.Env):
                     #     # if not os.path.exists(path):
                     #     #     os.makedirs(path)
                     #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
+
+                    # Logic for combined videos
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8)))
+                    # self.vis_wrapper.save_image(temp_image, self.num_steps)
                     self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
+
+                    # Logic for combined videos
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
+                    # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
                     self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
@@ -951,6 +963,8 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
+        # self.rgb_camera_queue.queue.clear()
+        # self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
         try:
@@ -994,7 +1008,36 @@ class CarlaEnv(gym.Env):
         self.actor_list.append(self.camera_actor)
         
         self.camera_actor.listen(self.camera_queue.put)
-        
+
+        # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
+        # rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # rgb_camera.set_attribute('fov', '120')
+        # rgb_camera.set_attribute('fov', '90')
+
+        # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        # self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.rgb_camera_actor)
+
+        # self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
+
+
+        # front_camera = self.blueprint_library.find(self.config['sensors'][0])
+        # front_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # front_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # front_camera.set_attribute('fov', '120')
+        # front_camera.set_attribute('fov', '120')
+
+        # # front_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # front_camera_transform = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
+        # self.front_camera_actor = self._world.spawn_actor(front_camera, front_camera_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.front_camera_actor)
+
+        # self.front_camera_actor.listen(self.front_camera_queue.put)
+
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
 
@@ -1028,7 +1071,9 @@ class CarlaEnv(gym.Env):
         for _ in range(15):
             world_frame = self._world.tick()
 
-        image = self._read_data(world_frame)
+        image = self._read_data(self.camera_queue, world_frame)
+        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        # front_image = self._read_data(self.front_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
@@ -1211,9 +1256,9 @@ class CarlaEnv(gym.Env):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def _read_data(self, world_frame, timeout=240.0):
+    def _read_data(self, camera_queue, world_frame, timeout=240.0):
 
-        cam_image = self._read_camera_data(world_frame, timeout)
+        cam_image = self._read_camera_data(camera_queue, world_frame, timeout)
         cam_image_p = self._preprocess_image(cam_image)
         return cam_image_p
 
@@ -1229,9 +1274,9 @@ class CarlaEnv(gym.Env):
 
         return array
 
-    def _read_camera_data(self, world_frame, timeout):
+    def _read_camera_data(self, camera_queue, world_frame, timeout):
 
-        data  = self._retrieve_data(self.camera_queue, timeout, world_frame)
+        data  = self._retrieve_data(camera_queue, timeout, world_frame)
         return data
 
     def _retrieve_data(self, sensor_queue, timeout, world_frame):
