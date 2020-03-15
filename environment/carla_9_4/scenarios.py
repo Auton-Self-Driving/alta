@@ -709,6 +709,10 @@ def paths_long_straight():
         [
             WAYPOINT_DICT_Town01[96],
             WAYPOINT_DICT_Town01[17]
+        ],
+        [
+            WAYPOINT_DICT_Town01[96],
+            WAYPOINT_DICT_Town01[17]
         ]
     ]
     
@@ -1679,7 +1683,10 @@ def get_straight_dynamic_path(unseen=False, town="Town01", index=0):
             return benchmark_paths_straight_Town02()[index]
 
 def get_long_straight_path(unseen=False, town='Town01', index=0): 
-    return random.choice(paths_long_straight())
+    if town == "Town01":
+        return paths_long_straight()[index]
+    else:
+        raise NotImplementedError("Long-straight scenarios only implemented for Town01!")
 
 def get_crowded_path(unseen=False, town="Town01", index=0):
     return random.choice(paths_crowded())

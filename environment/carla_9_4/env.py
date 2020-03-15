@@ -800,7 +800,7 @@ class CarlaEnv(gym.Env):
             self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town, index)
-            self.config["num_episodes"] = 1
+            self.config["num_episodes"] = 2
         elif self.config["scenarios"] == "straight_dynamic":
             self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town, index)
         elif self.config["scenarios"] == "crowded":
@@ -957,7 +957,8 @@ class CarlaEnv(gym.Env):
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
         self.unseen = unseen
-        self.index = index
+        # self.index = index
+        self.index = (self.index + 1) % 2
 
         # Destroy
         self.destroy_all_existing_actors()
@@ -976,7 +977,7 @@ class CarlaEnv(gym.Env):
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
-            self._set_scenario(unseen=unseen, index=index, town=self.config["city_name"])
+            self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -986,7 +987,7 @@ class CarlaEnv(gym.Env):
         self.location = self.vehicle_actor.get_location()
 
         if self.config["num_npc"] > 0:
-            self.spawn_npc(self.config["num_npc"], unseen)    
+            self.spawn_npc(self.config["num_npc"], unseen, index=self.index)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -1189,7 +1190,7 @@ class CarlaEnv(gym.Env):
             return True
         return False
     
-    def spawn_npc(self, number_of_vehicles, unseen):
+    def spawn_npc(self, number_of_vehicles, unseen, index=1):
         
         # TODO: remove hard coded logic
         if self.config["scenarios"] == "straight_dynamic":
@@ -1199,7 +1200,8 @@ class CarlaEnv(gym.Env):
             spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
             # print('CROWDED SPAWNING: ', spawn_points)
         elif self.config["scenarios"] == "long_straight":
-            spawn_points_1 = scenarios.get_long_straight_npcs()
+            if index:
+                spawn_points_1 = scenarios.get_long_straight_npcs()
             if unseen:
                 if self.config["test_fixed_spawn_points"]:
                     spawn_points = self.spawn_points_fixed_order
@@ -1237,20 +1239,22 @@ class CarlaEnv(gym.Env):
             print('found %d spawn points.' % len(spawn_points))
 
         if self.config["scenarios"] == "long_straight":
-            for spawn_point in spawn_points_1:
-                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
+            if index:
+                for spawn_point in spawn_points_1:
+                    self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
 
-        count = number_of_vehicles
-        for spawn_point in spawn_points:
-            if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
-                count -= 1
-            if count <= 0:
-                break
+        if index:
+            count = number_of_vehicles
+            for spawn_point in spawn_points:
+                if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
+                    count -= 1
+                if count <= 0:
+                    break
 
-        while count > 0:
-            print("in while loop")
-            if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, random.choice(spawn_points)):
-                count -= 1
+            # while count > 0:
+            #     print("in while loop")
+            #     if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, random.choice(spawn_points)):
+            #         count -= 1
 
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)

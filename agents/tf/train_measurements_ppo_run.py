@@ -52,7 +52,7 @@ def run_ppo(args, prefix, config):
     SAVE_PATH = os.path.join(MODEL_PATH, 'ppo2_weights')
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
-    MAX_TRIALS = 1
+    MAX_TRIALS = 5
     
     steps = args.timesteps
     
@@ -198,7 +198,7 @@ def run_ppo(args, prefix, config):
                     return
                 
                 model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef)
+                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
                 if any(fname.endswith('.pkl') for fname in os.listdir(MODEL_PATH)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())

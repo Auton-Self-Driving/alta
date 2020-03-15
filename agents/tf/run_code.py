@@ -42,6 +42,8 @@ def parse_arguments():
     parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
+    parser.add_argument('--no-epochs',dest='no_epochs',type=int,default=4, help='Number of epochs to optimize the minibatch for PPO.')
+    parser.add_argument('--clip',dest='clip',type=float,default=0.2, help='Clip parameter for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
     parser.add_argument('--disable-traffic-light', dest='disable_traffic_light', action='store_true', help='Whether to disable traffic light.')
@@ -165,11 +167,15 @@ def create_ppo_prefix(args):
         disable_pid_fs_str = '_disable_pid_fs_'
     else:
         disable_pid_fs_str = ''
-        
+    noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
+    clip_str = '_clip_{}_'.format(args.clip)
+
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
+        + noptepochs_str \
+        + clip_str \
         + ae_lr_str \
         + '_' + args.scenarios \
         + num_npc_str \
