@@ -321,7 +321,7 @@ class CarlaEnv(gym.Env):
                                 cur_measurement=self.episode_measurements,
                                 config=self.config,
                                 verbose=self.config["verbose"])
-
+            
             done = self._compute_done_condition()
 
             self.episode_measurements['done'] = done

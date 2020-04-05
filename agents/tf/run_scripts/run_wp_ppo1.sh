@@ -1,21 +1,12 @@
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 0 --code-gpu 0 --network 1_layer --lr 2e-4 --ent-coef 0.005 --run-id 1 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run1 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 0 --code-gpu 0 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 0 --code-gpu 0 --network 1_layer --lr 2e-4 --ent-coef 0.005 --run-id 2 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run2 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 0 --code-gpu 0 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 1 --code-gpu 1 --network 1_layer --lr 2e-4 --ent-coef 0.005 --run-id 3 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run3 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 2 --code-gpu 2 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 1 --code-gpu 1 --network 1_layer --lr 2e-4 --ent-coef 0.005 --run-id 4 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run4 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 2 --code-gpu 2 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 1 --code-gpu 1 --network 1_layer --lr 2e-4 --ent-coef 0.005 --run-id 5 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run5 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 2 --code-gpu 2 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60
-
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 2 --code-gpu 2 --network 2_layer --lr 2e-4 --ent-coef 0.005 --run-id 1 &
-sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 2 --code-gpu 2 --network 2_layer --lr 2e-4 --ent-coef 0.005 --run-id 2 &
-sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 2 --code-gpu 2 --network 2_layer --lr 2e-4 --ent-coef 0.005 --run-id 3 &
-sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 3 --code-gpu 3 --network 2_layer --lr 2e-4 --ent-coef 0.005 --run-id 4 &
-sleep 60
-python ../run_code.py --algo PPO --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/' --timesteps 1000000 --carla-gpu 3 --code-gpu 3 --network 2_layer --lr 2e-4 --ent-coef 0.005 --run-id 5 &
+python ../run_code.py --algo PPO --task "self-driving" --run-id run6 --base-log-dir "/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reward-dist2goal/" --timesteps 1000000 --lr 2e-4 --network 2_layer --steer-penalty-coeff 0 --carla-gpu 2 --code-gpu 2 --const-collision-penalty 0 --collision-penalty-speed-coeff 0 --input-type wp --ent-coef 0.005 &
 sleep 60

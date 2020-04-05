@@ -22,9 +22,8 @@ import os
 import csv
 import time
 
-def test(model, env, model_step, path=None):
+def test(model, env, model_step, path=None, logger= None):
     dummy_env = DummyVecEnv([lambda: env])
-    # dummy_env = env
     success_episodes = 0
     results = {}
     total_reward = 0
@@ -40,7 +39,7 @@ def test(model, env, model_step, path=None):
         st = time.time()
         print("Episode number ", ind)
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-        obs[:] = env.reset(unseen=True, index=ind)
+        obs[:] = env.reset()
         done = False
         reward = 0
         
@@ -55,15 +54,19 @@ def test(model, env, model_step, path=None):
                 saving_time[ind] += time.time()-curr_st
             else:
                 episode_time[ind] += time.time()-curr_st
-                saving_time[ind] += info[-1]['saving_time']
+                #saving_time[ind] += info[-1]['saving_time']
             obs = np.expand_dims(info[0], axis=0)
         
         total_reward += reward
-        if info[3]['termination_state'] == 'success':
-            success_episodes += 1
-            results[ind] = 1
-        else:
-            results[ind] = 0
+        try:
+            if info[3]['termination_state'] == 'success':
+                success_episodes += 1
+                results[ind] = 1
+            else:
+                results[ind] = 0
+        except KeyError:
+            continue
+
         print("Ended in ", time.time()-st)
 
     obs[:] = env.reset()
@@ -73,102 +76,18 @@ def test(model, env, model_step, path=None):
     print(episode_time)
     print(saving_time)
     print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
-    env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
-    env.logger.log_scalar('test/total_reward', total_reward, model_step)
+    #env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
+    #env.logger.log_scalar('test/total_reward', total_reward, model_step)
+    if logger is not None:
+        logger.log_scalar('test/success_episodes', success_episodes, model_step)
+        logger.log_scalar('test/total_reward', total_reward, model_step)
 
     with open(path + 'test_results.csv','a') as f:
         writer = csv.writer(f, delimiter=',')
         writer.writerow([model_step, success_episodes, total_reward])
 
     return total_reward, success_episodes
-
-def plot_policy_and_value_fns(model, ind, path, inp_type):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    if inp_type == "wp":
-        observations = np.arange(-2, 2, 0.01).reshape((-1, 1))
-    else:
-        return
-
-    det_actions = []
-    stoch_actions = []
-    var_actions = []
-    values = []
-    means = []
-
-    for i in range(observations.shape[0]):
-        obs = observations[np.newaxis, i, :]
-        act = model.predict(obs, deterministic=True)[0]
-        # print("Action", act)
-        # act[0, 1] = (act[0, 1] + 10)
-        det_actions.append(act)
-        mean, std = model.predict_proba_step(obs)
-        # print("mean, std",mean, std)
-        act= model.predict(obs, deterministic=False)[0]
-        # act[0, 1] = (act[0, 1] + 10)
-        stoch_actions.append(act)
-        var_actions.append(std)
-        # values.append(mean)
-        means.append(mean)
-        
-    det_actions = np.array(det_actions).reshape((-1, 2))
-    stoch_actions = np.array(stoch_actions).reshape((-1, 2))
-    # var_actions = np.exp(np.array(var_actions).reshape((-1, 2)))
-    var_actions = np.array(var_actions).reshape((-1, 2))
-    # values = np.array(values).reshape((-1, 1))
-    means = np.array(means).reshape((-1,2))
-
-    fig, axs = plt.subplots(4, 2, figsize=(12, 12))
-    fig.suptitle('Policy plots for {} model'.format(ind))
-
-    axs[0, 0].plot(observations, det_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[0, 0].set_xlabel('Waypoint orientation')
-    axs[0, 0].set_ylabel('Deterministic - Steer')
-    axs[0, 1].plot(observations, det_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[0, 1].set_xlabel('Waypoint orientation')
-    axs[0, 1].set_ylabel('Deterministic - Target Speed')
     
-    axs[1, 0].plot(observations, var_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[1, 0].set_xlabel('Waypoint orientation')
-    axs[1, 0].set_ylabel('Std Deviation - Steer')
-    axs[1, 1].plot(observations, var_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[1, 1].set_xlabel('Waypoint orientation')
-    axs[1, 1].set_ylabel('Std Deviation - Target Speed')
-    
-    axs[2, 0].plot(observations, means[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[2, 0].set_xlabel('Waypoint orientation')
-    axs[2, 0].set_ylabel('Mean - Steer')
-    axs[2, 1].plot(observations, means[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[2, 1].set_xlabel('Waypoint orientation')
-    axs[2, 1].set_ylabel('Mean - Target Speed')
-
-    axs[3, 0].plot(observations, stoch_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[3, 0].set_xlabel('Waypoint orientation')
-    axs[3, 0].set_ylabel('Stochastic - Steer')
-    axs[3, 1].plot(observations, stoch_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    axs[3, 1].set_xlabel('Waypoint orientation')
-    axs[3, 1].set_ylabel('Stochastic - Target Speed')
-
-    axs[0,0].grid(True)
-    axs[0,1].grid(True)
-    axs[1,0].grid(True)
-    axs[1,1].grid(True)
-    axs[2,0].grid(True)
-    axs[2,1].grid(True)
-    axs[3,0].grid(True)
-    axs[3,1].grid(True)
-
-    plt.grid(True)
-    plt.savefig(path + 'policy_{}.png'.format(ind))
-    plt.close()
-    
-    # plt.figure()
-    # plt.plot(observations, values, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-    # plt.xlabel('Waypoint orientation')
-    # plt.ylabel('Mean')
-    # fig.suptitle('Mean plots for {} model'.format(ind))  
-    # plt.savefig(path + 'value_{}.png'.format(ind))
 
 def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     print("Rewards at intermediate training: {}".format(total_rewards))
@@ -214,6 +133,8 @@ class MY_SAC(SAC):
         total_successes = []
         model_file_names = []
 
+        print("Starting training!!!!!!!")
+
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
 
@@ -241,12 +162,11 @@ class MY_SAC(SAC):
                     if callback(locals(), globals()) is False:
                         break
 
-                if step % 10000 == 0 and step>0:
+                if step % 10000 == 0:
                     print("Starting Validation...")
                     self.save(save_file + str(step))
                     st1 = time.time()
-                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', self.config["input_type"])
-                    total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0])
+                    total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0], custom_logger)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(step))
@@ -270,6 +190,7 @@ class MY_SAC(SAC):
                 assert action.shape == self.env.action_space.shape
 
                 new_obs, reward, done, info = self.env.step(rescaled_action)
+                
 
                 # Store transition in the replay buffer.
                 self.replay_buffer.add(obs, action, reward, new_obs, float(done))
@@ -309,6 +230,7 @@ class MY_SAC(SAC):
 
                 episode_rewards[-1] += reward
                 if done:
+                    print("Episode terminated at "+str(step)+" th step. Resetting the Env")
                     if not isinstance(self.env, VecEnv):
                         obs = self.env.reset()
                     episode_rewards.append(0.0)

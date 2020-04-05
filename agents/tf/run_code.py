@@ -12,6 +12,7 @@ from test_pid import test_pid_method
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
+    parser.add_argument('--task',dest='task',type=str, default='selfdriving', required=True, help='Task')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
@@ -20,9 +21,11 @@ def parse_arguments():
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
-    parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
+    parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=-1, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
     parser.add_argument('--batch-size',dest='batch_size',type=int,default=512)
+    parser.add_argument('--gradient-steps-per-iteration',dest='gradient_steps_per_iteration',type=int,default=1)
+    parser.add_argument('--target-update-interval',dest='target_update_interval',type=int,default=1)
     parser.add_argument('--run-id',dest='run_id',type=str, required=True, help='Unique identifier for the run. It is appended to log directory name.')
     parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2.')
     parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0, help='Coefficient of steer penalty in reward.')
@@ -35,8 +38,8 @@ def parse_arguments():
     parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
     parser.add_argument('--num-npc',dest='num_npc',type=int,default=0, help='number of other vehicles')
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
-    parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=0.0, help='Constant penalty for collision.')
-    parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
+    parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=100.0, help='Constant penalty for collision.')
+    parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=100.0, help='Speed coefficient for speed-proportional collision penalty.')
     parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
@@ -57,11 +60,16 @@ def main(args):
 def create_sac_prefix(args):
 
     base = 'algo_' + args.algo \
+        + '_task_' + args.task \
         + '_input_' + args.input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_buffer_' + str(args.buffer_size) \
         + '_batchsz_'+ str(args.batch_size) \
+        + '_gradupd-per-iter_'+ str(args.gradient_steps_per_iteration) \
+        + '_tgt-upd-int_'+ str(args.target_update_interval) \
+        + '_ent-coef_'+ str(args.ent_coef) \
+        + '_cp-'+str(args.const_collision_penalty)+'-'+str(args.collision_penalty_speed_coeff)\
         + '_' + args.scenarios \
     
     prefix = base + '_runid_' + args.run_id + '/'
@@ -137,12 +145,13 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.args.use_pid_fs:
+    if args.use_pid_fs:
         use_pid_fs_str = '_use_pid_fs_'
     else:
         use_pid_fs_str = ''
         
     prefix = 'algo_' + args.algo \
+        + '_task_' + args.task \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
@@ -196,6 +205,10 @@ if __name__ == '__main__':
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
     config.config["batch_size"] = args.batch_size
+    config.config["gradient_steps_per_iteration"] = args.gradient_steps_per_iteration
+    config.config["target_update_interval"] = args.target_update_interval
+    config.config["ent_coef"] = args.ent_coef
+    config.config["task"] = args.task
 
     try:
         if args.algo == "SAC":

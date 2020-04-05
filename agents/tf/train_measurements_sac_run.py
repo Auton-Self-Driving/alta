@@ -19,6 +19,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import time
 
+import gym
 from gym.spaces import Box, Discrete
 
 import matplotlib
@@ -35,7 +36,6 @@ import tensorboard_logging as tf_log
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from my_sac import MY_SAC, plot_policy_and_value_fns
 from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer
 import traceback
 
@@ -105,7 +105,14 @@ def run_sac(args, prefix, base_prefix, config):
     serverStarted = False
     while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
         try:
-            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir, base_prefix = base_prefix, prefix = prefix)
+            if args.task=="self-driving":
+                print("Creating Carla Env")
+                from my_sac import MY_SAC
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir, base_prefix = base_prefix, prefix = prefix)
+            else:
+                print("Creating Mujoco Env")
+                from my_sac_mujoco import MY_SAC
+                env = gym.make(args.task)
             serverStarted = True
         
         except Exception as identifier:
@@ -120,7 +127,7 @@ def run_sac(args, prefix, base_prefix, config):
     try:
         # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
-        if not args.train_vae:
+        if not args.train_vae and args.task == "self-driving":
             print("Loading pretrained AE!!!")
             vae.load(args.vae_model_path)
             env.set_vae(vae)
@@ -139,10 +146,10 @@ def run_sac(args, prefix, base_prefix, config):
                 print("exiting")
                 return
 
-            model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=config["batch_size"],learning_starts=5000,
+            model = MY_SAC(config=config.config, policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=config.config["batch_size"],learning_starts=5000,
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, verbose=1)
             
-            model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
+            model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True, custom_logger = logger)
             model.save(SAVE_PATH)
 
     except Exception as identifier:

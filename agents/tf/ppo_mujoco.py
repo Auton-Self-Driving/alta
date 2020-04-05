@@ -162,7 +162,6 @@ def plot_policy_and_value_fns(model, ind, path):
 
 def plot_test_results(total_successes, total_rewards, total_updates, path):
     total_rewards = np.asarray(total_rewards)
-    total_rewards = total_rewards[:, 0, 0]
     fig, (ax1, ax2)  = plt.subplots(1, 2)
     fig.suptitle('Test Results v/s training timesteps')
 
@@ -261,7 +260,7 @@ class OverideRunner(Runner):
 
         return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
-def test(model, env):
+def test(model, env, model_step, logger= None):
     dummy_env = DummyVecEnv([lambda: env])
     success_episodes = 0
     results = {}
@@ -278,7 +277,7 @@ def test(model, env):
         st = time.time()
         print("Episode number ", ind)
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-        obs[:] = env.reset(unseen=True, index=ind)
+        obs[:] = env.reset()
         done = False
         reward = 0
         
@@ -293,15 +292,20 @@ def test(model, env):
                 saving_time[ind] += time.time()-curr_st
             else:
                 episode_time[ind] += time.time()-curr_st
-                saving_time[ind] += info[-1]['saving_time']
+                #saving_time[ind] += info[-1]['saving_time']
             obs = np.expand_dims(info[0], axis=0)
         
         total_reward += reward
-        if info[3]['termination_state'] == 'success':
-            success_episodes += 1
-            results[ind] = 1
-        else:
-            results[ind] = 0
+        try:
+            if info[3]['termination_state'] == 'success':
+                success_episodes += 1
+                results[ind] = 1
+            else:
+                results[ind] = 0
+        except KeyError:
+            continue
+
+        print("Ended in ", time.time()-st)
 
     obs[:] = env.reset()
     print("Results of train scenarios")
@@ -309,8 +313,12 @@ def test(model, env):
     print(episode_timesteps)
     print(episode_time)
     print(saving_time)
-    print("Total Success Episodes: {}".format(success_episodes))
+    print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
+    if logger is not None:
+        logger.log_scalar('test/success_episodes', success_episodes, model_step)
+        logger.log_scalar('test/total_reward', total_reward, model_step)
     return total_reward, success_episodes, results
+
 
 def get_best_model(env, total_rewards, total_successes, model_file_names, path):
     print("Searching for best model now!!!")
@@ -391,7 +399,10 @@ class PPO(PPO2):
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 # true_reward is the reward without discount
-                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(logger=env.logger)
+                try:
+                    obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run(logger=env.logger)
+                except AttributeError:
+                    obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run()
                 ep_info_buf.extend(ep_infos)
                 mb_loss_vals = []
                 if states is None:  # nonrecurrent version
@@ -412,9 +423,7 @@ class PPO(PPO2):
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                        total_reward, success_episodes, _ = test(self, env)
-                        env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
-                        env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                        total_reward, success_episodes, _ = test(self, env, update * self.n_batch, custom_logger)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))
