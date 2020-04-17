@@ -207,19 +207,37 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     if verbose:
         print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
 
-    dist_to_trajectory_reward = -1 * current['dist_to_trajectory']
+    dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
     current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
     speed_reward = current["speed"]
     acceleration_reward = (current["speed"] - prev["speed"])
     
     current["speed_reward"] = speed_reward
-    
-    is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
-    
+
+    if (not config['disable_traffic_light']) and (_check_if_signal_crossed(prev, current) and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red) and (current["speed"] > config["zero_speed_threshold"]) and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
+        current["runover_light"] = True
+        light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+    else:
+        current["runover_light"] = False
+        light_reward = 0
+    current["light_reward"] = light_reward
+
+    #is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+    lane_change = False
+    obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+    is_collision = obs_collision
+
     # count out_of_road also as a collision
     if config["enable_lane_invasion_sensor"]:
-        is_collision |= current["out_of_road"] 
-    
+        is_collision = obs_collision or current["out_of_road"]
+        
+        # count any lane change also as a collision
+        if config["enable_lane_invasion_collision"]:
+            lane_change = current['num_laneintersections'] > 0
+            is_collision = is_collision or lane_change
+
+    current['obs_collision'] = obs_collision
+    current['lane_change'] = lane_change
     current["is_collision"] = is_collision
     # Collision damage
     if(is_collision):
@@ -235,13 +253,13 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     #     lane_intersection_reward = 0
     # current["lane_intersection_reward"] = lane_intersection_reward
 
-    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
 
     current["step_reward"] = reward
 
     if verbose:
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, steer_reward, reward)
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward)
     
     # Update state variables
     # if np.absolute(lane_intersection_reward) > 0:

@@ -25,7 +25,7 @@ plt.figure(figsize=(22, 14))
 colors = ['b', 'g', 'r', 'c', 'm']
 
 #exp_name = 'algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_2048_gradupd-per-iter_1_cp-0.0-0.0_navigation'
-def plot_runs(idx, exp_name, color, min_steps= 100):
+def plot_runs(idx, exp_name, color, min_steps= 100, label = None):
 	dir_name = os.path.join(exp_folder, exp_name)
 	#print(dir_name)
 	rewards = []
@@ -71,7 +71,11 @@ def plot_runs(idx, exp_name, color, min_steps= 100):
 	plt.xticks(list(range(0, 1000001, 100000)), ('0', '100k', '200k', '300k', '400k', '500k', '600k', '700k', '800k', '900k', '1000k'))
 	#plt.xticks(list(range(0, 500001, 100000)), ('0', '100k', '200k', '300k', '400k', '500k'))
 	plt.yticks(list(range(0, 120001, 20000)), ('0', '20k', '40k', '60k', '80k', '100k', '120k'))
-	plt.plot(steps, mean_reward, label='exp_'+str(idx),  color=color, linewidth=4)
+
+	if label is None:
+		label = 'exp_'+str(idx) 
+
+	plt.plot(steps, mean_reward, label=label,  color=color, linewidth=4)
 
 	# plt.plot(steps, mean_neg_std_reward)
 	# plt.plot(steps, mean_pos_std_reward)
@@ -116,23 +120,38 @@ if __name__=='__main__':
 	#
 	global exp_folder
 	
-	colors_list = ['darkorange', 'purple', 'green', 'yellow', 'maroon', 'goldenrod']
+	colors_list = ['black', 'darkorange', 'green', 'purple', 'maroon', 'goldenrod', 'yellow']
 	ctr = 0
+	plot_another = 1
 
 	exp_list = []
 	mode = "Neurips_wrl_plus"
 
 	if mode == "Neurips_wrl_plus":
 		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo'
-		min_steps = plot_ppo_rewards('black')
-		#exp_list.append('algo_PPO_input_wp_network_2_layer_lr_0.0002_navigation')
-		#exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_cp-0.0-0.0_navigation')
-		'''exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_4_cp-0.0-0.0_navigation')
-		exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_8_cp-0.0-0.0_navigation')
-		exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_2048_gradupd-per-iter_1_cp-0.0-0.0_navigation')
-		exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_50000_batchsz_2048_gradupd-per-iter_1_cp-0.0-0.0_navigation')
-		exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_10000_batchsz_2048_gradupd-per-iter_1_cp-0.0-0.0_navigation')'''
-		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.05_cp-0.0-0.0_navigation')
+		#min_steps = plot_ppo_rewards('black')
+		min_steps = 100
+		labels_list = ['PPO_n500', 'PPO_n1000', 'SAC_n100']
+
+		# Lane colision off
+		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_n_500_no-lane-sensor')
+		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_500_no-lane-sensor')
+		#exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.05_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.5_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.001_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_no-lane-sensor')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_no-lane-sensor')
+
+		# Lane colision on
+		exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_500')
+		exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_1000')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_50_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_-1.0_cp-0.0-0.0_navigation')
+
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
 
 	elif mode == "Distance2goal_reward":
 		min_steps = 100
@@ -142,6 +161,7 @@ if __name__=='__main__':
 
 	elif mode == "Half-Cheetah":
 		min_steps = 100
+		labels_list = ['SAC', 'PPO']
 		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_mujoco'
 		exp_list.append('algo_SAC_task_HalfCheetah-v2_input_wp_network_2_layer64_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
 		exp_list.append('algo_PPO_task_HalfCheetah-v2_input_wp_network_2_layer64_lr_0.0002_navigation')
@@ -158,11 +178,37 @@ if __name__=='__main__':
 		if(exp.split('_')[0]!='algo'):
 			continue
 		#try:
-		plot_runs(ctr+1, exp, colors_list[ctr], min_steps)
+		plot_runs(ctr+1, exp, colors_list[ctr], min_steps, labels_list[ctr])
 		print(ctr+1, ':', exp)
 		#except:
 		#	continue
 		ctr+=1
+
+
+	if mode == "Neurips_wrl_plus" and plot_another:
+		#min_steps = plot_ppo_rewards('black')
+		min_steps = 100
+
+		exp_list = []
+		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_reproduce'
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_run2')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_run3')
+
+		'''exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_no-lane-sensor'
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')'''
+
+
+		for exp in exp_list:
+			if(exp.split('_')[0]!='algo'):
+				continue
+			#try:
+			plot_runs(ctr+1, exp, colors_list[ctr], min_steps, labels_list[ctr])
+			print(ctr+1, ':', exp)
+			#except:
+			#	continue
+			ctr+=1
 
 	axes = plt.gca()
 	axes.set_ylim(bottom=0)

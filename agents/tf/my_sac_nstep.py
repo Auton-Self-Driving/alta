@@ -196,9 +196,6 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
 
 class MY_SAC(SAC):
     def __init__(self, config = None, **kwargs):
-        if config is None:
-            print("Using config from env")
-            config = kwargs.get('env').config
         if config["ent_coef"]==-1:
             config["ent_coef"] = 'auto'
         super(MY_SAC, self).__init__(ent_coef = config["ent_coef"], train_freq = config["n_steps"], **kwargs)
@@ -278,7 +275,7 @@ class MY_SAC(SAC):
 
                 # Store transition in the replay buffer.
                 #self.replay_buffer.add(obs, action, reward, new_obs, float(done))
-                mini_ep_info.append([obs, action, reward/25.0, new_obs, float(done)])
+                mini_ep_info.append([obs, action, reward, new_obs, float(done)])
                 obs = new_obs
 
                 # Retrieve reward and episode length if using Monitor wrapper
@@ -303,7 +300,7 @@ class MY_SAC(SAC):
                             mc_next_obs = mini_ep_info[i][0]
                             gamma_next_s = 1.0
                             gamma_bs = 1.0
-                            self.replay_buffer.add(mini_ep_info[i][0], mini_ep_info[i][1], mini_ep_info[i][2], mini_ep_info[i][3], gamma_bs)
+                            self.replay_buffer.add(mini_ep_info[i][0], mini_ep_info[i][1], mini_ep_info[i][2], mc_next_obs, gamma_bs)
                         else:
                             mc_reward = mini_ep_info[i][2]+self.gamma*mc_reward
                             gamma_next_s = gamma_next_s*self.gamma

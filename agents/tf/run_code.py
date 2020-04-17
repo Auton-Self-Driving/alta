@@ -12,7 +12,7 @@ from test_pid import test_pid_method
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
-    parser.add_argument('--task',dest='task',type=str, default='selfdriving', required=True, help='Task')
+    parser.add_argument('--task',dest='task',type=str, default='self-driving', required=True, help='Task')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
@@ -66,6 +66,7 @@ def create_sac_prefix(args):
         + '_lr_' + str(args.lr)  \
         + '_buffer_' + str(args.buffer_size) \
         + '_batchsz_'+ str(args.batch_size) \
+        + '_n-steps_'+ str(args.n_steps) \
         + '_gradupd-per-iter_'+ str(args.gradient_steps_per_iteration) \
         + '_tgt-upd-int_'+ str(args.target_update_interval) \
         + '_ent-coef_'+ str(args.ent_coef) \
@@ -130,7 +131,7 @@ def create_ppo_prefix(args):
     else:
         frame_skip_str = ''
     
-    if args.n_steps != 500:
+    if args.n_steps > 0:
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
@@ -209,6 +210,7 @@ if __name__ == '__main__':
     config.config["target_update_interval"] = args.target_update_interval
     config.config["ent_coef"] = args.ent_coef
     config.config["task"] = args.task
+    config.config["n_steps"] = args.n_steps
 
     try:
         if args.algo == "SAC":
@@ -221,8 +223,8 @@ if __name__ == '__main__':
             else:
                 prefix = extract_prefix(args)
             print("prefix", prefix)
-            if args.input_type == "wp" or args.input_type == "wp_noise" \
-                or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
+            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
+                                   'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light']:
                 run_ppo(args, prefix, config)
             elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)
