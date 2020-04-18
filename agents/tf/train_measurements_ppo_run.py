@@ -132,6 +132,7 @@ def run_ppo(args, prefix, config):
                     f.write("Success: {}\n".format(" ".join(map(str, successes))))
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
+                    f.write("Total Successes: {}\n".format(np.sum(successes)))
             elif args.validation:
                 print('Validation Begins')
                 with open(ALTA_LOGS + "seed.txt", "r") as f:
@@ -172,7 +173,7 @@ def run_ppo(args, prefix, config):
                     with open(ALTA_LOGS + 'test_results2.csv','a') as f:
                         csvwriter = csv.writer(f, delimiter=',')
                         csvwriter.writerow([update, success_episodes, total_reward])
-                    update += 10000
+                    update += 40000
                 env.close()
             else:
                 print("Training begins")
@@ -197,7 +198,7 @@ def run_ppo(args, prefix, config):
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr, 
+                model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
                         tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
                 if any(fname.endswith('.pkl') for fname in os.listdir(MODEL_PATH)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:

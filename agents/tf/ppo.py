@@ -270,6 +270,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     runover_light_episodes = 0
     results = {}
     total_reward = 0
+    env.reset()
     for ind in range(env.config["num_episodes"]):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
@@ -414,7 +415,7 @@ class PPO(PPO2):
                             mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, writer=writer,
                                                                  update=timestep))
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
-                    if (update * self.n_batch) % 10000 == 0:
+                    if (update * self.n_batch) % 40000 == 0:
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
@@ -449,7 +450,7 @@ class PPO(PPO2):
                     time_start = time.time()
                     vae.optimize()
                     print("Time to optimize the AE: ", time.time() - time_start)
-                    if (update * self.n_batch) % 10000 == 0:
+                    if (update * self.n_batch) % 40000 == 0:
                         base_path = save_file.split('models')[0] + 'ae_weights/'
                         if not os.path.exists(base_path):
                             os.makedirs(base_path)

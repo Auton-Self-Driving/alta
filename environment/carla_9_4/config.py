@@ -79,6 +79,8 @@ DEFAULT_ENV = {
     "input_type": None,
     "use_scenarios": True,
     "num_npc" : 0,
+    "num_npc_lower_threshold" : 70,
+    "num_npc_upper_threshold" : 150,
     "train_vae" : False,
     "noise_dim" : 1,
     "const_collision_penalty": 0,
@@ -122,6 +124,7 @@ DEFAULT_ENV = {
     "num_episodes" : 1,
     "proximity_threshold" : 15,
     "min_dist_from_red_light" : 6,
+    "default_obs_traffic_val": 1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False
 }
