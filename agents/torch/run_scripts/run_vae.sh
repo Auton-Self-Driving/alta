@@ -1,0 +1,2 @@
+python run_vae.py --algo AE --run-id 1 --base-log-dir '/media/hdd/tanmaya/research/alta-logs/new_env/ppo_runs/vae_8_16_32_64/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --code-gpu 0 --carla-gpu 0 --batch-size 128 &
+python run_vae.py --algo AE --run-id 1 --base-log-dir '/media/hdd/tanmaya/research/alta-logs/new_env/ppo_runs/vae_1/' --timesteps 2000000 --lr 5e-3 --num-npc 60 --code-gpu 0 --carla-gpu 0 --batch-size 256 &
