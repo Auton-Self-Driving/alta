@@ -27,7 +27,7 @@ from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 import scipy.misc
-from scipy.misc import imsave
+#from scipy.misc import imsave
 from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
@@ -60,6 +60,7 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
+        #self._rgb_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -94,12 +95,12 @@ class CarlaEnv(gym.Env):
             self.im_channels = 3
         
         self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
-
         # Start Carla Server
         serverStarted = False
         serverStartRetries = 0
         while ((not serverStarted) and serverStartRetries < self.config['server_retries']):
             try:
+                print("Attempting to start server ..................................................................")
                 self.CarlaServer = server.CarlaServer(config=self.config)
                 serverStarted = True
             except Exception as e:
@@ -147,7 +148,7 @@ class CarlaEnv(gym.Env):
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
             np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
-
+        
         if(self.config['train_config'] == 'baselines'):
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
             image_space = Box(0, 255, shape=(self.config["y_res"], self.config["x_res"], self.im_channels * self.config["framestack"]), dtype=np.uint8)
@@ -184,7 +185,7 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
                                         shape=(1, 401), dtype=np.float32)
-        
+            
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -579,6 +580,9 @@ class CarlaEnv(gym.Env):
     def set_vae(self, vae):
         self.vae = vae
     
+    def set_resnet(self, resnet):
+        self.resnet = resnet
+    
     def vae_observation(self, observation_image):
         if self.config["train_vae"]:
             self.vae.buffer_append(observation_image)
@@ -712,6 +716,9 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
+        
+        #with self._rgb_queue.mutex:
+        #    self._rgb_queue.queue.clear()
 
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
@@ -735,11 +742,24 @@ class CarlaEnv(gym.Env):
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
-        if self.config["semantic"]:
+        
+        #Attach top view semantic camera AND front view RGB camera.
+        if self.config["Front_RGB"]:
+            sensor = self.config['sensors'][0]
+            self.config['sensor_x_res'] = '384'
+            self.config['sensor_y_res'] = '160'
+        elif self.config["semantic"]:
             sensor = self.config['sensors'][1]
         else:
             sensor = self.config['sensors'][0]
-
+        #rgb_camera_bp = self.config['sensors'][0]
+        #rgb_camera_bp.set_attribute('image_size_x', '384')
+        #rgb_camera_bp.set_attribute('image_size_y', '160')
+        #rgb_camera_bp.set_attribute('fov', '90')
+        #self.rgb_actor = self._world.spawn_actor(rgb_camera_bp, carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0)), attach_to=self.vehicle_actor)
+        #self.rgb_actor.listen(self._rgb_queue.put)
+        #self.actor_list.append(self.rgb_actor)
+        
         camera = self.blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
@@ -748,7 +768,12 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('fov', '90')
 
         # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        
+        if self.config["Front_RGB"]:
+            camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0))
+        else:
+            camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
         
@@ -942,8 +967,8 @@ class CarlaEnv(gym.Env):
 
         return array
 
+    # Make function to take generic queue, modify all instances of function.
     def _read_camera_data(self, world_frame, timeout):
-
         data  = self._retrieve_data(self.camera_queue, timeout, world_frame)
         return data
 

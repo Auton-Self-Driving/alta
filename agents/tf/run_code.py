@@ -6,6 +6,7 @@ from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
+from train_resnet_ppo_run import run_ppo_resnet
 from test_pid import test_pid_method
 
 
@@ -15,7 +16,8 @@ def parse_arguments():
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
-    parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/vkadi/projects/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
+    #parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/mayankgu/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
+    parser.add_argument('--feat_extractor_model_path',dest='feat_extractor_model_path',type=str, default='/zfsauton2/home/mayankgu/alta/agents/tf/trained_models/ae_16_32_64_16_fs_1', help='Feature extractor model path.')
     parser.add_argument('--agent_model_path',dest='agent_model_path',type=str, default=None, help='Agent Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
@@ -69,7 +71,6 @@ def create_sac_prefix(args):
     return base_prefix, prefix
 
 def create_ppo_prefix(args):
-
     if args.finetune_vae:
         vae = "_finetune_vae"
     elif args.train_vae:
@@ -126,22 +127,22 @@ def create_ppo_prefix(args):
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
-    
+        
     if args.agent_model_path is not None:
         use_pretrained_agent_str = '_pretrained_agent_'
     else:
         use_pretrained_agent_str = ''
-
+    
     if args.ae_lr != 1e-4:
         ae_lr_str = '_ae_lr_' + str(args.ae_lr)
     else:
         ae_lr_str = ''
-
-    if args.args.use_pid_fs:
+    
+    if args.use_pid_fs:
         use_pid_fs_str = '_use_pid_fs_'
     else:
         use_pid_fs_str = ''
-        
+
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
@@ -170,7 +171,7 @@ def extract_prefix(args):
 
 if __name__ == '__main__':
     args = main(sys.argv)
-    print("args", args)
+    print("args : ", args)
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(args.code_gpu)
@@ -200,19 +201,20 @@ if __name__ == '__main__':
     try:
         if args.algo == "SAC":
             base_prefix, prefix = create_sac_prefix(args)
-            print("prefix", prefix)
             run_sac(args, prefix, base_prefix, config)
         elif args.algo == "PPO":
             if not args.test:
                 prefix = create_ppo_prefix(args)
             else:
                 prefix = extract_prefix(args)
-            print("prefix", prefix)
             if args.input_type == "wp" or args.input_type == "wp_noise" \
                 or args.input_type == "wp_obs_dist" or args.input_type == "wp_obs_bool":
                 run_ppo(args, prefix, config)
             elif args.input_type == "wp_vae":
                 run_ppo_vae(args, prefix, config)
+            elif args.input_type == "wp_resnet":
+                config.config["model_path"] = args.feat_extractor_model_path
+                run_ppo_resnet(args, prefix, config)
             else:
                 print("specify correct input_type: wp, wp_vae")
                 print("exiting")

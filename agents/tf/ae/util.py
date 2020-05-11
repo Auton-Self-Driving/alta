@@ -102,7 +102,6 @@ def reduce_classes(semantic_image):
     semantic_reduced_image = f(semantic_image.reshape(-1))
     return semantic_reduced_image.reshape((h,w))
 
-
 def convert_to_one_hot(labels, num_classes):
     labels = np.squeeze(labels)
     h, w = labels.shape

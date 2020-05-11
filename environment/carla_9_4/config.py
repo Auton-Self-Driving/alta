@@ -62,6 +62,7 @@ DEFAULT_ENV = {
     "sensor_tick": '0.0',
     "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
+    "Front_RGB" : True,
     "max_static_steps" : 1000,
     "log_measurements_to_file": False,
     "train_config": None,
@@ -270,7 +271,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_speed"
+            self.config["action_type"] = "merged_speed_scaled_tanh"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
@@ -312,3 +313,4 @@ class ConfigManager(object):
             self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
             self.config["max_static_steps"] = 20
+#        self.config['']

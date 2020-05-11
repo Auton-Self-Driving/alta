@@ -172,9 +172,10 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     return best_model
 
 class MY_SAC(SAC):
-    def __init__(config, **kwargs):
-        self.config = config
-        super(MY_SAC, self).__init(**kwargs)
+    def __init__(self, config = None, **kwargs):
+            super(MY_SAC, self).__init__(**kwargs)
+            self.config = config
+            #self.gradient_steps = config["gradient_steps_per_iteration"]
 
     def learn(self, env, total_timesteps, trained_timesteps, callback=None, seed=None,
               log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, save_file="sac_weights"):
@@ -214,7 +215,7 @@ class MY_SAC(SAC):
 
                 if step % 10000 == 0:
                     self.save(save_file + str(step))
-                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', config["input_type"])
+                    plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', self.config["input_type"])
                     total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0])
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)

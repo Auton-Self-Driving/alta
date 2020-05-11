@@ -36,7 +36,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
 from my_sac import MY_SAC, plot_policy_and_value_fns
-from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer
+from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer, My_MlpPolicy_3layer
 import traceback
 
 def test(model, env, model_step):
@@ -128,18 +128,19 @@ def run_sac(args, prefix, base_prefix, config):
             model = MY_SAC.load(MODEL_PATH, env)
             test(model, env, model_step=0)
         else:
-
             if args.network == "1_layer":
                 policy = My_MlpPolicy_1layer
             elif args.network == "2_layer":
                 policy = My_MlpPolicy_2layer
+            elif args.network == "3_layer":
+                policy = My_MlpPolicy_3layer
             else:
-                print("specify either 1_layer or 2_layer as network input")
+                print("specify either 1_layer or 2_layer or 3_layer as network input")
                 env.close()
                 print("exiting")
                 return
-
-            model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=config["batch_size"],learning_starts=5000,
+            bs=config.config["batch_size"]
+            model = MY_SAC(config=config.config, policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=bs,learning_starts=5000,
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, verbose=1)
             
             model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
