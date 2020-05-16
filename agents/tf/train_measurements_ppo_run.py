@@ -132,6 +132,7 @@ def run_ppo(args, prefix, config):
                     f.write("Success: {}\n".format(" ".join(map(str, successes))))
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
+                    f.write("Total Successes: {}\n".format(np.sum(successes)))
             elif args.validation:
                 print('Validation Begins')
                 with open(ALTA_LOGS + "seed.txt", "r") as f:
@@ -172,7 +173,7 @@ def run_ppo(args, prefix, config):
                     with open(ALTA_LOGS + 'test_results2.csv','a') as f:
                         csvwriter = csv.writer(f, delimiter=',')
                         csvwriter.writerow([update, success_episodes, total_reward])
-                    update += 10000
+                    update += 40000
                 env.close()
             else:
                 print("Training begins")

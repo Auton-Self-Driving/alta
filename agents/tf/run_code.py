@@ -39,10 +39,11 @@ def parse_arguments():
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
     parser.add_argument('--const-light-penalty',dest='const_light_penalty',type=float,default=0.0, help='Constant penalty for running traffic light.')
     parser.add_argument('--light-penalty-speed-coeff',dest='light_penalty_speed_coeff',type=float,default=0.0, help='Speed-proportional penalty for running light.')
-    parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
+    # parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
     parser.add_argument('--no-epochs',dest='no_epochs',type=int,default=4, help='Number of epochs to optimize the minibatch for PPO.')
+    parser.add_argument('--no-minibatches',dest='no_minibatches',type=int,default=4, help='Number of minibatches for PPO.')
     parser.add_argument('--clip',dest='clip',type=float,default=0.2, help='Clip parameter for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
@@ -108,10 +109,10 @@ def create_ppo_prefix(args):
     else:
         light_penalty_speed_coeff_str = ""
 
-    if args.enable_brake != False:
-        enable_brake_str = '_brake'
-    else:
-        enable_brake_str = ''
+    # if args.enable_brake != False:
+    #     enable_brake_str = '_brake'
+    # else:
+    #     enable_brake_str = ''
 
     if args.disable_collision != False:
         disable_collision_str = "_disable_collision_"
@@ -158,6 +159,11 @@ def create_ppo_prefix(args):
     else:
         n_steps_str = ''
 
+    if args.agent_model_path is not None:
+        use_pretrained_agent_str = '_pretrained_agent_'
+    else:
+        use_pretrained_agent_str = ''
+
     if args.ae_lr != 1e-4:
         ae_lr_str = '_ae_lr_' + str(args.ae_lr)
     else:
@@ -169,6 +175,7 @@ def create_ppo_prefix(args):
         disable_pid_fs_str = ''
     noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
     clip_str = '_clip_{}_'.format(args.clip)
+    no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
 
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
@@ -176,10 +183,11 @@ def create_ppo_prefix(args):
         + '_lr_' + str(args.lr)  \
         + noptepochs_str \
         + clip_str \
+        + no_minibatches_str \
         + ae_lr_str \
         + '_' + args.scenarios \
+        + use_pretrained_agent_str \
         + num_npc_str \
-        + enable_brake_str \
         + disable_collision_str \
         + disable_traffic_light_str \
         + disable_obstacle_info_str \
@@ -224,7 +232,7 @@ if __name__ == '__main__':
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
     config.config["const_light_penalty"] = args.const_light_penalty
     config.config["light_penalty_speed_coeff"] = args.light_penalty_speed_coeff
-    config.config["enable_brake"] = args.enable_brake
+    # config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
     config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic

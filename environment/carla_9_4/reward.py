@@ -213,7 +213,7 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     
     current["speed_reward"] = speed_reward
 
-    if (not config['disable_traffic_light']) and (_check_if_signal_crossed(prev, current) and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red) and (current["speed"] > config["zero_speed_threshold"]) and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
+    if (not config['disable_traffic_light']) and (_check_if_signal_crossed(prev, current, config) and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red) and (current["speed"] > config["zero_speed_threshold"]) and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
         current["runover_light"] = True
         light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
     else:
@@ -240,7 +240,8 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     current["is_collision"] = is_collision
     # Collision damage
     if(is_collision):
-        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
+        speed_reward = prev["speed"]
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -267,10 +268,10 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         current["static_steps"] += 1
     return reward
 
-def _check_if_signal_crossed(prev, current):
+def _check_if_signal_crossed(prev, current, config):
 
     # cross_from_one_light_to_no_light
-    cross_to_no_light = current['dist_to_light'] == -1 and prev['dist_to_light'] > 0
+    cross_to_no_light = current['dist_to_light'] == config['default_obs_traffic_val'] and prev['dist_to_light'] > 0
 
     cross_to_next_light = (current['nearest_traffic_actor_id'] != -1 and prev['nearest_traffic_actor_id'] != -1 \
         and current['nearest_traffic_actor_id'] != prev['nearest_traffic_actor_id'])
