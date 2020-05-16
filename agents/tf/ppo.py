@@ -270,6 +270,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     runover_light_episodes = 0
     results = {}
     total_reward = 0
+    env.reset()
     for ind in range(env.config["num_episodes"]):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
@@ -303,7 +304,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
                 max_steps_episodes += 1
 
     env.reset()
-    print("Results of train scenarios")
+    print("Results of test scenarios")
     print(results)
     print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
                                 collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))

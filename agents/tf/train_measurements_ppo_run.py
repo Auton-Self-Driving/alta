@@ -109,8 +109,8 @@ def run_ppo(args, prefix, config):
                         total_reward, success_episodes, results = test(model, env)
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
-                        print("Results of test scenarios")
-                        print(results)
+                        # print("Results of test scenarios")
+                        # print(results)
                         print("Total Success Episodes: {}".format(success_episodes))
                         f.write("Task Name: {}\n".format(config.config["scenarios"]))
                         f.write("Town Name: {}\n".format(config.config["city_name"]))
@@ -197,8 +197,6 @@ def run_ppo(args, prefix, config):
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr, 
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
                 if any(fname.endswith('.pkl') for fname in os.listdir(MODEL_PATH)):
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
@@ -220,6 +218,13 @@ def run_ppo(args, prefix, config):
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
+
+                    if args.agent_model_path is None:
+                        model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=4, verbose=1, learning_rate=args.lr,
+                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
+                    else:
+                        model = PPO.load(args.agent_model_path, dummy_env)
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=False)
                 
                 best_model.save(SAVE_PATH)
