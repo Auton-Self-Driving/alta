@@ -37,6 +37,8 @@ def get_and_add_vae_observation(vae, observation_image):
         vae.buffer_append(observation_image)
         ob = vae.encode(observation_image)
         return ob
+def get_scratch_dir(base_log_dir):
+    return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
 def train_vae_ae(args, prefix, config):
     
@@ -45,14 +47,15 @@ def train_vae_ae(args, prefix, config):
     ALTA_LOGS = args.base_log_dir + prefix
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
-
-    IMAGES_PATH = ALTA_LOGS + 'images/'
-    VIDEO_PATH = ALTA_LOGS + 'videos/'
-    IMAGES_PATH_VAE = ALTA_LOGS + 'images_VAE/'
-    VIDEO_PATH_VAE = ALTA_LOGS + 'videos_VAE/'
-    CM_PATH = ALTA_LOGS + 'CM_images/'
+    SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    IMAGES_PATH = SCRATCH_DIR + 'images/'
+    VIDEO_PATH = SCRATCH_DIR + 'videos/'
+    IMAGES_PATH_VAE = SCRATCH_DIR + 'images_VAE/'
+    VIDEO_PATH_VAE = SCRATCH_DIR + 'videos_VAE/'
+    CM_PATH = SCRATCH_DIR + 'CM_images/'
+    SEMANTIC_IMAGES_PATH = SCRATCH_DIR + 'semantic_images/'
     FRAME_SKIP = 10
-    TOTAL_TIMESTEPS = 200000 * FRAME_SKIP
+    TOTAL_TIMESTEPS = 50000 * FRAME_SKIP
     VAL_TIMESTEPS = 1000 * FRAME_SKIP
     NUM_CLASSES  = 5
     Accuracy_File = ALTA_LOGS+"acurracy_town1.csv"
@@ -65,15 +68,18 @@ def train_vae_ae(args, prefix, config):
     TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
+    
+    if not os.path.exists(SEMANTIC_IMAGES_PATH):
+        os.makedirs(SEMANTIC_IMAGES_PATH)
 
-    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP)
-    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP)
+    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
+    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
     
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
     logger = tf_log.Logger(ALTA_LOGS)
 
     if args.algo == "AE":
-        model = AEController(z_size=args.vae_zsize, image_size=(160, 80, 5), learning_rate=args.lr, batch_size=args.batch_size)
+        model = AEController(z_size=args.vae_zsize, image_size=(128, 128, 5), learning_rate=args.lr, batch_size=args.batch_size)
     elif args.algo == "VAE":
         model = VAEController(z_size=args.vae_zsize, image_size=(160, 80, 5), learning_rate=args.lr, batch_size=args.batch_size, kl_tolerance=0.5)
 
@@ -90,6 +96,7 @@ def train_vae_ae(args, prefix, config):
             semantic_image = obs['semantic_image']
             semantic_image = util.reduce_classes(semantic_image)
             semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=True).astype(np.uint8)
+            np.save(SEMANTIC_IMAGES_PATH + str(t), semantic_image)
 
             semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=5)
             encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
@@ -109,8 +116,8 @@ def train_vae_ae(args, prefix, config):
         obs = new_obs
         if done:
             num_episodes += 1
-            vis_wrapper.generate_video(num_episodes)
-            vis_wrapper.remove_images()
+            # vis_wrapper.generate_video(num_episodes)
+            # vis_wrapper.remove_images()
             vis_wrapper_vae.generate_video(num_episodes)
             vis_wrapper_vae.remove_images()
             obs = env.reset()
@@ -155,8 +162,8 @@ def train_vae_ae(args, prefix, config):
 
             # Terminating current episode for validation
             num_episodes += 1
-            vis_wrapper.generate_video(num_episodes)
-            vis_wrapper.remove_images()
+            # vis_wrapper.generate_video(num_episodes)
+            # vis_wrapper.remove_images()
             vis_wrapper_vae.generate_video(num_episodes)
             vis_wrapper_vae.remove_images()
 

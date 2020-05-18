@@ -63,10 +63,23 @@ class GlobalPlanner():
 
         return route
     
+    def compute_distances_between_waypoints(self, current_plan):
+        modified_plan = []
+        last_waypoint = current_plan[-1][0]
+        dist = 0
+        for elem in reversed(current_plan):
+            waypoint, unk = elem
+            dist += last_waypoint.transform.location.distance(waypoint.transform.location)
+            modified_plan.append((waypoint, unk, dist))
+            last_waypoint = waypoint
+        modified_plan.reverse()
+        return modified_plan
+
     def set_global_plan(self, current_plan):
         self._waypoints_queue.clear()
         prev_wp = None
-        for elem in current_plan:
+        modified_plan = self.compute_distances_between_waypoints(current_plan)
+        for elem in modified_plan:
             # self.printwaypoint(elem[0])
             if not self.sameWaypoint(elem[0], prev_wp):
                 # print("Added wp")
@@ -188,7 +201,7 @@ class GlobalPlanner():
         num_next_waypoints = 5
         max_index = -1
         min_dist = np.inf
-        for i, (waypoint, _) in enumerate(self._waypoints_queue):
+        for i, (waypoint, _, dist) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
             # print("i:{0}, dist : {1}".format(i, dist_i)) 
@@ -198,14 +211,14 @@ class GlobalPlanner():
         q_len = len(self._waypoints_queue)
         if max_index >= 0:
             for i in range(max_index + 1):
-                waypoint, _ = self._waypoints_queue.popleft()
+                waypoint, _, dist= self._waypoints_queue.popleft()
 
                 if i == q_len - 1:
                     self.last_waypoint = waypoint
                 elif i == q_len - 2:
                     self.second_last_waypoint = waypoint
 
-        for i, (waypoint, _) in enumerate(self._waypoints_queue):
+        for i, (waypoint, _, dist) in enumerate(self._waypoints_queue):
             if i > num_next_waypoints - 1:
                 break
             dist_to_waypoint = distance_vehicle(waypoint, vehicle_transform)
@@ -214,6 +227,7 @@ class GlobalPlanner():
             if len(next_waypoints_angles) == 0:
                 next_waypoints_angles = [angle]
                 next_waypoints = [waypoint]
+                dist_to_goal = dist
             else:
                 next_waypoints_angles.append(angle)
                 next_waypoints.append(waypoint)
@@ -259,6 +273,7 @@ class GlobalPlanner():
             angle = np.mean(next_waypoints_angles_array)
         else:
             print("No next waypoint found!")
+            dist_to_goal = 0
             angle = 0
 
         if len(next_waypoints) > 1:
@@ -281,7 +296,9 @@ class GlobalPlanner():
                                     vehicle_transform,
                                     self.second_last_waypoint,
                                     self.last_waypoint)
-        return angle, self.dist_to_trajectory
+        # TODO: Find the exact distance to goal. Below is an approximation
+        dist_to_goal_approx = len(self._waypoints_queue) * self._hop_resolution
+        return angle, self.dist_to_trajectory, dist_to_goal, next_waypoints
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
 
@@ -312,7 +329,8 @@ class GlobalPlanner():
     def getPointToLineDistanceHelper(self, point, point1_on_line, point2_on_line):
         a_vec = point2_on_line - point1_on_line
         b_vec = point - point1_on_line
-        return np.linalg.norm(np.cross(a_vec, b_vec) / np.linalg.norm(a_vec))
+        # returning signed distance
+        return np.cross(a_vec, b_vec) / np.linalg.norm(a_vec)
 
     def printwaypoint(self, waypoint):
         print("x:{}, y:{}".format(waypoint.transform.location.x, waypoint.transform.location.y))

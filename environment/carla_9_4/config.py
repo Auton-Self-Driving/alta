@@ -7,7 +7,7 @@ if CARLA_9_4_PATH == None:
     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
 
 try:
-    sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
@@ -23,8 +23,8 @@ DEFAULT_ENV = {
     "render_res_x" : 800,
     # Y Rendering Resolution
     "render_res_y" : 800,
-    "sensor_x_res" : '800',
-    "sensor_y_res" : '800',
+    "sensor_x_res" : '128',
+    "sensor_y_res" : '128',
     # Input X Res (Default set to Atari)
     "x_res": 84,
     # Input Y Res (Default set to Atari)
@@ -49,6 +49,7 @@ DEFAULT_ENV = {
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
+    "disable_two_wheeler" : False,
     "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
@@ -61,7 +62,7 @@ DEFAULT_ENV = {
     "sensor_tick": '0.0',
     "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
-    "max_static_steps" : 500,
+    "max_static_steps" : 1000,
     "log_measurements_to_file": False,
     "train_config": None,
     "sync_mode": True,
@@ -70,7 +71,7 @@ DEFAULT_ENV = {
     "scenarios" : "straight",
     "semantic" : False,
     "client_timeout_seconds" : 600,
-    "enable_lane_invasion_sensor" : False,
+    "enable_lane_invasion_sensor" : True,
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
@@ -78,8 +79,54 @@ DEFAULT_ENV = {
     "input_type": None,
     "use_scenarios": True,
     "num_npc" : 0,
+    "num_npc_lower_threshold" : 70,
+    "num_npc_upper_threshold" : 150,
     "train_vae" : False,
-    "noise_dim" : 1
+    "noise_dim" : 1,
+    "const_collision_penalty": 0,
+    "collision_penalty_speed_coeff": 0,
+    "const_light_penalty": 0,
+    "light_penalty_speed_coeff": 0,
+    "terminate_on_light" : True,
+    "enable_brake": True,
+    "log_freq": 1,
+    "zero_speed_threshold": 0.05, 
+    "videos" : False,
+    "obstacle_dist_norm" : 60,
+    "spawn_points_fixed_idx" : [ 54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
+       246, 128, 106, 143,  39,  72, 176, 140, 138,  91,  88, 241,  29,
+        28, 238, 119, 221, 163,  81,  47, 255, 235,  64, 216, 151, 145,
+        77,  35,  56,  68,  49, 154, 149, 201,  27, 212, 195, 230, 157,
+         3,   5,  20, 193,   6,  90,  18,  13, 139,  44, 122, 220, 125,
+       115,  43,   4, 213,  30,  62, 242, 219, 171,  41, 203,  57, 248,
+       204, 226, 245, 135, 164, 153,  14, 188,   7, 123, 117, 222, 183,
+       152, 150, 185, 224,  19, 104, 111,  82,  79,   0,  33,  38, 146,
+        10, 173, 239,  32, 228, 209, 243, 200, 215, 236,  34,  84,  51,
+        73,  53, 170, 217, 237, 102, 156,  45, 253,  37, 210, 118,  86,
+        74,  61, 165, 179, 202, 101,  36, 132, 168, 137, 126, 178,  24,
+         1, 247, 107,  93, 148,  50,  98,  87, 133, 162,   2, 214, 124,
+       112, 211,  75, 121, 191, 113, 141,  26, 231, 174,  76, 207, 109,
+       244, 129, 103,  52,  42,  55, 180,  89, 181,  69,  48,  21,  16,
+       198,  66,  70, 130, 114,  15, 134,  40, 227, 223,  67,  78, 159,
+       252, 147,  17, 166,  11, 131, 161, 105, 167,  95, 172, 233, 251,
+       194,  60,  80, 182,  97,  59, 197,  25, 186, 136, 160, 120, 158,
+       189, 192, 190, 187, 142, 232,   9, 127, 206, 169,  23, 208,  94,
+       218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
+       225,  31, 229, 250, 110, 177, 199, 184, 144],
+    "test_fixed_spawn_points" : True,
+    "train_fixed_spawn_points": False,
+    "testing" : False,
+    "disable_collision" : False,
+    "enable_static" : False,
+    "use_pid_in_frame_skip" : True,
+    "enable_lane_invasion_collision" : True,
+    "frame_stack_size" : 1,
+    "num_episodes" : 1,
+    "proximity_threshold" : 15,
+    "min_dist_from_red_light" : 6,
+    "default_obs_traffic_val": 1,
+    "disable_traffic_light": False,
+    "disable_obstacle_info" : False
 }
 
 episode_measurements = {
@@ -91,7 +138,8 @@ episode_measurements = {
     "num_collisions": 0,
     "num_laneintersections": 0,
     "static_steps": 0,
-    "offlane_steps": 0
+    "offlane_steps": 0,
+    "control_steer": 0
     # intersection_offroad
     # intersection_otherlane
     # next_command
@@ -216,7 +264,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_speed_tanh"
+            self.config["action_type"] = "merged_speed_scaled_tanh"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
@@ -229,6 +277,8 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
+            self.config["disable_two_wheeler"] = True
+            self.config["enable_lane_invasion_sensor"] = True
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
             self.config["reward_function"] = "simple2"
@@ -245,13 +295,10 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
-            self.config["verbose"] = False
+            self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
         elif algo == 'AE':
             self.config["algo"] = "AE"
-            self.config["x_res"] = 80
-            self.config["y_res"] = 160
-            self.config['preprocess_crop_image'] = True
             self.config["action_type"] = "control"
             self.config["use_scenarios"] = False
             self.config["semantic"] = True
@@ -259,3 +306,23 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["num_npc"] = 60
             self.config["input_type"] = "ae_train"
+            self.config["videos"] = True
+        elif algo == 'PID_TUNE':
+            self.config["algo"] = "PPO"
+            self.config["reward_function"] = "simple2"
+            self.config["discrete_actions"] = False
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "merged_speed_pid_test"
+            self.config["preprocess_crop_image"] = True
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["semantic"] = False
+            self.config["scenarios"] = "straight_dynamic"
+            self.config["videos"] = False
+            self.config["x_res"] = 80
+            self.config["y_res"] = 160
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = True
+            self.config["carla_gpu"] = "1"
+            self.config["max_static_steps"] = 20
