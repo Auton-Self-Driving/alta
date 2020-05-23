@@ -415,14 +415,14 @@ def paths_straight_Town01_test():
 def paths_straight_Town01_dynamic():
     
     paths = [
+        [
+            WAYPOINT_DICT_Town01[84],
+            WAYPOINT_DICT_Town01[40]
+        ]
         # [
         #     WAYPOINT_DICT_Town01[96],
-        #     WAYPOINT_DICT_Town01[17]
+        #     WAYPOINT_DICT_Town01[140]
         # ]
-        [
-            WAYPOINT_DICT_Town01[96],
-            WAYPOINT_DICT_Town01[140]
-        ]
     ]
     
     return paths

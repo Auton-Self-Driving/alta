@@ -245,7 +245,12 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     
     # Collision damage
     if(is_collision):
-        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+        # Using prev_speed in collision reward computation
+        # due to non-determinism in speed at the time of collision
+        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
+        speed_reward = prev["speed"]
+        # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+        
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -259,17 +264,25 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
 
-    current["step_reward"] = reward
+    # clipping reward
+    if config["clip_reward"]:
+        if reward > 0:
+            clipped_reward = 1
+        elif reward < 0:
+            clipped_reward = -1
+    else:
+        clipped_reward = reward
+    current["step_reward"] = clipped_reward
 
     if verbose:
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward)
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward)
     # Update state variables
     # if np.absolute(lane_intersection_reward) > 0:
     #     current["offlane_steps"] += 1
     if current["speed"] <= config["zero_speed_threshold"]:
         current["static_steps"] += 1
-    return reward
+    return clipped_reward
 
 def _check_if_signal_crossed(prev, current):
 

@@ -272,11 +272,7 @@ class CarlaEnv(gym.Env):
         # else:
         #     control = self.get_control(action)
 
-        # #Print actions
-        # if self.config['verbose']:
-        #     print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
-        #           "reverse", control.reverse)
-
+        
         # #Store control for this step
         # self.episode_measurements['control_steer'] = control.steer
         # self.episode_measurements['control_throttle'] = control.throttle
@@ -305,6 +301,13 @@ class CarlaEnv(gym.Env):
             if self.config["use_pid_in_frame_skip"]:
                 # compute control using PID for each timestep
                 control = self.get_control(action)
+
+                #Print actions
+                if self.config['verbose']:
+                    print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
+                  "reverse", control.reverse)
+                    print("steps", self.num_steps)
+
 
                 #Store control for this step
                 self.episode_measurements['control_steer'] = control.steer
@@ -340,7 +343,9 @@ class CarlaEnv(gym.Env):
             
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
             
-            if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or self.config['scenarios'] == 'long_straight': 
+            if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or \
+               self.config['scenarios'] == 'long_straight' or self.config["scenarios"] == "straight_dynamic" or \
+               self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
                 self._update_env_obs()
                 self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
                 self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
@@ -560,7 +565,7 @@ class CarlaEnv(gym.Env):
                     if self.config["testing"]:
                         path = self.log_dir + 'test_episode_info_plots/'
                     else:
-                        path = self.log_dir + 'val_episode_info_plots/'
+                        path = self.log_dir + 'val_episode_info_plots2/'
                     plot_episode_info(path,
                         self.target_speeds_array,
                         self.speeds_array,
@@ -578,7 +583,7 @@ class CarlaEnv(gym.Env):
 
                 if self.logger is not None:
 
-                    if not self.unseen:
+                    if not self.unseen and self.episode_num % 100 == 0:
                         self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
                         # self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
                         self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
@@ -645,6 +650,8 @@ class CarlaEnv(gym.Env):
             return obs, reward, done, self.episode_measurements
     
     def _update_obs_dist_measurements(self):
+        return
+        
         car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
         location = self.vehicle_actor.get_location()
         distance_to_car = location.distance(car_spawn_point.location)
@@ -763,7 +770,7 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
         elif self.config["scenarios"] == "straight_dynamic":
-            self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town, index)
+            self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town)
         elif self.config["scenarios"] == "left_right_curved":
             self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
         elif self.config["scenarios"] == "right_curved":
@@ -912,7 +919,14 @@ class CarlaEnv(gym.Env):
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
     def clear_episode_measurements(self):
+
+        # Below logic is to avoid clearing of following measurements,
+        # when env reset is called automatically in DummyVec env.
+        # These are used in testing logic, hence their values are required.
         for key, val in self.episode_measurements.items():
+            if key in ['termination_state_code', 'termination_state']:
+                continue
+                
             self.episode_measurements[key] = 0
     
     def _reset(self, unseen=False, index=0):
@@ -924,7 +938,17 @@ class CarlaEnv(gym.Env):
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
         self.unseen = unseen
+        
         self.index = index
+
+        # Commented below is a hacky way to test two scenarios
+        # with and without dynamic actors.
+
+        # if (not self.unseen):
+        #     # training scenario
+        #     self.index = (self.index + 1) % 2
+        # else:
+        #     self.index = index
 
         # Destroy
         self.destroy_all_existing_actors()
@@ -950,6 +974,11 @@ class CarlaEnv(gym.Env):
 
         self.vehicle_agent = Agent(self.vehicle_actor, self.config['proximity_threshold'])
 
+        # Commented below is a hacky way to test two scenarios
+        # with and without dynamic actors.
+        
+        # if self.config["num_npc"] > 0 and self.index == 1:
+        
         if self.config["num_npc"] > 0:
             self.spawn_npc(self.config["num_npc"], unseen)    
 
@@ -1023,7 +1052,9 @@ class CarlaEnv(gym.Env):
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
-        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or self.config['scenarios'] == 'long_straight': 
+        if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or \
+           self.config['scenarios'] == 'long_straight' or self.config["scenarios"] == "straight_dynamic" or \
+           self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
             self._update_env_obs()
         
 
@@ -1146,7 +1177,10 @@ class CarlaEnv(gym.Env):
             return obs
         
     def try_spawn_random_vehicle_at(self, blueprints, transform):
-        blueprint = random.choice(blueprints)
+        # blueprint = random.choice(blueprints)
+        
+        # To spawn same type of vehicle
+        blueprint = blueprints[0]
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)
             blueprint.set_attribute('color', color)
@@ -1169,8 +1203,13 @@ class CarlaEnv(gym.Env):
         
         # TODO: remove hard coded logic
         if self.config["scenarios"] == "straight_dynamic":
-            spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
-            Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
+            # vehicle spawn_points corresponding to 84, 40
+            spawn_points = [Transform(Location(x=-2.4200193881988525, y=187.97000122070312, z=1.32), Rotation(yaw=89.9996109008789)),
+                        Transform(Location(x=1.5599803924560547, y=187.9700164794922, z=1.32), Rotation(yaw=-90.00040435791016))]
+            
+            # vehicle spawn_points corresponding to 96, 140
+            # spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
+            # Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
         elif self.config["scenarios"] == "crowded":
             spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
             print('CROWDED SPAWNING: ', spawn_points)
@@ -1289,30 +1328,41 @@ class CarlaEnv(gym.Env):
 
         if success:
             termination_state = 'success'
+            termination_state_code = 0
         elif collision:
             if self.episode_measurements['obs_collision']:
                 termination_state = 'obs_collision'
+                termination_state_code = 1
             elif self.episode_measurements["out_of_road"]:
                 termination_state = 'out_of_road'
+                termination_state_code = 2
             elif self.episode_measurements['lane_change']:
                 termination_state = 'lane_invasion'
+                termination_state_code = 3
             else:
                 termination_state = 'unexpected_collision'
+                termination_state_code = 4
         elif runover_light:
             termination_state = 'runover_light'
+            termination_state_code = 5
         elif offlane:
             termination_state = 'offlane'
+            termination_state_code = 6
         elif static:
             termination_state = 'static'
+            termination_state_code = 7
         elif maxStepsTaken:
             termination_state = 'max_steps'
+            termination_state_code = 8
         else:
             termination_state = 'none'
+            termination_state_code = -1
         
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))
 
         self.episode_measurements['termination_state'] = termination_state
+        self.episode_measurements['termination_state_code'] = termination_state_code
 
         done = success or collision or runover_light or offlane or static or maxStepsTaken
         return done
@@ -1418,6 +1468,53 @@ def plot_episode_info(path,
     plt.grid(True)
     plt.savefig(path + 'episode_info_{}.png'.format(episode_num))
     plt.close()
+
+# def plot_episode_info(path,
+#                 target_speeds_array,
+#                 speeds_array,
+#                 throttles_array,
+#                 steers_array,
+#                 brakes_array,
+#                 dist_to_target_array,
+#                 step_reward_array,
+#                 collision_reward_array,
+#                 dist_to_trajectory_reward_array,
+#                 speed_reward_array,
+#                 episode_num):
+    
+#     if not os.path.exists(path):
+#         os.makedirs(path)
+    
+    
+#     target_speeds_array = np.array(target_speeds_array)
+#     speeds_array = np.array(speeds_array)
+#     throttles_array = np.array(throttles_array)
+#     steers_array = np.array(steers_array)
+#     brakes_array = np.array(brakes_array)
+#     step_reward_array = np.array(step_reward_array)
+#     collision_reward_array = np.array(collision_reward_array)
+#     dist_to_target_array = np.array(dist_to_target_array)
+#     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
+#     speed_reward_array = np.array(speed_reward_array)
+    
+#     target_speeds_array = target_speeds_array[-50:]
+#     speeds_array = speeds_array[-50:]
+
+#     observations = np.arange(len(target_speeds_array))
+#     fig, axs = plt.subplots(1, 1, figsize=(12, 12))
+#     fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
+
+#     axs.plot(observations, target_speeds_array, linestyle='-', linewidth=2, markersize=8, label='target')
+#     axs.set_xlabel('Timesteps')
+#     axs.set_ylabel('Target and Actual Speed')
+
+#     axs.plot(observations, speeds_array, linestyle='-', linewidth=2, markersize=8, label='actual')
+    
+#     axs.grid(True)
+    
+#     plt.grid(True)
+#     plt.savefig(path + 'episode_info_{}.png'.format(episode_num))
+#     plt.close()
 
 if __name__ == "__main__":
     env = CarlaEnv()

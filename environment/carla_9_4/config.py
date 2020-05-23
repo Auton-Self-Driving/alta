@@ -45,7 +45,7 @@ DEFAULT_ENV = {
     "framestack" : 1,
     "grayscale" : False,
     "num_pedestrians" : 0,
-    "max_steps" : 10000,
+    "max_steps" : 5000,
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -120,7 +120,8 @@ DEFAULT_ENV = {
     "enable_lane_invasion_collision" : True,
     "proximity_threshold" : 15,
     "min_dist_from_red_light" : 6,
-    "enable_light" : True
+    "enable_light" : True,
+    "clip_reward" : False
 }
 
 episode_measurements = {
@@ -227,8 +228,9 @@ episode_measurements = {
 
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
-    # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
-    steer = [-0.1, 0.0, 0.1]
+    steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+    # steer = [-0.1, 0.0, 0.1]
+    # steer = [0.0]
     # target_speed = [0, 10, 20]
     # target_speed = [10]
     target_speed = [0, 20]

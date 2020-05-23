@@ -51,6 +51,10 @@ def parse_arguments():
     parser.add_argument('--dqn-param-noise',dest='param_noise', action='store_true', help='Whether to enable param_noise in dqn.')
     parser.add_argument('--dqn-prioritized-replay',dest='prioritized_replay', action='store_true', help='Whether to enable prioritized replay in dqn.')
     parser.add_argument('--full-tb-log',dest='full_tensorboard_log', action='store_true', help='Whether to enable full tensorboard logging.')
+    parser.add_argument('--clip-reward',dest='clip_reward', action='store_true', help='Whether to clip reward.')
+    parser.add_argument('--train-buffer', dest='train_buffer', action='store_true', help='Train using replay buffer.')
+    parser.add_argument('--special-sample', dest='special_sample', action='store_true', help='Sample t=0, 1, 2 transitions more.')
+    parser.add_argument('--target-freq',dest='target_freq',type=int,default=2000, help='Target network update frequency.')
 
     return parser.parse_args()
 def main(args):
@@ -130,6 +134,11 @@ def create_ppo_prefix(args):
     else:
         enable_static_str = ''
 
+    if args.target_freq != 2000:
+        target_freq_str = "_target_freq_" + str(args.target_freq) + "_"
+    else:
+        target_freq_str = ''
+
     if args.ent_coef != 0.005:
         ent_coef_str = '_ent_' + str(args.ent_coef)
     else:
@@ -165,10 +174,21 @@ def create_ppo_prefix(args):
     else:
         use_pid_fs_str = ''
     
+    if args.clip_reward:
+        clip_reward_str = '_clip_reward_'
+    else:
+        clip_reward_str = ''
+    
+    
     if args.param_noise:
         param_noise_str = '_param_noise_'
     else:
         param_noise_str = ''
+    
+    if args.special_sample:
+        special_sample_str = '_special_sample_'
+    else:
+        special_sample_str = ''
     
     if args.prioritized_replay:
         prioritized_replay_str = '_prioritized_replay_'
@@ -187,6 +207,7 @@ def create_ppo_prefix(args):
         + enable_brake_str \
         + disable_collision_str \
         + enable_static_str \
+        + target_freq_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
         + const_light_penalty_str \
@@ -195,7 +216,9 @@ def create_ppo_prefix(args):
         + ent_coef_str \
         + frame_skip_str \
         + use_pid_fs_str \
+        + clip_reward_str \
         + param_noise_str \
+        + special_sample_str \
         + prioritized_replay_str \
         + n_steps_str \
         + vae \
@@ -236,6 +259,7 @@ if __name__ == '__main__':
     config.config["city_name"] = args.city_name
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
+    config.config["clip_reward"] = args.clip_reward
 
     try:
         if args.algo == "SAC":
@@ -260,10 +284,10 @@ if __name__ == '__main__':
         #     prefix = create_ppo_prefix(args)
         #     test_pid_method(args, prefix, config)
         elif args.algo == "DQN":
-            if not args.test:
-                prefix = create_ppo_prefix(args)
+            if args.test or args.train_buffer:
+                prefix = extract_prefix(args) 
             else:
-                prefix = extract_prefix(args)
+                prefix = create_ppo_prefix(args)
             run_dqn(args, prefix, config)
 
     except Exception as e:
