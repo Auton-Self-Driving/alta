@@ -121,7 +121,8 @@ DEFAULT_ENV = {
     "proximity_threshold" : 10,
     "min_dist_from_red_light" : 4,
     "enable_light" : True,
-    "clip_reward" : False
+    "clip_reward" : False,
+    "default_obs_traffic_val": 1
 }
 
 episode_measurements = {
