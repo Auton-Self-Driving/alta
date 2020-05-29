@@ -123,7 +123,8 @@ DEFAULT_ENV = {
     "enable_light" : True,
     "clip_reward" : False,
     "default_obs_traffic_val": 1,
-    "reward_normalize_factor": 1
+    "reward_normalize_factor": 1,
+    "success_reward": 0
 }
 
 episode_measurements = {

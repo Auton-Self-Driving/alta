@@ -56,6 +56,7 @@ def parse_arguments():
     parser.add_argument('--special-sample', dest='special_sample', action='store_true', help='Sample t=0, 1, 2 transitions more.')
     parser.add_argument('--target-freq',dest='target_freq',type=int,default=2000, help='Target network update frequency.')
     parser.add_argument('--reward-norm', dest='reward_norm', type=int, default=1, help='A constant factor to normalize the reward.')
+    parser.add_argument('--success-reward', dest='success_reward', type=int, default=0, help='Constant reward to add on success.')
 
     return parser.parse_args()
 def main(args):
@@ -99,6 +100,11 @@ def create_ppo_prefix(args):
         reward_norm_str = '_rew_norm_' + str(args.reward_norm)
     else:
         reward_norm_str = ""
+    
+    if args.success_reward != 0:
+        success_reward_str = '_successr_' + str(args.success_reward)
+    else:
+        success_reward_str = ""
     
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
@@ -229,6 +235,7 @@ def create_ppo_prefix(args):
         + n_steps_str \
         + vae \
         + reward_norm_str \
+        + success_reward_str \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -268,6 +275,7 @@ if __name__ == '__main__':
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
     config.config["clip_reward"] = args.clip_reward
     config.config["reward_normalize_factor"] = args.reward_norm
+    config.config["success_reward"] = args.success_reward
 
     try:
         if args.algo == "SAC":

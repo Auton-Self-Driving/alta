@@ -275,6 +275,12 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     # normalize reward
     clipped_reward = clipped_reward / config["reward_normalize_factor"]
+
+    # success reward
+    success = current["distance_to_goal"] < config["dist_for_success"]
+    if success:
+        clipped_reward += config["success_reward"]
+
     current["step_reward"] = clipped_reward
 
     if verbose:
