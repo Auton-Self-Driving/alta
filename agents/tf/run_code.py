@@ -55,6 +55,7 @@ def parse_arguments():
     parser.add_argument('--train-buffer', dest='train_buffer', action='store_true', help='Train using replay buffer.')
     parser.add_argument('--special-sample', dest='special_sample', action='store_true', help='Sample t=0, 1, 2 transitions more.')
     parser.add_argument('--target-freq',dest='target_freq',type=int,default=2000, help='Target network update frequency.')
+    parser.add_argument('--reward-norm', dest='reward_norm', type=int, default=1, help='A constant factor to normalize the reward.')
 
     return parser.parse_args()
 def main(args):
@@ -93,6 +94,11 @@ def create_ppo_prefix(args):
         buffer_size_str = '_buffer_' + str(args.buffer_size)
     else:
         buffer_size_str = ""
+
+    if args.reward_norm != 1:
+        reward_norm_str = '_rew_norm_' + str(args.reward_norm)
+    else:
+        reward_norm_str = ""
     
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
@@ -222,6 +228,7 @@ def create_ppo_prefix(args):
         + prioritized_replay_str \
         + n_steps_str \
         + vae \
+        + reward_norm_str \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -260,6 +267,7 @@ if __name__ == '__main__':
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
     config.config["clip_reward"] = args.clip_reward
+    config.config["reward_normalize_factor"] = args.reward_norm
 
     try:
         if args.algo == "SAC":

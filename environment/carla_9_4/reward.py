@@ -272,6 +272,9 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
             clipped_reward = -1
     else:
         clipped_reward = reward
+
+    # normalize reward
+    clipped_reward = clipped_reward / config["reward_normalize_factor"]
     current["step_reward"] = clipped_reward
 
     if verbose:
