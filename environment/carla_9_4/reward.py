@@ -264,6 +264,9 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
 
+    # Adding constant positive reward to make dist_to_trajectory_reward positive
+    reward += config["constant_positive_reward"]
+
     # clipping reward
     if config["clip_reward"]:
         if reward > 0:

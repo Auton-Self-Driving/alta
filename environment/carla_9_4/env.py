@@ -396,8 +396,13 @@ class CarlaEnv(gym.Env):
         #     self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
         #     self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
         
-        # Read in preprocessed image
-        sensor_image = self._read_data(world_frame)
+        # HACK: disabling camera for optimization
+        if self.unseen:
+            # Read in preprocessed image
+            sensor_image = self._read_data(world_frame)
+        else:
+            sensor_image = None
+            
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
@@ -1028,19 +1033,24 @@ class CarlaEnv(gym.Env):
         else:
             sensor = self.config['sensors'][0]
 
-        camera = self.blueprint_library.find(sensor)
-        camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # camera.set_attribute('fov', '120')
-        camera.set_attribute('fov', '90')
+        # Attach camera actor only for validation for now
+        # To reduce running time
+        # HACK: disabling camera for optimization
 
-        # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.camera_actor)
-        
-        self.camera_actor.listen(self.camera_queue.put)
+        if self.unseen:
+            camera = self.blueprint_library.find(sensor)
+            camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+            camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+            camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+            # camera.set_attribute('fov', '120')
+            camera.set_attribute('fov', '90')
+
+            # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+            camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+            self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
+            self.actor_list.append(self.camera_actor)
+            
+            self.camera_actor.listen(self.camera_queue.put)
         
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
@@ -1076,7 +1086,11 @@ class CarlaEnv(gym.Env):
         for _ in range(15):
             world_frame = self._world.tick()
 
-        image = self._read_data(world_frame)
+        # HACK: disabling camera for optimization
+        if self.unseen:
+            image = self._read_data(world_frame)
+        else:
+            image = None
 
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
