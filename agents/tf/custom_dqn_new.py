@@ -689,7 +689,7 @@ class Custom_DQN(DQN):
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
 
-                if self.exploration is not None:
+                if self.exploration is None:
                     # Create the schedule for exploration starting from 1.
                     self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
                                                     initial_p=self.exploration_initial_eps,

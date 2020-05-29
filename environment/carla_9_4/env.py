@@ -402,7 +402,7 @@ class CarlaEnv(gym.Env):
             sensor_image = self._read_data(world_frame)
         else:
             sensor_image = None
-            
+
         if self.config["input_type"] == 'vae' or self.config["input_type"] == 'wp_vae':
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
@@ -1207,7 +1207,7 @@ class CarlaEnv(gym.Env):
             speed = self.episode_measurements['speed'] / 10
             obstacle_dist = self.episode_measurements['obstacle_dist']
             obstacle_speed = self.episode_measurements['obstacle_speed']
-            steer = self.episode_measurements['control_steer']
+            steer = 0.0
             ldist = self.dist_to_trajectory
             light = self.episode_measurements['red_light_dist']
             # normalization
