@@ -988,11 +988,11 @@ class CarlaEnv(gym.Env):
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
 
-        # if (not self.unseen):
-        #     # training scenario
-        #     self.index = (self.index + 1) % 2
-        # else:
-        #     self.index = index
+        if (not self.unseen):
+            # training scenario
+            self.index = (self.index + 1) % 2
+        else:
+            self.index = index
 
         # Destroy
         self.destroy_all_existing_actors()

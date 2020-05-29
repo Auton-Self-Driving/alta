@@ -264,10 +264,11 @@ class Custom_DQN(DQN):
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
 
-                # Create the schedule for exploration starting from 1.
-                self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
-                                                initial_p=self.exploration_initial_eps,
-                                                final_p=self.exploration_final_eps)
+                if self.exploration is not None:
+                    # Create the schedule for exploration starting from 1.
+                    self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
+                                                    initial_p=self.exploration_initial_eps,
+                                                    final_p=self.exploration_final_eps)
 
                 episode_rewards = [0.0]
                 episode_successes = []
@@ -283,12 +284,14 @@ class Custom_DQN(DQN):
                             break
                     
                     # Custom: model test and save logic
-                    MODEL_SAVE_FREQ = 10000
+                    MODEL_TEST_FREQ = 40000
+                    MODEL_SAVE_FREQ = 500000
+
+                    # save less frequently than testing
                     if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        
-                        # save less frequently than testing
-                        if (self.num_timesteps % (MODEL_SAVE_FREQ * 50)) == 0:
-                            self.save(save_file + str(self.num_timesteps))
+                        self.save(save_file + str(self.num_timesteps))
+
+                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
                         total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
                         total_rewards.append(total_reward)
@@ -466,10 +469,11 @@ class Custom_DQN(DQN):
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
 
-                # Create the schedule for exploration starting from 1.
-                self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
-                                                initial_p=self.exploration_initial_eps,
-                                                final_p=self.exploration_final_eps)
+                if self.exploration is not None:
+                    # Create the schedule for exploration starting from 1.
+                    self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
+                                                    initial_p=self.exploration_initial_eps,
+                                                    final_p=self.exploration_final_eps)
 
                 episode_rewards = [0.0]
                 episode_successes = []
@@ -488,12 +492,14 @@ class Custom_DQN(DQN):
                             break
                     
                     # Custom: model test and save logic
-                    MODEL_SAVE_FREQ = 10000
+                    MODEL_TEST_FREQ = 40000
+                    MODEL_SAVE_FREQ = 500000
+
+                    # save less frequently than testing
                     if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        
-                        # save less frequently than testing
-                        if (self.num_timesteps % (MODEL_SAVE_FREQ * 50)) == 0:
-                            self.save(save_file + str(self.num_timesteps))
+                        self.save(save_file + str(self.num_timesteps))
+
+                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
                         total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
                         total_rewards.append(total_reward)
@@ -683,10 +689,11 @@ class Custom_DQN(DQN):
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
 
-                # Create the schedule for exploration starting from 1.
-                self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
-                                                initial_p=self.exploration_initial_eps,
-                                                final_p=self.exploration_final_eps)
+                if self.exploration is not None:
+                    # Create the schedule for exploration starting from 1.
+                    self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
+                                                    initial_p=self.exploration_initial_eps,
+                                                    final_p=self.exploration_final_eps)
 
                 episode_rewards = [0.0]
                 episode_successes = []
@@ -705,13 +712,15 @@ class Custom_DQN(DQN):
                             break
                     
                     # Custom: model test and save logic
-                    MODEL_SAVE_FREQ = 10000
+                    MODEL_TEST_FREQ = 40000
+                    MODEL_SAVE_FREQ = 500000
+
+                    # save less frequently than testing
                     if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        
-                        # save less frequently than testing
-                        if (self.num_timesteps % (MODEL_SAVE_FREQ * 50)) == 0:
-                            self.save(save_file + str(self.num_timesteps))
-                        
+                        self.save(save_file + str(self.num_timesteps))
+
+                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
+                    
                         total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
@@ -943,7 +952,8 @@ class Custom_DQN(DQN):
             "seed": self.seed,
             "_vectorize_action": self._vectorize_action,
             "policy_kwargs": self.policy_kwargs,
-            "replay_buffer" : self.replay_buffer
+            "replay_buffer": self.replay_buffer,
+            "exploration": self.exploration
         }
 
         # np.savez(save_path + '_buffer', replay_buffer=np.array(self.replay_buffer._storage))
@@ -978,12 +988,14 @@ class Custom_DQN(DQN):
                 for _ in range(total_timesteps):
                     
                     # Custom: model test and save logic
-                    MODEL_SAVE_FREQ = 1000
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        
-                        # save less frequently than testing
-                        # if self.num_timesteps > 0 and (self.num_timesteps % MODEL_SAVE_FREQ * 5) == 0:
-                        #     self.save(save_file + str(self.num_timesteps))
+                    MODEL_TEST_FREQ = 40000
+                    MODEL_SAVE_FREQ = 500000
+
+                    # save less frequently than testing
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save(save_file + str(self.num_timesteps))
+
+                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
                         total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
                         total_rewards.append(total_reward)
