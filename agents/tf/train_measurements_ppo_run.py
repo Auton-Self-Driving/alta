@@ -23,6 +23,18 @@ from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
+def find_ext_format(MODEL_PATH):
+    ext = None
+    for fname in os.listdir(MODEL_PATH):
+        if fname.endswith('.pkl'):
+            ext = '.pkl'
+        elif fname.endswith('.zip'):
+            ext = '.zip'
+        
+        if ext is not None:
+            break
+    return ext
+
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
     # config.config['LOG_DIR'] = ALTA_LOGS
@@ -56,16 +68,15 @@ def run_ppo(args, prefix, config):
     
     steps = args.timesteps
     
-    def get_latest_model(log_dir=MODEL_PATH, ext='*.pkl', sep='_'):
-        print(os.path.join(log_dir, ext))
+    def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
         list_of_files = glob.glob(os.path.join(log_dir, ext))
         latest_file = max(list_of_files, key=os.path.getctime)
         latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
         ind = int(latest_file.split(sep)[1])
         return ind, latest_file
 
-    def get_completed_episodes(log_dir=ALTA_LOGS, ext='*.pkl', sep1='_step_', sep2='_ind_'):
-        list_of_files = glob.glob(log_dir + ext)
+    def get_completed_episodes(log_dir=ALTA_LOGS, ext='*.zip', sep1='_step_', sep2='_ind_'):
+        list_of_files = glob.glob(os.path.join(log_dir, ext))
         latest_file = max(list_of_files, key=os.path.getctime)
         latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
         ind = int(latest_file.split(sep1)[1].split(sep2)[0])
@@ -76,7 +87,7 @@ def run_ppo(args, prefix, config):
         try:
             # Create the environment
             logger = tf_log.Logger(TB_LOGS_DIR)
-            # if os.path.exists(SAVE_PATH + ".pkl"):
+            # if os.path.exists(SAVE_PATH + ".zip"):
             #     print("Best model exists, Validating !!!!")
             if args.test:
                 print('Testing Begins')
@@ -158,12 +169,13 @@ def run_ppo(args, prefix, config):
                 rewards = []
                 successes = []
                 updates = []
-                model_files = [os.path.join(ALTA_LOGS, model) for model in os.listdir(ALTA_LOGS) if model.endswith('.pkl')]
+                ext = find_ext_format(MODEL_PATH)
+                model_files = [os.path.join(ALTA_LOGS, model) for model in os.listdir(ALTA_LOGS) if model.endswith(ext)]
                 model_files = sorted(model_files, key=os.path.getctime)
 
                 update = 0
                 for model_file in model_files[:-1]:
-                    model = PPO.load(model_file, dummy_env)
+                    model = PPO.load(model_file, dummy_env, seed=seed)
                     total_reward, success_episodes, results = test(model, env)
                     print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
                     rewards.append(total_reward)
@@ -198,30 +210,35 @@ def run_ppo(args, prefix, config):
                     print("exiting")
                     return
                 
-                model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
-                        tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
-                if any(fname.endswith('.pkl') for fname in os.listdir(MODEL_PATH)):
+                if any(fname.endswith('.pkl') or fname.endswith('.zip') for fname in os.listdir(MODEL_PATH)):
+                    ext = find_ext_format(MODEL_PATH)
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
                     print("Using the pre-initialized seed: {}".format(seed))
                     set_global_seeds(seed)
-                    completed_steps, latest_model = get_latest_model(log_dir=MODEL_PATH, ext='*[0-9].pkl', sep='hts')
+                    completed_steps, latest_model = get_latest_model(log_dir=MODEL_PATH, ext='*[0-9]' + ext, sep='hts')
                     env.total_steps = completed_steps
                     completed_episodes, _ = get_completed_episodes(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep1='_TrainEp_', sep2='_step_')
                     env.episode_num = completed_episodes
                     print(env.total_steps, env.episode_num)
                     print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
-                    model = PPO.load(latest_model, dummy_env)
+                    model = PPO.load(latest_model, dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
-                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, seed=seed, policy_plots=False)
+                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False)
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
                     print(millis)
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
-                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, seed=millis, policy_plots=False)
+                    if args.agent_model_path is None:
+                        model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
+                    else:
+                        model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
+                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False)
                 
                 best_model.save(SAVE_PATH)
             break

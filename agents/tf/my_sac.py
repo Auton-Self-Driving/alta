@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from stable_baselines import SAC
 from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
+from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.deepq.replay_buffer import ReplayBuffer
