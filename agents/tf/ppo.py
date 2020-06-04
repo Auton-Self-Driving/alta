@@ -488,6 +488,29 @@ class PPO(PPO2):
                         break
             return get_best_model(env, total_rewards, total_successes, model_file_names, save_file.split('models')[0])
         
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions, _, states, _, _, _ = self.step(observation, state, mask, deterministic=deterministic)
+
+        clipped_actions = actions
+        # Clip the actions to avoid out of bound error
+        if isinstance(self.action_space, gym.spaces.Box):
+            clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            clipped_actions = clipped_actions[0]
+
+        return clipped_actions, states
+
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
