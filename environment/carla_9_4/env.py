@@ -1021,9 +1021,8 @@ class CarlaEnv(gym.Env):
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
         
-        # if self.config["num_npc"] > 0 and self.index == 1:
-        
-        if self.config["num_npc"] > 0:
+        if self.config["num_npc"] > 0 and (self.index % 2 == 1):
+        # if self.config["num_npc"] > 0:
             self.spawn_npc(self.config["num_npc"], unseen)    
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
@@ -1402,6 +1401,10 @@ class CarlaEnv(gym.Env):
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
 
+        # Conditions to check there is obstacle or red light ahead for last 2 timesteps
+        obstacle_ahead = self.episode_measurements['obstacle_dist'] != -1 and self.prev_measurement['obstacle_dist'] != -1
+        red_light = self.episode_measurements['red_light_dist'] != -1 and self.prev_measurement['red_light_dist'] != -1
+
         if not self.config["enable_static"]:
             static = False
         if self.config["disable_collision"]:
@@ -1442,8 +1445,15 @@ class CarlaEnv(gym.Env):
             termination_state = 'static'
             termination_state_code = 7
         elif maxStepsTaken:
-            termination_state = 'max_steps'
-            termination_state_code = 8
+            if obstacle_ahead or red_light:
+                termination_state = 'max_steps_obstacle'
+                termination_state_code = 8
+            elif red_light:
+                termination_state = 'max_steps_light'
+                termination_state_code = 9
+            else:
+                termination_state = 'max_steps'
+                termination_state_code = 10
         else:
             termination_state = 'none'
             termination_state_code = -1

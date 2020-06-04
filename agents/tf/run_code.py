@@ -57,6 +57,8 @@ def parse_arguments():
     parser.add_argument('--target-freq',dest='target_freq',type=int,default=2000, help='Target network update frequency.')
     parser.add_argument('--reward-norm', dest='reward_norm', type=int, default=1, help='A constant factor to normalize the reward.')
     parser.add_argument('--success-reward', dest='success_reward', type=int, default=0, help='Constant reward to add on success.')
+    parser.add_argument('--dqn-n-step',dest='dqn_n_step',type=int,default=1, help='n in n-step DQN. n=1 corresponds to standard DQN.')
+    parser.add_argument('--constant-reward', dest='constant_reward', type=int, default=0, help='Constant reward to add on each time step.')
 
     return parser.parse_args()
 def main(args):
@@ -105,6 +107,11 @@ def create_ppo_prefix(args):
         success_reward_str = '_successr_' + str(args.success_reward)
     else:
         success_reward_str = ""
+
+    if args.constant_reward != 0:
+        constant_reward_str = '_constantr_' + str(args.constant_reward)
+    else:
+        constant_reward_str = ""
     
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
@@ -171,6 +178,11 @@ def create_ppo_prefix(args):
     else:
         n_steps_str = ''
     
+    if args.dqn_n_step != 1:
+        dqn_n_step_str = '_dqn_n_' + str(args.dqn_n_step)
+    else:
+        dqn_n_step_str = ''
+
     if args.agent_model_path is not None:
         use_pretrained_agent_str = '_pretrained_agent_'
     else:
@@ -233,9 +245,11 @@ def create_ppo_prefix(args):
         + special_sample_str \
         + prioritized_replay_str \
         + n_steps_str \
+        + dqn_n_step_str \
         + vae \
         + reward_norm_str \
         + success_reward_str \
+        + constant_reward_str \
         + '_runid_' + args.run_id + '/'
 
     return prefix
@@ -276,6 +290,7 @@ if __name__ == '__main__':
     config.config["clip_reward"] = args.clip_reward
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward
+    config.config["constant_positive_reward"] = args.constant_reward
 
     try:
         if args.algo == "SAC":

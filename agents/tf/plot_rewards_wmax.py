@@ -11,8 +11,10 @@ import statistics
 font = {'size' : 36}
 matplotlib.rc('font', **font)
 
-log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1_spl_sample_train2/longst_steer_throttle_1/"
-run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample_"
+log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_lst_spl_sample_train2_fs5_improvements/long_st_steer3_throttle_2/"
+run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_light_network_1_layer_lr_8e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample__rew_norm_8_successr_80"
+# log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1_spl_sample_train2/longst_steer_throttle_1/"
+# run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample_"
 
 # log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1/longst_steer_throttle_3/"
 # run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_"
@@ -34,7 +36,7 @@ def get_data_from_file(indexes):
     new_success = {}
     for j in indexes:
         try:
-            file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_learn_with_buffer.csv")
+            file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results.csv")
             # file_name = os.path.join(log_path, "{}_runid_{}".format(run_path, j), "buffer_training/test_results_learn_with_buffer.csv")
             # import pdb
             # pdb.set_trace()
@@ -43,7 +45,8 @@ def get_data_from_file(indexes):
                 lines = [line for line in f.readlines()]
                 arr1 = np.array([line.strip().split(',') for line in lines])
 
-                reward = np.array([float(x[1:-1]) for x in arr1[:,2]])
+                # reward = np.array([float(x[1:-1]) for x in arr1[:,2]])
+                reward = np.array([float(x) for x in arr1[:,2]])
                 # data = genfromtxt(file_name, delimiter=',')
 
                 # timestep = data[:, 0]
@@ -106,7 +109,7 @@ def plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_re
     plt.fill_between(timesteps, min_reward, max_reward, color='mistyrose')
 
     axes = plt.gca()
-    axes.set_ylim(bottom=-5000)
+    # axes.set_ylim(bottom=-5000)
     # plt.legend(loc='lower right', prop={'size' : 36})
     plt.title("St Road with dynamic actors (Single scenario) W Max")
     plt.xlabel('Timesteps (in M)', fontdict={'size' : 36})
