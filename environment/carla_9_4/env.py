@@ -273,6 +273,8 @@ class CarlaEnv(gym.Env):
             # normalization
             if light != self.config['default_obs_traffic_val']:
                 light /= self.config['proximity_threshold']
+            else:
+                light = -1 * self.config['default_obs_traffic_val']
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([light])))
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
             speed = self.episode_measurements['speed'] / 10
@@ -285,12 +287,18 @@ class CarlaEnv(gym.Env):
             # normalization
             if obstacle_dist != self.config['default_obs_traffic_val']:
                 obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+            else:
+                obstacle_dist = -1 * self.config['default_obs_traffic_val']
 
             if obstacle_speed != self.config['default_obs_traffic_val']:
                 obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = -1 * self.config['default_obs_traffic_val']
 
             if light != self.config['default_obs_traffic_val']:
                 light /= self.config['proximity_threshold']
+            else:
+                light = -1 * self.config['default_obs_traffic_val']
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
         elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
             speed = self.episode_measurements['speed'] / 10
@@ -306,6 +314,8 @@ class CarlaEnv(gym.Env):
             # normalization
             if light != self.config['default_obs_traffic_val']:
                 light /= self.config['proximity_threshold']
+            else:
+                light = -1 * self.config['default_obs_traffic_val']
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
     def step(self, action):

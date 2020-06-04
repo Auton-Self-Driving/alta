@@ -124,7 +124,7 @@ DEFAULT_ENV = {
     "num_episodes" : 1,
     "proximity_threshold" : 15,
     "min_dist_from_red_light" : 6,
-    "default_obs_traffic_val": 1,
+    "default_obs_traffic_val": -1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False
 }

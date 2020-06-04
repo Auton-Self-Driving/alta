@@ -104,10 +104,10 @@ def plot_policy_and_value_fns(model, ind, path):
 
     for i in range(observations.shape[0]):
         obs = observations[np.newaxis, i, :]
-        act, value, _, _, _, _ = model.step(obs, deterministic=True)
+        act, value, _, _, _, _ = model.predict(obs, deterministic=True)
         act[0, 1] = (act[0, 1] + 1) * 10.0
         det_actions.append(act)
-        act, _, _, _, logstd, _ = model.step(obs, deterministic=False)
+        act, _, _, _, logstd, _ = model.predict(obs, deterministic=False)
         act[0, 1] = (act[0, 1] + 1) * 10.0
         stoch_actions.append(act)
         var_actions.append(logstd)
@@ -278,7 +278,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
         reward = 0
         
         while not done:
-            actions = model.step(obs, deterministic=True)[0]
+            actions = model.predict(obs, deterministic=True)[0]
             info = env.step(actions)
             reward += info[1][0][0]
             done = info[2]
