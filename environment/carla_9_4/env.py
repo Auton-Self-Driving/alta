@@ -1456,7 +1456,7 @@ class CarlaEnv(gym.Env):
                 termination_state_code = 10
         else:
             termination_state = 'none'
-            termination_state_code = -1
+            termination_state_code = 11
         
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))

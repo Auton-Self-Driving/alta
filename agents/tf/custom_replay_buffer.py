@@ -11,9 +11,9 @@ class Custom_ReplayBuffer(ReplayBuffer):
     def __init__(self, size):
         super(Custom_ReplayBuffer, self).__init__(size)
         self._done_idx = []
-        self._num_termination_states = 9
+        self._num_termination_states = 12
         self._termination_state_idx = [[] for i in range(self._num_termination_states)]
-        self._max_time_to_termination = 5
+        self._max_time_to_termination = 3
         self._time_to_termination_idx = [[] for i in range(self._max_time_to_termination)]
 
     # def __init__(self, size, storage, next_idx):
