@@ -48,7 +48,7 @@ def test(model, env, model_step, path=None):
     e_unknown = 0
     results = {}
     total_reward = 0
-    for ind in range(4):
+    for ind in range(6):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False

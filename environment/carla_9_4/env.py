@@ -458,7 +458,7 @@ class CarlaEnv(gym.Env):
             obstacle_speed = self.episode_measurements['obstacle_speed']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -479,7 +479,7 @@ class CarlaEnv(gym.Env):
             light = self.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -489,7 +489,7 @@ class CarlaEnv(gym.Env):
                 obstacle_speed = self.config['default_obs_traffic_val']
 
             if light != -1:
-                light /= self.config['proximity_threshold']
+                light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
@@ -503,7 +503,7 @@ class CarlaEnv(gym.Env):
             light = self.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -513,7 +513,7 @@ class CarlaEnv(gym.Env):
                 obstacle_speed = self.config['default_obs_traffic_val']
 
             if light != -1:
-                light /= self.config['proximity_threshold']
+                light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
@@ -734,7 +734,7 @@ class CarlaEnv(gym.Env):
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
             d_bool, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
-                                        self.config['proximity_threshold'])
+                                        self.config['vehicle_proximity_threshold'])
 
             if not d_bool:
                 continue
@@ -1016,7 +1016,9 @@ class CarlaEnv(gym.Env):
         self.actor_list.append(self.vehicle_actor)
         self.location = self.vehicle_actor.get_location()
 
-        self.vehicle_agent = Agent(self.vehicle_actor, self.config['proximity_threshold'])
+        # Agent uses proximity_threshold to detect traffic lights.
+        # Hence we use traffic_light_proximity_threshold while creating an Agent.
+        self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
 
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
@@ -1167,7 +1169,7 @@ class CarlaEnv(gym.Env):
 
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -1187,7 +1189,7 @@ class CarlaEnv(gym.Env):
             light = self.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -1197,7 +1199,7 @@ class CarlaEnv(gym.Env):
                 obstacle_speed = self.config['default_obs_traffic_val']
 
             if light != -1:
-                light /= self.config['proximity_threshold']
+                light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
@@ -1211,7 +1213,7 @@ class CarlaEnv(gym.Env):
             light = self.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -1221,7 +1223,7 @@ class CarlaEnv(gym.Env):
                 obstacle_speed = self.config['default_obs_traffic_val']
 
             if light != -1:
-                light /= self.config['proximity_threshold']
+                light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
