@@ -7,11 +7,12 @@ from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
+from train_measurements_dqn_run import run_dqn
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
-    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
+    parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or DQN or PID_TUNE')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
@@ -55,6 +56,17 @@ def parse_arguments():
     parser.add_argument('--disable-pid-fs',dest='disable_pid_fs', action='store_true', help='Disable using pid within each frameskip. (Default way is to use pid within frameskip)')
     parser.add_argument('--fstack',dest='frame_stack',type=int,default=1, help='Input frame stack size (default:1)')
     parser.add_argument('--verbose', dest='verbose', action='store_true', help='Enable verbose mode')
+    parser.add_argument('--dqn-param-noise',dest='param_noise', action='store_true', help='Whether to enable param_noise in dqn.')
+    parser.add_argument('--dqn-prioritized-replay',dest='prioritized_replay', action='store_true', help='Whether to enable prioritized replay in dqn.')
+    parser.add_argument('--full-tb-log',dest='full_tensorboard_log', action='store_true', help='Whether to enable full tensorboard logging.')
+    parser.add_argument('--clip-reward',dest='clip_reward', action='store_true', help='Whether to clip reward.')
+    parser.add_argument('--train-buffer', dest='train_buffer', action='store_true', help='Train using replay buffer.')
+    parser.add_argument('--special-sample', dest='special_sample', action='store_true', help='Sample t=0, 1, 2 transitions more.')
+    parser.add_argument('--target-freq',dest='target_freq',type=int,default=2000, help='Target network update frequency.')
+    parser.add_argument('--reward-norm', dest='reward_norm', type=int, default=1, help='A constant factor to normalize the reward.')
+    parser.add_argument('--success-reward', dest='success_reward', type=int, default=0, help='Constant reward to add on success.')
+    parser.add_argument('--dqn-n-step',dest='dqn_n_step',type=int,default=1, help='n in n-step DQN. n=1 corresponds to standard DQN.')
+    parser.add_argument('--constant-reward', dest='constant_reward', type=int, default=0, help='Constant reward to add on each time step.')
 
     return parser.parse_args()
 def main(args):
@@ -89,6 +101,26 @@ def create_ppo_prefix(args):
     else:
         num_npc_str = ""
 
+    if args.buffer_size != 0:
+        buffer_size_str = '_buffer_' + str(args.buffer_size)
+    else:
+        buffer_size_str = ""
+
+    if args.reward_norm != 1:
+        reward_norm_str = '_rew_norm_' + str(args.reward_norm)
+    else:
+        reward_norm_str = ""
+    
+    if args.success_reward != 0:
+        success_reward_str = '_successr_' + str(args.success_reward)
+    else:
+        success_reward_str = ""
+
+    if args.constant_reward != 0:
+        constant_reward_str = '_constantr_' + str(args.constant_reward)
+    else:
+        constant_reward_str = ""
+    
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
     else:
@@ -108,6 +140,11 @@ def create_ppo_prefix(args):
         light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
     else:
         light_penalty_speed_coeff_str = ""
+
+    if args.steer_penalty_coeff != 0:
+        steer_penalty_coeff_str = '_steer_pen_' + str(args.steer_penalty_coeff)
+    else:
+        steer_penalty_coeff_str = ""
 
     # if args.enable_brake != False:
     #     enable_brake_str = '_brake'
@@ -134,6 +171,11 @@ def create_ppo_prefix(args):
     else:
         enable_static_str = ''
 
+    if args.target_freq != 2000:
+        target_freq_str = "_target_freq_" + str(args.target_freq) + "_"
+    else:
+        target_freq_str = ''
+
     if args.ent_coef != 0.005:
         ent_coef_str = '_ent_' + str(args.ent_coef)
     else:
@@ -158,6 +200,11 @@ def create_ppo_prefix(args):
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
+    
+    if args.dqn_n_step != 1:
+        dqn_n_step_str = '_dqn_n_' + str(args.dqn_n_step)
+    else:
+        dqn_n_step_str = ''
 
     if args.agent_model_path is not None:
         use_pretrained_agent_str = '_pretrained_agent_'
@@ -169,10 +216,33 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
+    if args.clip_reward:
+        clip_reward_str = '_clip_reward_'
+    else:
+        clip_reward_str = ''
+    
+    
+    if args.param_noise:
+        param_noise_str = '_param_noise_'
+    else:
+        param_noise_str = ''
+    
+    if args.special_sample:
+        special_sample_str = '_special_sample_'
+    else:
+        special_sample_str = ''
+    
+    if args.prioritized_replay:
+        prioritized_replay_str = '_prioritized_replay_'
+    else:
+        prioritized_replay_str = ''
+
+
     if args.disable_pid_fs:
         disable_pid_fs_str = '_disable_pid_fs_'
     else:
         disable_pid_fs_str = ''
+
     noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
     clip_str = '_clip_{}_'.format(args.clip)
     no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
@@ -181,38 +251,50 @@ def create_ppo_prefix(args):
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
-        + noptepochs_str \
-        + clip_str \
-        + no_minibatches_str \
         + ae_lr_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
         + num_npc_str \
+        + buffer_size_str \
         + disable_collision_str \
         + disable_traffic_light_str \
         + disable_obstacle_info_str \
         + enable_static_str \
+        + target_freq_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
         + const_light_penalty_str \
         + light_penalty_speed_coeff_str \
+        + steer_penalty_coeff_str \
         + ent_coef_str \
         + frame_skip_str \
         + frame_stack_str \
         + disable_pid_fs_str \
+        + clip_reward_str \
+        + param_noise_str \
+        + special_sample_str \
+        + prioritized_replay_str \
         + n_steps_str \
+        + dqn_n_step_str \
         + vae \
-        + '_runid_' + args.run_id + '/'
+        + reward_norm_str \
+        + success_reward_str \
+        + constant_reward_str \
 
+    if args.algo == "PPO":
+        prefix = prefix + noptepochs_str \
+        + clip_str \
+        + no_minibatches_str \
+
+
+    prefix = prefix + '_runid_' + args.run_id + '/'
     return prefix
 
 def extract_prefix(args):
-    prefix = "/".join(args.agent_model_path.split('/')[:-2])
+    prefix = args.agent_model_path.split('/')[-2]
     return prefix
 
 if __name__ == '__main__':
-    # import pdb
-    # pdb.set_trace()
     args = main(sys.argv)
     print("args", args)
 
@@ -245,6 +327,10 @@ if __name__ == '__main__':
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = not args.disable_pid_fs
     config.config["verbose"] = args.verbose
+    config.config["clip_reward"] = args.clip_reward
+    config.config["reward_normalize_factor"] = args.reward_norm
+    config.config["success_reward"] = args.success_reward
+    config.config["constant_positive_reward"] = args.constant_reward
 
     try:
         if args.algo == "SAC":
@@ -268,5 +354,12 @@ if __name__ == '__main__':
         elif args.algo == "PID_TUNE":
             prefix = create_ppo_prefix(args)
             test_pid_method(args, prefix, config)
+        elif args.algo == "DQN":
+            if args.test or args.train_buffer:
+                prefix = extract_prefix(args) 
+            else:
+                prefix = create_ppo_prefix(args)
+            run_dqn(args, prefix, config)
+
     except Exception as e:
         print(e)

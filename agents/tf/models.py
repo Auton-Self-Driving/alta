@@ -373,6 +373,7 @@ class CustomPolicy2(CustomPolicy):
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.nn.tanh
             
+            # HARD CODED: Taking last 6 observation input
             observation_features = self.processed_obs[:, :, -6:]
             observation_features_flat = tf.layers.flatten(observation_features)
             vae_features = self.processed_obs[:, :, :-6]

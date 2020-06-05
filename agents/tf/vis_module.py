@@ -57,7 +57,7 @@ class vis():
             image.save(im_path)
 
     def generate_video(self, episode_number, total_steps, index):
-        file_name = 'ValEp_' + str(episode_number) + '_step_' + str(total_steps) + "_ind_" + str(index) + '.mp4'
+        file_name = 'Ep_' + str(episode_number) + '_step_' + str(total_steps) + "_ind_" + str(index) + '.mp4'
         vid_path = os.path.join(self.video_path, file_name)
         im_path = os.path.join(self.images_path, "%08d.png")
         gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p",

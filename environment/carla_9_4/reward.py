@@ -213,15 +213,20 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     
     current["speed_reward"] = speed_reward
 
-    if (not config['disable_traffic_light']) and (_check_if_signal_crossed(prev, current, config) and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red) and (current["speed"] > config["zero_speed_threshold"]) and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
-        current["runover_light"] = True
-        light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
-    else:
-        current["runover_light"] = False
-        light_reward = 0
+    light_reward = 0
+    current["runover_light"] = False
+    if (not config['disable_traffic_light']):
+        if (_check_if_signal_crossed(prev, current)
+            and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red)
+            and (current["speed"] > config["zero_speed_threshold"])
+            and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
+            current["runover_light"] = True
+            light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+        else:
+            current["runover_light"] = False
+            light_reward = 0
     current["light_reward"] = light_reward
 
-    # is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
     is_collision = False
     lane_change = False
     obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
@@ -238,10 +243,16 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     current['obs_collision'] = obs_collision
     current['lane_change'] = lane_change
     current["is_collision"] = is_collision
+    
     # Collision damage
     if(is_collision):
+        # Using prev_speed in collision reward computation
+        # due to non-determinism in speed at the time of collision
         collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
         speed_reward = prev["speed"]
+        # old collision reward
+        # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+        
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -255,23 +266,42 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
 
-    current["step_reward"] = reward
+    # Adding constant positive reward to make dist_to_trajectory_reward positive
+    reward += config["constant_positive_reward"]
+
+    # clipping reward
+    if config["clip_reward"]:
+        if reward > 0:
+            clipped_reward = 1
+        elif reward < 0:
+            clipped_reward = -1
+    else:
+        clipped_reward = reward
+
+    # normalize reward
+    clipped_reward = clipped_reward / config["reward_normalize_factor"]
+
+    # success reward
+    success = current["distance_to_goal"] < config["dist_for_success"]
+    if success:
+        clipped_reward += config["success_reward"]
+
+    current["step_reward"] = clipped_reward
 
     if verbose:
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward)
-    
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward)
     # Update state variables
     # if np.absolute(lane_intersection_reward) > 0:
     #     current["offlane_steps"] += 1
     if current["speed"] <= config["zero_speed_threshold"]:
         current["static_steps"] += 1
-    return reward
+    return clipped_reward
 
-def _check_if_signal_crossed(prev, current, config):
+def _check_if_signal_crossed(prev, current):
 
     # cross_from_one_light_to_no_light
-    cross_to_no_light = current['dist_to_light'] == config['default_obs_traffic_val'] and prev['dist_to_light'] > 0
+    cross_to_no_light = current['dist_to_light'] == -1 and prev['dist_to_light'] > 0
 
     cross_to_next_light = (current['nearest_traffic_actor_id'] != -1 and prev['nearest_traffic_actor_id'] != -1 \
         and current['nearest_traffic_actor_id'] != prev['nearest_traffic_actor_id'])
