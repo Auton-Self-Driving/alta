@@ -317,7 +317,7 @@ class CarlaEnv(gym.Env):
             distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 100
             steer = self.episode_measurements['control_steer']
             obs_bool = self.episode_measurements['obstacle_visible']
-            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([obs_bool]))
+            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([obs_bool])))
         
         elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
 
@@ -679,7 +679,7 @@ class CarlaEnv(gym.Env):
                 else:
                     self.validation_episode_num += 1
                     plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
-                    
+                    self.episode_measurements['val_ep_idx'] = plotname
                     if self.config["testing"]:
                         path = self.log_dir + 'test_episode_info_plots/'
                     else:
@@ -1100,7 +1100,6 @@ class CarlaEnv(gym.Env):
         # Hence we use traffic_light_proximity_threshold while creating an Agent.
         self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
        
-        self.vehicle_agent = Agent(self.vehicle_actor, self.config['proximity_threshold'])
         self.actor_list.append(self.vehicle_actor)
         self.location = self.vehicle_actor.get_location()
 
@@ -1117,9 +1116,9 @@ class CarlaEnv(gym.Env):
         if spawn_vehicles:
             if self.config["sample_npc"]:
                 self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-                    high=self.config["num_npc_upper_threshold"]), unseen, index=self.index)
+                    high=self.config["num_npc_upper_threshold"]), unseen)
             else:
-                self.spawn_npc(self.config["num_npc"], unseen, index=self.index)
+                self.spawn_npc(self.config["num_npc"], unseen)
 
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
