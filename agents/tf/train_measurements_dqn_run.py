@@ -53,7 +53,7 @@ def test(model, env, path=None):
     total_reward = 0
     # import pdb;
     # pdb.set_trace()
-    for ind in range(15):
+    for ind in range(4):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -71,11 +71,11 @@ def test(model, env, path=None):
         while not done:
             
             action, q_values, actions_proba = model.predict(obs, deterministic=True)
-            action = np.array([4])
+            # action = np.array([4])
             # if t >= 476:
             #     action = np.array([1])
-            if t >= thres and t < last_t:
-                action = np.array([3])
+            # if t >= thres and t < last_t:
+            #     action = np.array([3])
             q_values_matrix.append(q_values[0])
             q_values_matrix_normalized.append(actions_proba[0])
             action_q_values.append(q_values[0][action])
