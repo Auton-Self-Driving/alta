@@ -112,7 +112,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(120)
+        time.sleep(60)
 
         # Create new client
         self.client =  self._spawn_client()

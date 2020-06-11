@@ -9,6 +9,11 @@ import time
 import vis_module
 import traceback
 import csv
+import multiprocessing as mp
+# import logging
+
+# logger = mp.log_to_stderr()
+# logger.setLevel(mp.SUBDEBUG)
 
 from datetime import datetime
 import tensorboard_logging as tf_log
@@ -34,6 +39,20 @@ def find_ext_format(MODEL_PATH):
         if ext is not None:
             break
     return ext
+
+def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, seed, config, vis_wrapper, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
+    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
+    print("Starting child process")
+    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
+    print("Carla env created")
+    dummy_env = DummyVecEnv([lambda: env])
+    model = PPO.load(save_file, dummy_env, seed=seed)
+    print("Model object created")
+
+    model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval)
+    total_reward, success_episodes, results = test(model, env)
+    env.close()
+    return [model.get_parameters(), total_reward, success_episodes, results]
 
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
@@ -62,6 +81,7 @@ def run_ppo(args, prefix, config):
     if not os.path.exists(MODEL_PATH):
         os.makedirs(MODEL_PATH)
     SAVE_PATH = os.path.join(MODEL_PATH, 'ppo2_weights')
+    FORWARD_SEARCH_MODEL = os.path.join(MODEL_PATH, 'forward_search_model')
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
     MAX_TRIALS = 5
@@ -225,7 +245,10 @@ def run_ppo(args, prefix, config):
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
-                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False)
+                    if not args.enable_search:
+                        best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False, validation_interval=args.validation_interval)
+                    else:
+                        raise NotImplementedError
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
@@ -238,8 +261,41 @@ def run_ppo(args, prefix, config):
                     else:
                         model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
-                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False)
-                
+                    if not args.enable_search:
+                        best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False, validation_interval=args.validation_interval)
+                    else:
+                        model.save(FORWARD_SEARCH_MODEL)
+                        epochs = steps // args.pop_train_interval
+                        print("Running forward search with population size: {}, epochs: {}".format(args.pop_size, epochs))
+
+                        for epoch in range(epochs):
+                            with mp.get_context("spawn").Pool(int(mp.cpu_count() / 4)) as pool:
+                                pooled_results = pool.starmap(model_learn,
+                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, millis, config, vis_wrapper)
+                                                        for _ in range(args.pop_size)))
+
+                            pooled_results = np.array(pooled_results)
+                            models_parameters = pooled_results[:, 0]
+                            rewards = pooled_results[:, 1]
+                            successes = pooled_results[:, 2]
+
+                            for idx in range(pooled_results.shape[0]):
+                                _, total_reward, success_episodes, results = pooled_results[idx]
+                                print(total_reward, success_episodes, results)
+
+                            max_success = max(successes)
+                            max_inds = np.array([i for i, j in enumerate(successes) if j == max_success])
+                            rewards = np.array(rewards)[max_inds]
+                            max_reward = np.amax(rewards)
+                            ind = max_inds[np.argmax(rewards)]
+                            print("Best child index from population: {}".format(ind))
+                            model.load_parameters(models_parameters[ind], exact_match=True)
+                            model.save(FORWARD_SEARCH_MODEL)
+
+                            with open(os.path.join(ALTA_LOGS, 'forward_search.csv'), 'a') as f:
+                                csvwriter = csv.writer(f, delimiter=',')
+                                csvwriter.writerow([epoch, ind, max_success, max_reward, pooled_results[:, 1:3]])
+                        best_model = model
                 best_model.save(SAVE_PATH)
             break
         except Exception as e:

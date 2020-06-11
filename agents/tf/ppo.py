@@ -308,7 +308,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     print(results)
     print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
                                 collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))
-    if dump_results:
+    if dump_results and env.logger is not None:
         env.logger.log_scalar('test/term_success', success_episodes, model_step)
         env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
         env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
@@ -351,7 +351,7 @@ class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
-              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False):
+              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False, validation_interval=40000):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
@@ -415,7 +415,7 @@ class PPO(PPO2):
                             mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, writer=writer,
                                                                  update=timestep))
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
-                    if (update * self.n_batch) % 40000 == 0:
+                    if (update * self.n_batch) % validation_interval == 0:
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
@@ -450,7 +450,7 @@ class PPO(PPO2):
                     time_start = time.time()
                     vae.optimize()
                     print("Time to optimize the AE: ", time.time() - time_start)
-                    if (update * self.n_batch) % 40000 == 0:
+                    if (update * self.n_batch) % validation_interval == 0:
                         base_path = save_file.split('models')[0] + 'ae_weights/'
                         if not os.path.exists(base_path):
                             os.makedirs(base_path)

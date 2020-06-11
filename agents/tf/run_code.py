@@ -13,8 +13,12 @@ from train_measurements_dqn_run import run_dqn
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or DQN or PID_TUNE')
+    parser.add_argument('--enable-search', dest='enable_search', action='store_true', help='Whether to enable forward search using population of policies.')
+    parser.add_argument('--pop-size', dest='pop_size', type=int, default=3, help='No of different policies in population.')
+    parser.add_argument('--pop-train-interval',dest='pop_train_interval',type=int,default=100000, help='No of training steps to run for each population sample.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
+    parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
@@ -101,7 +105,7 @@ def create_ppo_prefix(args):
     else:
         num_npc_str = ""
 
-    if args.buffer_size != 0:
+    if args.buffer_size != 50000:
         buffer_size_str = '_buffer_' + str(args.buffer_size)
     else:
         buffer_size_str = ""
@@ -221,7 +225,6 @@ def create_ppo_prefix(args):
     else:
         clip_reward_str = ''
     
-    
     if args.param_noise:
         param_noise_str = '_param_noise_'
     else:
@@ -243,11 +246,17 @@ def create_ppo_prefix(args):
     else:
         disable_pid_fs_str = ''
 
+    if args.enable_search:
+        enable_search_str = '_enable_search_{}_{}'.format(args.pop_size, args.pop_train_interval)
+    else:
+        enable_search_str = ''
+
     noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
     clip_str = '_clip_{}_'.format(args.clip)
     no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
 
     prefix = 'algo_' + args.algo \
+        + enable_search_str \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
