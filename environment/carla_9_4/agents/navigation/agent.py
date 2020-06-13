@@ -185,6 +185,7 @@ class Agent(object):
 
         nearest_traffic_light = None
         nearest_dist_to_light = 100000
+        nearest_crossed_vector = None
         traffic_light_found = False
         for traffic_light in lights_list:
             object_waypoint = self._map.get_waypoint(traffic_light.get_location())
@@ -193,17 +194,18 @@ class Agent(object):
                 continue
 
             light_transform = traffic_light.get_location()
-            status, dist = is_within_distance_ahead_v2(traffic_light.get_transform(),
+            status, dist, crossed_vector = is_within_distance_ahead_v2(traffic_light.get_transform(),
                                         self._vehicle.get_transform(),
                                         self._proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light
                 nearest_dist_to_light = dist
+                nearest_crossed_vector = crossed_vector
         if traffic_light_found:
-            return (nearest_traffic_light, nearest_dist_to_light)
+            return (nearest_traffic_light, nearest_dist_to_light, nearest_crossed_vector)
         else:
-            return (None, -1)
+            return (None, -1, None)
 
     def _find_nearest_traffic_light_us_style(self, lights_list, waypoint=None, debug=False):
         """
@@ -221,7 +223,7 @@ class Agent(object):
 
         if ego_vehicle_waypoint.is_junction:
             # It is too late. Do not block the intersection! Keep going!
-            return (None, -1)
+            return (None, -1, None)
 
         if waypoint is not None:
             if waypoint.is_junction:
@@ -251,7 +253,7 @@ class Agent(object):
                 else:
                     self._last_traffic_light = None
 
-        return (None, -1)
+        return (None, -1, None)
 
     def _is_vehicle_hazard(self, vehicle_list):
         """

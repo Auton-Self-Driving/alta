@@ -33,7 +33,7 @@ class vis():
         overlay = Image.new('RGBA', image.size, (255,255,255,0))
         draw_overlay = ImageDraw.Draw(overlay)
         draw_overlay.text((10, 10), 
-                          "Sp={:0.2f}, TSp={:0.2f}\nTh={:0.2f}, St={:0.2f}\nBr={:0.2f}\nd={:0.2f}\nObs_d={:0.2f}\nObs_s={:0.2f}\nTL={:0.2f}".format(
+                          "Sp={:0.2f}, TSp={:0.2f}\nTh={:0.2f}, St={:0.2f}\nBr={:0.2f}\nd={:0.2f}\nObs_d={:0.2f},Or={:0.2f}\nObs_s={:0.2f}\nTL={:0.2f},TLo={:0.2f}".format(
                               step_info['speed'] * 3.6, 
                               step_info['target_speed'],
                               step_info['control_throttle'], 
@@ -41,8 +41,10 @@ class vis():
                               step_info['control_brake'], 
                               step_info['dist_to_trajectory'],
                               step_info['obstacle_dist'],
+                              step_info['obstacle_orientation'],
                               step_info['obstacle_speed'],
-                              step_info['red_light_dist']),
+                              step_info['red_light_dist'],
+                              step_info['traffic_light_orientation']),
                           fill=(255,255,255,128))
         
         return Image.alpha_composite(image, overlay)

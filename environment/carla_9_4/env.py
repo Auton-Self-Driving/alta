@@ -240,12 +240,14 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_dist'] = -1
         self.episode_measurements['obstacle_speed'] = -1
+        self.episode_measurements['obstacle_orientation'] = -1
         self.next_waypoints = None
         self.episode_measurements['dist_to_light'] = -1
         self.episode_measurements['nearest_traffic_actor_id'] = -1
         self.episode_measurements['nearest_traffic_actor_state'] = None
         self.episode_measurements['initial_dist_to_red_light'] = -1
         self.episode_measurements['red_light_dist'] = -1
+        self.episode_measurements['traffic_light_orientation'] = -1
         self.episode_measurements["runover_light"] = False
         self.target_speeds_array = []
         self.speeds_array = []
@@ -795,16 +797,16 @@ class CarlaEnv(gym.Env):
 
         # If the vector is too short, we can simply stop here
         if norm_target < 0.001:
-            return True, norm_target
+            return True, 0, norm_target
 
         if norm_target > max_distance:
-            return False, norm_target
+            return False, -1, norm_target
 
         fwd = current_transform.get_forward_vector()
         forward_vector = np.array([fwd.x, fwd.y])
         d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
-        return d_angle < 90.0, norm_target
+        return d_angle < 90.0, d_angle, norm_target
 
     def _update_env_obs(self):
         if not self.config['disable_obstacle_info']:
@@ -822,6 +824,7 @@ class CarlaEnv(gym.Env):
 
     def _update_obs_detector(self):
         self.episode_measurements['obstacle_visible'] = False
+        self.episode_measurements['obstacle_orientation'] = -1
 
         min_obs_distance = 100000000
         found_obstacle = False
@@ -832,7 +835,7 @@ class CarlaEnv(gym.Env):
 
             # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-            d_bool, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
+            d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
                                         self.config['vehicle_proximity_threshold'])
 
@@ -844,7 +847,8 @@ class CarlaEnv(gym.Env):
                 
                 found_obstacle = True
                 self.episode_measurements['obstacle_visible'] = True
-                
+                self.episode_measurements['obstacle_orientation'] = d_angle
+
                 if distance < min_obs_distance:
                     self.episode_measurements['obstacle_dist'] = distance
                     self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
@@ -856,7 +860,11 @@ class CarlaEnv(gym.Env):
 
     def _update_traffic_light_states(self):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
-        traffic_actor, dist = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+        traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+        if traffic_light_orientation is not None:
+            self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
+        else:
+            self.episode_measurements['traffic_light_orientation'] = -1
 
         if traffic_actor is not None:
             if traffic_actor.state == carla.TrafficLightState.Red:
