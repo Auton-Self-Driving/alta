@@ -300,7 +300,7 @@ def create_ppo_prefix(args):
     return prefix
 
 def extract_prefix(args):
-    prefix = args.agent_model_path.split('/')[-2]
+    prefix = args.agent_model_path.split('/')[-3]
     return prefix
 
 if __name__ == '__main__':
