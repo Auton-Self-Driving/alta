@@ -49,7 +49,6 @@ def launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=None, logger=N
             serverStarted = True
 
         except Exception as identifier:
-            print(prefix, identifier, serverStartRetries)
             traceback.print_exc()
             if env is not None:
                 env.close()
