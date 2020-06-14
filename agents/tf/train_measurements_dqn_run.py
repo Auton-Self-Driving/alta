@@ -424,7 +424,7 @@ def run_dqn(args, prefix, config):
                     #             prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
                     model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                exploration_fraction=0.05,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
+                                exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
                                 batch_size=512, target_network_update_freq=args.target_freq,
                                 prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
@@ -439,7 +439,7 @@ def run_dqn(args, prefix, config):
                     # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
                     best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
                 else:
-                    best_model = model.learn(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
+                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
                 
                 best_model.save(SAVE_PATH)
             break

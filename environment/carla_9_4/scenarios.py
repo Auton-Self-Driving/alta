@@ -1439,13 +1439,24 @@ def paths_long_straight():
             # WAYPOINT_DICT_Town01[17]
             Transform(Location(x=92.10997772216797, y=320.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
             Transform(Location(x=92.11000061035156, y=10.820009231567383, z=1.32), Rotation(yaw=-90.00029754638672))
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[53]
+            WAYPOINT_DICT_Town01[56]
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[46]
+            WAYPOINT_DICT_Town01[44]
         ]
     ]
 
     return paths
 
 def get_long_straight_path(unseen=False, town='Town01', index=0): 
-    return random.choice(paths_long_straight())
+    # return random.choice(paths_long_straight())
+    return paths_long_straight()[(index % 3)]
 
 def get_long_straight_npcs(): 
     # npc_list = [

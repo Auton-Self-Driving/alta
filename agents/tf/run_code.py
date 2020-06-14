@@ -210,7 +210,7 @@ def create_ppo_prefix(args):
         param_noise_str = ''
     
     if args.special_sample:
-        special_sample_str = '_special_sample_'
+        special_sample_str = '_ss_'
     else:
         special_sample_str = ''
     

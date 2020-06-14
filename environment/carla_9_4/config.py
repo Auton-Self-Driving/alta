@@ -233,8 +233,8 @@ episode_measurements = {
 
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
-    # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
-    steer = [-0.1, 0.0, 0.1]
+    steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+    # steer = [-0.1, 0.0, 0.1]
     # steer = [0.0]
     # target_speed = [0, 10, 20]
     # target_speed = [10]

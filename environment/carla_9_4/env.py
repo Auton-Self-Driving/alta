@@ -812,7 +812,7 @@ class CarlaEnv(gym.Env):
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
         elif self.config["scenarios"] == "long_straight":
-            self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town, index)
         elif self.config["scenarios"] == "straight_dynamic":
             self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town)
         elif self.config["scenarios"] == "left_right_curved":
@@ -990,7 +990,8 @@ class CarlaEnv(gym.Env):
 
         if (not self.unseen):
             # training scenario
-            self.index = (self.index + 1) % 2
+            # self.index = (self.index + 1) % 2
+            self.index = (self.index + 1) % 3
         else:
             self.index = index
 
@@ -1008,7 +1009,7 @@ class CarlaEnv(gym.Env):
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
-            self._set_scenario(unseen=unseen, index=index, town=self.config["city_name"])
+            self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -1023,7 +1024,7 @@ class CarlaEnv(gym.Env):
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
         
-        if self.config["num_npc"] > 0 and (self.index % 2 == 1):
+        if self.config["num_npc"] > 0 and (self.index % 3 == 0):
         # if self.config["num_npc"] > 0:
             self.spawn_npc(self.config["num_npc"], unseen)    
 
@@ -1447,7 +1448,7 @@ class CarlaEnv(gym.Env):
             termination_state = 'static'
             termination_state_code = 7
         elif maxStepsTaken:
-            if obstacle_ahead or red_light:
+            if obstacle_ahead:
                 termination_state = 'max_steps_obstacle'
                 termination_state_code = 8
             elif red_light:
