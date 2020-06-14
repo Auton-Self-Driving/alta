@@ -43,7 +43,8 @@ def find_ext_format(MODEL_PATH):
 def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, seed, config, vis_wrapper, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
     print("Starting child process")
-    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
+    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
+    env = launch_server(config, vis_wrapper, ALTA_LOGS)
     print("Carla env created")
     dummy_env = DummyVecEnv([lambda: env])
     model = PPO.load(save_file, dummy_env, seed=seed)
@@ -53,6 +54,26 @@ def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, valida
     total_reward, success_episodes, results = test(model, env)
     env.close()
     return [model.get_parameters(), total_reward, success_episodes, results]
+
+def launch_server(config, vis_wrapper, ALTA_LOGS, logger=None):
+    RETRIES_ON_ERROR = 5
+    serverStartRetries = 0
+    serverStarted = False
+
+    env = None
+    while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+        try:
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
+            serverStarted = True
+
+        except Exception as identifier:
+            print(prefix, identifier, serverStartRetries)
+            traceback.print_exc()
+            if env is not None:
+                env.close()
+                serverStartRetries += 1
+                time.sleep(20)
+    return env
 
 def run_ppo(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
@@ -132,7 +153,9 @@ def run_ppo(args, prefix, config):
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
 
                     # Sending logger as None so as to not affect existing validation plots
-                    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                    env = launch_server(config, vis_wrapper, ALTA_LOGS)
+
                     dummy_env = DummyVecEnv([lambda: env])
                     model = PPO.load(args.agent_model_path, dummy_env)
 
@@ -176,14 +199,16 @@ def run_ppo(args, prefix, config):
                 rewards = []
                 successes = []
 
-                IMAGES_PATH = SCRATCH_DIR+'images/'
-                VIDEO_PATH = SCRATCH_DIR+'videos/'
+                IMAGES_PATH = SCRATCH_DIR+'val_images/'
+                VIDEO_PATH = SCRATCH_DIR+'val_videos/'
+
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
 
                 config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
 
                 # Sending logger as None so as to not affect existing validation plots
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS)
                 dummy_env = DummyVecEnv([lambda: env])
 
                 rewards = []
@@ -213,7 +238,9 @@ def run_ppo(args, prefix, config):
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS, logger=logger)
+
                 dummy_env = DummyVecEnv([lambda: env])
                 
                 if args.network == "1_layer":

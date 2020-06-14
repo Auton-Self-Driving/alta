@@ -37,6 +37,26 @@ def find_ext_format(MODEL_PATH):
             break
     return ext
 
+def launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=None, logger=None):
+    RETRIES_ON_ERROR = 5
+    serverStartRetries = 0
+    serverStarted = False
+
+    env = None
+    while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+        try:
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+            serverStarted = True
+
+        except Exception as identifier:
+            print(prefix, identifier, serverStartRetries)
+            traceback.print_exc()
+            if env is not None:
+                env.close()
+                serverStartRetries += 1
+                time.sleep(20)
+    return env
+
 def run_ppo_vae(args, prefix, config):
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
     if ALTA_LOGS[-1] != '/':
@@ -118,7 +138,8 @@ def run_ppo_vae(args, prefix, config):
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
 
                     # Sending logger as None so as to not affect existing validation plots
-                    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=None, log_dir=ALTA_LOGS)
+                    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=None, log_dir=ALTA_LOGS)
+                    env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae)
                     dummy_env = DummyVecEnv([lambda: env])
                     if not args.train_vae:
                         print("Loading pretrained AE!!!")
@@ -165,14 +186,19 @@ def run_ppo_vae(args, prefix, config):
                 rewards = []
                 successes = []
 
-                IMAGES_PATH = SCRATCH_DIR+'images/'
-                VIDEO_PATH = SCRATCH_DIR+'videos/'
+                IMAGES_PATH = SCRATCH_DIR+'val_images/'
+                VIDEO_PATH = SCRATCH_DIR+'val_videos/'
+                IMAGES_PATH_VAE = SCRATCH_DIR+'val_vae_images/'
+                VIDEO_PATH_VAE = SCRATCH_DIR+'val_vae_videos/'
+
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
 
                 config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
 
                 # Sending logger as None so as to not affect existing validation plots
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
 
                 rewards = []
@@ -207,7 +233,8 @@ def run_ppo_vae(args, prefix, config):
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
                 vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
 
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
                 if not args.train_vae:
                     print("Loading pretrained AE!!!")
