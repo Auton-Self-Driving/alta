@@ -263,11 +263,15 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     dummy_env = DummyVecEnv([lambda: env])
     success_episodes = 0
     collision_obs_episodes = 0
-    collision_out_of_road_episodes = 0
     collision_lane_change_episodes = 0
-    static_episodes = 0
-    max_steps_episodes = 0
+    collision_out_of_road_episodes = 0
+    collision_unexpected_episodes = 0
     runover_light_episodes = 0
+    max_steps_episodes = 0
+    max_steps_obs_episodes = 0
+    max_steps_light_episodes = 0
+    static_episodes = 0
+    unknown_episodes = 0
     results = {}
     total_reward = 0
     env.reset()
@@ -290,38 +294,51 @@ def test(model, env, dump_results=False, path='.', model_step=None):
             results[ind] = 1
         else:
             results[ind] = 0
-            if info[3]['obs_collision']:
+            if info[3]['termination_state'] == 'obs_collision':
                 collision_obs_episodes += 1
-            elif info[3]['lane_change']:
+            elif info[3]['termination_state'] == 'lane_invasion':
                 collision_lane_change_episodes += 1
-            elif info[3]['out_of_road']:
+            elif info[3]['termination_state'] == 'out_of_road':
                 collision_out_of_road_episodes += 1
+            elif info[3]['termination_state'] == 'unexpected_collision':
+                collision_unexpected_episodes += 1
             elif info[3]['termination_state'] == 'runover_light':
                 runover_light_episodes += 1
-            elif info[3]['termination_state'] == 'static':
-                static_episodes += 1
             elif info[3]['termination_state'] == 'max_steps':
                 max_steps_episodes += 1
+            elif info[3]['termination_state'] == 'max_steps_obstacle':
+                max_steps_obs_episodes += 1
+            elif info[3]['termination_state'] == 'max_steps_light':
+                max_steps_light_episodes += 1
+            elif info[3]['termination_state'] == 'static':
+                static_episodes += 1
+            else:
+                unknown_episodes += 1
+
 
     env.reset()
     print("Results of test scenarios")
     print(results)
-    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
-                                collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))
+    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Unexpected Collision: {}, Runover light: {}, Max_steps: {}, Max_steps Obstacle: {}, Max_steps Traffic Light: {}, Static: {}, Unknown: {}".format(success_episodes,
+                collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
     if dump_results and env.logger is not None:
         env.logger.log_scalar('test/term_success', success_episodes, model_step)
         env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
-        env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
         env.logger.log_scalar('test/term_lane_change', collision_lane_change_episodes, model_step)
+        env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
+        env.logger.log_scalar('test/term_unexpected', collision_unexpected_episodes, model_step)
         env.logger.log_scalar('test/term_runover_light', runover_light_episodes, model_step)
-        env.logger.log_scalar('test/term_static', static_episodes, model_step)
         env.logger.log_scalar('test/term_max_steps', max_steps_episodes, model_step)
+        env.logger.log_scalar('test/term_max_steps_obs', max_steps_obs_episodes, model_step)
+        env.logger.log_scalar('test/term_max_steps_light', max_steps_light_episodes, model_step)
+        env.logger.log_scalar('test/term_static', static_episodes, model_step)
+        env.logger.log_scalar('test/term_unknown', unknown_episodes, model_step)
         env.logger.log_scalar('test/total_reward', total_reward, model_step)
 
         with open(path + 'test_results.csv','a') as f:
                 csvwriter = csv.writer(f, delimiter=',')
-                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes,
-                        collision_out_of_road_episodes, collision_lane_change_episodes, runover_light_episodes, static_episodes, max_steps_episodes])
+                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes,
+                                    runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes])
     return total_reward, success_episodes, results
 
 def get_best_model(env, total_rewards, total_successes, model_file_names, path):
