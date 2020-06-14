@@ -307,8 +307,8 @@ class ConfigManager(object):
             self.config["carla_gpu"] = "1"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
-            self.config["traffic_light_proximity_threshold"] = 15
-            self.config["min_dist_from_red_light"] = 6
+            # self.config["traffic_light_proximity_threshold"] = 15
+            # self.config["min_dist_from_red_light"] = 6
             self.config["sample_npc"] = True
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
