@@ -62,8 +62,8 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
-        self.rgb_camera_queue = queue.Queue()
-        self.front_camera_queue = queue.Queue()
+        # self.rgb_camera_queue = queue.Queue()
+        # self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -208,9 +208,7 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
             elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
-                # self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-                self.observation_space = Box(low=np.array([[-4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-            
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
@@ -355,7 +353,7 @@ class CarlaEnv(gym.Env):
                 obstacle_dist = self.config['default_obs_traffic_val']
 
             if obstacle_speed != -1:
-                obstacle_speed = obstacle_speed / 10
+                obstacle_speed = obstacle_speed / 20
             else:
                 obstacle_speed = self.config['default_obs_traffic_val']
 
@@ -383,7 +381,7 @@ class CarlaEnv(gym.Env):
                 obstacle_dist = self.config['default_obs_traffic_val']
 
             if obstacle_speed != -1:
-                obstacle_speed = obstacle_speed / 10
+                obstacle_speed = obstacle_speed / 20
             else:
                 obstacle_speed = self.config['default_obs_traffic_val']
 
@@ -406,7 +404,7 @@ class CarlaEnv(gym.Env):
                 obstacle_dist = self.config['default_obs_traffic_val']
 
             if obstacle_speed != -1:
-                obstacle_speed = obstacle_speed / 10
+                obstacle_speed = obstacle_speed / 20
             else:
                 obstacle_speed = self.config['default_obs_traffic_val']
 
@@ -541,38 +539,6 @@ class CarlaEnv(gym.Env):
             self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
             self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
 
-            # Add image saving logic for each frame
-            # Read in preprocessed image
-            sensor_image = self._read_data(self.camera_queue, world_frame)
-            rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-            front_image = self._read_data(self.front_camera_queue, world_frame)
-            encoded_observation = None
-
-            obs = {}
-            obs['image'] = sensor_image
-
-            if self.config["videos"] and self.unseen:
-                if self.vis_wrapper is not None:
-                    # TODO: Check and uncomment when running with VAE
-                    # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
-                    #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-                    # else:
-                    #     # Saving image logic for Auto-Encoder training
-                    #     # path = os.path.join(self.log_dir, "ae_images")
-                    #     # if not os.path.exists(path):
-                    #     #     os.makedirs(path)
-                    #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
-
-                    # Logic for combined videos
-                    temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8)))
-                    self.vis_wrapper.save_image(temp_image, self.num_steps)
-                    
-                    # if self.config["semantic"]:
-                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-                    # else:
-                    #     self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
-            
             if done:
                 break
         
@@ -580,13 +546,13 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
 
-        # obs = {}
+        obs = {}
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
 
         
         # Read in preprocessed image
-        # sensor_image = self._read_data(self.camera_queue, world_frame)
+        sensor_image = self._read_data(self.camera_queue, world_frame)
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         encoded_observation = None
@@ -619,33 +585,33 @@ class CarlaEnv(gym.Env):
 
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
-            # if self.config["videos"] and self.unseen:
-            #     if self.vis_wrapper is not None:
-            #         # TODO: Check and uncomment when running with VAE
-            #         # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
-            #         #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-            #         #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-            #         # else:
-            #         #     # Saving image logic for Auto-Encoder training
-            #         #     # path = os.path.join(self.log_dir, "ae_images")
-            #         #     # if not os.path.exists(path):
-            #         #     #     os.makedirs(path)
-            #         #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
+            if self.config["videos"] and self.unseen:
+                if self.vis_wrapper is not None:
+                    # TODO: Check and uncomment when running with VAE
+                    # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
+                    #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
+                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    # else:
+                    #     # Saving image logic for Auto-Encoder training
+                    #     # path = os.path.join(self.log_dir, "ae_images")
+                    #     # if not os.path.exists(path):
+                    #     #     os.makedirs(path)
+                    #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
 
-            #         # Logic for combined videos
-            #         # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8)))
-            #         # self.vis_wrapper.save_image(temp_image, self.num_steps)
+                    # Logic for combined videos
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8)))
+                    # self.vis_wrapper.save_image(temp_image, self.num_steps)
                     
-            #         if self.config["semantic"]:
-            #             self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
-            #         else:
-            #             self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
-            #     if self.vis_wrapper_vae is not None:
+                    if self.config["semantic"]:
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    else:
+                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                if self.vis_wrapper_vae is not None:
 
-            #         # Logic for combined videos
-            #         # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
-            #         # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
-            #         self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    # Logic for combined videos
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
+                    # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
+                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -1111,8 +1077,8 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
-        self.rgb_camera_queue.queue.clear()
-        self.front_camera_queue.queue.clear()
+        # self.rgb_camera_queue.queue.clear()
+        # self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
         try:
@@ -1176,34 +1142,34 @@ class CarlaEnv(gym.Env):
         
         self.camera_actor.listen(self.camera_queue.put)
 
-        rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
-        rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # rgb_camera.set_attribute('fov', '120')
-        rgb_camera.set_attribute('fov', '90')
+        # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
+        # rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # rgb_camera.set_attribute('fov', '120')
+        # rgb_camera.set_attribute('fov', '90')
 
-        # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.rgb_camera_actor)
+        # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        # self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.rgb_camera_actor)
 
-        self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
+        # self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
 
 
-        front_camera = self.blueprint_library.find(self.config['sensors'][0])
-        front_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        front_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # front_camera = self.blueprint_library.find(self.config['sensors'][0])
+        # front_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # front_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # front_camera.set_attribute('fov', '120')
         # front_camera.set_attribute('fov', '120')
-        front_camera.set_attribute('fov', '120')
 
-        # front_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        front_camera_transform = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
-        self.front_camera_actor = self._world.spawn_actor(front_camera, front_camera_transform, attach_to=self.vehicle_actor)
-        self.actor_list.append(self.front_camera_actor)
+        # # front_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # front_camera_transform = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
+        # self.front_camera_actor = self._world.spawn_actor(front_camera, front_camera_transform, attach_to=self.vehicle_actor)
+        # self.actor_list.append(self.front_camera_actor)
 
-        self.front_camera_actor.listen(self.front_camera_queue.put)
+        # self.front_camera_actor.listen(self.front_camera_queue.put)
 
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
