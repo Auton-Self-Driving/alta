@@ -96,7 +96,7 @@ def run_ppo(args, prefix, config):
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
 
-    FRAME_SKIP = 1
+    VIDEO_FRAME_SKIP = 1
     MODEL_PATH = os.path.join(ALTA_LOGS, 'models')
     if not os.path.exists(MODEL_PATH):
         os.makedirs(MODEL_PATH)
@@ -105,8 +105,6 @@ def run_ppo(args, prefix, config):
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
     MAX_TRIALS = 5
-    
-    steps = args.timesteps
     
     def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
         list_of_files = glob.glob(os.path.join(log_dir, ext))
@@ -147,7 +145,7 @@ def run_ppo(args, prefix, config):
                 for test_idx in range(args.test_trails):
                     IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
                     VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
-                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
 
@@ -201,7 +199,7 @@ def run_ppo(args, prefix, config):
                 IMAGES_PATH = SCRATCH_DIR+'val_images/'
                 VIDEO_PATH = SCRATCH_DIR+'val_videos/'
 
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                 config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
 
@@ -229,13 +227,13 @@ def run_ppo(args, prefix, config):
                     with open(ALTA_LOGS + 'test_results2.csv','a') as f:
                         csvwriter = csv.writer(f, delimiter=',')
                         csvwriter.writerow([update, success_episodes, total_reward])
-                    update += 40000
+                    update += args.validation_interval
                 env.close()
             else:
                 print("Training begins")
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
                 
                 # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
                 env = launch_server(config, vis_wrapper, ALTA_LOGS, logger=logger)
@@ -272,7 +270,7 @@ def run_ppo(args, prefix, config):
                     model = PPO.load(latest_model, dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
                     if not args.enable_search:
-                        best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False, validation_interval=args.validation_interval)
+                        best_model = model.learn(args.timesteps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False, validation_interval=args.validation_interval)
                     else:
                         raise NotImplementedError
                 else:
@@ -288,10 +286,10 @@ def run_ppo(args, prefix, config):
                         model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     if not args.enable_search:
-                        best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False, validation_interval=args.validation_interval)
+                        best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False, validation_interval=args.validation_interval)
                     else:
                         model.save(FORWARD_SEARCH_MODEL)
-                        epochs = steps // args.pop_train_interval
+                        epochs = args.timesteps // args.pop_train_interval
                         print("Running forward search with population size: {}, epochs: {}".format(args.pop_size, epochs))
 
                         for epoch in range(epochs):

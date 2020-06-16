@@ -77,14 +77,14 @@ def run_ppo_vae(args, prefix, config):
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
 
-    FRAME_SKIP = 1
+    VIDEO_FRAME_SKIP = 1
     MODEL_PATH = os.path.join(ALTA_LOGS, 'models')
     if not os.path.exists(MODEL_PATH):
         os.makedirs(MODEL_PATH)
     SAVE_PATH = os.path.join(MODEL_PATH, 'ppo2_weights')
     TB_LOGS_DIR = ALTA_LOGS+'tb/'
 
-    MAX_TRIALS = 1
+    MAX_TRIALS = 5
     
     # Register the policy, it will check that the name is not already taken
     register_policy('CustomPolicy1', CustomPolicy1)
@@ -131,8 +131,8 @@ def run_ppo_vae(args, prefix, config):
                     IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
                     VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["city_name"] +  config.config['scenarios'] + '_run_' + str(test_idx) + '/'
 
-                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
-                    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
 
@@ -150,8 +150,8 @@ def run_ppo_vae(args, prefix, config):
                         total_reward, success_episodes, results = test(model, env)
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
-                        print("Results of test scenarios")
-                        print(results)
+                        # print("Results of test scenarios")
+                        # print(results)
                         print("Total Success Episodes: {}".format(success_episodes))
                         f.write("Task Name: {}\n".format(config.config["scenarios"]))
                         f.write("Town Name: {}\n".format(config.config["city_name"]))
@@ -173,6 +173,7 @@ def run_ppo_vae(args, prefix, config):
                     f.write("Success: {}\n".format(" ".join(map(str, successes))))
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
+                    f.write("Total Successes: {}\n".format(np.sum(successes)))
             elif args.validation:
                 print('Validation Begins')
                 with open(ALTA_LOGS + "seed.txt", "r") as f:
@@ -190,8 +191,8 @@ def run_ppo_vae(args, prefix, config):
                 IMAGES_PATH_VAE = SCRATCH_DIR+'val_vae_images/'
                 VIDEO_PATH_VAE = SCRATCH_DIR+'val_vae_videos/'
 
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
-                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                 config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
 
@@ -199,6 +200,10 @@ def run_ppo_vae(args, prefix, config):
                 # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
                 env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
                 dummy_env = DummyVecEnv([lambda: env])
+                if not args.train_vae:
+                    print("Loading pretrained AE!!!")
+                    vae.load(args.vae_model_path)
+                env.set_vae(vae)
 
                 rewards = []
                 successes = []
@@ -219,18 +224,17 @@ def run_ppo_vae(args, prefix, config):
                     with open(ALTA_LOGS + 'test_results.csv','a') as f:
                         csvwriter = csv.writer(f, delimiter=',')
                         csvwriter.writerow([update, success_episodes, total_reward])
-                    update += 10000
+                    update += args.validation_interval
                 env.close()
             else:
                 print("Training begins")
-                steps = args.timesteps
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'
                 VIDEO_PATH_VAE = SCRATCH_DIR+'vae_videos/'
                 
-                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
-                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                 # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
                 env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
@@ -268,7 +272,14 @@ def run_ppo_vae(args, prefix, config):
                     print("Loading Latest model!!!")
                     model = PPO.load(latest_model, dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
-                    best_model = model.learn(steps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, vae=vae, train_vae=(args.train_vae or args.finetune_vae))    
+
+                    # Loading latest Auto-encoder model
+                    args.vae_model_path = os.path.join('/'.join(latest_model.split('/')[:-2]), 'ae_weights', 'ae_{}'.format(completed_steps))
+                    vae.load(args.vae_model_path)
+                    env.set_vae(vae)
+                    print("AE Model: {} loaded successfully".format(args.vae_model_path))
+
+                    best_model = model.learn(args.timesteps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, vae=vae, train_vae=(args.train_vae or args.finetune_vae), validation_interval=args.validation_interval)
                 else:
                     dt = datetime.now()
                     millis = dt.microsecond
@@ -276,12 +287,12 @@ def run_ppo_vae(args, prefix, config):
                     with open(ALTA_LOGS + "seed.txt", "w") as f:
                         f.write(str(millis))
                     if args.agent_model_path is None:
-                        model = PPO(policy=policy, env=dummy_env, n_steps=500, nminibatches=4, verbose=1, learning_rate=args.lr,
-                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, seed=millis)
+                        model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
                     else:
                         model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
-                    best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, vae=vae, train_vae=(args.train_vae or args.finetune_vae))
+                    best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, vae=vae, train_vae=(args.train_vae or args.finetune_vae), validation_interval=args.validation_interval)
                 
                 best_model.save(SAVE_PATH)
             break
