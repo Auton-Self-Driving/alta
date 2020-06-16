@@ -5,6 +5,7 @@
 AE controller for runtime optimization.
 '''
 
+import time
 import numpy as np
 
 from .models import ConvAutoEncoder
@@ -105,6 +106,7 @@ class AEController:
         my_confusion_matrix_normalized = 0
 
         for epoch in range(self.epoch_per_optimization):
+            time_start = time.time()
             np.random.shuffle(ds)
 
             train_loss_array = []
@@ -139,8 +141,11 @@ class AEController:
 
                 my_accuracy_array.append(my_accuracy)
                 my_confusion_matrix_final += my_confusion_matrix
+            print("Time to run AE epoch {}: {}".format(epoch, time.time() - time_start))
 
+        time_start = time.time()
         self.set_target_params()
+        print("Time to set AE target params: ", time.time() - time_start)
 
         # Average values in last epoch
         train_loss_avg = np.mean(np.array(train_loss_array))
@@ -161,5 +166,10 @@ class AEController:
         self.target_ae.load_json(path)
 
     def set_target_params(self):
+        time_start = time.time()
         params, _, _ = self.ae.get_model_params()
+        print("Time to get AE model params: ", time.time() - time_start)
+
+        time_start = time.time()
         self.target_ae.set_model_params(params)
+        print("Time to set AE target model params: ", time.time() - time_start)

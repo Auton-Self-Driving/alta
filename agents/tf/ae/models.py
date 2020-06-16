@@ -6,6 +6,7 @@
 AE models.
 '''
 
+import time
 import numpy as np
 import os
 import tensorflow as tf
@@ -159,13 +160,21 @@ class ConvAutoEncoder(object):
         with self.g.as_default():
             t_vars = tf.trainable_variables()
             idx = 0
+            print("No of trainable variables: {}".format(len(t_vars)))
+            assign_ops = []
             for var in t_vars:
-                pshape = self.sess.run(var).shape
+                time_start = time.time()
+                # pshape = self.sess.run(var).shape
                 p = np.array(params[idx])
-                assert pshape == p.shape, "inconsistent shape"
+                # assert pshape == p.shape, "inconsistent shape"
                 assign_op = var.assign(p.astype(np.float) / 10000.)
-                self.sess.run(assign_op)
+                assign_ops.append(assign_op)
                 idx += 1
+                print("Time to set AE target model param: {}, shape: {}, time: {}".format(idx, p.shape, time.time() - time_start))
+            time_start = time.time()
+            assign_ops = tf.group(*assign_ops)
+            self.sess.run(assign_ops)
+            print("Time to assign AE target model params: {}".format(time.time() - time_start))
 
     def load_json(self, jsonfile='ae.json'):
         with open(jsonfile, 'r') as f:
