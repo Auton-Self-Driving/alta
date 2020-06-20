@@ -353,7 +353,8 @@ if __name__ == '__main__':
                 prefix = extract_prefix(args)
             print("prefix", prefix)
             if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
-                                   'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light']:
+                                   'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
+                                   'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
                 run_ppo(args, prefix, config)
             elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
                 run_ppo_vae(args, prefix, config)

@@ -23,7 +23,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
 from ppo import PPO, plot_policy_and_value_fns, test, plot_test_results
-from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2, CnnPolicy
 
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
@@ -250,8 +250,10 @@ def run_ppo(args, prefix, config):
                     policy = CustomPolicy1
                 elif args.network == "CustomPolicy2":
                     policy = CustomPolicy2
+                elif args.network == "CNN":
+                    policy = CnnPolicy
                 else:
-                    print("specify either 1_layer, 2_layer CustomPolicy1 or CustomPolicy2 as network input")
+                    print("specify either 1_layer, 2_layer CustomPolicy1, CustomPolicy2 or CnnPolicy as network input")
                     env.close()
                     print("exiting")
                     return

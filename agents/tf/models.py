@@ -252,7 +252,28 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         with tf.variable_scope("model", reuse=reuse):
             if feature_extraction == "cnn":
-                pi_latent = vf_latent = cnn_extractor(self.processed_obs, **kwargs)
+                activ = tf.nn.tanh
+
+                observation_features = self.processed_obs[:, :, -8:]
+                observation_features_flat = tf.layers.flatten(observation_features)
+
+                visual_features = self.processed_obs[:, :, :-8]
+                visual_features = tf.reshape(visual_features, [-1, 128, 128, 15])
+
+                vis_pi_latent = vis_vf_latent = cnn_extractor(visual_features, **kwargs)
+                vis_pi_latent = tf.reshape(vis_pi_latent, [-1, 1, 512])
+                vis_vf_latent = tf.reshape(vis_vf_latent, [-1, 1, 512])
+
+                meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 512, init_scale=np.sqrt(2)))
+                meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 512])
+                features = tf.layers.flatten(tf.concat([vis_pi_latent, meas_pi_latent], axis=2))
+                pi_latent = activ(linear(features, "pi_fc", 128, init_scale=np.sqrt(2)))
+
+                meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 512, init_scale=np.sqrt(2)))
+                meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 512])
+                features = tf.layers.flatten(tf.concat([vis_vf_latent, meas_vf_latent], axis=2))
+                vf_latent = activ(linear(features, "vf_fc", 128, init_scale=np.sqrt(2)))
+
             else:
                 pi_latent, vf_latent = mlp_extractor(tf.layers.flatten(self.processed_obs), net_arch, act_fun)
 
@@ -358,6 +379,7 @@ class CustomPolicy1(CustomPolicy):
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+            # value_fn = linear(vf_latent, 'vf', 1)
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
@@ -395,6 +417,7 @@ class CustomPolicy2(CustomPolicy):
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+            # value_fn = linear(vf_latent, 'vf', 1)
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
@@ -420,9 +443,39 @@ class CustomWPPolicy(CustomPolicy):
             vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
             
             value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+            # value_fn = linear(vf_latent, 'vf', 1)
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
 
         self._value_fn = value_fn
         self._setup_init()
+
+
+class CnnPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements actor critic, using a CNN (the nature CNN)
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="cnn", **_kwargs)
+
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                    self.logstd, self.mean],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean

@@ -234,6 +234,11 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
                                         shape=(1, 408), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * 5 * self.config['frame_stack_size'] + 8), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -444,7 +449,7 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
-        elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
+        elif self.config["input_type"] in ['wp_vae_obs_info_speed_steer_ldist_goal_light', 'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
 
             speed = self.episode_measurements['speed'] / 10
             obstacle_dist = self.episode_measurements['obstacle_dist']
@@ -591,17 +596,22 @@ class CarlaEnv(gym.Env):
         sensor_image = self._read_data(self.camera_queue, world_frame)
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
-        encoded_observation = None
+        visual_observation = None
 
-        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
+        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
+                                         'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
+            obs['semantic_image'] = semantic_image
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
-            encoded_observation = self.vae_observation(stacked_observation)
-            encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
-            obs['semantic_image'] = semantic_image
+            if 'vae' in self.config["input_type"]:
+                visual_observation = self.vae_observation(stacked_observation)
+                visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
+            else:
+                visual_observation = stacked_observation
         
         if self.config["input_type"] == "ae_train":
             semantic_image = sensor_image[:,:,0]
@@ -645,9 +655,9 @@ class CarlaEnv(gym.Env):
                 if self.vis_wrapper_vae is not None:
 
                     # Logic for combined videos
-                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
-                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(encoded_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -780,10 +790,15 @@ class CarlaEnv(gym.Env):
                         self.vis_wrapper_vae.remove_images()
 
         if self.config["input_type"] == 'vae':
-            return encoded_observation, reward, done, self.episode_measurements
+            return visual_observation, reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
-            fused_input = np.hstack([encoded_observation, observation])
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
             return obs['observation'], reward, done, self.episode_measurements
@@ -1272,10 +1287,13 @@ class CarlaEnv(gym.Env):
             self._update_straight_dynamic_obs()
 
         obs['image'] = image
-        encoded_observation = None
-        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
+        visual_observation = None
+        if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
+                                         'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             semantic_image = image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
+            obs['semantic_image'] = semantic_image
             image_labels = convert_to_one_hot(semantic_image, num_classes=5)
             
             for _ in range(self.config['frame_stack_size']):
@@ -1283,10 +1301,13 @@ class CarlaEnv(gym.Env):
                 self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
 
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
-            encoded_observation = self.vae_observation(stacked_observation)
-            encoded_observation = encoded_observation / self.config["vae_encoding_norm_factor"]
-            obs['semantic_image'] = semantic_image
-        
+            if 'vae' in self.config["input_type"]:
+                visual_observation = self.vae_observation(stacked_observation)
+                visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
+            else:
+                visual_observation = stacked_observation
+
+
         if self.config["input_type"] == "ae_train":
             semantic_image = image[:,:,0]
             obs['semantic_image'] = semantic_image
@@ -1314,11 +1335,17 @@ class CarlaEnv(gym.Env):
         self.red_light_dist_array = []
 
         if self.config["input_type"] == 'vae':
-            return encoded_observation
+            return visual_observation
 
         elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
-            fused_input = np.hstack([encoded_observation, observation])
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input
+
+        elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
             return fused_input
 
         elif self.config["input_type"] == "wp":
