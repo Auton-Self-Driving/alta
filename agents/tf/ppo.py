@@ -10,7 +10,7 @@ import os
 import sys
 import csv
 import multiprocessing
-from collections import deque
+from collections import deque, OrderedDict
 import matplotlib
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -528,6 +528,185 @@ class PPO(PPO2):
 
         return clipped_actions, states
 
+    def get_optimizer_weights(self):
+        # Get Adam's Optimizer variables
+        optimizer_weights = []
+        print(self.params)
+        print(self.trainer.get_slot_names())
+        for var in self.params:
+            for name in self.trainer.get_slot_names():
+                print(var, name)
+                slot_var = self.trainer.get_slot(var, name)
+                if slot_var is not None:
+                    optimizer_weights.append(slot_var)
+
+        # Get Adam's Beta weights
+        print("Get extra beta parameters")
+        beta1, beta2 = self.trainer._get_beta_accumulators()
+        print(beta1, beta2)
+        if beta1 is not None and beta2 is not None:
+            optimizer_weights.extend([beta1, beta2])
+
+        return optimizer_weights
+
+    def get_all_params(self):
+        raise NotImplementedError
+        return self.all_params
+
+    def get_all_parameters(self):
+        """
+        Get current model parameters as dictionary of variable name -> ndarray.
+        :return: (OrderedDict) Dictionary of variable name -> ndarray of model's parameters.
+        """
+        parameters = self.params + self.get_optimizer_weights()
+        parameter_values = self.sess.run(parameters)
+        return_dictionary = OrderedDict((param.name, value) for param, value in zip(parameters, parameter_values))
+        print(return_dictionary)
+        return return_dictionary
+
+    def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, update,
+                    writer, states=None, cliprange_vf=None):
+        """
+        Training of PPO2 Algorithm
+
+        :param learning_rate: (float) learning rate
+        :param cliprange: (float) Clipping factor
+        :param obs: (np.ndarray) The current observation of the environment
+        :param returns: (np.ndarray) the rewards
+        :param masks: (np.ndarray) The last masks for done episodes (used in recurent policies)
+        :param actions: (np.ndarray) the actions
+        :param values: (np.ndarray) the values
+        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of Actions
+        :param update: (int) the current step iteration
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
+        :param states: (np.ndarray) For recurrent policies, the internal state of the recurrent model
+        :return: policy gradient loss, value function loss, policy entropy,
+                approximation of kl divergence, updated clipping range, training update operation
+        :param cliprange_vf: (float) Clipping factor for the value function
+        """
+        advs = returns - values
+        advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+        td_map = {self.train_model.obs_ph: obs, self.action_ph: actions,
+                  self.advs_ph: advs, self.rewards_ph: returns,
+                  self.learning_rate_ph: learning_rate, self.clip_range_ph: cliprange,
+                  self.old_neglog_pac_ph: neglogpacs, self.old_vpred_ph: values}
+        if states is not None:
+            td_map[self.train_model.states_ph] = states
+            td_map[self.train_model.dones_ph] = masks
+
+        if cliprange_vf is not None and cliprange_vf >= 0:
+            td_map[self.clip_range_vf_ph] = cliprange_vf
+
+        if states is None:
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs + 1
+        else:
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
+
+        if writer is not None:
+            # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
+            if self.full_tensorboard_log and (1 + update) % 10 == 0:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                    td_map, options=run_options, run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % (update * update_fac))
+            else:
+                summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                    td_map)
+            writer.add_summary(summary, (update * update_fac))
+        else:
+            policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                [self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train], td_map)
+
+        # Retrieve Adam optimizer's variables (or states)
+        # self.all_params = self.get_all_parameters()
+        return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
+
+    def save(self, save_path, cloudpickle=False):
+        data = {
+            "gamma": self.gamma,
+            "n_steps": self.n_steps,
+            "vf_coef": self.vf_coef,
+            "ent_coef": self.ent_coef,
+            "max_grad_norm": self.max_grad_norm,
+            "learning_rate": self.learning_rate,
+            "lam": self.lam,
+            "nminibatches": self.nminibatches,
+            "noptepochs": self.noptepochs,
+            "cliprange": self.cliprange,
+            "cliprange_vf": self.cliprange_vf,
+            "verbose": self.verbose,
+            "policy": self.policy,
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "n_envs": self.n_envs,
+            "n_cpu_tf_sess": self.n_cpu_tf_sess,
+            "seed": self.seed,
+            "_vectorize_action": self._vectorize_action,
+            "policy_kwargs": self.policy_kwargs,
+            # "all_params": self.all_params
+        }
+
+        params_to_save = self.get_parameters()
+
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
+
+        model_path = save_path.rsplit('/', 1)[0]
+        self.saver.save(self.sess, os.path.join(model_path, 'policy-model-ckpt-{}'.format(os.getpid())))
+
+    def load_optimizer_state(self, load_path, data, pid=None):
+        if pid is not None:
+            model_path = load_path.rsplit('/', 1)[0]
+            load_ckpt_path = os.path.join(model_path, 'policy-model-ckpt-{}'.format(pid))
+            self.saver.restore(self.sess, load_ckpt_path)
+
+    @classmethod
+    def load(cls, load_path, env=None, custom_objects=None, pid=None, **kwargs):
+        """
+        Load the model from file
+
+        :param load_path: (str or file-like) the saved parameter location
+        :param env: (Gym Environment) the new environment to run the loaded model on
+            (can be None if you only need prediction from a trained model)
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
+        :param kwargs: extra arguments to change the model when loading
+        """
+        data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
+
+        if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
+            raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
+                             "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+                                                                              kwargs['policy_kwargs']))
+
+        print("Creating instance of model")
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
+
+        print("Updating variables from dict")
+        model.__dict__.update(data)
+        model.__dict__.update(kwargs)
+
+        print("Set up env")
+        model.set_env(env)
+        print("Set up model")
+        model.setup_model()
+
+        if pid is not None:
+            print("Load optimizer state from disk")
+            model.load_optimizer_state(load_path, data, pid=pid)
+
+        print("Load model params")
+        model.load_parameters(params)
+
+        print("Return model object")
+        return model
+
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
@@ -613,8 +792,8 @@ class PPO(PPO2):
                     # if self.max_grad_norm is not None:
                     #     grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
                     # grads = list(zip(grads, self.params))
-                trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
-                self._train = trainer.apply_gradients(grads)
+                self.trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
+                self._train = self.trainer.apply_gradients(grads)
 
                 self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
@@ -645,5 +824,7 @@ class PPO(PPO2):
                 self.value = act_model.value
                 self.initial_state = act_model.initial_state
                 tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
+                # self.all_params = self.get_all_parameters()
 
                 self.summary = tf.summary.merge_all()
+                self.saver = tf.train.Saver()

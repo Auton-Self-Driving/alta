@@ -40,20 +40,22 @@ def find_ext_format(MODEL_PATH):
             break
     return ext
 
-def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, seed, config, vis_wrapper, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
+def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, seed, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
     print("Starting child process")
     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
     env = launch_server(config, vis_wrapper, ALTA_LOGS)
     print("Carla env created")
     dummy_env = DummyVecEnv([lambda: env])
-    model = PPO.load(save_file, dummy_env, seed=seed)
+
+    model = PPO.load(save_file, dummy_env, pid=pid, seed=seed)
     print("Model object created")
 
     model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval)
     total_reward, success_episodes, results = test(model, env)
     env.close()
-    return [model.get_parameters(), total_reward, success_episodes, results]
+
+    return [model.get_parameters(), os.getpid(), total_reward, success_episodes, results]
 
 def launch_server(config, vis_wrapper, ALTA_LOGS, logger=None):
     RETRIES_ON_ERROR = 5
@@ -295,17 +297,18 @@ def run_ppo(args, prefix, config):
                         for epoch in range(epochs):
                             with mp.get_context("spawn").Pool(int(mp.cpu_count() / 4)) as pool:
                                 pooled_results = pool.starmap(model_learn,
-                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, millis, config, vis_wrapper)
+                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, millis, config, vis_wrapper, os.getpid())
                                                         for _ in range(args.pop_size)))
 
                             pooled_results = np.array(pooled_results)
                             models_parameters = pooled_results[:, 0]
-                            rewards = pooled_results[:, 1]
-                            successes = pooled_results[:, 2]
+                            process_ids = pooled_results[:, 1]
+                            rewards = pooled_results[:, 2]
+                            successes = pooled_results[:, 3]
 
                             for idx in range(pooled_results.shape[0]):
-                                _, total_reward, success_episodes, results = pooled_results[idx]
-                                print(total_reward, success_episodes, results)
+                                _, pid, total_reward, success_episodes, results = pooled_results[idx]
+                                print(pid, total_reward, success_episodes, results)
 
                             max_success = max(successes)
                             max_inds = np.array([i for i, j in enumerate(successes) if j == max_success])
@@ -313,6 +316,8 @@ def run_ppo(args, prefix, config):
                             max_reward = np.amax(rewards)
                             ind = max_inds[np.argmax(rewards)]
                             print("Best child index from population: {}".format(ind))
+
+                            model = PPO.load(FORWARD_SEARCH_MODEL, dummy_env, pid=process_ids[ind], seed=millis)
                             model.load_parameters(models_parameters[ind], exact_match=True)
                             model.save(FORWARD_SEARCH_MODEL)
 
