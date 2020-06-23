@@ -20,6 +20,8 @@ from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.common.vec_env import DummyVecEnv
 import csv, os
 import matplotlib.pyplot as plt
+from guppy import hpy
+import psutil
 
 def compute_discounted_returns(rewards, gamma):
     returns = np.zeros_like(rewards)
@@ -1290,7 +1292,7 @@ class Custom_DQN(DQN):
                 episode_t = 0
                 exp_list = []
 
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
@@ -1301,19 +1303,35 @@ class Custom_DQN(DQN):
                     MODEL_TEST_FREQ = 40000
                     MODEL_SAVE_FREQ = 500000
 
+                    # if self.num_timesteps == 40002:
+                    #     import pdb
+                    #     pdb.set_trace()
+
                     # save less frequently than testing
                     if self.num_timesteps % MODEL_SAVE_FREQ == 0:
                         self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
-                    
+
+                        # Log memory usage
+                        message = "Before validation " + str(self.num_timesteps)
+                        print_ram_usage(message)
+                        h=hpy()
+                        print(h.heap())
+                        
                         self.save(save_file + str(self.num_timesteps))
                         total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
-                        total_updates.append(self.num_timesteps)                    
+                        total_updates.append(self.num_timesteps)
                         plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
+
+                        # Log memory usage
+                        message = "After validation " + str(self.num_timesteps)
+                        print_ram_usage(message)
+                        h=hpy()
+                        print(h.heap())
                     
                     # Take action and update exploration to the newest value
                     kwargs = {}
@@ -1362,6 +1380,8 @@ class Custom_DQN(DQN):
                         # import pdb
                         # pdb.set_trace()
                         time_to_termination = episode_t - 1
+                        message = "Before add replay buffer " + str(self.num_timesteps)
+                        print_ram_usage(message)
                         for i in range(0, episode_t):
 
                             nstep_reward_i = 0
@@ -1391,9 +1411,21 @@ class Custom_DQN(DQN):
                         #     self.replay_buffer.add(obs, action, rew, new_obs, done, termination_state_code, time_to_termination)
                         #     time_to_termination = time_to_termination + 1
                         
+                        message = "After add replay buffer " + str(self.num_timesteps)
+                        print_ram_usage(message)
                         episode_t = 0
-                        exp_list = []
+                        # exp_list = []
+                        
+                        # Log memory usage
+                        process_id = os.getpid()
+                        process = psutil.Process(process_id)
+                        ram_usage = process.memory_info().rss / (1024*1024*1024)
+                        print("Process id: ", process_id, ", RAM (GB) before clearing exp_list:", ram_usage)
+                        
+                        exp_list.clear()
 
+                        message = "After exp_list clear " + str(self.num_timesteps)
+                        print_ram_usage(message)
 
                     # Do not train if the warmup phase is not over
                     # or if there are not enough samples in the replay buffer
@@ -1719,3 +1751,10 @@ class Custom_DQN(DQN):
 
             return self
    
+
+def print_ram_usage(message):
+    # Log memory usage
+    process_id = os.getpid()
+    process = psutil.Process(process_id)
+    ram_usage = process.memory_info().rss / (1024*1024*1024)
+    print("Process id: ", process_id, ", RAM (GB) ", message, ": ",ram_usage)

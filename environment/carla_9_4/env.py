@@ -43,6 +43,7 @@ from carla import ColorConverter as cc
 from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
+import psutil
 
 from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
 
@@ -215,6 +216,7 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
+        self.orientation_array = []
         self.obstacle_dist_array = []
         self.obstacle_visible_array = []
         self.step_reward_array = []
@@ -246,8 +248,10 @@ class CarlaEnv(gym.Env):
             return obs
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
-            self.reset()
+            raise
+            # self.reset()
 
+    # @profile
     def _step(self, action):
         # if(self.config['discrete_actions']):
         #     action = DISCRETE_ACTIONS[int(action)]
@@ -369,6 +373,7 @@ class CarlaEnv(gym.Env):
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
+            self.orientation_array.append(next_orientation)
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             # self.collision_reward_array.append(self.episode_measurements['is_collision'])
@@ -521,6 +526,7 @@ class CarlaEnv(gym.Env):
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
+        self.episode_measurements['orientation'] = next_orientation
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
             if self.config["videos"] and self.unseen:
@@ -591,7 +597,8 @@ class CarlaEnv(gym.Env):
                             self.speeds_array,
                             self.throttles_array,
                             self.steers_array,
-                            self.brakes_array,
+                            # self.brakes_array,
+                            self.orientation_array,
                             self.obstacle_dist_array,
                             self.step_reward_array,
                             self.collision_reward_array,
@@ -614,7 +621,8 @@ class CarlaEnv(gym.Env):
                         self.speeds_array,
                         self.throttles_array,
                         self.steers_array,
-                        self.brakes_array,
+                        # self.brakes_array,
+                        self.orientation_array,
                         self.obstacle_dist_array,
                         self.step_reward_array,
                         self.collision_reward_array,
@@ -664,7 +672,13 @@ class CarlaEnv(gym.Env):
                 if self.config["videos"] and self.unseen:
                     if self.vis_wrapper is not None:
                         # self.vis_wrapper.generate_video(self.episode_num)
-                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                        
+                        for i in range(1):
+                            self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                            process_id = os.getpid()
+                            process = psutil.Process(process_id)
+                            ram_usage = process.memory_info().rss / (1024*1024*1024)
+                            print("Process id: ", process_id, ", RAM (GB) before testing:", ram_usage)
                         self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         # self.vis_wrapper_vae.generate_video(self.episode_num)
@@ -720,6 +734,7 @@ class CarlaEnv(gym.Env):
                     self.episode_measurements['initial_dist_to_red_light'],
                     self.episode_measurements['red_light_dist'])
 
+    # @profile
     def _update_obs_detector(self):
         self.episode_measurements['obstacle_visible'] = False
 
@@ -973,6 +988,7 @@ class CarlaEnv(gym.Env):
                 
             self.episode_measurements[key] = 0
     
+    # @profile
     def _reset(self, unseen=False, index=0):
         self.clear_episode_measurements()
 
@@ -1236,6 +1252,7 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
+        self.orientation_array = []
         self.obstacle_dist_array = []
         self.obstacle_visible_array = []
         self.step_reward_array = []
@@ -1377,12 +1394,14 @@ class CarlaEnv(gym.Env):
         # array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
 
         return array
-
+    
+    # @profile
     def _read_camera_data(self, world_frame, timeout):
 
         data  = self._retrieve_data(self.camera_queue, timeout, world_frame)
         return data
 
+    # @profile
     def _retrieve_data(self, sensor_queue, timeout, world_frame):
         while True:
             data = sensor_queue.get(timeout=timeout)
@@ -1475,14 +1494,22 @@ class CarlaEnv(gym.Env):
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
     def close(self):
-        self.destroy_all_existing_actors()
 
-        if not self.CarlaServer is None:
-            self.CarlaServer.close()
+        try:
+            self.destroy_all_existing_actors()
+
+            if not self.CarlaServer is None:
+                self.CarlaServer.close()
+
+        except Exception as e:
+                print("********** Exception in closing env **********")
+                print(e)
+                print(traceback.format_exc())
 
     def __del__(self):
         self.close()
 
+# @profile
 def plot_episode_info(path,
                 target_speeds_array,
                 speeds_array,
@@ -1547,7 +1574,8 @@ def plot_episode_info(path,
 
     axs[2, 1].plot(observations, brakes_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Timesteps')
-    axs[2, 1].set_ylabel('Break')
+    # axs[2, 1].set_ylabel('Break')
+    axs[2, 1].set_ylabel('Orientation')
 
     axs[3, 1].plot(observations, collision_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[3, 1].set_xlabel('Timesteps')

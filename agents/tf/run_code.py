@@ -59,6 +59,7 @@ def parse_arguments():
     parser.add_argument('--success-reward', dest='success_reward', type=int, default=0, help='Constant reward to add on success.')
     parser.add_argument('--dqn-n-step',dest='dqn_n_step',type=int,default=1, help='n in n-step DQN. n=1 corresponds to standard DQN.')
     parser.add_argument('--constant-reward', dest='constant_reward', type=int, default=0, help='Constant reward to add on each time step.')
+    parser.add_argument('--disable-light',dest='disable_light', action='store_true', help='Whether to disable traffic light.')
 
     return parser.parse_args()
 def main(args):
@@ -144,17 +145,17 @@ def create_ppo_prefix(args):
         enable_brake_str = ''
 
     if args.disable_collision != False:
-        disable_collision_str = "_disable_collision_"
+        disable_collision_str = "_disable_collision"
     else:
         disable_collision_str = ''
 
     if args.enable_static != False:
-        enable_static_str = "_enable_static_" + str(args.static_steps) + "_"
+        enable_static_str = "_enable_static_" + str(args.static_steps)
     else:
         enable_static_str = ''
 
     if args.target_freq != 2000:
-        target_freq_str = "_target_freq_" + str(args.target_freq) + "_"
+        target_freq_str = "_target_freq_" + str(args.target_freq)
     else:
         target_freq_str = ''
 
@@ -184,7 +185,7 @@ def create_ppo_prefix(args):
         dqn_n_step_str = ''
 
     if args.agent_model_path is not None:
-        use_pretrained_agent_str = '_pretrained_agent_'
+        use_pretrained_agent_str = '_pre'
     else:
         use_pretrained_agent_str = ''
 
@@ -194,34 +195,38 @@ def create_ppo_prefix(args):
         ae_lr_str = ''
 
     if args.use_pid_fs:
-        use_pid_fs_str = '_use_pid_fs_'
+        use_pid_fs_str = '_pid_fs'
     else:
         use_pid_fs_str = ''
     
     if args.clip_reward:
-        clip_reward_str = '_clip_reward_'
+        clip_reward_str = '_clip_reward'
     else:
         clip_reward_str = ''
     
+    if args.disable_light:
+        disable_light_str = '_dis_light'
+    else:
+        disable_light_str = ''
     
     if args.param_noise:
-        param_noise_str = '_param_noise_'
+        param_noise_str = '_param_noise'
     else:
         param_noise_str = ''
     
     if args.special_sample:
-        special_sample_str = '_ss_'
+        special_sample_str = '_ss'
     else:
         special_sample_str = ''
     
     if args.prioritized_replay:
-        prioritized_replay_str = '_prioritized_replay_'
+        prioritized_replay_str = '_prioritized_replay'
     else:
         prioritized_replay_str = ''
 
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
-        + '_network_' + str(args.network) \
+        + '_nw_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
         + '_' + args.scenarios \
@@ -241,6 +246,7 @@ def create_ppo_prefix(args):
         + frame_skip_str \
         + use_pid_fs_str \
         + clip_reward_str \
+        + disable_light_str \
         + param_noise_str \
         + special_sample_str \
         + prioritized_replay_str \
@@ -288,6 +294,7 @@ if __name__ == '__main__':
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = args.use_pid_fs
     config.config["clip_reward"] = args.clip_reward
+    config.config["enable_light"] = not args.disable_light
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward
     config.config["constant_positive_reward"] = args.constant_reward

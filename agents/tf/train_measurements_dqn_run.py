@@ -248,9 +248,11 @@ def run_dqn(args, prefix, config):
     SAVE_PATH = ALTA_LOGS + 'dqn_measurements_weights'
     TB_LOGS_DIR = ALTA_LOGS+'tb/'
 
-    MAX_TRIALS = 1
+    MAX_TRIALS = 5
     steps = args.timesteps
     
+    env = None
+    model = None
 
     for i in range(MAX_TRIALS):
         try:
@@ -376,7 +378,7 @@ def run_dqn(args, prefix, config):
                 model.learn_from_buffer(env, 50000, tb_log_name="DQN", save_file=SAVE_PATH)
 
             else:
-                print("Training begins")
+                print("Training begins, Retry run iteration: {0}", i)
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'
@@ -388,7 +390,14 @@ def run_dqn(args, prefix, config):
                 RETRIES_ON_ERROR = 5
                 serverStartRetries = 0
                 serverStarted = False
-                env = None
+                # env = None
+                if env is not None:
+                    completed_steps = env.total_steps
+                    completed_episodes = env.episode_num
+                else:
+                    completed_steps = 0
+                    completed_episodes = 0
+
                 while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
                     try:
 
@@ -403,6 +412,8 @@ def run_dqn(args, prefix, config):
                             serverStartRetries += 1
                             time.sleep(20)
                 
+                env.episode_num = completed_episodes
+                env.total_steps = completed_steps
                 dummy_env = DummyVecEnv([lambda: env])
 
                 policy = MlpPolicy
@@ -414,7 +425,14 @@ def run_dqn(args, prefix, config):
                 print(millis)
                 with open(ALTA_LOGS + "seed.txt", "w") as f:
                     f.write(str(millis))
-                if args.agent_model_path is None:
+                
+                reset_num_timesteps = True
+
+                if model is not None:
+                    model.env = dummy_env
+                    reset_num_timesteps = False
+
+                elif args.agent_model_path is None:
                     # model = DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size, exploration_fraction=0.1,
                     #             exploration_final_eps=0.02, batch_size=32, prioritized_replay=False, param_noise=False,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
@@ -430,16 +448,17 @@ def run_dqn(args, prefix, config):
                                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
                 else:
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)
-                    model.exploration_fraction = 1e-3
-                    model.learning_starts = 0
+                    # model.exploration_fraction = 1e-3
+                    # model.learning_starts = 0
+                    reset_num_timesteps = False
                     print("Loading pretrained agent from: {}".format(args.agent_model_path))
                 # best_model = model.learn(steps, seed=millis)
                 
                 if args.special_sample:
                     # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
-                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
+                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)
                 else:
-                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
+                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)
                 
                 best_model.save(SAVE_PATH)
             break
@@ -450,6 +469,8 @@ def run_dqn(args, prefix, config):
                 print(traceback.format_exc())
                 f.write(str(e))
                 f.write(traceback.format_exc())
+                # if env is not None:
+                #     env.close()
         finally:
             env.close()
             time.sleep(120)
