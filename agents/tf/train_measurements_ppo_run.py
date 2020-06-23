@@ -297,7 +297,7 @@ def run_ppo(args, prefix, config):
                         print("Running forward search with population size: {}, epochs: {}".format(args.pop_size, epochs))
 
                         for epoch in range(epochs):
-                            with mp.get_context("spawn").Pool(int(mp.cpu_count() / 4)) as pool:
+                            with mp.get_context("spawn").Pool(args.pop_size) as pool:
                                 pooled_results = pool.starmap(model_learn,
                                                     ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, millis, config, vis_wrapper, os.getpid())
                                                         for _ in range(args.pop_size)))
