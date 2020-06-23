@@ -378,8 +378,7 @@ class CustomPolicy1(CustomPolicy):
             features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
-            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
-            # value_fn = linear(vf_latent, 'vf', 1)
+            value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
@@ -416,8 +415,7 @@ class CustomPolicy2(CustomPolicy):
             features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
             vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
             
-            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
-            # value_fn = linear(vf_latent, 'vf', 1)
+            value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
@@ -442,8 +440,7 @@ class CustomWPPolicy(CustomPolicy):
             vf_h = activ(linear(measurement_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
             vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
             
-            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
-            # value_fn = linear(vf_latent, 'vf', 1)
+            value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
 
             self._proba_distribution, self._policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
