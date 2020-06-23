@@ -315,7 +315,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
             else:
                 unknown_episodes += 1
 
-
+    success_episodes += max_steps_obs_episodes
     env.reset()
     print("Results of test scenarios")
     print(results)
