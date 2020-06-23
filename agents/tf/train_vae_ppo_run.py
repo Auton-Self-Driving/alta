@@ -93,7 +93,8 @@ def run_ppo_vae(args, prefix, config):
     def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
         list_of_files = glob.glob(os.path.join(log_dir, ext))
         latest_file = max(list_of_files, key=os.path.getctime)
-        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        if '.' in ext:
+            latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
         ind = int(latest_file.split(sep)[1])
         return ind, latest_file
 
@@ -274,7 +275,9 @@ def run_ppo_vae(args, prefix, config):
                     print("Model: {} loaded successfully".format(latest_model))
 
                     # Loading latest Auto-encoder model
-                    args.vae_model_path = os.path.join('/'.join(latest_model.split('/')[:-2]), 'ae_weights', 'ae_{}'.format(completed_steps))
+                    _, latest_vae_model = get_latest_model(log_dir=os.path.join(MODEL_PATH.rsplit('/', 1)[0], 'ae_weights'), ext='*[0-9]', sep='ae_weights/ae_')
+                    args.vae_model_path = latest_vae_model
+                    # args.vae_model_path = os.path.join('/'.join(latest_model.split('/')[:-2]), 'ae_weights', 'ae_{}'.format(completed_steps))
                     vae.load(args.vae_model_path)
                     env.set_vae(vae)
                     print("AE Model: {} loaded successfully".format(args.vae_model_path))
