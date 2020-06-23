@@ -16,6 +16,7 @@ def parse_arguments():
     parser.add_argument('--enable-search', dest='enable_search', action='store_true', help='Whether to enable forward search using population of policies.')
     parser.add_argument('--pop-size', dest='pop_size', type=int, default=3, help='No of different policies in population.')
     parser.add_argument('--pop-train-interval',dest='pop_train_interval',type=int,default=100000, help='No of training steps to run for each population sample.')
+    parser.add_argument('--disable-greedy-best', dest='disable_greedy_best', action='store_true', help='Whether to disable greedy best model and return the last saved model instead.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
     parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
@@ -247,7 +248,10 @@ def create_ppo_prefix(args):
         disable_pid_fs_str = ''
 
     if args.enable_search:
-        enable_search_str = '_enable_search_{}_{}'.format(args.pop_size, args.pop_train_interval)
+        if not args.disable_greedy_best:
+            enable_search_str = '_enable_search_{}_{}'.format(args.pop_size, args.pop_train_interval)
+        else:
+            enable_search_str = '_enable_search_{}_{}_last'.format(args.pop_size, args.pop_train_interval)
     else:
         enable_search_str = ''
 

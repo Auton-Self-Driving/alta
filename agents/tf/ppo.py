@@ -368,7 +368,8 @@ class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
     
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
-              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False, validation_interval=40000):
+              reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False, validation_interval=40000,
+              disable_greedy_best=False):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
@@ -503,7 +504,10 @@ class PPO(PPO2):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
-            return get_best_model(env, total_rewards, total_successes, model_file_names, save_file.split('models')[0])
+            if not disable_greedy_best:
+                return get_best_model(env, total_rewards, total_successes, model_file_names, save_file.split('models')[0])
+            else:
+                return self
         
     def predict(self, observation, state=None, mask=None, deterministic=False):
         if state is None:

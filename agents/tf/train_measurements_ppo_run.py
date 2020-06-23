@@ -40,7 +40,7 @@ def find_ext_format(MODEL_PATH):
             break
     return ext
 
-def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, seed, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
+def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, disable_greedy_best, seed, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
     print("Starting child process")
     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
@@ -51,7 +51,7 @@ def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, valida
     model = PPO.load(save_file, dummy_env, pid=pid, seed=seed)
     print("Model object created")
 
-    model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval)
+    model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval, disable_greedy_best=disable_greedy_best)
     total_reward, success_episodes, results = test(model, env)
     env.close()
 
@@ -299,7 +299,7 @@ def run_ppo(args, prefix, config):
                         for epoch in range(epochs):
                             with mp.get_context("spawn").Pool(args.pop_size) as pool:
                                 pooled_results = pool.starmap(model_learn,
-                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, millis, config, vis_wrapper, os.getpid())
+                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, millis, config, vis_wrapper, os.getpid())
                                                         for _ in range(args.pop_size)))
 
                             pooled_results = np.array(pooled_results)
