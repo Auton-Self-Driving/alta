@@ -64,6 +64,22 @@ CLASS_REMAP_ARRAY = np.array([
     0
 ])
 
+BINARIZED_REMAP_ARRAY = np.array([
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+])
+
 REDUCED_SEMANTIC_COLOR_MAP = {
     0	: ["Everything Else", ( 0, 0, 0)],
     1	: ["Pedestrian",	(220, 20, 60)],
@@ -73,12 +89,16 @@ REDUCED_SEMANTIC_COLOR_MAP = {
 }
 
 REDUCED_SEMANTIC_COLOR_MAP_ARRAY = np.array([
-    
     [0, 0, 0],
     [220, 20, 60],
     [157, 234, 50],
     [128, 64, 128],
     [0, 0, 142]
+])
+
+BINARIZED_SEMANTIC_COLOR_MAP_ARRAY = np.array([
+    [0, 0, 0],
+    [255, 255, 255]
 ])
 
 def reduce_classes_old(semantic_image):
@@ -93,11 +113,14 @@ def reduce_classes_old(semantic_image):
             semantic_reduced_image[i, j] = new_class
     return semantic_reduced_image
 
-def reduce_classes(semantic_image):
+def reduce_classes(semantic_image, binarized_image=False):
     h, w = np.shape(semantic_image)
     # # assert(d == 1)
     # semantic_reduced_image = np.zeros_like(semantic_image)
-    f = lambda x : CLASS_REMAP_ARRAY[x]
+    if binarized_image:
+        f = lambda x : BINARIZED_REMAP_ARRAY[x]
+    else:
+        f = lambda x : CLASS_REMAP_ARRAY[x]
     # print(semantic_image.reshape(-1))
     semantic_reduced_image = f(semantic_image.reshape(-1))
     return semantic_reduced_image.reshape((h,w))
@@ -135,12 +158,15 @@ def convert_to_rgb_old(semantic_image, reduced_classes=False):
     
     return semantic_rgb_image
 
-def convert_to_rgb(semantic_image, reduced_classes=False):
+def convert_to_rgb(semantic_image, reduced_classes=False, binarized_image=False):
     h, w = np.shape(semantic_image)
     semantic_rgb_image = np.zeros((h, w, 3))
 
     if reduced_classes:
-        semantic_map = REDUCED_SEMANTIC_COLOR_MAP_ARRAY
+        if binarized_image:
+            semantic_map = BINARIZED_SEMANTIC_COLOR_MAP_ARRAY
+        else:
+            semantic_map = REDUCED_SEMANTIC_COLOR_MAP_ARRAY
     else:
         semantic_map = SEMANTIC_COLOR_MAP_ARRAY
     

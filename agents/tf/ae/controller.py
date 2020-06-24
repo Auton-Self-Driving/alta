@@ -21,6 +21,7 @@ class AEController:
         self.z_size = z_size # Unused
         self.frame_stack = frame_stack
         self.image_size = (image_size[0], image_size[1], image_size[2] * self.frame_stack)
+        self.num_classes = int(self.image_size[2] / self.frame_stack)
 
         # AE params
         self.learning_rate = learning_rate
@@ -41,7 +42,7 @@ class AEController:
                            learning_rate=self.learning_rate,
                            is_training=True,
                            reuse=False,
-                           num_classes=5,
+                           num_classes=self.num_classes,
                            frame_stack=self.frame_stack,
                            gpu_mode=True)
 
@@ -49,7 +50,7 @@ class AEController:
                                   batch_size=1,
                                   is_training=False,
                                   reuse=False,
-                                  num_classes=5,
+                                  num_classes=self.num_classes,
                                   frame_stack=self.frame_stack,
                                   gpu_mode=True)
 
