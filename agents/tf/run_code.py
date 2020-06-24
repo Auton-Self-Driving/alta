@@ -108,14 +108,11 @@ def create_ppo_prefix(args):
     else:
         binarized_image_str = ""
 
-<<<<<<< HEAD
     if args.single_channel_image:
         single_img_str = '_1channel_'
     else:
         single_img_str = ""
 
-=======
->>>>>>> baa9d4dbb39676856f0bd9cfd0d203faab24c817
     if args.num_npc != 0:
         num_npc_str = '_npc_' + str(args.num_npc)
     else:
@@ -276,10 +273,7 @@ def create_ppo_prefix(args):
 
     prefix = 'algo_' + args.algo \
         + binarized_image_str \
-<<<<<<< HEAD
         + single_img_str \
-=======
->>>>>>> baa9d4dbb39676856f0bd9cfd0d203faab24c817
         + enable_search_str \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
