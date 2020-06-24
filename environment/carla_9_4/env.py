@@ -602,10 +602,14 @@ class CarlaEnv(gym.Env):
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
                                          'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             semantic_image = sensor_image[:,:,0]
-            semantic_image = reduce_classes(semantic_image)
+            semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
             obs['semantic_image'] = semantic_image
-            image_labels = convert_to_one_hot(semantic_image, num_classes=5)
-            self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
+            if not self.config['single_channel_image']:
+                if self.config['binarized_image']:
+                    semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
+                else:
+                    semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+            self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
             if 'vae' in self.config["input_type"]:
                 visual_observation = self.vae_observation(stacked_observation)
@@ -636,7 +640,7 @@ class CarlaEnv(gym.Env):
                     # TODO: Check and uncomment when running with VAE
                     # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
                     #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     # else:
                     #     # Saving image logic for Auto-Encoder training
                     #     # path = os.path.join(self.log_dir, "ae_images")
@@ -645,19 +649,19 @@ class CarlaEnv(gym.Env):
                     #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
 
                     # Logic for combined videos
-                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8)))
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper.save_image(temp_image, self.num_steps)
                     
                     if self.config["semantic"]:
-                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
                         self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
 
                     # Logic for combined videos
-                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8)))
+                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
-                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -1292,13 +1296,17 @@ class CarlaEnv(gym.Env):
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
                                          'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             semantic_image = image[:,:,0]
-            semantic_image = reduce_classes(semantic_image)
+            semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
             obs['semantic_image'] = semantic_image
-            image_labels = convert_to_one_hot(semantic_image, num_classes=5)
-            
+            if not self.config['single_channel_image']:
+                if self.config['binarized_image']:
+                    semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
+                else:
+                    semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+
             for _ in range(self.config['frame_stack_size']):
                 # Update stacked frames and measurements
-                self._add_to_stacked_queue(self.stacked_observation_queue, image_labels)
+                self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
 
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
             if 'vae' in self.config["input_type"]:

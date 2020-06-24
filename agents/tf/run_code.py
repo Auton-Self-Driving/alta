@@ -16,6 +16,8 @@ def parse_arguments():
     parser.add_argument('--enable-search', dest='enable_search', action='store_true', help='Whether to enable forward search using population of policies.')
     parser.add_argument('--pop-size', dest='pop_size', type=int, default=3, help='No of different policies in population.')
     parser.add_argument('--pop-train-interval',dest='pop_train_interval',type=int,default=100000, help='No of training steps to run for each population sample.')
+    parser.add_argument('--binarized-image', dest='binarized_image', action='store_true', help='Whether to enable binarized image representation.')
+    parser.add_argument('--single-channel-image', dest='single_channel_image', action='store_true', help='Whether to use single channel for image representation.')
     parser.add_argument('--disable-greedy-best', dest='disable_greedy_best', action='store_true', help='Whether to disable greedy best model and return the last saved model instead.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
@@ -100,7 +102,17 @@ def create_ppo_prefix(args):
         vae = "_train_vae"
     else:
         vae = ""
-    
+
+    if args.binarized_image:
+        binarized_image_str = '_binary_image_'
+    else:
+        binarized_image_str = ""
+
+    if args.single_channel_image:
+        single_img_str = '_1channel_'
+    else:
+        single_img_str = ""
+
     if args.num_npc != 0:
         num_npc_str = '_npc_' + str(args.num_npc)
     else:
@@ -260,6 +272,8 @@ def create_ppo_prefix(args):
     no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
 
     prefix = 'algo_' + args.algo \
+        + binarized_image_str \
+        + single_img_str \
         + enable_search_str \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
@@ -320,6 +334,8 @@ if __name__ == '__main__':
     config.config["input_type"] = args.input_type
     config.config["scenarios"] = args.scenarios
     config.config["train_vae"] = (args.train_vae or args.finetune_vae)
+    config.config["binarized_image"] = args.binarized_image
+    config.config["single_channel_image"] = args.single_channel_image
     config.config["noise_dim"] = args.noise_dim
     config.config["num_npc"] = args.num_npc
     config.config["videos"] = args.videos

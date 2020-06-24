@@ -82,6 +82,8 @@ DEFAULT_ENV = {
     "num_npc_lower_threshold" : 70,
     "num_npc_upper_threshold" : 150,
     "train_vae" : False,
+    "binarized_image": False,
+    "single_channel_image": False,
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,

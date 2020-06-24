@@ -68,7 +68,10 @@ def run_ppo_vae(args, prefix, config):
     
     if SCRATCH_DIR[-1] != '/':
         SCRATCH_DIR += '/'
-    vae = AEController(image_size=(128, 128, 5), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+    if args.binarized_image:
+        vae = AEController(image_size=(128, 128, 2), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+    else:
+        vae = AEController(image_size=(128, 128, 5), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
 
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
