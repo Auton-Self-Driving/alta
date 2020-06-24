@@ -237,8 +237,8 @@ def get_discrete_actions():
     # steer = [-0.1, 0.0, 0.1]
     # steer = [0.0]
     # target_speed = [0, 10, 20]
-    # target_speed = [10]
-    target_speed = [0, 20]
+    target_speed = [10]
+    # target_speed = [0, 20]
 
     # Dictionary of discrete (Target_Speed, Steer) actions
     action_space = {}

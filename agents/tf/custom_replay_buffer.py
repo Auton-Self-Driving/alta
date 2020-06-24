@@ -155,6 +155,38 @@ class Custom_ReplayBuffer(ReplayBuffer):
         idxes = random.sample(final_list, batch_size)
         return self._encode_sample(idxes)
 
+    def sample_random_episode(self, batch_size):
+
+        '''
+        Sample random episode method following Episodic Backward Update (EBU) paper.
+        Code is based on EBU codebase.
+        '''
+
+        terminal_array = self._done_idx
+
+        batchnum = 0
+        while batchnum == 0:
+            # exclude some early and final episodes from sampling due to indexing issues,
+            # sample two episodes (ind1 for main, and ind2 for the remaining steps to make multiple of 32)
+            ind = random.sample(range(5,len(terminal_array)-3), 2)
+            ind1 = ind[0]
+            ind2 = ind[1]
+
+            # NOTE: Custom change: Removed +3 from terminal_array[ind1-1]+3 to include complete episode
+            # Perhaps EBU code had a stack of 3 frames, so it had +3 in it.
+            indice_array = range(terminal_array[ind1],terminal_array[ind1-1],-1)
+            epi_len = len(indice_array)
+            batchnum = int(np.ceil(epi_len/float(batch_size)))
+
+        remainindex = int(batchnum * batch_size - epi_len)
+
+        # Normally an episode does not have steps=multiple of 32.
+        # Fill last minibatch with redundant steps from another episode
+        indice_array= np.append(indice_array, range(terminal_array[ind2], terminal_array[ind2]-remainindex, -1))
+        indice_array = indice_array.astype(int)
+        idxes = list(indice_array)
+
+        return batchnum, self._encode_sample(idxes)
 
 class Custom_PrioritizedReplayBuffer(Custom_ReplayBuffer):
 

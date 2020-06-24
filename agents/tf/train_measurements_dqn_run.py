@@ -17,6 +17,7 @@ from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
 # from custom_dqn import Custom_DQN
 from custom_dqn_new import Custom_DQN
+from custom_dqn_ebu import Custom_DQN_EBU
 import csv, os
 import matplotlib.pyplot as plt
 
@@ -441,11 +442,20 @@ def run_dqn(args, prefix, config):
                     #             batch_size=512, target_network_update_freq=2000,
                     #             prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
-                    model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
-                                batch_size=512, target_network_update_freq=args.target_freq,
-                                prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
-                                tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
+                    
+                    if args.ebu:
+                        model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
+                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
+                                    batch_size=512, target_network_update_freq=args.target_freq,
+                                    prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
+                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, ebu_beta=0.5)
+
+                    else:
+                        model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
+                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
+                                    batch_size=512, target_network_update_freq=args.target_freq,
+                                    prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
+                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
                 else:
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)
                     # model.exploration_fraction = 1e-3
@@ -454,7 +464,10 @@ def run_dqn(args, prefix, config):
                     print("Loading pretrained agent from: {}".format(args.agent_model_path))
                 # best_model = model.learn(steps, seed=millis)
                 
-                if args.special_sample:
+                if args.ebu:
+                    best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)                    
+
+                elif args.special_sample:
                     # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
                     best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)
                 else:

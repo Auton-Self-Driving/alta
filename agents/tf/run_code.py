@@ -60,6 +60,8 @@ def parse_arguments():
     parser.add_argument('--dqn-n-step',dest='dqn_n_step',type=int,default=1, help='n in n-step DQN. n=1 corresponds to standard DQN.')
     parser.add_argument('--constant-reward', dest='constant_reward', type=int, default=0, help='Constant reward to add on each time step.')
     parser.add_argument('--disable-light',dest='disable_light', action='store_true', help='Whether to disable traffic light.')
+    parser.add_argument('--ebu', dest='ebu', action='store_true', help='Episodic backward update.')
+    parser.add_argument('--ebu-beta',dest='ebu_beta',type=float,default=0.5)
 
     return parser.parse_args()
 def main(args):
@@ -194,6 +196,11 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
+    if args.ebu_beta != 0.5:
+        ebu_beta_str = '_beta' + str(args.ebu_beta)
+    else:
+        ebu_beta_str = ''
+
     if args.use_pid_fs:
         use_pid_fs_str = '_pid_fs'
     else:
@@ -219,6 +226,11 @@ def create_ppo_prefix(args):
     else:
         special_sample_str = ''
     
+    if args.ebu:
+        ebu_str = '_ebu'
+    else:
+        ebu_str = ''
+    
     if args.prioritized_replay:
         prioritized_replay_str = '_prioritized_replay'
     else:
@@ -229,6 +241,7 @@ def create_ppo_prefix(args):
         + '_nw_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
+        + ebu_beta_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
         + num_npc_str \
@@ -249,6 +262,7 @@ def create_ppo_prefix(args):
         + disable_light_str \
         + param_noise_str \
         + special_sample_str \
+        + ebu_str \
         + prioritized_replay_str \
         + n_steps_str \
         + dqn_n_step_str \
