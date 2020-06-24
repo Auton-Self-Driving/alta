@@ -17,10 +17,7 @@ def parse_arguments():
     parser.add_argument('--pop-size', dest='pop_size', type=int, default=3, help='No of different policies in population.')
     parser.add_argument('--pop-train-interval',dest='pop_train_interval',type=int,default=100000, help='No of training steps to run for each population sample.')
     parser.add_argument('--binarized-image', dest='binarized_image', action='store_true', help='Whether to enable binarized image representation.')
-<<<<<<< HEAD
     parser.add_argument('--single-channel-image', dest='single_channel_image', action='store_true', help='Whether to use single channel for image representation.')
-=======
->>>>>>> baa9d4dbb39676856f0bd9cfd0d203faab24c817
     parser.add_argument('--disable-greedy-best', dest='disable_greedy_best', action='store_true', help='Whether to disable greedy best model and return the last saved model instead.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
