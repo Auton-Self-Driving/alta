@@ -236,9 +236,16 @@ class CarlaEnv(gym.Env):
                                         shape=(1, 408), dtype=np.float32)
 
             elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light':
+                if not self.config["single_channel_image"]:
+                    if self.config["binarized_image"]:
+                        dim = 2
+                    else:
+                        dim = 5
+                else:
+                    dim = 1
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * 5 * self.config['frame_stack_size'] + 8), dtype=np.float32)
+                                        shape=(1, int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size'] + 8), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -610,7 +617,10 @@ class CarlaEnv(gym.Env):
                 else:
                     semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
             self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
-            stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            if not self.config['single_channel_image']:
+                stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            else:
+                stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
             if 'vae' in self.config["input_type"]:
                 visual_observation = self.vae_observation(stacked_observation)
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
@@ -1316,7 +1326,11 @@ class CarlaEnv(gym.Env):
                 # Update stacked frames and measurements
                 self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
 
-            stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            if not self.config['single_channel_image']:
+                stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+            else:
+                stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
+            
             if 'vae' in self.config["input_type"]:
                 visual_observation = self.vae_observation(stacked_observation)
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
