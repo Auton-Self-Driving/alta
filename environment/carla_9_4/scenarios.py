@@ -716,6 +716,28 @@ def paths_long_straight():
 
     return paths
 
+def paths_long_straight_junction():
+    paths = [
+        [
+            # WAYPOINT_DICT_Town01[96],
+            # WAYPOINT_DICT_Town01[17]
+            Transform(Location(x=92.10997772216797, y=320.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+            Transform(Location(x=92.11000061035156, y=10.820009231567383, z=1.32), Rotation(yaw=-90.00029754638672))
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[53]
+            WAYPOINT_DICT_Town01[56]
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[46]
+            WAYPOINT_DICT_Town01[44]
+        ]
+    ]
+
+    return paths
+
 def paths_crowded():
     
     paths = [
@@ -1686,6 +1708,12 @@ def get_long_straight_path(unseen=False, town='Town01', index=0):
         return paths_long_straight()[index]
     else:
         raise NotImplementedError("Long-straight scenarios only implemented for Town01!")
+
+def get_long_straight_junction_path(unseen=False, town='Town01', index=0):
+    if town == "Town01":
+        return paths_long_straight_junction()[index % 3]
+    else:
+        raise NotImplementedError("Long-straight-junction scenarios only implemented for Town01!")
 
 def get_crowded_path(unseen=False, town="Town01", index=0):
     return random.choice(paths_crowded())

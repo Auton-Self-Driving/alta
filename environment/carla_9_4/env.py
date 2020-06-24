@@ -949,6 +949,9 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
             self.config["num_episodes"] = 2
+        elif self.config["scenarios"] == "long_straight_junction":
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_junction_path(unseen, town, index)
+            self.config["num_episodes"] = 3
         elif self.config["scenarios"] == "straight_dynamic":
             self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town)
         elif self.config["scenarios"] == "crowded":
@@ -1127,10 +1130,10 @@ class CarlaEnv(gym.Env):
         self.measurements_file = None
         self.unseen = unseen
 
-        if self.config["scenarios"] == "long_straight" and not self.unseen:
+        if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
             # Way to test two scenarios with and without dynamic actors
             # in training run in long_straight scenario
-            self.index = (self.index + 1) % 2
+            self.index = (self.index + 1) % self.config["num_episodes"]
         else:
             self.index = index
 
@@ -1167,7 +1170,12 @@ class CarlaEnv(gym.Env):
         spawn_vehicles = False
         if self.config["scenarios"] == "long_straight":
 
-            if self.config["num_npc"] > 0 and (self.index % 2 == 1):
+            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 1):
+                spawn_vehicles = True
+
+        elif self.config["scenarios"] == "long_straight_junction":
+
+            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 0):
                 spawn_vehicles = True
 
         else:
@@ -1408,7 +1416,7 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "crowded":
             spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
             print('CROWDED SPAWNING: ', spawn_points)
-        elif self.config["scenarios"] == "long_straight":
+        elif self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
             spawn_points_1 = scenarios.get_long_straight_npcs()
             if unseen:
                 if self.config["test_fixed_spawn_points"]:
@@ -1447,7 +1455,7 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
 
-        if self.config["scenarios"] == "long_straight":
+        if self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
             for spawn_point in spawn_points_1:
                 self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
 
