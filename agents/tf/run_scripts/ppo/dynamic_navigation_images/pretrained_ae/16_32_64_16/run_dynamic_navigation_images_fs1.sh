@@ -69,7 +69,7 @@ python run_code.py \
 sleep 60
 
 
-#ssh gpu20
+#ssh gpu13
 sleep 600
 python run_code.py \
 --algo PPO \

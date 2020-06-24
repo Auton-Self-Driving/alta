@@ -206,6 +206,8 @@ python run_code.py \
 --clip 0.1 \
 --run-id 6 &
 
+# ssh gpu17
+
 python run_code.py \
 --algo PPO \
 --enable-search \
@@ -256,6 +258,76 @@ python run_code.py \
 --algo PPO \
 --enable-search \
 --pop-size 1 \
+--pop-train-interval 120000 \
+--val-interval 40000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 6000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim' \
+--carla-gpu 1 --code-gpu 1 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 11 &
+
+
+# ssh gpu13
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
+--pop-train-interval 120000 \
+--val-interval 40000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 6000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim' \
+--carla-gpu 3 --code-gpu 3 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 9 &
+
+sleep 150
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
+--pop-train-interval 120000 \
+--val-interval 40000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 6000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim' \
+--carla-gpu 1 --code-gpu 1 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 10 &
+
+sleep 300
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
 --pop-train-interval 120000 \
 --val-interval 40000 \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \

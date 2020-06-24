@@ -259,3 +259,24 @@ python run_code.py \
 --videos \
 --run-id 3 &
 sleep 60
+
+
+
+python run_code.py \
+--algo PPO \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 8000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/test' \
+--carla-gpu 2 --code-gpu 2 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 20 \
+--clip 0.2 \
+--videos \
+--run-id 1
