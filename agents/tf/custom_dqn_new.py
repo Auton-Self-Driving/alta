@@ -1380,8 +1380,8 @@ class Custom_DQN(DQN):
                         # import pdb
                         # pdb.set_trace()
                         time_to_termination = episode_t - 1
-                        message = "Before add replay buffer " + str(self.num_timesteps)
-                        print_ram_usage(message)
+                        # message = "Before add replay buffer " + str(self.num_timesteps)
+                        # print_ram_usage(message)
                         for i in range(0, episode_t):
 
                             nstep_reward_i = 0
@@ -1411,21 +1411,21 @@ class Custom_DQN(DQN):
                         #     self.replay_buffer.add(obs, action, rew, new_obs, done, termination_state_code, time_to_termination)
                         #     time_to_termination = time_to_termination + 1
                         
-                        message = "After add replay buffer " + str(self.num_timesteps)
-                        print_ram_usage(message)
+                        # message = "After add replay buffer " + str(self.num_timesteps)
+                        # print_ram_usage(message)
                         episode_t = 0
                         # exp_list = []
                         
                         # Log memory usage
-                        process_id = os.getpid()
-                        process = psutil.Process(process_id)
-                        ram_usage = process.memory_info().rss / (1024*1024*1024)
-                        print("Process id: ", process_id, ", RAM (GB) before clearing exp_list:", ram_usage)
+                        # process_id = os.getpid()
+                        # process = psutil.Process(process_id)
+                        # ram_usage = process.memory_info().rss / (1024*1024*1024)
+                        # print("Process id: ", process_id, ", RAM (GB) before clearing exp_list:", ram_usage)
                         
                         exp_list.clear()
 
-                        message = "After exp_list clear " + str(self.num_timesteps)
-                        print_ram_usage(message)
+                        # message = "After exp_list clear " + str(self.num_timesteps)
+                        # print_ram_usage(message)
 
                     # Do not train if the warmup phase is not over
                     # or if there are not enough samples in the replay buffer
