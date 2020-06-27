@@ -294,12 +294,13 @@ def run_ppo(args, prefix, config):
                     else:
                         model.save(FORWARD_SEARCH_MODEL)
                         epochs = args.timesteps // args.pop_train_interval
-                        print("Running forward search with population size: {}, epochs: {}".format(args.pop_size, epochs))
+                        pid = os.getpid()
+                        print("Running forward search with population size: {}, epochs: {}, PID:{}".format(args.pop_size, epochs, pid))
 
                         for epoch in range(epochs):
                             with mp.get_context("spawn").Pool(args.pop_size) as pool:
                                 pooled_results = pool.starmap(model_learn,
-                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, millis, config, vis_wrapper, os.getpid())
+                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, millis, config, vis_wrapper, pid)
                                                         for _ in range(args.pop_size)))
 
                             pooled_results = np.array(pooled_results)
