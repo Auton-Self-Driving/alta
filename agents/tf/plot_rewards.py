@@ -6,16 +6,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 from numpy import genfromtxt
 import statistics
-
+import argparse
 
 font = {'size' : 36}
 matplotlib.rc('font', **font)
 
-log_path = "/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/wp_obs_info_speed_steer_ldist_goal_light"
-run_path = "algo_PPO_input_wp_obs_info_speed_steer_ldist_goal_light_network_2_layer_lr_0.0002_epochs_10__clip_0.1__dynamic_navigation_pretrained_agent__npc_110_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_n_1000"
-indexes = [5,6,7]
-
-def get_data_from_file(indexes):
+def get_data_from_file(log_path, run_path, indexes):
     successes = []
     rewards = []
     timesteps = []
@@ -66,7 +62,7 @@ def compute_datapoints(new_rewards, new_success):
         
     return mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps
 
-def plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success.png"):
+def plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success.png"):
     plt.figure(figsize=(22, 14))
     plt.title("Navigation with dynamic obstacles")
     plt.xlabel('Timesteps (in M)', fontdict={'size' : 36})
@@ -76,7 +72,7 @@ def plot_success(timesteps, mean_success, min_success, max_success, figname="mea
     plt.fill_between(timesteps, min_success, max_success, color='lavender')
     plt.savefig(os.path.join(log_path, run_path, figname), dpi=200)
     
-def plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png"):
+def plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png"):
     plt.figure(figsize=(22, 14))
     plt.plot(timesteps, mean_reward, label='WRL+',  color='orangered')
     plt.fill_between(timesteps, min_reward, max_reward, color='mistyrose')
@@ -90,17 +86,30 @@ def plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_re
     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
     plt.savefig(os.path.join(log_path, run_path, figname), dpi=200)
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Parser to plot reward curves for RL algos.')
+    parser.add_argument('log_path',type=str, help='Log path.')
+    parser.add_argument('run_path',type=str, help='Run path.')
+    parser.add_argument('--inds', nargs="+", type=int)
+    args = parser.parse_args()
 
-new_rewards, new_success = get_data_from_file(indexes)
-mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
-plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success.png")
-plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png")
+    # log_path = "/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae"
+    # run_path = "algo_PPO_input_wp_vae_obs_info_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.0005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_finetune_vae_epochs_10__clip_0.2__mb_10_"
+    # indexes = [1, 2, 3]
+    log_path = args.log_path
+    run_path = args.run_path
+    indexes = args.inds
 
-for i in range(len(indexes)):
-    new_rewards, new_success = get_data_from_file(indexes[i: i+1])
+    new_rewards, new_success = get_data_from_file(log_path, run_path, indexes)
     mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
-    plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success{}.png".format(indexes[i]))
-    plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_reward{}.png".format(indexes[i]))
+    plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success.png")
+    plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png")
+
+    for i in range(len(indexes)):
+        new_rewards, new_success = get_data_from_file(log_path, run_path, indexes[i: i+1])
+        mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
+        plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success{}.png".format(indexes[i]))
+        plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward{}.png".format(indexes[i]))
 
 
     
