@@ -223,10 +223,10 @@ class OverideRunner(Runner):
 
                 total_steps = infos[0]['total_steps']
             
-                logger.log_scalar('train/steer_mean', steer_mean, total_steps)
+                '''logger.log_scalar('train/steer_mean', steer_mean, total_steps)
                 logger.log_scalar('train/steer_std', steer_std, total_steps)
                 logger.log_scalar('train/tspeed_mean', tspeed_mean, total_steps)
-                logger.log_scalar('train/tspeed_std', tspeed_std, total_steps)
+                logger.log_scalar('train/tspeed_std', tspeed_std, total_steps)'''
 
             for info in infos:
                 maybe_ep_info = info.get('episode')
@@ -261,39 +261,29 @@ class OverideRunner(Runner):
 
         return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
-def test(model, env):
+def test(model, env, dump_results=False, path='.', model_step=None):
     dummy_env = DummyVecEnv([lambda: env])
     success_episodes = 0
+    collision_obs_episodes = 0
+    collision_out_of_road_episodes = 0
+    collision_lane_change_episodes = 0
+    static_episodes = 0
+    max_steps_episodes = 0
+    runover_light_episodes = 0
     results = {}
     total_reward = 0
-    episode_timesteps = {}
-    episode_time = {}
-    saving_time = {}
-    for ind in range(25):
-        episode_timesteps[ind] = 0
-        episode_time[ind] = 0
-        saving_time[ind] = 0
-
-    for ind in range(25):
-        st = time.time()
-        print("Episode number ", ind)
+    #env.reset()
+    for ind in range(env.config["num_episodes"]):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
         
         while not done:
-            episode_timesteps[ind] +=1
-            curr_st = time.time()
             actions = model.step(obs, deterministic=True)[0]
             info = env.step(actions)
-            reward += info[1]
+            reward += info[1][0][0]
             done = info[2]
-            if done:
-                saving_time[ind] += time.time()-curr_st
-            else:
-                episode_time[ind] += time.time()-curr_st
-                saving_time[ind] += info[-1]['saving_time']
             obs = np.expand_dims(info[0], axis=0)
         
         total_reward += reward
@@ -302,14 +292,38 @@ def test(model, env):
             results[ind] = 1
         else:
             results[ind] = 0
+            if info[3]['obs_collision']:
+                collision_obs_episodes += 1
+            elif info[3]['lane_change']:
+                collision_lane_change_episodes += 1
+            elif info[3]['out_of_road']:
+                collision_out_of_road_episodes += 1
+            elif info[3]['termination_state'] == 'runover_light':
+                runover_light_episodes += 1
+            elif info[3]['termination_state'] == 'static':
+                static_episodes += 1
+            elif info[3]['termination_state'] == 'max_steps':
+                max_steps_episodes += 1
 
-    obs[:] = env.reset()
+    env.reset()
     print("Results of train scenarios")
     print(results)
-    print(episode_timesteps)
-    print(episode_time)
-    print(saving_time)
-    print("Total Success Episodes: {}".format(success_episodes))
+    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
+                                collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))
+    if dump_results:
+        env.logger.log_scalar('test/term_success', success_episodes, model_step)
+        env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
+        env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
+        env.logger.log_scalar('test/term_lane_change', collision_lane_change_episodes, model_step)
+        env.logger.log_scalar('test/term_runover_light', runover_light_episodes, model_step)
+        env.logger.log_scalar('test/term_static', static_episodes, model_step)
+        env.logger.log_scalar('test/term_max_steps', max_steps_episodes, model_step)
+        env.logger.log_scalar('test/total_reward', total_reward, model_step)
+
+        with open(path + 'test_results.csv','a') as f:
+                csvwriter = csv.writer(f, delimiter=',')
+                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes,
+                        collision_out_of_road_episodes, collision_lane_change_episodes, runover_light_episodes, static_episodes, max_steps_episodes])
     return total_reward, success_episodes, results
 
 def get_best_model(env, total_rewards, total_successes, model_file_names, path):
@@ -366,21 +380,16 @@ class PPO(PPO2):
             model_file_names = []
             total_updates = []
             for update in range((trained_timesteps // self.n_batch), nupdates + 1):
-                '''if update == (trained_timesteps // self.n_batch):
+                if update == (trained_timesteps // self.n_batch):
                     self.save(save_file + str(update * self.n_batch))
                     if policy_plots:
-                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                    total_reward, success_episodes, _ = test(self, env)
-                    env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
-                    env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                        plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
+                    total_reward, success_episodes, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(update * self.n_batch))
                     total_updates.append(update * self.n_batch)
-                    with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
-                        csvwriter = csv.writer(f, delimiter=',')
-                        csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
-                    continue'''
+                    continue
                 # if (update * self.n_batch) <= trained_timesteps:
                 #     continue
                 assert self.n_batch % self.nminibatches == 0
@@ -408,21 +417,16 @@ class PPO(PPO2):
                             mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, writer=writer,
                                                                  update=timestep))
                     self.num_timesteps += (self.n_batch * self.noptepochs) // batch_size * update_fac
-                    if (update * self.n_batch) % 10000 == 0:
+                    if (update * self.n_batch) % 40000 == 0:
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
-                            plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('ppo2_me')[0] + 'policy_plots/')
-                        total_reward, success_episodes, _ = test(self, env)
-                        env.logger.log_scalar('test/success_episodes', success_episodes, update * self.n_batch)
-                        env.logger.log_scalar('test/total_reward', total_reward, update * self.n_batch)
+                            plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
+                        total_reward, success_episodes, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))
                         total_updates.append(update * self.n_batch)
-                        with open(save_file.split('ppo2_me')[0] + 'test_results.csv','a') as f:
-                            csvwriter = csv.writer(f, delimiter=',')
-                            csvwriter.writerow([update * self.n_batch, success_episodes, total_reward])
-                        plot_test_results(total_successes, total_rewards, total_updates, save_file.split('ppo2_me')[0])
+                        #plot_test_results(total_successes, total_rewards, total_updates, save_file.split('models')[0])
                 else:  # recurrent version
                     update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
                     assert self.n_envs % self.nminibatches == 0

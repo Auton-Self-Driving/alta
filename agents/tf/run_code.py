@@ -14,6 +14,7 @@ def parse_arguments():
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
     parser.add_argument('--task',dest='task',type=str, default='self-driving', required=True, help='Task')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
+    parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/vkadi/projects/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
@@ -40,16 +41,25 @@ def parse_arguments():
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
     parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=100.0, help='Constant penalty for collision.')
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=100.0, help='Speed coefficient for speed-proportional collision penalty.')
-    parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
+    parser.add_argument('--const-light-penalty',dest='const_light_penalty',type=float,default=0.0, help='Constant penalty for running traffic light.')
+    parser.add_argument('--light-penalty-speed-coeff',dest='light_penalty_speed_coeff',type=float,default=0.0, help='Speed-proportional penalty for running light.')
+    #parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
+    parser.add_argument('--train-freq',dest='train_freq',type=int,default=500, help='Internval of training steps for SAC.')
+    parser.add_argument('--no-epochs',dest='no_epochs',type=int,default=4, help='Number of epochs to optimize the minibatch for PPO.')
+    parser.add_argument('--no-minibatches',dest='no_minibatches',type=int,default=4, help='Number of minibatches for PPO.')
+    parser.add_argument('--clip',dest='clip',type=float,default=0.2, help='Clip parameter for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
+    parser.add_argument('--disable-traffic-light', dest='disable_traffic_light', action='store_true', help='Whether to disable traffic light.')
+    parser.add_argument('--disable-obstacle-info', dest='disable_obstacle_info', action='store_true', help='Whether to disable obstacle detector.')
     parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
     parser.add_argument('--static-steps',dest='static_steps',type=int,default=1000, help='Max no of static steps.')
     parser.add_argument('--ae-lr',dest='ae_lr',type=float,default=1e-4)
-    parser.add_argument('--use-pid-fs',dest='use_pid_fs', action='store_true', help='Whether to use pid within each frameskip. (Right way to do it)')
-    
+    parser.add_argument('--disable-pid-fs',dest='disable_pid_fs', action='store_true', help='Disable using pid within each frameskip. (Default way is to use pid within frameskip)')
+    parser.add_argument('--fstack',dest='frame_stack',type=int,default=1, help='Input frame stack size (default:1)')
+    parser.add_argument('--verbose', dest='verbose', action='store_true', help='Enable verbose mode')
 
     return parser.parse_args()
 def main(args):
@@ -58,27 +68,64 @@ def main(args):
     return args
 
 def create_sac_prefix(args):
+    if args.disable_collision != False:
+        disable_collision_str = "_noCollision_"
+    else:
+        disable_collision_str = ''
+
+    if args.disable_traffic_light != False:
+        disable_traffic_light_str = "_noTflight_"
+    else:
+        disable_traffic_light_str = ''
+
+    if args.disable_obstacle_info != False:
+        disable_obstacle_info_str = "_noObsInf_"
+    else:
+        disable_obstacle_info_str = ''
+
+    if args.enable_static != False:
+        enable_static_str = "_static_" + str(args.static_steps) + "_"
+    else:
+        enable_static_str = ''
+
+    if args.const_light_penalty != 0:
+        const_light_penalty_str = '_light_' + str(args.const_light_penalty)
+    else:
+        const_light_penalty_str = ""
+
+    if args.light_penalty_speed_coeff != 0:
+        light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
+    else:
+        light_penalty_speed_coeff_str = ""
+
+    if args.input_type=="wp_obs_info_speed_steer_ldist_goal_light":
+        input_type_str = "8dim"
 
     base = 'algo_' + args.algo \
         + '_task_' + args.task \
-        + '_input_' + args.input_type \
+        + '_input_' + input_type_str \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
         + '_buffer_' + str(args.buffer_size) \
         + '_batchsz_'+ str(args.batch_size) \
-        + '_n-steps_'+ str(args.n_steps) \
-        + '_gradupd-per-iter_'+ str(args.gradient_steps_per_iteration) \
-        + '_tgt-upd-int_'+ str(args.target_update_interval) \
-        + '_ent-coef_'+ str(args.ent_coef) \
-        + '_cp-'+str(args.const_collision_penalty)+'-'+str(args.collision_penalty_speed_coeff)\
+        + '_nSteps_'+ str(args.n_steps) \
+        + '_gdUpdFreq_'+ str(args.gradient_steps_per_iteration) \
+        + '_tgtUpdInt_'+ str(args.target_update_interval) \
+        + '_ent_'+ str(args.ent_coef) \
         + '_' + args.scenarios \
+        + '_npc_'+str(args.num_npc) \
+        + disable_collision_str \
+        + disable_traffic_light_str \
+        + disable_obstacle_info_str \
+        + enable_static_str \
+        + '_cp-'+str(args.const_collision_penalty)+'-'+str(args.collision_penalty_speed_coeff)\
+        + '_lp-'+str(args.const_light_penalty)+'-'+str(args.light_penalty_speed_coeff)
     
     prefix = base + '_runid_' + args.run_id + '/'
     base_prefix = base + '/'
     return base_prefix, prefix
 
 def create_ppo_prefix(args):
-
     if args.finetune_vae:
         vae = "_finetune_vae"
     elif args.train_vae:
@@ -100,16 +147,36 @@ def create_ppo_prefix(args):
         collision_penalty_speed_coeff_str = '_col_sp_' + str(args.collision_penalty_speed_coeff)
     else:
         collision_penalty_speed_coeff_str = ""
-    
-    if args.enable_brake != False:
-        enable_brake_str = '_brake'
+
+    if args.const_light_penalty != 0:
+        const_light_penalty_str = '_light_' + str(args.const_light_penalty)
     else:
-        enable_brake_str = ''
+        const_light_penalty_str = ""
+
+    if args.light_penalty_speed_coeff != 0:
+        light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
+    else:
+        light_penalty_speed_coeff_str = ""
+
+    # if args.enable_brake != False:
+    #     enable_brake_str = '_brake'
+    # else:
+    #     enable_brake_str = ''
 
     if args.disable_collision != False:
         disable_collision_str = "_disable_collision_"
     else:
         disable_collision_str = ''
+
+    if args.disable_traffic_light != False:
+        disable_traffic_light_str = "_disable_light_"
+    else:
+        disable_traffic_light_str = ''
+
+    if args.disable_obstacle_info != False:
+        disable_obstacle_info_str = "_disable_obs_"
+    else:
+        disable_obstacle_info_str = ''
 
     if args.enable_static != False:
         enable_static_str = "_enable_static_" + str(args.static_steps) + "_"
@@ -121,7 +188,7 @@ def create_ppo_prefix(args):
     else:
         ent_coef_str = ''
     
-    if args.input_type == "wp_noise":
+    if args.input_type == "wp_noise" or args.input_type == "wp_obs_bool_noise":
         input_type = args.input_type + str(args.noise_dim)
     else:
         input_type = args.input_type
@@ -131,11 +198,16 @@ def create_ppo_prefix(args):
     else:
         frame_skip_str = ''
     
-    if args.n_steps > 0:
+    if args.frame_stack != 1:
+        frame_stack_str = '_fstack_' + str(args.frame_stack)
+    else:
+        frame_stack_str = ''
+    
+    if args.n_steps != 500:
         n_steps_str = '_n_' + str(args.n_steps)
     else:
         n_steps_str = ''
-    
+
     if args.agent_model_path is not None:
         use_pretrained_agent_str = '_pretrained_agent_'
     else:
@@ -146,28 +218,38 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.use_pid_fs:
-        use_pid_fs_str = '_use_pid_fs_'
+    if args.disable_pid_fs:
+        disable_pid_fs_str = '_disable_pid_fs_'
     else:
-        use_pid_fs_str = ''
-        
+        disable_pid_fs_str = ''
+    noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
+    clip_str = '_clip_{}_'.format(args.clip)
+    no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
+
     prefix = 'algo_' + args.algo \
         + '_task_' + args.task \
         + '_input_' + input_type \
         + '_network_' + str(args.network) \
         + '_lr_' + str(args.lr)  \
+        + noptepochs_str \
+        + clip_str \
+        + no_minibatches_str \
         + ae_lr_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
         + num_npc_str \
-        + enable_brake_str \
         + disable_collision_str \
+        + disable_traffic_light_str \
+        + disable_obstacle_info_str \
         + enable_static_str \
         + const_collision_penalty_str \
         + collision_penalty_speed_coeff_str \
+        + const_light_penalty_str \
+        + light_penalty_speed_coeff_str \
         + ent_coef_str \
         + frame_skip_str \
-        + use_pid_fs_str \
+        + frame_stack_str \
+        + disable_pid_fs_str \
         + n_steps_str \
         + vae \
         + '_runid_' + args.run_id + '/'
@@ -175,7 +257,7 @@ def create_ppo_prefix(args):
     return prefix
 
 def extract_prefix(args):
-    prefix = args.agent_model_path.split('/')[-2]
+    prefix = args.agent_model_path.split('/')[-3]
     return prefix
 
 if __name__ == '__main__':
@@ -196,21 +278,28 @@ if __name__ == '__main__':
     config.config["videos"] = args.videos
     config.config["const_collision_penalty"] = args.const_collision_penalty
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
-    config.config["enable_brake"] = args.enable_brake
+    config.config["const_light_penalty"] = args.const_light_penalty
+    config.config["light_penalty_speed_coeff"] = args.light_penalty_speed_coeff
+    # config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
+    config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic
     config.config["disable_collision"] = args.disable_collision
+    config.config["disable_traffic_light"] = args.disable_traffic_light
+    config.config["disable_obstacle_info"] = args.disable_obstacle_info
     config.config["enable_static"] = args.enable_static
     config.config["max_static_steps"] = args.static_steps
     config.config["city_name"] = args.city_name
     config.config["testing"] = args.test
-    config.config["use_pid_in_frame_skip"] = args.use_pid_fs
+    config.config["use_pid_in_frame_skip"] = not args.disable_pid_fs
     config.config["batch_size"] = args.batch_size
     config.config["gradient_steps_per_iteration"] = args.gradient_steps_per_iteration
     config.config["target_update_interval"] = args.target_update_interval
     config.config["ent_coef"] = args.ent_coef
     config.config["task"] = args.task
     config.config["n_steps"] = args.n_steps
+    config.config["train_freq"] = args.train_freq
+    config.config["verbose"] = args.verbose
 
     try:
         if args.algo == "SAC":

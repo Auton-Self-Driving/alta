@@ -34,94 +34,120 @@ import tensorboard_logging as tf_log
 
 # PPO specific
 from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
-from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer
+from stable_baselines.common.misc_util import set_global_seeds
+from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer, My_MlpPolicy_4layer
 import traceback
 import time
 import csv
-
-def test(model, env, model_step, path=None):
+np.random.seed(5)
+def test(model, env, dump_results=False, path='.', model_step=None):
     dummy_env = DummyVecEnv([lambda: env])
-    # dummy_env = env
     success_episodes = 0
+    collision_obs_episodes = 0
+    collision_out_of_road_episodes = 0
+    collision_lane_change_episodes = 0
+    static_episodes = 0
+    max_steps_episodes = 0
+    runover_light_episodes = 0
     results = {}
     total_reward = 0
-    episode_timesteps = {}
-    episode_time = {}
-    saving_time = {}
-    for ind in range(25):
-        episode_timesteps[ind] = 0
-        episode_time[ind] = 0
-        saving_time[ind] = 0
-
-    for ind in range(25):
-        st = time.time()
-        print("Episode number ", ind)
+    #env.reset()
+    for ind in range(env.config["num_episodes"]):
+        print(ind, "of", env.config["num_episodes"])
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
         
         while not done:
-            episode_timesteps[ind] +=1
-            curr_st = time.time()
-            action, _states = model.predict(obs, deterministic=True)
-            info = env.step(action)
-            reward += info[1]
+            actions = model.predict(obs, deterministic=True)[0]
+            info = env.step(actions)
+            reward += info[1][0][0]
             done = info[2]
-            if done:
-                saving_time[ind] += time.time()-curr_st
-            else:
-                episode_time[ind] += time.time()-curr_st
-                saving_time[ind] += info[-1]['saving_time']
             obs = np.expand_dims(info[0], axis=0)
         
         total_reward += reward
         if info[3]['termination_state'] == 'success':
             success_episodes += 1
-            results[ind] = reward
+            results[ind] = 1
         else:
-            results[ind] = reward
-        print("Ended in ", time.time()-st)
+            results[ind] = 0
+            if info[3]['obs_collision']:
+                collision_obs_episodes += 1
+            elif info[3]['lane_change']:
+                collision_lane_change_episodes += 1
+            elif info[3]['out_of_road']:
+                collision_out_of_road_episodes += 1
+            elif info[3]['termination_state'] == 'runover_light':
+                runover_light_episodes += 1
+            elif info[3]['termination_state'] == 'static':
+                static_episodes += 1
+            elif info[3]['termination_state'] == 'max_steps':
+                max_steps_episodes += 1
 
-    obs[:] = env.reset()
+    env.reset()
     print("Results of train scenarios")
     print(results)
-    print(episode_timesteps)
-    print(episode_time)
-    print(saving_time)
-    print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
+    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
+                                collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))
+    if dump_results:
+        env.logger.log_scalar('test/term_success', success_episodes, model_step)
+        env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
+        env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
+        env.logger.log_scalar('test/term_lane_change', collision_lane_change_episodes, model_step)
+        env.logger.log_scalar('test/term_runover_light', runover_light_episodes, model_step)
+        env.logger.log_scalar('test/term_static', static_episodes, model_step)
+        env.logger.log_scalar('test/term_max_steps', max_steps_episodes, model_step)
+        env.logger.log_scalar('test/total_reward', total_reward, model_step)
 
-    with open(path + 'standalone_test_results.csv','a') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow([model_step, success_episodes, total_reward])
+        with open(path + 'test_results.csv','a') as f:
+                csvwriter = csv.writer(f, delimiter=',')
+                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes,
+                        collision_out_of_road_episodes, collision_lane_change_episodes, runover_light_episodes, static_episodes, max_steps_episodes])
+    return total_reward, success_episodes, results
 
-    return total_reward, results
+def get_scratch_dir(base_log_dir):
+    return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
 def run_sac(args, prefix, base_prefix, config):
 
     ALTA_LOGS = args.base_log_dir + base_prefix + prefix
-    POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
+
+    if ALTA_LOGS[-1] != '/':
+        ALTA_LOGS += '/'
+
+    if "/home/scratch" not in args.base_log_dir and os.path.exists('/home/scratch'):
+        SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    else:
+        SCRATCH_DIR = ALTA_LOGS
+
+    if SCRATCH_DIR[-1] != '/':
+        SCRATCH_DIR += '/'
+
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
+
+    POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
+    if not os.path.exists(POLICY_PLOTS):
+        os.makedirs(POLICY_PLOTS)
 
     TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
 
     FRAME_SKIP = 1
-    SAVE_PATH = ALTA_LOGS + 'sac_measurements_weights'
+    SAVE_PATH = ALTA_LOGS + 'sac_weights'
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
     MODEL_PATH = ALTA_LOGS + 'sac_measurements_weights' + '150000' + '.pkl'
-    MAX_TRIALS = 10
+    MAX_TRIALS = 5
 
     TEST = False
 
     print("Training begins")
     IMAGES_PATH = ALTA_LOGS+'images/'
     VIDEO_PATH = ALTA_LOGS+'videos/'
-    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
 
     vae = AEController(image_size=(128, 128, 5), learning_rate=args.ae_lr)
     
@@ -136,7 +162,7 @@ def run_sac(args, prefix, base_prefix, config):
             if args.task=="self-driving":
                 print("Creating Carla Env")
                 from my_sac import MY_SAC
-                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = args.base_log_dir, base_prefix = base_prefix, prefix = prefix)
+                env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = ALTA_LOGS)
             else:
                 print("Creating Mujoco Env")
                 from my_sac_mujoco import MY_SAC
@@ -155,10 +181,10 @@ def run_sac(args, prefix, base_prefix, config):
     try:
         # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
         dummy_env = DummyVecEnv([lambda: env])
-        if not args.train_vae and args.task == "self-driving":
+        '''if not args.train_vae and args.task == "self-driving":
             print("Loading pretrained AE!!!")
             vae.load(args.vae_model_path)
-            env.set_vae(vae)
+            env.set_vae(vae)'''
         if TEST:
             model = MY_SAC.load(MODEL_PATH, env)
             test(model, env, model_step=0)
@@ -168,6 +194,8 @@ def run_sac(args, prefix, base_prefix, config):
                 policy = My_MlpPolicy_1layer
             elif args.network == "2_layer":
                 policy = My_MlpPolicy_2layer
+            elif args.network == "4_layer":
+                policy = My_MlpPolicy_4layer
             else:
                 print("specify either 1_layer or 2_layer as network input")
                 env.close()
@@ -191,42 +219,65 @@ def run_sac(args, prefix, base_prefix, config):
             env.close()
 
 if __name__ == '__main__':
-    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_no-lane-sensor/'
-    base_prefix = 'algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation/'
-    prefix = 'algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_runid_run10/'
-    
-    ALTA_LOGS = base_log_dir + base_prefix + prefix
-
-    IMAGES_PATH = ALTA_LOGS+'images/'
-    VIDEO_PATH = ALTA_LOGS+'videos/'
-    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1)
-
+    #run_ids = np.arange(5)+1
+    run_ids = [1]
+    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation/'
 
     config = ConfigManager(algo="SAC")
-    config.config["videos"] = True 
-    config.config["carla_gpu"] = '3'
-    config.config["code_gpu"]  = '3'
+    config.config["videos"] = True
+    config.config["carla_gpu"] = '2'
+    config.config["code_gpu"]  = '2'
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(config.config["code_gpu"])
     config.config["testing"] = True
-    config.config['spawn_points_fixed_idx'] = np.load(base_log_dir+'spawn_pt_order.npy')
+    config.config["test_fixed_spawn_points"] = True
+    config.config["city_name"] = "Town01"
+    config.config["input_type"] = "wp_obs_info_speed_steer_ldist_goal_light"
+    config.config["num_npc"] = 70
+    #config.config['spawn_points_fixed_idx'] = np.load(base_log_dir+'spawn_pt_order_2.npy')
     config.config["ent_coef"] = -1
     config.config["n_steps"] = 1
     config.config["gradient_steps_per_iteration"] = 1
     config.config["target_update_interval"] = 1
     config.config["task"] = "self-driving"
-
-    logger = None
-    env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = base_log_dir, base_prefix = base_prefix, prefix = prefix)
-    dummy_env = DummyVecEnv([lambda: env])
-
-    MODEL_PATH = ALTA_LOGS+'sac_measurements_weights230000.pkl'    
+    config.config["network"] = "2_layer"
+    config.config["num_npc_lower_threshold"] = 70
+    config.config["num_episodes"] = 25
+    config.config["train_freq"] = 1
 
     from my_sac import MY_SAC
-    model = MY_SAC.load(MODEL_PATH, env)
-    tot_reward, ep_reward = test(model, env, model_step=0, path = ALTA_LOGS)
-    print(ep_reward)
-    print(tot_reward)
+
+    num_successes = []
+    tot_rewards = []
+
+    #env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = base_log_dir, base_prefix = base_prefix, prefix = prefix)
+    set_global_seeds(5)
+
+    base_prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0/'
+    for run_id in run_ids:
+        prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_runid_run'+str(run_id)+'/'
+    
+        ALTA_LOGS = base_log_dir + base_prefix + prefix
+
+        IMAGES_PATH = ALTA_LOGS+'images/'
+        VIDEO_PATH = ALTA_LOGS+'videos/'
+        vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1)
+
+        config.config['spawn_points_fixed_idx'] = np.load(ALTA_LOGS+'spawn_pt_order.npy')
+
+        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir = ALTA_LOGS, base_prefix = None, prefix = None)
+        dummy_env = DummyVecEnv([lambda: env])
+        
+        MODEL_PATH = ALTA_LOGS+'sac_weights4425000.pkl'    
+
+        model = MY_SAC.load(MODEL_PATH, env)
+        print('Starting evaluation on run id : '+str(run_id))
+        tot_reward, success_episodes, _ = test(model, env, False, path = ALTA_LOGS, model_step=0)
+        print(success_episodes)
+        print(tot_reward)
+        num_successes.append(success_episodes)
+        tot_rewards.append(tot_reward)
 
     env.close()
-    
+    print(num_successes)
+    print(tot_rewards)

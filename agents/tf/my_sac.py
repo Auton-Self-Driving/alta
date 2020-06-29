@@ -22,40 +22,34 @@ import os
 import csv
 import time
 
-def test(model, env, model_step, path=None):
+def test(model, env, dump_results=False, path='.', model_step=None):
     dummy_env = DummyVecEnv([lambda: env])
-    # dummy_env = env
     success_episodes = 0
+    collision_obs_episodes = 0
+    collision_out_of_road_episodes = 0
+    collision_lane_change_episodes = 0
+    static_episodes = 0
+    max_steps_episodes = 0
+    runover_light_episodes = 0
     results = {}
     total_reward = 0
-    episode_timesteps = {}
-    episode_time = {}
-    saving_time = {}
-    for ind in range(25):
-        episode_timesteps[ind] = 0
-        episode_time[ind] = 0
-        saving_time[ind] = 0
+    #env.reset()
 
-    for ind in range(25):
-        st = time.time()
-        print("Episode number ", ind)
+    '''saved_scenarios = env.base_dir+"/testing_scenarios/"
+    if not os.path.exists(saved_scenarios):
+        os.makedirs(saved_scenarios)'''
+
+    for ind in range(env.config["num_episodes"]):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
         
         while not done:
-            episode_timesteps[ind] +=1
-            curr_st = time.time()
-            action, _states = model.predict(obs, deterministic=True)
-            info = env.step(action)
-            reward += info[1]
+            actions = model.predict(obs, deterministic=True)[0]
+            info = env.step(actions)
+            reward += info[1][0][0]
             done = info[2]
-            if done:
-                saving_time[ind] += time.time()-curr_st
-            else:
-                episode_time[ind] += time.time()-curr_st
-                saving_time[ind] += info[-1]['saving_time']
             obs = np.expand_dims(info[0], axis=0)
         
         total_reward += reward
@@ -64,23 +58,40 @@ def test(model, env, model_step, path=None):
             results[ind] = 1
         else:
             results[ind] = 0
-        print("Ended in ", time.time()-st)
+            if info[3]['obs_collision']:
+                collision_obs_episodes += 1
+            elif info[3]['lane_change']:
+                collision_lane_change_episodes += 1
+            elif info[3]['out_of_road']:
+                collision_out_of_road_episodes += 1
+            elif info[3]['termination_state'] == 'runover_light':
+                runover_light_episodes += 1
+            elif info[3]['termination_state'] == 'static':
+                static_episodes += 1
+            elif info[3]['termination_state'] == 'max_steps':
+                max_steps_episodes += 1
+        #env.client.stop_recorder()
 
-    obs[:] = env.reset()
+    env.reset()
     print("Results of train scenarios")
     print(results)
-    print(episode_timesteps)
-    print(episode_time)
-    print(saving_time)
-    print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
-    env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
-    env.logger.log_scalar('test/total_reward', total_reward, model_step)
+    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Runover light: {}, Static: {}, Max_steps: {}".format(success_episodes,
+                                collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, runover_light_episodes, static_episodes, max_steps_episodes))
+    if dump_results:
+        env.logger.log_scalar('test/term_success', success_episodes, model_step)
+        env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
+        env.logger.log_scalar('test/term_out_of_road', collision_out_of_road_episodes, model_step)
+        env.logger.log_scalar('test/term_lane_change', collision_lane_change_episodes, model_step)
+        env.logger.log_scalar('test/term_runover_light', runover_light_episodes, model_step)
+        env.logger.log_scalar('test/term_static', static_episodes, model_step)
+        env.logger.log_scalar('test/term_max_steps', max_steps_episodes, model_step)
+        env.logger.log_scalar('test/total_reward', total_reward, model_step)
 
-    with open(path + 'test_results.csv','a') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow([model_step, success_episodes, total_reward])
-
-    return total_reward, success_episodes
+        with open(path + 'test_results.csv','a') as f:
+                csvwriter = csv.writer(f, delimiter=',')
+                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes,
+                        collision_out_of_road_episodes, collision_lane_change_episodes, runover_light_episodes, static_episodes, max_steps_episodes])
+    return total_reward, success_episodes, results
 
 def plot_policy_and_value_fns(model, ind, path, inp_type):
     if not os.path.exists(path):
@@ -201,15 +212,16 @@ class MY_SAC(SAC):
             config = kwargs.get('env').config
         if config["ent_coef"]==-1:
             config["ent_coef"] = 'auto'
-        super(MY_SAC, self).__init__(ent_coef = config["ent_coef"], train_freq = config["n_steps"], **kwargs)
+        super(MY_SAC, self).__init__(ent_coef = config["ent_coef"], train_freq = config["train_freq"], **kwargs)
         self.config = config
+        self.n_steps = config["n_steps"]
         self.gradient_steps = config["gradient_steps_per_iteration"]
         self.target_update_interval = config["target_update_interval"]
         #self.ent_coef = config["ent_coef"]
         self.st = time.time()
 
     def learn(self, env, total_timesteps, trained_timesteps, callback=None, seed=None,
-              log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, custom_logger = None, save_file="sac_weights"):
+              log_interval=100, tb_log_name="SAC", reset_num_timesteps=True, custom_logger = None, save_file="sac_weights"):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
 
@@ -239,6 +251,7 @@ class MY_SAC(SAC):
 
             step = trained_timesteps
             #for step in range(trained_timesteps, total_timesteps):
+            st = time.time()
             while(step<total_timesteps):
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
@@ -246,12 +259,12 @@ class MY_SAC(SAC):
                     if callback(locals(), globals()) is False:
                         break
 
-                if step % 10000 == 0 and step>0:
+                if step % 75000==0 and not self.config["testing"] and step>0:
                     print("Starting Validation...")
                     self.save(save_file + str(step))
                     st1 = time.time()
                     plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', self.config["input_type"])
-                    total_reward, success_episodes = test(self, env, step, save_file.split('sac_me')[0])
+                    total_reward, success_episodes,_ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=step)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(step))
@@ -278,7 +291,7 @@ class MY_SAC(SAC):
 
                 # Store transition in the replay buffer.
                 #self.replay_buffer.add(obs, action, reward, new_obs, float(done))
-                mini_ep_info.append([obs, action, reward/25.0, new_obs, float(done)])
+                mini_ep_info.append([obs, action, reward/(self.n_steps*1.0), new_obs, float(done)])
                 obs = new_obs
 
                 # Retrieve reward and episode length if using Monitor wrapper
@@ -293,24 +306,51 @@ class MY_SAC(SAC):
                     self.episode_reward = total_episode_reward_logger(self.episode_reward, ep_reward,
                                                                       ep_done, writer, self.num_timesteps)
 
-                if step % self.train_freq == 0:
+                ##############################################
+                # N-step Rewards
+                ##############################################
+                #(Need to optimize)
+                if(len(mini_ep_info) >= self.n_steps):
                     mc_reward = 0
                     mc_next_obs = mini_ep_info[-1][3]
                     gamma_next_s = 1.0
+                    interrupt = 0
+
                     for i in range(len(mini_ep_info))[::-1]:
                         if(mini_ep_info[i][-1]):
-                            mc_reward = 0
-                            mc_next_obs = mini_ep_info[i][0]
+                            '''mc_reward = 0
+                            mc_next_obs = mini_ep_info[i][0]'''
+                            mc_reward = mini_ep_info[i][2]
+                            mc_next_obs = mini_ep_info[i][3]
                             gamma_next_s = 1.0
                             gamma_bs = 1.0
-                            self.replay_buffer.add(mini_ep_info[i][0], mini_ep_info[i][1], mini_ep_info[i][2], mini_ep_info[i][3], gamma_bs)
+                            interrupt = 1
+                            #self.replay_buffer.add(mini_ep_info[i][0], mini_ep_info[i][1], mini_ep_info[i][2], mini_ep_info[i][3],gamma_bs)
                         else:
                             mc_reward = mini_ep_info[i][2]+self.gamma*mc_reward
                             gamma_next_s = gamma_next_s*self.gamma
                             gamma_bs = 1.0-(gamma_next_s/self.gamma)
-                            self.replay_buffer.add(mini_ep_info[i][0], mini_ep_info[i][1], mc_reward, mc_next_obs, gamma_bs)
 
-                    mini_ep_info = []
+                    if(interrupt):
+                        gamma_bs = 1.0
+
+                    if(mini_ep_info[0][-1]):					# We are looking at terminal state
+                        self.replay_buffer.add(mini_ep_info[0][0], mini_ep_info[0][1], mini_ep_info[0][2], mini_ep_info[0][3],1.0)
+                    else:
+                        self.replay_buffer.add(mini_ep_info[0][0], mini_ep_info[0][1], mc_reward, mc_next_obs, gamma_bs)
+
+                    mini_ep_info.pop(0)
+
+                ##############################################
+                # Training step
+                ##############################################
+                if step % 10000 == 0:
+                    print("Training at tstep :", step)
+                    print("Took", (time.time()-st)/60, "mins")
+
+                if step % self.train_freq == 0:
+
+                    np.save(env.log_dir+'replay_buffer.npy', np.array(self.replay_buffer._storage))
 
                     mb_infos_vals = []
                     # Update policy, critics and target networks
@@ -330,6 +370,7 @@ class MY_SAC(SAC):
                     # Log losses and entropy, useful for monitor training
                     if len(mb_infos_vals) > 0:
                         infos_values = np.mean(mb_infos_vals, axis=0)
+                    #st = time.time()
 
                 episode_rewards[-1] += reward
                 if done:
@@ -337,10 +378,10 @@ class MY_SAC(SAC):
                         obs = self.env.reset()
                     episode_rewards.append(0.0)
 
-                if len(episode_rewards[-101:-1]) == 0:
+                if len(episode_rewards[-501:-1]) == 0:
                     mean_reward = -np.inf
                 else:
-                    mean_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+                    mean_reward = round(float(np.mean(episode_rewards[-501:-1])), 1)
 
                 num_episodes = len(episode_rewards)
                 self.num_timesteps += 1
@@ -348,7 +389,7 @@ class MY_SAC(SAC):
                 if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
                     fps = int(step / (time.time() - start_time))
                     logger.logkv("episodes", num_episodes)
-                    logger.logkv("mean 100 episode reward", mean_reward)
+                    logger.logkv("mean 500 episode reward", mean_reward)
                     if len(ep_info_buf) > 0 and len(ep_info_buf[0]) > 0:
                         logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
                         logger.logkv('eplenmean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))

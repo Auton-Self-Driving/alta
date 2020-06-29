@@ -56,8 +56,8 @@ class vis():
         file_name = 'E_' + str(episode_number) + '_t_' + str(total_steps) + "_i_" + str(index) + '.mp4'
         vid_path = os.path.join(self.video_path, file_name)
         im_path = os.path.join(self.images_path, "img%04d.png")
-        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p",
-        vid_path]
+        '''gen_vid_command = ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p", vid_path]'''
+        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p", vid_path]
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         gen_vid_process.wait()
 

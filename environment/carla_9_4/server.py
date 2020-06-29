@@ -3,6 +3,8 @@ import signal
 import subprocess
 import random
 import time
+import ipdb
+st = ipdb.set_trace
 from environment.carla_9_4.config import DEFAULT_ENV
 
 class CarlaServer():
@@ -14,6 +16,7 @@ class CarlaServer():
         self.carla_gpu = config['carla_gpu']
         self.render_server = config['render_server']
         self.live_carla_processes = set()
+        self.settings_path = os.path.join(config['server_path'],"CarlaUE4/Config/CarlaSettings.ini")
         if not self.server_port:
             self.server_port = random.randint(10000, 60000)
         else:
@@ -29,10 +32,12 @@ class CarlaServer():
         if not self.render_server:
             os.environ["SDL_VIDEODRIVER"] = "offscreen"
         
+        '''launch_command = [
+                self.server_binary, "--carla-settings={}".format(self.settings_path), "-carla-rpc-port={}".format(self.server_port)
+        ]'''
         launch_command = [
                 self.server_binary, "-carla-rpc-port={}".format(self.server_port)
         ]
-        
 
         self.server_process = subprocess.Popen(launch_command,
             preexec_fn=os.setsid, env=my_env)

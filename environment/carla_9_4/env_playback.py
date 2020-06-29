@@ -55,8 +55,6 @@ class CarlaEnv(gym.Env):
         self.config = DEFAULT_ENV
         self._update_config(config)
         
-        if( self.config["videos"] or (self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal', 'ae_train']) ):
-            self.config["no_rendering_mode"] = False
         ################################################
         # Elements connected to car
         ################################################
@@ -163,7 +161,10 @@ class CarlaEnv(gym.Env):
         ################################################
         self.client =  self._spawn_client()
         print("server_version", self.client.get_server_version())
-
+        #print(self.client.show_recorder_file_info("/home/scratch/vkadi/alta-logs/sac_vs_ppo_dynamic-navigation/recording01.log", True))
+        #st()
+        #self.client.start_recorder("/home/scratch/vkadi/alta-logs/sac_vs_ppo_dynamic-navigation/recording03_id1.log")
+        #self.client.replay_file("/home/scratch/vkadi/alta-logs/sac_vs_ppo_dynamic-navigation/recording03_id1.log", 0, 0, 0)
         ################################################
         # Applying required CARLA settings
         ################################################
@@ -183,10 +184,7 @@ class CarlaEnv(gym.Env):
             settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
         
         # We want to enable rendering
-        if self.config["no_rendering_mode"]:
-            settings.no_rendering_mode = True
-        else:
-            settings.no_rendering_mode = False
+        settings.no_rendering_mode = False
 
         self._world.apply_settings(settings)
 
@@ -299,6 +297,9 @@ class CarlaEnv(gym.Env):
         client.set_timeout(self.config["client_timeout_seconds"])
         return client
 
+    def clear_traffic_lights(self):
+        for tf_actor in self.traffic_actors:
+            tf_actor.set_state(carla.TrafficLightState.Green)
     def create_observations(self, obs):
         obs['observation'] = np.array([self.episode_measurements['next_orientation']])
 
@@ -365,6 +366,8 @@ class CarlaEnv(gym.Env):
 
     def step(self, action):
         try:
+            #if self.unseen:
+            #    self.clear_traffic_lights()
             obs = self._step(action)
             return obs
         except Exception:
@@ -473,12 +476,9 @@ class CarlaEnv(gym.Env):
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
 
-        sensor_image = None
         # Read in preprocessed image
-        if not self.config["no_rendering_mode"]:
-            sensor_image = self._read_data(self.camera_queue, world_frame)
-            encoded_observation = None
-
+        sensor_image = self._read_data(self.camera_queue, world_frame)
+        encoded_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
             semantic_image = sensor_image[:,:,0]
             semantic_image = reduce_classes(semantic_image)
@@ -544,10 +544,10 @@ class CarlaEnv(gym.Env):
                     
                 # Validation runs
                 elif self.unseen and self.log_dir is not None:
-                    '''for response in self.client.apply_batch_sync([carla.command.DestroyActor(x) for x in self.npc_list]):
+                    for response in self.client.apply_batch_sync([carla.command.DestroyActor(x) for x in self.npc_list]):
                         if response.error:
                             print(response.actor_id)
-                    #self.client.stop_recorder()'''
+                    #self.client.stop_recorder()
 
                     self.validation_episode_num += 1
                     val_ep_idx = 'E_' + str(self.episode_num) + '_t_' + str(self.total_steps) + "_i_" + str(self.index) + '_v_' + str(self.validation_episode_num)
@@ -914,6 +914,8 @@ class CarlaEnv(gym.Env):
 
     def destroy_all_existing_actors(self):
         # Delete all existing actors
+        if len(self.actor_list)==0:
+            return
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
@@ -929,26 +931,6 @@ class CarlaEnv(gym.Env):
         # Clear past Info
         self.clear_episode_measurements()
         self.destroy_all_existing_actors()
-        '''#############
-        self._world = self.client.reload_world()
-        self._world = self.client.get_world()
-
-        self.blueprint_library = self._world.get_blueprint_library()
-        self.spawn_points = self._world.get_map().get_spawn_points()
-
-        if self.config["testing"]:
-            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
-        else:
-            spawn_pt_idx = np.random.permutation(len(self.spawn_points))
-            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
-
-        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
-        self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
-
-        if self.config["disable_two_wheeler"]:
-            self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
-        #############'''
-
         self.npc_list = []
         self.temp_npc_list = []
         self.camera_queue.queue.clear()
@@ -995,6 +977,57 @@ class CarlaEnv(gym.Env):
 
         skip_spawn = 0
 
+        if unseen:
+            if saved_scenarios is not None:
+                if not os.path.exists(saved_scenarios+"/recording_id"+str(index)+".log") and index==0:
+                    self.client.start_recorder(saved_scenarios+"/recording_id"+str(index)+".log")
+                else:
+                    #st()
+                    if index==0:
+                        self.client.replay_file(saved_scenarios+ "/recording_id"+str(index)+".log", 0, 0, 0)
+
+                    actor = self.actor_list.pop()
+                    actor.destroy()
+                    self.vehicle_actor = None
+                    self.vehicle_agent = None
+                    self.location = None
+                    vehicle_bp = None
+
+                    '''hold = list(self._world.get_actors())
+                    for idx, act in enumerate(hold):
+                        if act.get_location().distance(self.source_transform.location) < 50:
+                            print(act.id, act.get_location(), self.source_transform.location)
+                            del hold[idx]
+                            act.destroy()
+                            self.client.apply_batch([carla.command.DestroyActor(x) for x in [act.id]])
+
+                    for idx, act in enumerate(self._world.get_actors()):
+                        if act.get_location().distance(self.source_transform.location) < 50:
+                            print("Re", act.id, act.get_location(), self.source_transform.location)
+                            self.client.apply_batch([carla.command.DestroyActor(x) for x in [act.id]])'''
+
+                    '''player = None
+                    for idx,actor in enumerate(self.actor_list):
+                        if actor.attributes.get('role_name') == 'hero':
+                            st()
+                            player = actor
+                            del self.actor_list[idx]
+                        break
+                    if player is not None:
+                        player.destroy()'''
+
+                    try:
+                        vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
+                    except Exception as e:
+                        print("Error during vehicle creation: {}".format(traceback.format_exc()))
+
+                    self.vehicle_actor = self._world.spawn_actor(vehicle_bp, self.source_transform)
+                    self.vehicle_agent = Agent(self.vehicle_actor, self.config['proximity_threshold'])
+                    self.actor_list.append(self.vehicle_actor)
+                    self.location = self.vehicle_actor.get_location()
+
+                    skip_spawn = 1
+
         if not skip_spawn:
             if self.config["num_npc"] > 0:
                if unseen:
@@ -1006,12 +1039,12 @@ class CarlaEnv(gym.Env):
                               unseen,\
                               index=self.index)
 
-            '''for response in self.client.apply_batch_sync(self.temp_npc_list):
+            for response in self.client.apply_batch_sync(self.temp_npc_list):
                 if response.error:
                     continue
                 else:
                     self.npc_list.append(response.actor_id)
-                    self.actor_list.append(self._world.get_actor(response.actor_id))'''
+                    self.actor_list.append(self._world.get_actor(response.actor_id))
 
         ################################################
         # Attach sensors to vehicle
@@ -1022,20 +1055,19 @@ class CarlaEnv(gym.Env):
         else:
             sensor = self.config['sensors'][0]
 
-        if not self.config["no_rendering_mode"]:
-            camera = self.blueprint_library.find(sensor)
-            camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-            camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-            camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-            # camera.set_attribute('fov', '120')
-            camera.set_attribute('fov', '90')
+        camera = self.blueprint_library.find(sensor)
+        camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # camera.set_attribute('fov', '120')
+        camera.set_attribute('fov', '90')
 
-            # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-            camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-            self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
-            self.actor_list.append(self.camera_actor)
+        # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.camera_actor)
         
-            self.camera_actor.listen(self.camera_queue.put)
+        self.camera_actor.listen(self.camera_queue.put)
         
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
@@ -1066,9 +1098,7 @@ class CarlaEnv(gym.Env):
         for _ in range(15):
             world_frame = self._world.tick()
 
-        image = None
-        if not self.config["no_rendering_mode"]:
-            image = self._read_data(self.camera_queue, world_frame)
+        image = self._read_data(self.camera_queue, world_frame)
 
 
         if self.config["algo"] == "AE":
@@ -1144,7 +1174,7 @@ class CarlaEnv(gym.Env):
         else:
             return obs
         
-    def try_spawn_random_vehicle_at(self, blueprints, transform, count = None):
+    '''def try_spawn_random_vehicle_at(self, blueprints, transform, count = None):
         if count is not None:
             blueprint = blueprints[count]
         else:
@@ -1167,9 +1197,9 @@ class CarlaEnv(gym.Env):
             if self.config["verbose"]:
                 print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
             return True
-        return False
+        return False'''
 
-    '''def try_spawn_random_vehicle_at(self, blueprints, transform, count = None):
+    def try_spawn_random_vehicle_at(self, blueprints, transform, count = None):
         if count is not None:
             blueprint = blueprints[count]
         else:
@@ -1184,7 +1214,7 @@ class CarlaEnv(gym.Env):
             blueprint.set_attribute('role_name', 'autopilot')
         self.temp_npc_list.append(carla.command.SpawnActor(blueprint, transform).then(carla.command.SetAutopilot(carla.command.FutureActor, True)))
 
-        return True'''
+        return True
 
     def spawn_npc(self, number_of_vehicles, unseen, index=1):
         # TODO: remove hard coded logic

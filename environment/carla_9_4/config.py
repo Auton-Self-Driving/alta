@@ -79,14 +79,16 @@ DEFAULT_ENV = {
     "input_type": None,
     "use_scenarios": True,
     "num_npc" : 0,
+    "num_npc_lower_threshold" : 70,
+    "num_npc_upper_threshold" : 150,
     "train_vae" : False,
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
     "const_light_penalty": 0,
     "light_penalty_speed_coeff": 0,
-    "terminate_on_light" : False,
-    "enable_brake": False,
+    "terminate_on_light" : True,
+    "enable_brake": True,
     "log_freq": 1,
     "zero_speed_threshold": 0.05, 
     "videos" : False,
@@ -122,8 +124,10 @@ DEFAULT_ENV = {
     "num_episodes" : 1,
     "proximity_threshold" : 15,
     "min_dist_from_red_light" : 6,
-    "disable_traffic_light": True,
-    "disable_obstacle_info" : True
+    "default_obs_traffic_val": 1,
+    "disable_traffic_light": False,
+    "disable_obstacle_info" : False,
+    "no_rendering_mode" : True
 }
 
 episode_measurements = {
@@ -275,7 +279,7 @@ class ConfigManager(object):
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
             self.config["disable_two_wheeler"] = True
-            #self.config["enable_lane_invasion_sensor"] = True
+            self.config["enable_lane_invasion_sensor"] = True
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
             self.config["reward_function"] = "simple2"
@@ -294,6 +298,8 @@ class ConfigManager(object):
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"
+            self.config["disable_two_wheeler"] = True
+            self.config["enable_lane_invasion_sensor"] = True
         elif algo == 'AE':
             self.config["algo"] = "AE"
             self.config["action_type"] = "control"

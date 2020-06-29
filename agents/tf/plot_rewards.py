@@ -80,7 +80,7 @@ def plot_runs(idx, exp_name, color, min_steps= 100, label = None):
 	# plt.plot(steps, mean_neg_std_reward)
 	# plt.plot(steps, mean_pos_std_reward)
 	#color2 = lighten_color(color, 0.3)
-	plt.fill_between(steps, mean_neg_std_reward, mean_pos_std_reward, color=color, alpha=0.5)
+	plt.fill_between(steps, mean_neg_std_reward, mean_pos_std_reward, color=color, alpha=0.4)
 	# plt.show()
 
 def plot_ppo_rewards(color):
@@ -120,38 +120,40 @@ if __name__=='__main__':
 	#
 	global exp_folder
 	
-	colors_list = ['black', 'darkorange', 'green', 'purple', 'maroon', 'goldenrod', 'yellow']
+	#colors_list = ['black', 'darkorange', 'green', 'purple', 'maroon', 'goldenrod', 'yellow']
+	colors_list = ['black', 'sienna', 'darkslategray', 'darkred', 'darkgreen', 'darkorange']
+
 	ctr = 0
-	plot_another = 1
+	plot_another = 0
 
 	exp_list = []
-	mode = "Neurips_wrl_plus"
+	mode = "lane-sensor"
 
-	if mode == "Neurips_wrl_plus":
+	if mode == "lane-sensor":
 		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo'
 		#min_steps = plot_ppo_rewards('black')
 		min_steps = 100
-		labels_list = ['PPO_n500', 'PPO_n1000', 'SAC_n100']
-
-		# Lane colision off
-		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_n_500_no-lane-sensor')
-		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_500_no-lane-sensor')
-		#exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.05_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.5_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.001_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_no-lane-sensor')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_no-lane-sensor')
+		labels_list = ['PPO_n500', 'SAC_n1', 'SAC_n25', 'SAC_n100']
 
 		# Lane colision on
+		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_1000')
 		exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_500')
-		exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_1000')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_50_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
-		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_-1.0_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_PPO_task_self-driving_input_wp_network_2_layer_lr_0.0002_navigation_ent_0.0_n_100')
 
-		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_1_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation_run3')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+		#exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_25_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_-1.0_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_n-steps_100_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.005_cp-0.0-0.0_navigation')
+
+	elif mode == "lane-sensor-off":
+		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_no-lane-sensor'
+		min_steps = 100
+		labels_list = ['SAC_ent-5e-1', 'SAC_ent-5e-2', 'SAC_ent-1e-3', 'SAC_ent-learned']
+
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.5_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.05_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_task_self-driving_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_tgt-upd-int_1_ent-coef_0.001_cp-0.0-0.0_navigation')
+		exp_list.append('algo_SAC_input_wp_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_gradupd-per-iter_1_cp-0.0-0.0_navigation')
 
 	elif mode == "Distance2goal_reward":
 		min_steps = 100
@@ -184,6 +186,12 @@ if __name__=='__main__':
 		#	continue
 		ctr+=1
 
+		axes = plt.gca()
+		axes.set_ylim(bottom=0)
+		plt.legend(loc='lower right', prop={'size' : 36})
+		print('Saving plot to ', os.path.join(exp_folder, 'actor_rewards_new.png'))
+		plt.savefig(os.path.join(exp_folder, 'actor_rewards_new_'+str(ctr)+'.png'), dpi=200)
+
 
 	if mode == "Neurips_wrl_plus" and plot_another:
 		#min_steps = plot_ppo_rewards('black')
@@ -210,8 +218,8 @@ if __name__=='__main__':
 			#	continue
 			ctr+=1
 
-	axes = plt.gca()
-	axes.set_ylim(bottom=0)
-	plt.legend(loc='lower right', prop={'size' : 36})
-	print('Saving plot to ', os.path.join(exp_folder, 'actor_rewards_new.png'))
-	plt.savefig(os.path.join(exp_folder, 'actor_rewards_new.png'), dpi=200)
+			axes = plt.gca()
+			axes.set_ylim(bottom=0)
+			plt.legend(loc='lower right', prop={'size' : 36})
+			print('Saving plot to ', os.path.join(exp_folder, 'actor_rewards_new.png'))
+			plt.savefig(os.path.join(exp_folder, 'actor_rewards_new.png'), dpi=200)

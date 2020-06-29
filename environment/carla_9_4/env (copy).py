@@ -84,6 +84,7 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.actor_list = []
+        self.sensor_list = []
         self.npc_list = []
         self.temp_npc_list = []
         # Queue for stacked frames and measurements
@@ -928,10 +929,16 @@ class CarlaEnv(gym.Env):
     def _reset(self, unseen=False, index=0, saved_scenarios = None):
         # Clear past Info
         self.clear_episode_measurements()
-        self.destroy_all_existing_actors()
-        '''#############
+        #self.destroy_all_existing_actors()
+	#############
         self._world = self.client.reload_world()
         self._world = self.client.get_world()
+
+        for _ in range(len(self.actor_list)):
+            self.actor_list.pop()
+        for _ in range(len(self.sensor_list)):
+            obj = self.sensor_list.pop()
+            del obj
 
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
@@ -939,7 +946,9 @@ class CarlaEnv(gym.Env):
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
+            print("Creating spawn_pt_order")
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
+            np.save(os.path.join(self.log_dir, "spawn_pt_order.npy"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
@@ -947,7 +956,7 @@ class CarlaEnv(gym.Env):
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
-        #############'''
+	#############
 
         self.npc_list = []
         self.temp_npc_list = []
@@ -1039,10 +1048,12 @@ class CarlaEnv(gym.Env):
         
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
+        self.sensor_list.append(self.collision_sensor)
 
         if self.config["enable_lane_invasion_sensor"]:
             self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
             self.actor_list.append(self.lane_invasion_sensor.sensor)
+            self.sensor_list.append(self.lane_invasion_sensor)
             
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
@@ -1347,7 +1358,7 @@ class CarlaEnv(gym.Env):
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
     def close(self):
-        self.destroy_all_existing_actors()
+        #self.destroy_all_existing_actors()
 
         if not self.CarlaServer is None:
             self.CarlaServer.close()
