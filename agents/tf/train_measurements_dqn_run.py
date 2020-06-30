@@ -427,6 +427,8 @@ def run_dqn(args, prefix, config):
                 with open(ALTA_LOGS + "seed.txt", "w") as f:
                     f.write(str(millis))
                 
+                import pdb
+                pdb.set_trace()
                 reset_num_timesteps = True
 
                 if model is not None:
@@ -445,33 +447,42 @@ def run_dqn(args, prefix, config):
                     
                     if args.ebu:
                         model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, ebu_beta=0.5)
 
                     else:
                         model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=0.05, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
+                
+                elif args.train_from_scratch:
+                    # Train from scratch using trained model and buffer
+                    kwargs = {}
+                    kwargs["skip_optimizer_state_load"] = True
+                    model = Custom_DQN.load(args.agent_model_path, dummy_env, **kwargs)
+                    model.num_timesteps = 0
+                    model.exploration = None
+                    reset_num_timesteps = True
+                    
+                    print("Loading pretrained agent from: {}".format(args.agent_model_path))
                 else:
+                    # continue training with agent model path.
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)
-                    # model.exploration_fraction = 1e-3
-                    # model.learning_starts = 0
                     reset_num_timesteps = False
                     print("Loading pretrained agent from: {}".format(args.agent_model_path))
-                # best_model = model.learn(steps, seed=millis)
-                
+
                 if args.ebu:
-                    best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)                    
+                    best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
 
                 elif args.special_sample:
-                    # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5)
-                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)
+                    # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs)
+                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
                 else:
-                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=5, reset_num_timesteps=reset_num_timesteps)
+                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
                 
                 best_model.save(SAVE_PATH)
             break

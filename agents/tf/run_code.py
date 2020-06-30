@@ -62,7 +62,11 @@ def parse_arguments():
     parser.add_argument('--disable-light',dest='disable_light', action='store_true', help='Whether to disable traffic light.')
     parser.add_argument('--ebu', dest='ebu', action='store_true', help='Episodic backward update.')
     parser.add_argument('--ebu-beta',dest='ebu_beta',type=float,default=0.5)
-
+    parser.add_argument('--exp-final-eps',dest='exp_final_eps',type=float,default=0.05)
+    parser.add_argument('--opt-epochs', dest='opt_epochs', type=int, default=5, help='Number of optimization epochs in DQN.')
+    parser.add_argument('--train-from-scratch', dest='train_from_scratch', action='store_true', help='Train from scratch using a pretrained model.')
+    parser.add_argument('--val-trials', dest='val_trials', type=int, default=25, help='No of validation trials.')
+    
     return parser.parse_args()
 def main(args):
 
@@ -96,25 +100,30 @@ def create_ppo_prefix(args):
     else:
         num_npc_str = ""
 
-    if args.buffer_size != 0:
+    if args.buffer_size != 1000000:
         buffer_size_str = '_buffer_' + str(args.buffer_size)
     else:
         buffer_size_str = ""
 
     if args.reward_norm != 1:
-        reward_norm_str = '_rew_norm_' + str(args.reward_norm)
+        reward_norm_str = '_r_norm_' + str(args.reward_norm)
     else:
         reward_norm_str = ""
     
     if args.success_reward != 0:
-        success_reward_str = '_successr_' + str(args.success_reward)
+        success_reward_str = '_suc_r_' + str(args.success_reward)
     else:
         success_reward_str = ""
 
     if args.constant_reward != 0:
-        constant_reward_str = '_constantr_' + str(args.constant_reward)
+        constant_reward_str = '_const_r_' + str(args.constant_reward)
     else:
         constant_reward_str = ""
+    
+    if args.opt_epochs != 0:
+        opt_epochs_str = '_optep_' + str(args.opt_epochs)
+    else:
+        opt_epochs_str = ""
     
     if args.const_collision_penalty != 0:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
@@ -201,6 +210,11 @@ def create_ppo_prefix(args):
     else:
         ebu_beta_str = ''
 
+    if args.exp_final_eps != 0.05:
+        exp_final_eps_str = '_exp_' + str(args.exp_final_eps)
+    else:
+        exp_final_eps_str = ''
+    
     if args.use_pid_fs:
         use_pid_fs_str = '_pid_fs'
     else:
@@ -230,6 +244,11 @@ def create_ppo_prefix(args):
         ebu_str = '_ebu'
     else:
         ebu_str = ''
+
+    if args.train_from_scratch:
+        train_from_scratch_str = '_tfs'
+    else:
+        train_from_scratch_str = ''
     
     if args.prioritized_replay:
         prioritized_replay_str = '_prioritized_replay'
@@ -242,8 +261,10 @@ def create_ppo_prefix(args):
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
         + ebu_beta_str \
+        + exp_final_eps_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
+        + train_from_scratch_str \
         + num_npc_str \
         + buffer_size_str \
         + enable_brake_str \
@@ -270,6 +291,7 @@ def create_ppo_prefix(args):
         + reward_norm_str \
         + success_reward_str \
         + constant_reward_str \
+        + opt_epochs_str \
         + '_runid_' + args.run_id + '/'
 
     return prefix

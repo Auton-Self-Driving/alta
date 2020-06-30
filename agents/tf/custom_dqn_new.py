@@ -34,7 +34,7 @@ def compute_discounted_returns(rewards, gamma):
     return returns
 
 
-def test(model, env, model_step, path=None):
+def test(model, env, model_step, path=None, val_trials=25):
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
@@ -50,7 +50,7 @@ def test(model, env, model_step, path=None):
     e_unknown = 0
     results = {}
     total_reward = 0
-    for ind in range(6):
+    for ind in range(val_trials):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -137,7 +137,7 @@ def test(model, env, model_step, path=None):
         writer = csv.writer(f, delimiter=',')
         writer.writerow([model_step, success_episodes, total_reward[0],
             e_obs_collision,  e_out_of_road, e_lane_change,
-            e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light])
+            e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light, val_trials])
 
     return total_reward, success_episodes
 
@@ -251,6 +251,8 @@ class Custom_DQN(DQN):
 
         
         self.n_step = n_step
+        self.saver = None
+        self.optimizer = None
         super(Custom_DQN, self).__init__(policy=policy, env=env, gamma=gamma, learning_rate=learning_rate, buffer_size=buffer_size,
                 exploration_fraction=exploration_fraction, exploration_final_eps=exploration_final_eps,
                 exploration_initial_eps=exploration_initial_eps, train_freq=train_freq, batch_size=batch_size, double_q=double_q,
@@ -282,6 +284,7 @@ class Custom_DQN(DQN):
                 self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)
 
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+                self.optimizer = optimizer
 
                 self.act, self._train_step, self.update_target, self.step_model = custom_build_train(
                     q_func=partial(self.policy, **self.policy_kwargs),
@@ -304,9 +307,10 @@ class Custom_DQN(DQN):
                 self.update_target(sess=self.sess)
 
                 self.summary = tf.summary.merge_all()
+                self.saver = tf.train.Saver()
 
     def learn(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
             new_tb_log = self._init_num_timesteps(reset_num_timesteps)
 
@@ -362,14 +366,16 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
                         self.save(save_file + str(self.num_timesteps))
+
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -507,7 +513,7 @@ class Custom_DQN(DQN):
             # return self
     
     def learn_new(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
             '''
             This method includes saving additional information of termination_state_code, time_to_termination
@@ -572,14 +578,16 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
                         self.save(save_file + str(self.num_timesteps))
+
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -727,7 +735,7 @@ class Custom_DQN(DQN):
             return best_model
 
     def learn_new_nstep(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
             '''
             This method includes saving additional information of termination_state_code, time_to_termination
@@ -792,14 +800,19 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    #     with open(save_file + "_best_model.txt", "w") as f:
+                    #         f.write(str(self.num_timesteps))
+                    #         f.write(",")
+                    #         f.write(str(env.episode_num))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
                         self.save(save_file + str(self.num_timesteps))
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -971,7 +984,7 @@ class Custom_DQN(DQN):
             return best_model
 
     def learn_new_buffer(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
             '''
 
@@ -1038,14 +1051,15 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
                         self.save(save_file + str(self.num_timesteps))
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
                     
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -1237,7 +1251,7 @@ class Custom_DQN(DQN):
             return best_model
 
     def learn_new_buffer_nstep(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
             '''
 
@@ -1308,8 +1322,12 @@ class Custom_DQN(DQN):
                     #     pdb.set_trace()
 
                     # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    #     with open(save_file + "_best_model.txt", "w") as f:
+                    #         f.write(str(self.num_timesteps))
+                    #         f.write(",")
+                    #         f.write(str(env.episode_num))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
 
@@ -1320,7 +1338,8 @@ class Custom_DQN(DQN):
                         print(h.heap())
                         
                         self.save(save_file + str(self.num_timesteps))
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -1645,6 +1664,36 @@ class Custom_DQN(DQN):
 
         self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
 
+        model_path = save_path.rsplit('/', 1)[0]
+        self.saver.save(self.sess, os.path.join(model_path, 'policy-model-ckpt'))
+    
+    def get_optimizer_weights(self):
+
+        '''
+
+        Added for debugging.
+
+        '''
+        # Get Adam's Optimizer variables
+        optimizer_weights = []
+        # print(self.params)
+        # print(self.optimizer.get_slot_names())
+        for var in self.params:
+            for name in self.optimizer.get_slot_names():
+                # print(var, name)
+                slot_var = self.optimizer.get_slot(var, name)
+                if slot_var is not None:
+                    optimizer_weights.append(slot_var)
+
+        # Get Adam's Beta weights
+        print("Get extra beta parameters")
+        beta1, beta2 = self.optimizer._get_beta_accumulators()
+        print(beta1, beta2)
+        if beta1 is not None and beta2 is not None:
+            optimizer_weights.extend([beta1, beta2])
+
+        return optimizer_weights
+
     def learn_from_buffer(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
                 reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights",
                 sample_done=False, sample_termination_state_list=[1], sample_time_to_termination_time_list=None):
@@ -1680,7 +1729,7 @@ class Custom_DQN(DQN):
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0])
+                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -1750,7 +1799,67 @@ class Custom_DQN(DQN):
                     self.num_timesteps += 1
 
             return self
+    
+    @classmethod
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
+        """
+        Load the model from file
+
+        :param load_path: (str or file-like) the saved parameter location
+        :param env: (Gym Environment) the new environment to run the loaded model on
+            (can be None if you only need prediction from a trained model)
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
+        :param kwargs: extra arguments to change the model when loading
+        """
+        data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
+
+        if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
+            raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
+                             "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+                                                                              kwargs['policy_kwargs']))
+
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.__dict__.update(kwargs)
+        model.set_env(env)
+        model.setup_model()
+
+        # CUSTOM: Loading of tf model added for optimizer parameters
+        # Done before load_parameters
+        if "skip_optimizer_state_load" in kwargs and kwargs["skip_optimizer_state_load"]: 
+            print("Skipping loading optimizer parameters")
+        else:
+            model.load_optimizer_state(load_path, data)
+        
+        model.load_parameters(params)
+
+        return model
    
+    def load_optimizer_state(self, load_path, data):
+        
+        model_path = load_path.rsplit('/', 1)[0]
+        load_ckpt_path = os.path.join(model_path, 'policy-model-ckpt')
+
+        # load if file exists
+        # Atleast load_ckpt_path.index file should exist
+        # Other files with prefix load_ckpt_path will also exist
+        if os.path.exists(load_ckpt_path + ".index"):
+            self.saver.restore(self.sess, load_ckpt_path)
+            print("Loaded optimizer parameters from pre-trained agent.")
+        else:
+            print("Optimizer state file doesn't exist. Skipping loading optimizer parameters.")
+    
+    def save_model_and_traininfo_file(self, save_file, episode_num):
+        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+        with open(save_file + "_best_model.txt", "w") as f:
+            f.write(str(self.num_timesteps))
+            f.write(",")
+            f.write(str(episode_num))
 
 def print_ram_usage(message):
     # Log memory usage

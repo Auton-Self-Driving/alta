@@ -675,10 +675,16 @@ class CarlaEnv(gym.Env):
                         
                         for i in range(1):
                             self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                            process_id = os.getpid()
-                            process = psutil.Process(process_id)
-                            ram_usage = process.memory_info().rss / (1024*1024*1024)
-                            print("Process id: ", process_id, ", RAM (GB) before testing:", ram_usage)
+                            
+                            # if i % 100 == 0:
+                            #     process_id = os.getpid()
+                            #     process = psutil.Process(process_id)
+                            #     ram_usage = process.memory_info().rss / (1024*1024*1024)
+                            #     print("Process id: ", process_id, ", RAM (GB) before testing:", ram_usage)
+                            #     from guppy import hpy
+                            #     h=hpy()
+                            #     print(h.heap())
+            
                         self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         # self.vis_wrapper_vae.generate_video(self.episode_num)
