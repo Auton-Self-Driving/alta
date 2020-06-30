@@ -427,8 +427,6 @@ def run_dqn(args, prefix, config):
                 with open(ALTA_LOGS + "seed.txt", "w") as f:
                     f.write(str(millis))
                 
-                import pdb
-                pdb.set_trace()
                 reset_num_timesteps = True
 
                 if model is not None:
