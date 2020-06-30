@@ -628,7 +628,7 @@ class PPO(PPO2):
         # self.all_params = self.get_all_parameters()
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def save(self, save_path, cloudpickle=False):
+    def save(self, save_path, pid=None, cloudpickle=False):
         data = {
             "gamma": self.gamma,
             "n_steps": self.n_steps,
@@ -655,10 +655,12 @@ class PPO(PPO2):
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
+        if pid is not None:
+            save_path = save_path + "_{}".format(pid)
+            model_path = save_path.rsplit('/', 1)[0]
+            self.saver.save(self.sess, os.path.join(model_path, 'policy-model-ckpt-{}'.format(pid)))
 
-        model_path = save_path.rsplit('/', 1)[0]
-        self.saver.save(self.sess, os.path.join(model_path, 'policy-model-ckpt-{}'.format(os.getpid())))
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
 
     def load_optimizer_state(self, load_path, data, pid=None):
         if pid is not None:
@@ -682,6 +684,9 @@ class PPO(PPO2):
             file that can not be deserialized.
         :param kwargs: extra arguments to change the model when loading
         """
+        if pid is not None:
+            load_path = load_path + "_{}".format(pid)
+
         data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
 
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
@@ -689,26 +694,19 @@ class PPO(PPO2):
                              "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
                                                                               kwargs['policy_kwargs']))
 
-        print("Creating instance of model")
         model = cls(policy=data["policy"], env=None, _init_setup_model=False)
 
-        print("Updating variables from dict")
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
 
-        print("Set up env")
         model.set_env(env)
-        print("Set up model")
         model.setup_model()
 
         if pid is not None:
-            print("Load optimizer state from disk")
             model.load_optimizer_state(load_path, data, pid=pid)
 
-        print("Load model params")
         model.load_parameters(params)
 
-        print("Return model object")
         return model
 
     def setup_model(self):
