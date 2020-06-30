@@ -120,7 +120,7 @@ def create_ppo_prefix(args):
     else:
         constant_reward_str = ""
     
-    if args.opt_epochs != 0:
+    if args.opt_epochs != 5:
         opt_epochs_str = '_optep_' + str(args.opt_epochs)
     else:
         opt_epochs_str = ""

@@ -465,6 +465,11 @@ def run_dqn(args, prefix, config):
                     model.num_timesteps = 0
                     model.exploration = None
                     reset_num_timesteps = True
+                    model.exploration_final_eps=args.exp_final_eps
+                    model.target_network_update_freq=args.target_freq
+                    model.exploration_fraction=0.1
+                    model.learning_starts=10000
+                    model.batch_size=512
                     
                     print("Loading pretrained agent from: {}".format(args.agent_model_path))
                 else:
