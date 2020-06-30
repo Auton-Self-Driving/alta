@@ -5,11 +5,13 @@ from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
 import numpy as np
+import math
 import time
 import vis_module
 import traceback
 import csv
 import multiprocessing as mp
+import matplotlib.pyplot as plt
 # import logging
 
 # logger = mp.log_to_stderr()
@@ -286,7 +288,7 @@ def run_ppo(args, prefix, config):
                     print("exiting")
                     return
                 
-                if any(fname.endswith('.pkl') or fname.endswith('.zip') for fname in os.listdir(MODEL_PATH)):
+                if not args.enable_search and any(fname.endswith('.pkl') or fname.endswith('.zip') for fname in os.listdir(MODEL_PATH)):
                     ext = find_ext_format(MODEL_PATH)
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
                         seed = int(f.readline())
@@ -323,13 +325,22 @@ def run_ppo(args, prefix, config):
                         timesteps = []
                         total_reward = []
                         total_success = []
-                        pid = os.getpid()
+                        if os.path.exists(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz')):
+                            train_stats = np.load(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz'))
+                            pid = int(train_stats['pid'])
+                            completed_steps = int(train_stats['completed_steps'])
+                            model = PPO.load(FORWARD_SEARCH_MODEL, env=dummy_env, pid=pid)
+                            print("Loading forward search model with pid:{}, completed_steps:{}".format(pid, completed_steps))
+                        else:
+                            pid = os.getpid()
+                            completed_steps = 0
+
                         epochs = args.timesteps // args.pop_train_interval
                         model.save(FORWARD_SEARCH_MODEL, pid=pid)
 
                         print("Running forward search with population size: {}, epochs: {}, PID:{}".format(args.pop_size, epochs, pid))
 
-                        for epoch in range(epochs):
+                        for epoch in range(completed_steps // args.pop_train_interval, epochs):
                             with mp.get_context("spawn").Pool(args.pop_size) as pool:
                                 pooled_results = pool.starmap(model_learn,
                                                     ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, config, None, pid)
@@ -367,7 +378,8 @@ def run_ppo(args, prefix, config):
                                 csvwriter = csv.writer(f, delimiter=',')
                                 csvwriter.writerow([epoch + 1, ind, max_success, max_reward, pooled_results[:, 1:4]])
 
-                        np.savez_compressed(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz'), timesteps=timesteps, total_reward=total_reward, total_success=total_success)
+                            np.savez_compressed(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz'), timesteps=timesteps, total_reward=total_reward, total_success=total_success, pid=pid, completed_steps=((epoch + 1) * args.pop_train_interval))
+
                         best_model = model
                 best_model.save(SAVE_PATH)
             break
