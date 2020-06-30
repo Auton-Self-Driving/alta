@@ -148,7 +148,7 @@ def run_ppo_vae(args, prefix, config):
                         print("Loading pretrained AE!!!")
                         vae.load(args.vae_model_path)
                     env.set_vae(vae)
-                    model = PPO.load(args.agent_model_path, dummy_env)
+                    model = PPO.load(args.agent_model_path, env=dummy_env)
 
                     with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
                         total_reward, success_episodes, results = test(model, env)
@@ -218,7 +218,7 @@ def run_ppo_vae(args, prefix, config):
 
                 update = 0
                 for model_file in model_files[:-1]:
-                    model = PPO.load(model_file, dummy_env, seed=seed)
+                    model = PPO.load(model_file, env=dummy_env, seed=seed)
                     total_reward, success_episodes, results = test(model, env)
                     print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
                     rewards.append(total_reward)
@@ -274,7 +274,7 @@ def run_ppo_vae(args, prefix, config):
                     env.episode_num = completed_episodes
                     print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
-                    model = PPO.load(latest_model, dummy_env, seed=seed)
+                    model = PPO.load(latest_model, env=dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
 
                     # Loading latest Auto-encoder model
@@ -296,7 +296,7 @@ def run_ppo_vae(args, prefix, config):
                         model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
                             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
                     else:
-                        model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
+                        model = PPO.load(args.agent_model_path, env=dummy_env, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, vae=vae, train_vae=(args.train_vae or args.finetune_vae), validation_interval=args.validation_interval)
                 
