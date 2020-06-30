@@ -40,22 +40,50 @@ def find_ext_format(MODEL_PATH):
             break
     return ext
 
-def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, disable_greedy_best, seed, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
-    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
-    print("Starting child process")
-    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, log_dir=ALTA_LOGS)
-    env = launch_server(config, vis_wrapper, ALTA_LOGS)
-    print("Carla env created")
-    dummy_env = DummyVecEnv([lambda: env])
+def plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png"):
+    plt.figure(figsize=(11, 7))
+    timesteps = timesteps / 1000000
+    timesteps_interval = 0.5
+    plt.plot(timesteps, mean_reward, label='WRL+',  color='orangered')
+    plt.fill_between(timesteps, min_reward, max_reward, color='mistyrose')
 
-    model = PPO.load(save_file, dummy_env, pid=pid, seed=seed)
+    axes = plt.gca()
+    plt.title("Reward")
+    plt.xlabel('Timesteps (in M)', fontdict={'size' : 18})
+    plt.ylabel('Total Reward', fontdict={'size' : 18})
+    plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)))
+    plt.savefig(figname, dpi=200)
+
+def plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success.png"):
+    plt.figure(figsize=(11, 7))
+    timesteps = timesteps / 1000000
+    timesteps_interval = 0.5
+    plt.plot(timesteps, mean_success, label='WRL+',  color='orangered')
+    plt.fill_between(timesteps, min_success, max_success, color='mistyrose')
+
+    axes = plt.gca()
+    plt.title("Success")
+    plt.xlabel('Timesteps (in M)', fontdict={'size' : 18})
+    plt.ylabel('Total Success', fontdict={'size' : 18})
+    plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)))
+    plt.savefig(figname, dpi=200)
+
+def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, disable_greedy_best, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
+    env = launch_server(config, vis_wrapper, ALTA_LOGS)
+    dummy_env = DummyVecEnv([lambda: env])
+    print("Carla env created")
+
+    model = PPO.load(save_file, env=dummy_env, pid=pid)
     print("Model object created")
 
     model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval, disable_greedy_best=disable_greedy_best)
     total_reward, success_episodes, results = test(model, env)
+
+    pid = os.getpid()
+    model.save(save_file, pid=pid)
     env.close()
 
-    return [model.get_parameters(), os.getpid(), total_reward, success_episodes, results]
+    return [model.get_parameters(), pid, total_reward, success_episodes, results]
 
 def launch_server(config, vis_wrapper, ALTA_LOGS, logger=None):
     RETRIES_ON_ERROR = 5
@@ -156,7 +184,7 @@ def run_ppo(args, prefix, config):
                     env = launch_server(config, vis_wrapper, ALTA_LOGS)
 
                     dummy_env = DummyVecEnv([lambda: env])
-                    model = PPO.load(args.agent_model_path, dummy_env)
+                    model = PPO.load(args.agent_model_path, env=dummy_env)
 
                     with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
                         total_reward, success_episodes, results = test(model, env)
@@ -219,7 +247,7 @@ def run_ppo(args, prefix, config):
 
                 update = 0
                 for model_file in model_files[:-1]:
-                    model = PPO.load(model_file, dummy_env, seed=seed)
+                    model = PPO.load(model_file, env=dummy_env, seed=seed)
                     total_reward, success_episodes, results = test(model, env)
                     print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
                     rewards.append(total_reward)
@@ -271,7 +299,7 @@ def run_ppo(args, prefix, config):
                     print(env.total_steps, env.episode_num)
                     print("Completed episodes: {}".format(completed_episodes))
                     print("Loading Latest model!!!")
-                    model = PPO.load(latest_model, dummy_env, seed=seed)
+                    model = PPO.load(latest_model, env=dummy_env, seed=seed)
                     print("Model: {} loaded successfully".format(latest_model))
                     if not args.enable_search:
                         best_model = model.learn(args.timesteps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, policy_plots=False, validation_interval=args.validation_interval)
@@ -287,20 +315,24 @@ def run_ppo(args, prefix, config):
                         model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
                             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
                     else:
-                        model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
+                        model = PPO.load(args.agent_model_path, env=dummy_env, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     if not args.enable_search:
                         best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False, validation_interval=args.validation_interval)
                     else:
-                        model.save(FORWARD_SEARCH_MODEL)
-                        epochs = args.timesteps // args.pop_train_interval
+                        timesteps = []
+                        total_reward = []
+                        total_success = []
                         pid = os.getpid()
+                        epochs = args.timesteps // args.pop_train_interval
+                        model.save(FORWARD_SEARCH_MODEL, pid=pid)
+
                         print("Running forward search with population size: {}, epochs: {}, PID:{}".format(args.pop_size, epochs, pid))
 
                         for epoch in range(epochs):
                             with mp.get_context("spawn").Pool(args.pop_size) as pool:
                                 pooled_results = pool.starmap(model_learn,
-                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, millis, config, vis_wrapper, pid)
+                                                    ((args.pop_train_interval, 0, ALTA_LOGS, FORWARD_SEARCH_MODEL, args.validation_interval, args.disable_greedy_best, config, None, pid)
                                                         for _ in range(args.pop_size)))
 
                             pooled_results = np.array(pooled_results)
@@ -309,24 +341,33 @@ def run_ppo(args, prefix, config):
                             rewards = pooled_results[:, 2]
                             successes = pooled_results[:, 3]
 
-                            for idx in range(pooled_results.shape[0]):
-                                _, pid, total_reward, success_episodes, results = pooled_results[idx]
-                                print(pid, total_reward, success_episodes, results)
+                            # for idx in range(pooled_results.shape[0]):
+                            #     _, pid, total_reward, success_episodes, results = pooled_results[idx]
+                            #     print(pid, total_reward, success_episodes, results)
 
                             max_success = max(successes)
                             max_inds = np.array([i for i, j in enumerate(successes) if j == max_success])
                             rewards = np.array(rewards)[max_inds]
                             max_reward = np.amax(rewards)
                             ind = max_inds[np.argmax(rewards)]
-                            print("Best child index from population: {}".format(ind))
+                            print("Epoch:{} Best child index from population: {}, Total Reward:{}, Total Success:{}".format(epoch + 1, ind, max_reward, max_success))
 
-                            model = PPO.load(FORWARD_SEARCH_MODEL, dummy_env, pid=process_ids[ind], seed=millis)
+                            model = PPO.load(FORWARD_SEARCH_MODEL, env=dummy_env, pid=process_ids[ind])
                             model.load_parameters(models_parameters[ind], exact_match=True)
-                            model.save(FORWARD_SEARCH_MODEL)
+                            model.save(FORWARD_SEARCH_MODEL, pid=pid)
+
+                            timesteps.append((epoch + 1) * args.pop_train_interval)
+                            total_reward.append(max_reward)
+                            total_success.append(max_success)
+
+                            plot_reward(np.array(timesteps), np.array(total_reward), np.zeros_like(total_reward), np.zeros_like(total_reward), figname=os.path.join(ALTA_LOGS, 'fsepoch_reward_{}.png'.format(epoch + 1)))
+                            plot_success(np.array(timesteps), np.array(total_success), np.zeros_like(total_success), np.zeros_like(total_success), figname=os.path.join(ALTA_LOGS, 'fsepoch_success_{}.png'.format(epoch + 1)))
 
                             with open(os.path.join(ALTA_LOGS, 'forward_search.csv'), 'a') as f:
                                 csvwriter = csv.writer(f, delimiter=',')
-                                csvwriter.writerow([epoch, ind, max_success, max_reward, pooled_results[:, 1:3]])
+                                csvwriter.writerow([epoch + 1, ind, max_success, max_reward, pooled_results[:, 1:4]])
+
+                        np.savez_compressed(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz'), timesteps=timesteps, total_reward=total_reward, total_success=total_success)
                         best_model = model
                 best_model.save(SAVE_PATH)
             break
