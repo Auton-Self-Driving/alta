@@ -1,4 +1,5 @@
-# ssh gpu19
+# ssh gpu19 
+# (All 3 killed)
 python run_code.py \
 --algo PPO \
 --input-type wp_vae_obs_info_speed_steer_ldist_goal_light \
@@ -45,6 +46,7 @@ python run_code.py \
 --run-id 2 &
 sleep 60
 
+sleep 150
 python run_code.py \
 --algo PPO \
 --input-type wp_vae_obs_info_speed_steer_ldist_goal_light \

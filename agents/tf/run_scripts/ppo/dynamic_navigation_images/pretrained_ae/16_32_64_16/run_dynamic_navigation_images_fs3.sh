@@ -71,6 +71,7 @@ sleep 60
 
 # ssh gpu11
 sleep 600
+# (killed)
 python run_code.py \
 --algo PPO \
 --input-type wp_vae_obs_info_speed_steer_ldist_goal_light \

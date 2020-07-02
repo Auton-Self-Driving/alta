@@ -1,4 +1,5 @@
 # ssh gpu11
+# (Runs 1 and 3 killed) Now on GPU 12
 python run_code.py \
 --algo PPO \
 --input-type wp_vae_obs_info_speed_steer_ldist_goal_light \
@@ -11,7 +12,7 @@ python run_code.py \
 --finetune-vae --ae-lr 5e-4 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---carla-gpu 3 --code-gpu 3 \
+--carla-gpu 1 --code-gpu 1 \
 --num-npc 70 \
 --n-steps 10000 \
 --lr 2e-4 \
@@ -57,7 +58,7 @@ python run_code.py \
 --finetune-vae --ae-lr 5e-4 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---carla-gpu 3 --code-gpu 3 \
+--carla-gpu 1 --code-gpu 1 \
 --num-npc 70 \
 --n-steps 10000 \
 --lr 2e-4 \
