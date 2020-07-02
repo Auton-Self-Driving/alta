@@ -354,7 +354,7 @@ class Custom_DQN(DQN):
                 reset = True
                 self.episode_reward = np.zeros((1,))
 
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
@@ -366,8 +366,8 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
@@ -566,7 +566,7 @@ class Custom_DQN(DQN):
                 episode_t = 0
                 exp_list = []
 
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
@@ -578,8 +578,8 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
@@ -788,7 +788,7 @@ class Custom_DQN(DQN):
                 episode_t = 0
                 exp_list = []
 
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
@@ -800,8 +800,8 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
                     #     with open(save_file + "_best_model.txt", "w") as f:
                     #         f.write(str(self.num_timesteps))
                     #         f.write(",")
@@ -1039,7 +1039,7 @@ class Custom_DQN(DQN):
                 episode_t = 0
                 exp_list = []
 
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
@@ -1051,8 +1051,8 @@ class Custom_DQN(DQN):
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                     
@@ -1322,8 +1322,8 @@ class Custom_DQN(DQN):
                     #     pdb.set_trace()
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
                     #     with open(save_file + "_best_model.txt", "w") as f:
                     #         f.write(str(self.num_timesteps))
                     #         f.write(",")
@@ -1717,15 +1717,15 @@ class Custom_DQN(DQN):
                 # self._setup_learn()
 
                 # self.replay_buffer = Custom_ReplayBuffer(self.replay_buffer._maxsize, self.replay_buffer._storage, self.replay_buffer._next_idx)
-                for _ in range(total_timesteps):
+                for _ in range(self.num_timesteps, total_timesteps):
                     
                     # Custom: model test and save logic
                     MODEL_TEST_FREQ = 40000
                     MODEL_SAVE_FREQ = 500000
 
                     # save less frequently than testing
-                    # if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                    #     self.save(save_file + str(self.num_timesteps))
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save(save_file + str(self.num_timesteps))
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
@@ -1855,7 +1855,7 @@ class Custom_DQN(DQN):
             print("Optimizer state file doesn't exist. Skipping loading optimizer parameters.")
     
     def save_model_and_traininfo_file(self, save_file, episode_num):
-        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+        self.save_with_buffer(save_file + '_buffer_latest')
         with open(save_file + "_best_model.txt", "w") as f:
             f.write(str(self.num_timesteps))
             f.write(",")

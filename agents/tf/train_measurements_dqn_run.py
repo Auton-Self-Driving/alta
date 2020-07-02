@@ -415,8 +415,7 @@ def run_dqn(args, prefix, config):
                 
                 env.episode_num = completed_episodes
                 env.total_steps = completed_steps
-                dummy_env = DummyVecEnv([lambda: env])
-
+                
                 policy = MlpPolicy
 
                 # TODO: Need to add resume training logic if replay buffer gets saved.
@@ -429,11 +428,75 @@ def run_dqn(args, prefix, config):
                 
                 reset_num_timesteps = True
 
+                latest_model_path = os.path.join(ALTA_LOGS, "dqn_measurements_weights_buffer_latest.zip")
+                
+
                 if model is not None:
+                    dummy_env = DummyVecEnv([lambda: env])
                     model.env = dummy_env
                     reset_num_timesteps = False
+                
+                elif os.path.exists(latest_model_path):
+                    
+                    # Currently named it as _best_model, should have been _latest model
+                    training_info_file = os.path.join(ALTA_LOGS, "dqn_measurements_weights_best_model.txt")
 
-                elif args.agent_model_path is None:
+                    if os.path.exists(training_info_file):
+                        with open(training_info_file, "r") as f:
+                            line = f.readline()
+                            line_info = line.split(',')
+                            completed_episodes = int(line_info[0])
+                            completed_steps = int(line_info[1])
+                        print("Loaded training info: Completed Episodes {0}, Completed steps {1}".format(completed_episodes, completed_steps))
+                    else:
+                        print("Warning: Found model file, but not training info file!")
+                        completed_episodes = 0
+                        completed_steps = 0
+
+                    # update environment episode number and total_steps
+                    env.episode_num = completed_episodes
+                    env.total_steps = completed_steps
+                    dummy_env = DummyVecEnv([lambda: env])
+
+                    # continue training from saved path
+                    model = Custom_DQN.load(latest_model_path, dummy_env)
+                    reset_num_timesteps = False
+                    print("Loading last saved agent from: {}".format(latest_model_path))
+
+                elif args.agent_model_path is not None:
+                    # Train using agent model path provided
+
+                    if args.train_from_scratch:
+                        # Train from scratch using trained model and buffer
+                        # reset optimizer and training
+
+                        dummy_env = DummyVecEnv([lambda: env])
+
+                        kwargs = {}
+                        kwargs["skip_optimizer_state_load"] = True
+                        model = Custom_DQN.load(args.agent_model_path, dummy_env, **kwargs)
+                        model.num_timesteps = 0
+                        model.exploration = None
+                        reset_num_timesteps = True
+                        model.exploration_final_eps=args.exp_final_eps
+                        model.target_network_update_freq=args.target_freq
+                        model.exploration_fraction=0.1
+                        model.learning_starts=10000
+                        model.batch_size=512
+                        
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
+                    else:
+
+                        # continue training with agent model path with saved optimizer
+                        dummy_env = DummyVecEnv([lambda: env])
+                        model = Custom_DQN.load(args.agent_model_path, dummy_env)
+                        reset_num_timesteps = False
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
+
+                else:
+                    # Create a new model and train
+
+
                     # model = DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size, exploration_fraction=0.1,
                     #             exploration_final_eps=0.02, batch_size=32, prioritized_replay=False, param_noise=False,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False)
@@ -442,7 +505,7 @@ def run_dqn(args, prefix, config):
                     #             batch_size=512, target_network_update_freq=2000,
                     #             prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
-                    
+                    dummy_env = DummyVecEnv([lambda: env])
                     if args.ebu:
                         model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
                                     exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
@@ -456,28 +519,8 @@ def run_dqn(args, prefix, config):
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
-                
-                elif args.train_from_scratch:
-                    # Train from scratch using trained model and buffer
-                    kwargs = {}
-                    kwargs["skip_optimizer_state_load"] = True
-                    model = Custom_DQN.load(args.agent_model_path, dummy_env, **kwargs)
-                    model.num_timesteps = 0
-                    model.exploration = None
-                    reset_num_timesteps = True
-                    model.exploration_final_eps=args.exp_final_eps
-                    model.target_network_update_freq=args.target_freq
-                    model.exploration_fraction=0.1
-                    model.learning_starts=10000
-                    model.batch_size=512
-                    
-                    print("Loading pretrained agent from: {}".format(args.agent_model_path))
-                else:
-                    # continue training with agent model path.
-                    model = Custom_DQN.load(args.agent_model_path, dummy_env)
-                    reset_num_timesteps = False
-                    print("Loading pretrained agent from: {}".format(args.agent_model_path))
 
+                # Call appropriate learn method
                 if args.ebu:
                     best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
 
