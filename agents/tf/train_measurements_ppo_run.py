@@ -55,6 +55,8 @@ def plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_re
     plt.ylabel('Total Reward', fontdict={'size' : 18})
     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)))
     plt.savefig(figname, dpi=200)
+    plt.clf()
+    plt.close()
 
 def plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success.png"):
     plt.figure(figsize=(11, 7))
@@ -69,6 +71,8 @@ def plot_success(timesteps, mean_success, min_success, max_success, figname="mea
     plt.ylabel('Total Success', fontdict={'size' : 18})
     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / timesteps_interval) + 1) * timesteps_interval, timesteps_interval)))
     plt.savefig(figname, dpi=200)
+    plt.clf()
+    plt.close()
 
 def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, validation_interval, disable_greedy_best, config, vis_wrapper, pid, callback=None, log_interval=1, tb_log_name="PPO2", reset_num_timesteps=True, policy_plots=False, vae=None, train_vae=False):
     env = launch_server(config, vis_wrapper, ALTA_LOGS)
