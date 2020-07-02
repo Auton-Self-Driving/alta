@@ -245,7 +245,7 @@ class CarlaEnv(gym.Env):
                     dim = 1
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size'] + 8), dtype=np.float32)
+                                        shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -1499,6 +1499,7 @@ class CarlaEnv(gym.Env):
         # if(self.config['preprocess_crop_image']):
         #     array = array[200:500, 300:500]
         # array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
+        # array = cv2.resize(array, (64, 64), interpolation=cv2.INTER_AREA)
 
         return array
 
