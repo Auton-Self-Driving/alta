@@ -51,7 +51,6 @@ def test(model, env, model_step, path=None, val_trials=25):
     results = {}
     total_reward = 0
     for ind in range(val_trials):
-        obs = obs.reshape((-1, 1, 7))
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -64,6 +63,7 @@ def test(model, env, model_step, path=None, val_trials=25):
         actions_taken = []
         validation_ep_index = '0'
         while not done:
+            obs = obs.reshape((-1, 1, 7))
             action, q_values, actions_proba = model.predict(obs, deterministic=True)
             q_values_matrix.append(q_values[0])
             q_values_matrix_normalized.append(actions_proba[0])
