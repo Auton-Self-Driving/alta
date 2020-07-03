@@ -513,7 +513,7 @@ def run_dqn(args, prefix, config):
                         model.exploration_final_eps=args.exp_final_eps
                         model.target_network_update_freq=args.target_freq
                         model.exploration_fraction=0.1
-                        model.learning_starts=10000
+                        model.learning_starts=25000
                         model.batch_size=512
                         
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
@@ -540,14 +540,14 @@ def run_dqn(args, prefix, config):
                     dummy_env = DummyVecEnv([lambda: env])
                     if args.ebu:
                         model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, ebu_beta=0.5)
 
                     else:
                         model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=10000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
