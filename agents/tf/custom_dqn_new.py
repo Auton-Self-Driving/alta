@@ -51,6 +51,7 @@ def test(model, env, model_step, path=None, val_trials=25):
     results = {}
     total_reward = 0
     for ind in range(val_trials):
+        obs = obs.reshape((-1, 1, 7))
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -1334,8 +1335,8 @@ class Custom_DQN(DQN):
                         # Log memory usage
                         message = "Before validation " + str(self.num_timesteps)
                         print_ram_usage(message)
-                        h=hpy()
-                        print(h.heap())
+                        # h=hpy()
+                        # print(h.heap())
                         
                         self.save(save_file + str(self.num_timesteps))
                         self.save_model_and_traininfo_file(save_file, env.episode_num)
@@ -1349,8 +1350,8 @@ class Custom_DQN(DQN):
                         # Log memory usage
                         message = "After validation " + str(self.num_timesteps)
                         print_ram_usage(message)
-                        h=hpy()
-                        print(h.heap())
+                        # h=hpy()
+                        # print(h.heap())
                     
                     # Take action and update exploration to the newest value
                     kwargs = {}

@@ -26,6 +26,7 @@ import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from environment.carla_9_4.agents.navigation.agent import Agent
+from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 import scipy.misc
 from scipy.misc import imsave
@@ -82,6 +83,7 @@ class CarlaEnv(gym.Env):
         self.semantic_image = None
         self.unseen = False
         self.index = 0
+        self.expert_agent = False
 
         self.logger = logger
         self.vis_wrapper = vis_wrapper
@@ -971,8 +973,8 @@ class CarlaEnv(gym.Env):
 
         return control
 
-    def reset(self, unseen=False, index=0):
-        return self._reset(unseen, index)
+    def reset(self, unseen=False, index=0, expert_agent=False):
+        return self._reset(unseen, index, expert_agent)
 
     def destroy_all_existing_actors(self):
         # Delete all existing actors
@@ -995,7 +997,7 @@ class CarlaEnv(gym.Env):
             self.episode_measurements[key] = 0
     
     # @profile
-    def _reset(self, unseen=False, index=0):
+    def _reset(self, unseen=False, index=0, expert_agent=False):
         self.clear_episode_measurements()
 
         self.num_steps = 0
@@ -1004,6 +1006,7 @@ class CarlaEnv(gym.Env):
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
         self.unseen = unseen
+        self.expert_agent = expert_agent
         
         self.index = index
 
@@ -1035,13 +1038,30 @@ class CarlaEnv(gym.Env):
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
-        self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
-        self.actor_list.append(self.vehicle_actor)
-        self.location = self.vehicle_actor.get_location()
+        self.vehicle_actor = None
+        for _ in range(5):
+            self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
+            if self.vehicle_actor is not None:
+                break
+            else:
+                self.destroy_all_existing_actors()
+                time.sleep(120)
+        
+        if self.vehicle_actor is not None:
+            self.actor_list.append(self.vehicle_actor)
+            self.location = self.vehicle_actor.get_location()
+        else:
+            raise Exception("Failed in spawning vehicle actor.")
 
         # Agent uses proximity_threshold to detect traffic lights.
         # Hence we use traffic_light_proximity_threshold while creating an Agent.
-        self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
+        # self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
+        self.vehicle_agent = BasicAgent(self.vehicle_actor, proximity_threshold=self.config['traffic_light_proximity_threshold'])
+
+        if self.expert_agent:
+            self.vehicle_agent.set_destination((self.destination_transform.location.x,
+                                            self.destination_transform.location.y,
+                                            self.destination_transform.location.z))
 
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.

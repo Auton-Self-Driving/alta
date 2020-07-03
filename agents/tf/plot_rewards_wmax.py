@@ -11,8 +11,9 @@ import statistics
 font = {'size' : 36}
 matplotlib.rc('font', **font)
 
-log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_lst_spl_sample_train2_fs5_improvements/long_st_steer3_throttle_2/"
-run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_light_network_1_layer_lr_8e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample__rew_norm_8_successr_80"
+log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_dynamic_nav_improv_large_steer_ac12_v2/junc_steer7_throttle_0_20_ac_12/"
+run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_exp_0.1_dynamic_navigation_pre_tfs_npc_70_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_dqn_n_3_r_norm_24_suc_r_100_const_r_1"
+
 # log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1_spl_sample_train2/longst_steer_throttle_1/"
 # run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample_"
 

@@ -20,6 +20,7 @@ from custom_dqn_new import Custom_DQN
 from custom_dqn_ebu import Custom_DQN_EBU
 import csv, os
 import matplotlib.pyplot as plt
+from environment.carla_9_4.config import DISCRETE_ACTIONS
 
 
 def compute_discounted_returns(rewards, gamma):
@@ -56,7 +57,8 @@ def test(model, env, path=None):
     # pdb.set_trace()
     for ind in range(15):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-        obs[:] = env.reset(unseen=True, index=ind)
+        # obs[:] = env.reset(unseen=True, index=ind)
+        obs[:] = env.reset(unseen=True, index=ind, expert_agent=True)
         done = False
         reward = 0
         
@@ -70,17 +72,47 @@ def test(model, env, path=None):
         last_t = 245
         thres = last_t - ind
         while not done:
+            control = env.vehicle_agent.run_step()
+
+            steer = control.steer
+            brake = control.brake
+
+            if steer < -0.4:
+                steer = -0.5
+            elif steer >= -0.4 and steer < -0.2:
+                steer = -0.3
+            elif steer >= -0.2 and steer < -0.5:
+                steer = -0.1
+            elif steer >= -0.5 and steer < 0.5:
+                steer = 0.0
+            elif steer >= 0.5 and steer < 0.2:
+                steer = 0.0
+            elif steer >= 0.2 and steer < 0.4:
+                steer = 0.3
+            elif steer > 0.4:
+                steer = 0.5
+
+            if brake > 0:
+                target_speed = 0
+            else:
+                target_speed = 20
+
+            for i in range(len(DISCRETE_ACTIONS)):
+                if DISCRETE_ACTIONS[i][0] == target_speed and DISCRETE_ACTIONS[i][1] == steer:
+                    action = np.array(i)
+
+            # control = env.expert_agent.run_step()
             
-            action, q_values, actions_proba = model.predict(obs, deterministic=True)
-            action = np.array([4])
-            # if t >= 476:
-            #     action = np.array([1])
-            if t >= thres and t < last_t:
-                action = np.array([3])
-            q_values_matrix.append(q_values[0])
-            q_values_matrix_normalized.append(actions_proba[0])
-            action_q_values.append(q_values[0][action])
-            actions_taken.append(action)
+            # action, q_values, actions_proba = model.predict(obs, deterministic=True)
+            # # action = np.array([4])
+            # # if t >= 476:
+            # #     action = np.array([1])
+            # if t >= thres and t < last_t:
+            #     action = np.array([3])
+            # q_values_matrix.append(q_values[0])
+            # q_values_matrix_normalized.append(actions_proba[0])
+            # action_q_values.append(q_values[0][action])
+            # actions_taken.append(action)
             
             t = t+1
 
@@ -113,13 +145,13 @@ def test(model, env, path=None):
             elif info[3]['termination_state'] == 'max_steps':
                 e_max_steps += 1
 
-        action_q_values = np.array(action_q_values)
-        actions_taken = np.array(actions_taken)
-        returns = compute_discounted_returns(np.array(rewards), gamma=0.975) 
+        # action_q_values = np.array(action_q_values)
+        # actions_taken = np.array(actions_taken)
+        # returns = compute_discounted_returns(np.array(rewards), gamma=0.975) 
 
         # plot q_values for this validation episode
-        plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
-        validation_ep_index, returns, action_q_values, actions_taken, path)
+        # plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
+        # validation_ep_index, returns, action_q_values, actions_taken, path)
 
     # Reset env after testing
     # env.reset()
