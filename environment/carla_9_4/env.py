@@ -195,6 +195,12 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.array([[-4.0, -1.0, -1.0, 0.0, -0.5, -1.0, 0.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
             elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
                 self.observation_space = Box(low=np.array([[-4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]), 
+                                                high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                        high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -227,6 +233,8 @@ class CarlaEnv(gym.Env):
         self.speed_reward_array = []
         self.dist_to_target_array = []
         self.next_waypoints = None
+        self.next_wp_vectors = None
+        self.next_wp_angles = None
         self.episode_measurements['dist_to_light'] = -1
         self.episode_measurements['nearest_traffic_actor_id'] = -1
         self.episode_measurements['nearest_traffic_actor_state'] = -1
@@ -347,14 +355,16 @@ class CarlaEnv(gym.Env):
             if self.config["algo"] == "AE":
                 next_orientation, self.dist_to_trajectory = 0, 0
             else:
-                next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-            
+                next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
             
             if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or \
                self.config['scenarios'] == 'long_straight' or self.config["scenarios"] == "straight_dynamic" or \
                self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light' or\
-               self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+               self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light'or \
+               self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light' or \
+               self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
                 self._update_env_obs()
                 self.obstacle_visible_array.append(self.episode_measurements['obstacle_visible'])
                 self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
@@ -524,6 +534,59 @@ class CarlaEnv(gym.Env):
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']                
+            obs['orientation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+        
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+            
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']                
+            obs['orientation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
@@ -709,7 +772,9 @@ class CarlaEnv(gym.Env):
             self.config["input_type"] == 'wp_speed_steer_goal_obs_bool' or \
             self.config["input_type"] == 'wp_speed_steer_goal_obs_dist_speed' or \
             self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light'or \
-            self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+            self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light'or \
+            self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light' or \
+            self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation, reward, done, self.episode_measurements
         else:
@@ -1013,7 +1078,7 @@ class CarlaEnv(gym.Env):
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
 
-        if (not self.unseen):
+        if self.config["scenarios"] == "long_straight" and (not self.unseen):
             # training scenario
             # self.index = (self.index + 1) % 2
             self.index = (self.index + 1) % 3
@@ -1044,6 +1109,8 @@ class CarlaEnv(gym.Env):
             if self.vehicle_actor is not None:
                 break
             else:
+                print("Unable to spawn vehicle actor at {0}, {1}.".format(self.source_transform.location.x, self.source_transform.location.y))
+                print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_all_existing_actors()
                 time.sleep(120)
         
@@ -1053,22 +1120,32 @@ class CarlaEnv(gym.Env):
         else:
             raise Exception("Failed in spawning vehicle actor.")
 
-        # Agent uses proximity_threshold to detect traffic lights.
-        # Hence we use traffic_light_proximity_threshold while creating an Agent.
-        # self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
-        self.vehicle_agent = BasicAgent(self.vehicle_actor, proximity_threshold=self.config['traffic_light_proximity_threshold'])
-
         if self.expert_agent:
+            self.vehicle_agent = BasicAgent(self.vehicle_actor, proximity_threshold=self.config['traffic_light_proximity_threshold'])
             self.vehicle_agent.set_destination((self.destination_transform.location.x,
                                             self.destination_transform.location.y,
                                             self.destination_transform.location.z))
+        else:
+            # Agent uses proximity_threshold to detect traffic lights.
+            # Hence we use traffic_light_proximity_threshold while creating an Agent.
+            self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
 
         # Commented below is a hacky way to test two scenarios
         # with and without dynamic actors.
         
-        if self.config["num_npc"] > 0 and (self.index % 3 == 0):
-        # if self.config["num_npc"] > 0:
-            self.spawn_npc(self.config["num_npc"], unseen)    
+        spawn_vehicles = False
+        if self.config["scenarios"] == "long_straight":
+            if self.config["num_npc"] > 0 and (self.index % 3 == 0):
+                spawn_vehicles = True
+                
+        elif self.config["num_npc"] > 0:
+            spawn_vehicles = True
+
+        if spawn_vehicles:
+            if self.config["scenarios"] == "dynamic_navigation":
+                self.spawn_npc(np.random.randint(70, 150), unseen)
+            else:
+                self.spawn_npc(self.config["num_npc"], unseen)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -1144,15 +1221,17 @@ class CarlaEnv(gym.Env):
         if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
-            next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        
+            next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
             self._update_obs_dist_measurements()
         if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or \
            self.config['scenarios'] == 'long_straight' or self.config["scenarios"] == "straight_dynamic" or \
            self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light'or \
-           self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+           self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light' or \
+           self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light' or \
+           self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             self._update_env_obs()
         
 
@@ -1270,6 +1349,59 @@ class CarlaEnv(gym.Env):
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+        
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = 0.0
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']                
+            obs['orientation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+        
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+            
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = 0.0
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']                
+            obs['orientation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
@@ -1305,12 +1437,52 @@ class CarlaEnv(gym.Env):
             self.config["input_type"] == 'wp_speed_steer_goal_obs_bool' or\
             self.config["input_type"] == 'wp_speed_steer_goal_obs_dist_speed' or \
             self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light' or \
-            self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+            self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light' or \
+            self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light' or \
+            self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             orientation = np.expand_dims(obs['orientation'], axis = 0)
             return orientation
         else:
             return obs
+
+    def get_wp_obs_input(self):
+        '''
+        Create wp angles input
+        '''
+        num_wp = 5
+        wp_angles_array = None
+        wp_vectors_array = None
+
+        n = len(self.next_wp_angles)
+        if n == 0:
+            print("No next waypoints found. Giving zero as input.")
+            wp_angles_array = np.zeros(num_wp)
+            wp_vectors_array = np.zeros(2 * num_wp)
+
+        elif n == num_wp:
+            wp_angles_array = np.array(self.next_wp_angles)
+            wp_vectors_array = np.array(self.next_wp_vectors)
         
+        elif n < num_wp:
+            # Fill using last entry
+            last_angle = self.next_wp_angles[-1]
+            last_vec = self.next_wp_vectors[-1]
+
+            for _ in range(num_wp-n):
+                self.next_wp_angles.append(last_angle)
+                self.next_wp_vectors.append(last_vec)
+            wp_angles_array = np.array(self.next_wp_angles)
+            wp_vectors_array = np.array(self.next_wp_vectors)
+        else:
+            print("Error: More than {0} waypoints returned from planner.".format(num_wp))
+            print("Taking required number of entries.")
+            wp_angles_array = np.array(self.next_wp_angles[:num_wp])
+            wp_vectors_array = np.array(self.next_wp_vectors[:num_wp])
+        
+        wp_vectors_array = wp_vectors_array.reshape(-1)
+        
+        return wp_angles_array, wp_vectors_array
+
     def try_spawn_random_vehicle_at(self, blueprints, transform):
         # blueprint = random.choice(blueprints)
         
