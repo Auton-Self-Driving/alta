@@ -281,8 +281,11 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
+        self.wp_orientation_array = []
+        self.input_steer_array = []
         self.obstacle_dist_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_speed_array = []
+        self.dist_to_trajectory_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -559,6 +562,15 @@ class CarlaEnv(gym.Env):
         world_frame = None
         reward = 0
 
+        self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
+        self.obstacle_speed_array.append(self.episode_measurements['obstacle_speed'])
+        self.wp_orientation_array.append(self.episode_measurements['next_orientation'])
+        self.input_steer_array.append(self.episode_measurements['control_steer'])
+        self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
+        self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
+        self.dist_to_trajectory_array.append(self.episode_measurements['dist_to_trajectory'])
+        self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
+
         if not self.config["use_pid_in_frame_skip"]:
             # compute control using PID for each timestep
             control = self.get_control(action)
@@ -620,7 +632,6 @@ class CarlaEnv(gym.Env):
 
             # Update obstacle distance measurements
             self._update_env_obs()
-            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -637,7 +648,6 @@ class CarlaEnv(gym.Env):
             self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
             self.target_speeds_array.append(self.episode_measurements['target_speed'])
-            self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
@@ -645,8 +655,6 @@ class CarlaEnv(gym.Env):
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
-            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
-            self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
 
             if done:
                 break
@@ -817,6 +825,16 @@ class CarlaEnv(gym.Env):
                         self.dist_to_trajectory_reward_array,
                         self.red_light_dist_array,
                         plotname)
+
+                    if self.config["testing"]:
+                        np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
+                                            target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
+                                            input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
+                                            obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
+                                            wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
+                                            dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
+                                            step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
+                                            dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
                 
                 self.episode_measurements["episode_num"] = self.episode_num
 
@@ -1502,8 +1520,11 @@ class CarlaEnv(gym.Env):
         self.throttles_array = []
         self.steers_array = []
         self.brakes_array = []
+        self.wp_orientation_array = []
+        self.input_steer_array = []
         self.obstacle_dist_array = []
-        self.obstacle_visible_array = []
+        self.obstacle_speed_array = []
+        self.dist_to_trajectory_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
