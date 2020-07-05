@@ -1618,6 +1618,19 @@ class Custom_DQN(DQN):
                     if self.num_timesteps % MODEL_SAVE_FREQ == 0:
                         self.save_with_buffer(save_file + '_expert_buffer_' + str(self.num_timesteps))
                         self.save_model_and_traininfo_file(save_file, env.episode_num)
+                        
+                        if len(episode_successes) > 0:
+                            mean_success = np.mean(episode_successes)
+                            mean_reward = round(float(np.mean(episode_rewards)), 1)
+                        else:
+                            mean_success = -1
+                            mean_reward = -1
+                        
+                        # save success_info
+                        with open(save_file + "_success_info.txt", "w") as f:
+                            f.write(str(mean_success))
+                            f.write(",")
+                            f.write(str(mean_reward))
 
                     action = self.get_expert_discrete_action(env)
                     new_obs, rew, done, info = env.step(action)
