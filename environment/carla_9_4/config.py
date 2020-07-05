@@ -134,7 +134,9 @@ DEFAULT_ENV = {
     "num_episodes" : 1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False,
-    "sample_npc": False
+    "sample_npc": False,
+    "test_comparison": False,
+    "test_with_automatic_control": False
 }
 
 episode_measurements = {

@@ -7,6 +7,7 @@ from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
+from test_with_automatic_control import run_test_comparison
 from train_measurements_dqn_run import run_dqn
 
 
@@ -21,6 +22,8 @@ def parse_arguments():
     parser.add_argument('--disable-greedy-best', dest='disable_greedy_best', action='store_true', help='Whether to disable greedy best model and return the last saved model instead.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
+    parser.add_argument('--test-comparison', dest='test_comparison', action='store_true', help='Enable Testing comparison between automatic control and our learnt policies.')
+    parser.add_argument('--automatic-control', dest='automatic_control', action='store_true', help='Enable Testing comparison with automatic control agent.')
     parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
@@ -367,20 +370,26 @@ if __name__ == '__main__':
             print("prefix", prefix)
             run_sac(args, prefix, base_prefix, config)
         elif args.algo == "PPO":
-            if not args.test:
+            if args.test_comparison:
                 prefix = create_ppo_prefix(args)
+                config.config['test_comparison'] = args.test_comparison
+                config.config['automatic_control'] = args.automatic_control
+                run_test_comparison(args, prefix, config)
             else:
-                prefix = extract_prefix(args)
-            print("prefix", prefix)
-            if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
-                                   'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
-                                   'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
-                run_ppo(args, prefix, config)
-            elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
-                run_ppo_vae(args, prefix, config)
-            else:
-                print("specify correct input_type: wp, wp_vae")
-                print("exiting")
+                if not args.test:
+                    prefix = create_ppo_prefix(args)
+                else:
+                    prefix = extract_prefix(args)
+                print("prefix", prefix)
+                if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
+                                    'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
+                                    'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
+                    run_ppo(args, prefix, config)
+                elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
+                    run_ppo_vae(args, prefix, config)
+                else:
+                    print("specify correct input_type: wp, wp_vae")
+                    print("exiting")
         elif args.algo == "PID_TUNE":
             prefix = create_ppo_prefix(args)
             test_pid_method(args, prefix, config)
