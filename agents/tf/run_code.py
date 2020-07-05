@@ -67,7 +67,10 @@ def parse_arguments():
     parser.add_argument('--train-from-scratch', dest='train_from_scratch', action='store_true', help='Train from scratch using a pretrained model.')
     parser.add_argument('--val-trials', dest='val_trials', type=int, default=25, help='No of validation trials.')
     parser.add_argument('--gen-expert-data', dest='gen_expert_data', action='store_true', help='Generate expert data.')
-    
+    parser.add_argument('--expert-buffer-path',dest='expert_buffer_path',type=str, default=None, help='Expert Agent Model/Buffer path.')
+    parser.add_argument('--expert-data-sample-percent',dest='expert_data_sample_percent',type=float,default=0.0, help='Expert Agent data sample percentage out of 100.')
+    parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
+
     return parser.parse_args()
 def main(args):
 
@@ -126,22 +129,22 @@ def create_ppo_prefix(args):
     else:
         opt_epochs_str = ""
     
-    if args.const_collision_penalty != 0:
+    if args.const_collision_penalty != 0 and not args.reduce_filename:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
     else:
         const_collision_penalty_str = ""
     
-    if args.collision_penalty_speed_coeff != 0:
+    if args.collision_penalty_speed_coeff != 0 and not args.reduce_filename:
         collision_penalty_speed_coeff_str = '_col_sp_' + str(args.collision_penalty_speed_coeff)
     else:
         collision_penalty_speed_coeff_str = ""
     
-    if args.const_light_penalty != 0:
+    if args.const_light_penalty != 0 and not args.reduce_filename:
         const_light_penalty_str = '_light_' + str(args.const_light_penalty)
     else:
         const_light_penalty_str = ""
 
-    if args.light_penalty_speed_coeff != 0:
+    if args.light_penalty_speed_coeff != 0 and not args.reduce_filename:
         light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
     else:
         light_penalty_speed_coeff_str = ""
@@ -151,7 +154,7 @@ def create_ppo_prefix(args):
     else:
         steer_penalty_coeff_str = ""
 
-    if args.enable_brake != False:
+    if args.enable_brake != False and not args.reduce_filename:
         enable_brake_str = '_brake'
     else:
         enable_brake_str = ''
@@ -210,13 +213,18 @@ def create_ppo_prefix(args):
         ebu_beta_str = '_beta' + str(args.ebu_beta)
     else:
         ebu_beta_str = ''
+    
+    if args.expert_data_sample_percent != 0.0 and args.expert_buffer_path is not None:
+        expert_data_sample_percent_str = '_expert_' + str(args.expert_data_sample_percent)
+    else:
+        expert_data_sample_percent_str = ''
 
     if args.exp_final_eps != 0.05:
         exp_final_eps_str = '_exp_' + str(args.exp_final_eps)
     else:
         exp_final_eps_str = ''
     
-    if args.use_pid_fs:
+    if args.use_pid_fs and not args.reduce_filename:
         use_pid_fs_str = '_pid_fs'
     else:
         use_pid_fs_str = ''
@@ -252,16 +260,22 @@ def create_ppo_prefix(args):
         train_from_scratch_str = ''
     
     if args.prioritized_replay:
-        prioritized_replay_str = '_prioritized_replay'
+        prioritized_replay_str = 'per'
     else:
         prioritized_replay_str = ''
+    
+    if not args.reduce_filename:
+        nw_str = '_nw_' + str(args.network)
+    else:
+        nw_str = ''
 
     prefix = 'algo_' + args.algo \
         + '_input_' + input_type \
-        + '_nw_' + str(args.network) \
+        + nw_str \
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
         + ebu_beta_str \
+        + expert_data_sample_percent_str \
         + exp_final_eps_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \

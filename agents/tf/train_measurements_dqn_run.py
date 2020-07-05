@@ -589,6 +589,20 @@ def run_dqn(args, prefix, config):
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
 
+                
+
+                if args.expert_buffer_path is not None and args.expert_data_sample_percent > 0:
+                    
+                    expert_model = Custom_DQN.load(args.expert_buffer_path)
+                    expert_replay_buffer = expert_model.replay_buffer
+                    expert_data_sample_percent = args.expert_data_sample_percent
+                    input_type = args.input_type
+                else:
+                    expert_replay_buffer = None
+                    expert_data_sample_percent = 0.0
+                    input_type = None
+
+
                 # Call appropriate learn method
                 if args.gen_expert_data:
                     best_model = model.generate_expert_data_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, reset_num_timesteps=reset_num_timesteps)
@@ -600,7 +614,8 @@ def run_dqn(args, prefix, config):
                     # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs)
                     best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
                 else:
-                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
+                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps,
+                        val_trials=args.val_trials, expert_replay_buffer=expert_replay_buffer, expert_data_sample_percent=expert_data_sample_percent, input_type=input_type)
                 
                 best_model.save(SAVE_PATH)
             break

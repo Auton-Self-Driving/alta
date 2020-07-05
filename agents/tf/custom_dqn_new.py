@@ -739,7 +739,8 @@ class Custom_DQN(DQN):
             return best_model
 
     def learn_new_nstep(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5,
+                val_trials=25, expert_replay_buffer=None, expert_data_sample_percent=0.0, input_type=None):
 
             '''
             This method includes saving additional information of termination_state_code, time_to_termination
@@ -900,10 +901,16 @@ class Custom_DQN(DQN):
                         episode_t = 0
                         exp_list = []
 
+                    if expert_replay_buffer is not None and expert_data_sample_percent > 0:
+                        expert_buffer_batch_size = int((expert_data_sample_percent/100) * self.batch_size)
+                        agent_buffer_batch_size = int(self.batch_size - expert_buffer_batch_size)
+                    else:
+                        expert_buffer_batch_size = 0
+                        agent_buffer_batch_size = self.batch_size
 
                     # Do not train if the warmup phase is not over
                     # or if there are not enough samples in the replay buffer
-                    can_sample = self.replay_buffer.can_sample(self.batch_size)
+                    can_sample = self.replay_buffer.can_sample(agent_buffer_batch_size)
                     if can_sample and self.num_timesteps > self.learning_starts \
                             and self.num_timesteps % self.train_freq == 0:
 
@@ -917,14 +924,28 @@ class Custom_DQN(DQN):
                             if self.prioritized_replay:
                                 assert self.beta_schedule is not None, \
                                     "BUG: should be LinearSchedule when self.prioritized_replay True"
-                                experience = self.replay_buffer.sample(self.batch_size,
+                                experience = self.replay_buffer.sample(agent_buffer_batch_size,
                                                                     beta=self.beta_schedule.value(self.num_timesteps))
                                 # (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
                                 (obses_t, actions, rewards, obses_tp1, dones, infos, _, weights, batch_idxes) = experience
                             else:
-                                obses_t, actions, rewards, obses_tp1, dones, infos, _ = self.replay_buffer.sample(self.batch_size)
+                                obses_t, actions, rewards, obses_tp1, dones, infos, _ = self.replay_buffer.sample(agent_buffer_batch_size)
                                 weights, batch_idxes = np.ones_like(rewards), None
+
+                            # sample from expert and concatenate
+
+                            if expert_buffer_batch_size > 0:
+                                e_obses_t, e_actions, e_rewards, e_obses_tp1, e_dones = self.sample_from_expert_buffer(expert_replay_buffer, expert_buffer_batch_size, input_type)
+                                e_weights = np.ones_like(e_rewards)
+
+                                obses_t = np.concatenate((obses_t, e_obses_t))
+                                actions = np.concatenate((actions, e_actions))
+                                rewards = np.concatenate((rewards, e_rewards))
+                                obses_tp1 = np.concatenate((obses_tp1, e_obses_tp1))
+                                dones = np.concatenate((dones, e_dones))
                                 
+                                weights = np.concatenate((weights, e_weights))
+
                             # pytype:enable=bad-unpacking
 
                             summary = None
@@ -986,6 +1007,35 @@ class Custom_DQN(DQN):
             # Custom: get and save best model
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('dqn_me')[0])
             return best_model
+
+    def sample_from_expert_buffer(self, expert_replay_buffer, expert_buffer_batch_size, input_type):
+        '''
+
+        expert buffer is saved for input_type = wp_angles_vecs_obs_info_speed_steer_ldist_light
+        the observations consist of wp(1), wp_angles(5), wp_vectors(10)
+        '''
+        
+        obses_t, actions, rewards, obses_tp1, dones, infos, _ = expert_replay_buffer.sample(expert_buffer_batch_size)
+
+        if input_type == "wp_obs_info_speed_steer_ldist_light":
+            inds_to_remove = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            obses_t = np.delete(obses_t, inds_to_remove, axis=2)
+            obses_tp1 = np.delete(obses_tp1, inds_to_remove, axis=2)
+
+        elif input_type == "wp_angles_obs_info_speed_steer_ldist_light":
+            inds_to_remove = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            obses_t = np.delete(obses_t, inds_to_remove, axis=2)
+            obses_tp1 = np.delete(obses_tp1, inds_to_remove, axis=2)
+
+        elif input_type == "wp_vecs_obs_info_speed_steer_ldist_light":
+            inds_to_remove = [0, 1, 2, 3, 4, 5]
+            obses_t = np.delete(obses_t, inds_to_remove, axis=2)
+            obses_tp1 = np.delete(obses_tp1, inds_to_remove, axis=2)
+
+        # Matching it with agent rewards shape
+        rewards = rewards.reshape(-1)
+
+        return obses_t, actions, rewards, obses_tp1, dones
 
     def learn_new_buffer(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
                 reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
@@ -1642,9 +1692,14 @@ class Custom_DQN(DQN):
 
                     episode_rewards[-1] += rew
                     if done:
-                        maybe_is_success = info.get('is_success')
-                        if maybe_is_success is not None:
-                            episode_successes.append(float(maybe_is_success))
+                        # maybe_is_success = info.get('is_success')
+                        # if maybe_is_success is not None:
+                        #     episode_successes.append(float(maybe_is_success))
+                        
+                        if info['termination_state_code'] == 0:
+                            episode_successes.append(1)
+                        else:
+                            episode_successes.append(0)
 
                         # if not isinstance(self.env, VecEnv):
                         #     obs = self.env.reset()
