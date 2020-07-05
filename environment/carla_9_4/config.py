@@ -60,7 +60,7 @@ DEFAULT_ENV = {
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
     "sensor_tick": '0.0',
-    "dist_for_success" : 10.0,
+    "dist_for_success" : 20.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 1000,
     "log_measurements_to_file": False,
@@ -237,7 +237,7 @@ def get_discrete_actions():
     # steer = [-0.1, 0.0, 0.1]
     # steer = [0.0]
     # target_speed = [0, 10, 20]
-    # target_speed = [10]
+    # target_speed = [20]
     target_speed = [0, 20]
 
     # Dictionary of discrete (Target_Speed, Steer) actions
@@ -277,6 +277,7 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "discrete"
+            # self.config["action_type"] = "control"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "navigation"

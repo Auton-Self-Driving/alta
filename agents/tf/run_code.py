@@ -66,6 +66,7 @@ def parse_arguments():
     parser.add_argument('--opt-epochs', dest='opt_epochs', type=int, default=5, help='Number of optimization epochs in DQN.')
     parser.add_argument('--train-from-scratch', dest='train_from_scratch', action='store_true', help='Train from scratch using a pretrained model.')
     parser.add_argument('--val-trials', dest='val_trials', type=int, default=25, help='No of validation trials.')
+    parser.add_argument('--gen-expert-data', dest='gen_expert_data', action='store_true', help='Generate expert data.')
     
     return parser.parse_args()
 def main(args):

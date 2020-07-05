@@ -44,6 +44,7 @@ def test(model, env, path=None):
     
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
+
     success_episodes = 0
     e_obs_collision = 0
     e_out_of_road = 0
@@ -51,11 +52,16 @@ def test(model, env, path=None):
     e_runover_light = 0
     e_static = 0
     e_max_steps = 0
+    e_max_steps_obstacle = 0
+    e_max_steps_light = 0
+    e_unexpected_collision = 0
+    e_unknown = 0
+
     results = {}
     total_reward = 0
     # import pdb;
     # pdb.set_trace()
-    for ind in range(15):
+    for ind in range(25):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         # obs[:] = env.reset(unseen=True, index=ind)
         obs[:] = env.reset(unseen=True, index=ind, expert_agent=True)
@@ -72,25 +78,42 @@ def test(model, env, path=None):
         last_t = 245
         thres = last_t - ind
         while not done:
-            control = env.vehicle_agent.run_step()
+            control = env.vehicle_agent.run_step(debug=True)
+
+            # action = control
 
             steer = control.steer
             brake = control.brake
 
-            if steer < -0.4:
+            if steer < -0.49:
                 steer = -0.5
-            elif steer >= -0.4 and steer < -0.2:
+            elif steer >= -0.49 and steer < -0.29:
                 steer = -0.3
-            elif steer >= -0.2 and steer < -0.5:
+            elif steer >= -0.29 and steer < -0.05:
                 steer = -0.1
-            elif steer >= -0.5 and steer < 0.5:
+            elif steer >= -0.05 and steer < 0.05:
                 steer = 0.0
-            elif steer >= 0.5 and steer < 0.2:
-                steer = 0.0
-            elif steer >= 0.2 and steer < 0.4:
+            elif steer >= 0.05 and steer < 0.29:
+                steer = 0.1
+            elif steer >= 0.29 and steer < 0.49:
                 steer = 0.3
-            elif steer > 0.4:
+            elif steer > 0.49:
                 steer = 0.5
+
+            # if steer < -0.4:
+            #     steer = -0.5
+            # elif steer >= -0.4 and steer < -0.2:
+            #     steer = -0.3
+            # elif steer >= -0.2 and steer < -0.05:
+            #     steer = -0.1
+            # elif steer >= -0.05 and steer < 0.05:
+            #     steer = 0.0
+            # elif steer >= 0.05 and steer < 0.2:
+            #     steer = 0.1
+            # elif steer >= 0.2 and steer < 0.4:
+            #     steer = 0.3
+            # elif steer > 0.4:
+            #     steer = 0.5
 
             if brake > 0:
                 target_speed = 0
@@ -136,7 +159,7 @@ def test(model, env, path=None):
                 e_obs_collision += 1
             elif info[3]['termination_state'] == 'out_of_road':
                 e_out_of_road += 1
-            elif info[3]['termination_state'] == 'lane_change':
+            elif info[3]['termination_state'] == 'lane_invasion':
                 e_lane_change += 1
             elif info[3]['termination_state'] == 'runover_light':
                 e_runover_light += 1
@@ -144,6 +167,20 @@ def test(model, env, path=None):
                 e_static += 1
             elif info[3]['termination_state'] == 'max_steps':
                 e_max_steps += 1
+            elif info[3]['termination_state'] == 'max_steps_obstacle':
+                e_max_steps_obstacle += 1
+            elif info[3]['termination_state'] == 'max_steps_light':
+                e_max_steps_light += 1
+            elif info[3]['termination_state'] == 'unexpected_collision':
+                e_unexpected_collision += 1
+            else:
+                e_unknown += 1
+        
+        with open(path + 'my_test_results.csv','a') as f:
+            writer = csv.writer(f, delimiter=',')
+            writer.writerow([ind, success_episodes, total_reward[0],
+                e_obs_collision,  e_out_of_road, e_lane_change,
+                e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light])
 
         # action_q_values = np.array(action_q_values)
         # actions_taken = np.array(actions_taken)
@@ -553,7 +590,10 @@ def run_dqn(args, prefix, config):
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
 
                 # Call appropriate learn method
-                if args.ebu:
+                if args.gen_expert_data:
+                    best_model = model.generate_expert_data_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, reset_num_timesteps=reset_num_timesteps)
+
+                elif args.ebu:
                     best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
 
                 elif args.special_sample:

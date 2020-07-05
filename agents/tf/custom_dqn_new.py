@@ -22,6 +22,7 @@ import csv, os
 import matplotlib.pyplot as plt
 from guppy import hpy
 import psutil
+from environment.carla_9_4.config import DISCRETE_ACTIONS
 
 def compute_discounted_returns(rewards, gamma):
     returns = np.zeros_like(rewards)
@@ -514,7 +515,7 @@ class Custom_DQN(DQN):
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('dqn_me')[0])
             return best_model
             # return self
-    
+
     def learn_new(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
                 reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
 
@@ -1576,6 +1577,172 @@ class Custom_DQN(DQN):
             # Custom: get and save best model
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('dqn_me')[0])
             return best_model
+
+    def generate_expert_data_nstep(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
+                reset_num_timesteps=True, save_file="dqn_weights"):
+
+            '''
+
+            This learn method includes n-step return and special sampling logic for replay buffer,
+            which samples transitions with less time_to_termination more often.
+
+            '''
+
+            new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+            with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                    as writer:
+                self._setup_learn()
+
+                # Create the replay buffer if not already created /loaded from existing model
+                if self.replay_buffer is None:
+                    self.replay_buffer = Custom_ReplayBuffer(self.buffer_size)
+
+                episode_rewards = [0.0]
+                episode_successes = []
+                # obs = self.env.reset()
+                obs = env.reset(expert_agent=True)
+
+                self.episode_reward = np.zeros((1,))
+
+                episode_t = 0
+                exp_list = []
+                ind = 0
+
+                for _ in range(self.num_timesteps, total_timesteps):
+
+                    # Custom: model test and save logic
+                    MODEL_SAVE_FREQ = 10000
+
+                    # save less frequently than testing
+                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                        self.save_with_buffer(save_file + '_expert_buffer_' + str(self.num_timesteps))
+                        self.save_model_and_traininfo_file(save_file, env.episode_num)
+
+                    action = self.get_expert_discrete_action(env)
+                    new_obs, rew, done, info = env.step(action)
+
+                    exp_t = (obs, action, rew, new_obs, float(done), info['termination_state_code'])
+                    exp_list.append(exp_t)
+                    obs = new_obs
+                    episode_t  = episode_t  + 1
+
+                    episode_rewards[-1] += rew
+                    if done:
+                        maybe_is_success = info.get('is_success')
+                        if maybe_is_success is not None:
+                            episode_successes.append(float(maybe_is_success))
+
+                        # if not isinstance(self.env, VecEnv):
+                        #     obs = self.env.reset()
+
+                        obs = env.reset(expert_agent=True)
+
+                        # If need to save and check videos
+                        # obs = env.reset(unseen=True, index=ind, expert_agent=True)
+                        # ind = (ind + 1) % 25
+
+                        episode_rewards.append(0.0)
+                        time_to_termination = episode_t - 1
+
+                        for i in range(0, episode_t):
+
+                            nstep_reward_i = 0
+                            nstep_new_obs_i = None
+                            nstep_done = False
+
+                            max_t = min(i + self.n_step, episode_t)
+
+                            # k : exponent of discount factor in n-step discounted reward computation
+                            k = 0
+
+                            for j in range(i, max_t):
+                                obs, action, rew, new_obs, done, termination_state_code = exp_list[j]
+                                nstep_reward_i += (self.gamma ** k) * rew
+                                k = k + 1
+                                nstep_new_obs_i = new_obs
+                                nstep_done = done
+
+                            obs, action, rew, new_obs, done, termination_state_code = exp_list[i]
+
+                            self.replay_buffer.add(obs, action, nstep_reward_i, nstep_new_obs_i, nstep_done, termination_state_code, time_to_termination)
+                            time_to_termination = time_to_termination - 1
+
+                        episode_t = 0
+                        exp_list.clear()
+
+                    if len(episode_rewards[-101:-1]) == 0:
+                        mean_100ep_reward = -np.inf
+                    else:
+                        mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+
+                    num_episodes = len(episode_rewards)
+                    if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
+                        logger.record_tabular("steps", self.num_timesteps)
+                        logger.record_tabular("episodes", num_episodes)
+                        if len(episode_successes) > 0:
+                            logger.logkv("success rate", np.mean(episode_successes[-100:]))
+                        logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                        logger.dump_tabular()
+
+                    self.num_timesteps += 1
+
+            if len(episode_successes) > 0:
+                print(np.mean(episode_successes))
+            return self
+
+    def get_expert_discrete_action(self, env):
+        control = env.vehicle_agent.run_step(debug=False)
+
+        steer = control.steer
+        brake = control.brake
+
+        # Conservative discretization
+        # Keeping lower steer values to work well with fs=3
+        if steer < -0.49:
+            steer = -0.5
+        elif steer >= -0.49 and steer < -0.29:
+            steer = -0.3
+        elif steer >= -0.29 and steer < -0.05:
+            steer = -0.1
+        elif steer >= -0.05 and steer < 0.05:
+            steer = 0.0
+        elif steer >= 0.05 and steer < 0.29:
+            steer = 0.1
+        elif steer >= 0.29 and steer < 0.49:
+            steer = 0.3
+        elif steer > 0.49:
+            steer = 0.5
+
+
+        # Simple discretization
+        # if steer < -0.4:
+        #     steer = -0.5
+        # elif steer >= -0.4 and steer < -0.2:
+        #     steer = -0.3
+        # elif steer >= -0.2 and steer < -0.05:
+        #     steer = -0.1
+        # elif steer >= -0.05 and steer < 0.05:
+        #     steer = 0.0
+        # elif steer >= 0.05 and steer < 0.2:
+        #     steer = 0.1
+        # elif steer >= 0.2 and steer < 0.4:
+        #     steer = 0.3
+        # elif steer > 0.4:
+        #     steer = 0.5
+
+        # Setting target_speed based on brake
+        # HARDCODED to 20
+        if brake > 0:
+            target_speed = 0
+        else:
+            target_speed = 20
+
+        for i in range(len(DISCRETE_ACTIONS)):
+            if DISCRETE_ACTIONS[i][0] == target_speed and DISCRETE_ACTIONS[i][1] == steer:
+                action = np.array(i)
+                break
+        return action
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
