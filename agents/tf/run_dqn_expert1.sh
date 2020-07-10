@@ -1,3 +1,4 @@
+sleep 360
 python run_code.py \
 --algo DQN \
 --input-type wp_obs_info_speed_steer_ldist_light \

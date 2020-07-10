@@ -2,6 +2,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplay
 import numpy as np
 import random
 from stable_baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
+import gc
 
 class Custom_ReplayBuffer(ReplayBuffer):
     '''
@@ -72,6 +73,11 @@ class Custom_ReplayBuffer(ReplayBuffer):
             
             if time_to_termination_p < self._max_time_to_termination:
                 self._time_to_termination_idx[time_to_termination_p].remove(self._next_idx)
+
+            del data_popped
+            del obs_t_p
+            del obs_tp1_p
+            gc.collect()
 
         # Add to index lists
         if done:

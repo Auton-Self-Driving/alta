@@ -499,10 +499,21 @@ def run_dqn(args, prefix, config):
 
                 latest_model_path = os.path.join(ALTA_LOGS, "dqn_measurements_weights_buffer_latest.zip")
                 
+                if args.expert_buffer_path is not None and args.expert_data_sample_percent > 0:
+                    
+                    expert_model = Custom_DQN.load(args.expert_buffer_path)
+                    expert_replay_buffer = expert_model.replay_buffer
+                    expert_data_sample_percent = args.expert_data_sample_percent
+                    input_type = args.input_type
+                else:
+                    expert_replay_buffer = None
+                    expert_data_sample_percent = 0.0
+                    input_type = None
 
                 if model is not None:
                     dummy_env = DummyVecEnv([lambda: env])
-                    model.env = dummy_env
+                    # model.env = dummy_env
+                    model.set_env(dummy_env)
                     reset_num_timesteps = False
                 
                 elif os.path.exists(latest_model_path):
@@ -575,6 +586,9 @@ def run_dqn(args, prefix, config):
                     #             prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                     #             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log)
                     dummy_env = DummyVecEnv([lambda: env])
+                    if expert_data_sample_percent > 0:
+                        learning_starts = 10000
+
                     if args.ebu:
                         model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
                                     exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
@@ -589,20 +603,6 @@ def run_dqn(args, prefix, config):
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
 
-                
-
-                if args.expert_buffer_path is not None and args.expert_data_sample_percent > 0:
-                    
-                    expert_model = Custom_DQN.load(args.expert_buffer_path)
-                    expert_replay_buffer = expert_model.replay_buffer
-                    expert_data_sample_percent = args.expert_data_sample_percent
-                    input_type = args.input_type
-                else:
-                    expert_replay_buffer = None
-                    expert_data_sample_percent = 0.0
-                    input_type = None
-
-
                 # Call appropriate learn method
                 if args.gen_expert_data:
                     best_model = model.generate_expert_data_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, reset_num_timesteps=reset_num_timesteps)
@@ -610,17 +610,17 @@ def run_dqn(args, prefix, config):
                 elif args.ebu:
                     best_model = model.learn_new_EBU(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
 
-                elif args.special_sample:
-                    # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs)
-                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
+                # elif args.special_sample:
+                #     # best_model = model.learn_new_buffer(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs)
+                #     best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps, val_trials=args.val_trials)
                 else:
-                    best_model = model.learn_new_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps,
-                        val_trials=args.val_trials, expert_replay_buffer=expert_replay_buffer, expert_data_sample_percent=expert_data_sample_percent, input_type=input_type)
+                    best_model = model.learn_new_buffer_nstep(env, steps, tb_log_name="DQN", save_file=SAVE_PATH, num_opt_epochs=args.opt_epochs, reset_num_timesteps=reset_num_timesteps,
+                        val_trials=args.val_trials, expert_replay_buffer=expert_replay_buffer, expert_data_sample_percent=expert_data_sample_percent, input_type=input_type, special_sample=args.special_sample)
                 
                 best_model.save(SAVE_PATH)
             break
         except Exception as e:
-            with open(ALTA_LOGS + "error.txt", "w") as f:
+            with open(ALTA_LOGS + "error.txt", "a") as f:
                 print("********** Code ERROR for prefix: {} **********".format(prefix))
                 print(e)
                 print(traceback.format_exc())

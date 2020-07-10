@@ -230,6 +230,27 @@ episode_measurements = {
 #     9: [18.0, 0.0],
 #     10: [20.0, 0.0]
 # }
+# def get_discrete_actions():
+#     steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
+#     # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+#     # steer = [-0.1, 0.0, 0.1]
+#     # steer = [0.0]
+#     # target_speed = [0, 10, 20]
+#     target_speed = [20]
+#     # target_speed = [0, 20]
+
+#     # Dictionary of discrete (Target_Speed, Steer) actions
+#     action_space = {}
+
+#     n = 0
+#     for i in range(len(target_speed)):
+#         for j in range(len(steer)):
+#             action_space[n] = [target_speed[i], steer[j]]
+#             n = n+1
+    
+#     # action_space[n] = [20, -0.5]
+#     # action_space[n+1] = [20, 0.5]
+#     return action_space
 
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]

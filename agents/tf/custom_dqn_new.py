@@ -18,11 +18,12 @@ from stable_baselines.deepq.policies import DQNPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 from stable_baselines.common.vec_env import DummyVecEnv
-import csv, os
+import csv, os, sys
 import matplotlib.pyplot as plt
 from guppy import hpy
 import psutil
 from environment.carla_9_4.config import DISCRETE_ACTIONS
+import gc
 
 def compute_discounted_returns(rewards, gamma):
     returns = np.zeros_like(rewards)
@@ -67,6 +68,7 @@ def test(model, env, model_step, path=None, val_trials=25):
         while not done:
             # obs = obs.reshape((-1, 1, 7))
             # print("obs shape", obs.shape)
+            # obs = obs.reshape((-1, 1, env.observation_space.shape[1]))
             action, q_values, actions_proba = model.predict(obs, deterministic=True)
             q_values_matrix.append(q_values[0])
             q_values_matrix_normalized.append(actions_proba[0])
@@ -793,6 +795,7 @@ class Custom_DQN(DQN):
                 episode_t = 0
                 exp_list = []
 
+                should_skip_first_time = True
                 for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
@@ -804,25 +807,31 @@ class Custom_DQN(DQN):
                     MODEL_TEST_FREQ = 40000
                     MODEL_SAVE_FREQ = 500000
 
-                    # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
-                    #     with open(save_file + "_best_model.txt", "w") as f:
-                    #         f.write(str(self.num_timesteps))
-                    #         f.write(",")
-                    #         f.write(str(env.episode_num))
-
-                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
+                    # Skip testing and saving first time when a training restarts
+                    if should_skip_first_time and not reset_num_timesteps:
+                        should_skip_first_time = False
                     
-                        self.save(save_file + str(self.num_timesteps))
-                        self.save_model_and_traininfo_file(save_file, env.episode_num)
+                    else:
+
+                        # save less frequently than testing
+                        if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                            self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                        #     with open(save_file + "_best_model.txt", "w") as f:
+                        #         f.write(str(self.num_timesteps))
+                        #         f.write(",")
+                        #         f.write(str(env.episode_num))
+
+                        if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
-                        total_rewards.append(total_reward)
-                        total_successes.append(success_episodes)
-                        model_file_names.append(save_file + str(self.num_timesteps))
-                        total_updates.append(self.num_timesteps)                    
-                        plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
+                            self.save(save_file + str(self.num_timesteps))
+                            self.save_model_and_traininfo_file(save_file, env.episode_num)
+                            
+                            total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                            total_rewards.append(total_reward)
+                            total_successes.append(success_episodes)
+                            model_file_names.append(save_file + str(self.num_timesteps))
+                            total_updates.append(self.num_timesteps)                    
+                            plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
                     
                     # Take action and update exploration to the newest value
                     kwargs = {}
@@ -845,6 +854,8 @@ class Custom_DQN(DQN):
                         action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
                     env_action = action
                     reset = False
+                    # import pdb
+                    # pdb.set_trace()
                     new_obs, rew, done, info = self.env.step(env_action)
                     
                     exp_t = (obs, action, rew, new_obs, float(done), info['termination_state_code'])
@@ -1008,14 +1019,17 @@ class Custom_DQN(DQN):
             best_model = get_save_best_model(total_rewards, total_successes, model_file_names, path= save_file.split('dqn_me')[0])
             return best_model
 
-    def sample_from_expert_buffer(self, expert_replay_buffer, expert_buffer_batch_size, input_type):
+    def sample_from_expert_buffer(self, expert_replay_buffer, expert_buffer_batch_size, input_type, sample_time_to_termination_list=None):
         '''
 
         expert buffer is saved for input_type = wp_angles_vecs_obs_info_speed_steer_ldist_light
         the observations consist of wp(1), wp_angles(5), wp_vectors(10)
         '''
         
-        obses_t, actions, rewards, obses_tp1, dones, infos, _ = expert_replay_buffer.sample(expert_buffer_batch_size)
+        if sample_time_to_termination_list is not None:
+            obses_t, actions, rewards, obses_tp1, dones, infos, _ = expert_replay_buffer.sample_time_to_termination(expert_buffer_batch_size, sample_time_to_termination_list)
+        else:
+            obses_t, actions, rewards, obses_tp1, dones, infos, _ = expert_replay_buffer.sample(expert_buffer_batch_size)
 
         if input_type == "wp_obs_info_speed_steer_ldist_light":
             inds_to_remove = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -1305,7 +1319,8 @@ class Custom_DQN(DQN):
             return best_model
 
     def learn_new_buffer_nstep(self, env, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", num_opt_epochs=5, val_trials=25):
+                reset_num_timesteps=True, replay_wrapper=None, save_file="dqn_weights", 
+                special_sample=False, num_opt_epochs=5, val_trials=25, expert_replay_buffer=None, expert_data_sample_percent=0.0, input_type=None):
 
             '''
 
@@ -1359,7 +1374,7 @@ class Custom_DQN(DQN):
 
                 episode_t = 0
                 exp_list = []
-
+                should_skip_first_time = True
                 for _ in range(self.num_timesteps, total_timesteps):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
@@ -1375,36 +1390,46 @@ class Custom_DQN(DQN):
                     #     import pdb
                     #     pdb.set_trace()
 
-                    # save less frequently than testing
-                    if self.num_timesteps % MODEL_SAVE_FREQ == 0:
-                        self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
-                    #     with open(save_file + "_best_model.txt", "w") as f:
-                    #         f.write(str(self.num_timesteps))
-                    #         f.write(",")
-                    #         f.write(str(env.episode_num))
+                    if should_skip_first_time and not reset_num_timesteps:
+                        should_skip_first_time = False
+                    
+                    else:
 
-                    if self.num_timesteps % MODEL_TEST_FREQ == 0:
+                        # save less frequently than testing
+                        if self.num_timesteps % MODEL_SAVE_FREQ == 0:
+                            self.save_with_buffer(save_file + '_buffer_' + str(self.num_timesteps))
+                        #     with open(save_file + "_best_model.txt", "w") as f:
+                        #         f.write(str(self.num_timesteps))
+                        #         f.write(",")
+                        #         f.write(str(env.episode_num))
 
-                        # Log memory usage
-                        message = "Before validation " + str(self.num_timesteps)
-                        print_ram_usage(message)
-                        # h=hpy()
-                        # print(h.heap())
-                        
-                        self.save(save_file + str(self.num_timesteps))
-                        self.save_model_and_traininfo_file(save_file, env.episode_num)
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
-                        total_rewards.append(total_reward)
-                        total_successes.append(success_episodes)
-                        model_file_names.append(save_file + str(self.num_timesteps))
-                        total_updates.append(self.num_timesteps)
-                        plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
+                        if self.num_timesteps % MODEL_TEST_FREQ == 0:
 
-                        # Log memory usage
-                        message = "After validation " + str(self.num_timesteps)
-                        print_ram_usage(message)
-                        # h=hpy()
-                        # print(h.heap())
+                            # Log memory usage
+                            message = "Before validation " + str(self.num_timesteps)
+                            print_ram_usage(message, self.replay_buffer._storage)
+                            # h=hpy()
+                            # print(h.heap())
+                            
+                            self.save(save_file + str(self.num_timesteps))
+                            self.save_model_and_traininfo_file(save_file, env.episode_num)
+                            total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                            total_rewards.append(total_reward)
+                            total_successes.append(success_episodes)
+                            model_file_names.append(save_file + str(self.num_timesteps))
+                            total_updates.append(self.num_timesteps)
+                            plot_test_results(total_successes, total_rewards, total_updates, save_file.split('dqn_me')[0])
+
+                            # Need to reset obs after testing and clear collected episode transitions
+                            obs = self.env.reset()
+                            exp_list.clear()
+                            episode_t = 0
+
+                            # Log memory usage
+                            message = "After validation " + str(self.num_timesteps)
+                            print_ram_usage(message)
+                            # h=hpy()
+                            # print(h.heap())
                     
                     # Take action and update exploration to the newest value
                     kwargs = {}
@@ -1423,8 +1448,11 @@ class Custom_DQN(DQN):
                         kwargs['reset'] = reset
                         kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                         kwargs['update_param_noise_scale'] = True
+
+                    if len(obs.shape) < 3:
+                        obs_ = np.array(obs)[None]
                     with self.sess.as_default():
-                        action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+                        action = self.act(obs_, update_eps=update_eps, **kwargs)[0]
                     env_action = action
                     reset = False
                     new_obs, rew, done, info = self.env.step(env_action)
@@ -1496,13 +1524,21 @@ class Custom_DQN(DQN):
                         # print("Process id: ", process_id, ", RAM (GB) before clearing exp_list:", ram_usage)
                         
                         exp_list.clear()
+                        gc.collect()
 
                         # message = "After exp_list clear " + str(self.num_timesteps)
                         # print_ram_usage(message)
 
+                    if expert_replay_buffer is not None and expert_data_sample_percent > 0:
+                        expert_buffer_batch_size = int((expert_data_sample_percent/100) * self.batch_size)
+                        agent_buffer_batch_size = int(self.batch_size - expert_buffer_batch_size)
+                    else:
+                        expert_buffer_batch_size = 0
+                        agent_buffer_batch_size = self.batch_size
+
                     # Do not train if the warmup phase is not over
                     # or if there are not enough samples in the replay buffer
-                    can_sample = self.replay_buffer.can_sample(self.batch_size)
+                    can_sample = self.replay_buffer.can_sample(agent_buffer_batch_size)
                     if can_sample and self.num_timesteps > self.learning_starts \
                             and self.num_timesteps % self.train_freq == 0:
 
@@ -1514,41 +1550,42 @@ class Custom_DQN(DQN):
                             if self.prioritized_replay:
                                 assert self.beta_schedule is not None, \
                                     "BUG: should be LinearSchedule when self.prioritized_replay True"
-                                experience = self.replay_buffer.sample(self.batch_size,
+                                experience = self.replay_buffer.sample(agent_buffer_batch_size,
                                                                     beta=self.beta_schedule.value(self.num_timesteps))
                                 # (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
                                 (obses_t, actions, rewards, obses_tp1, dones, infos, _, weights, batch_idxes) = experience
                             else:
-                                # obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
-                                concatenate = False
-                                if len(self.replay_buffer._time_to_termination_idx[0]) > 64:
-                                    batch_size_t = 384
-                                    batch_size_t0 = 64
-                                    batch_size_t1 = 32
-                                    batch_size_t2 = 32
-                                    concatenate = True
+
+                                batch_size_t0 = int(0.125 * agent_buffer_batch_size)
+
+                                if not special_sample or len(self.replay_buffer._time_to_termination_idx[0]) < batch_size_t0:
+                                    obses_t, actions, rewards, obses_tp1, dones, infos, _ = self.replay_buffer.sample(agent_buffer_batch_size)
+                                    weights, batch_idxes = np.ones_like(rewards), None
                                 else:
-                                    batch_size_t = 512
-                                    batch_size_t0 = 0
-                                    batch_size_t1 = 0
-                                    batch_size_t2 = 0
-                                    concatenate = False
+                                    
+                                    # batch_size_t = 384
+                                    # batch_size_t0 = 64
+                                    # batch_size_t1 = 32
+                                    # batch_size_t2 = 32
+                                    
+                                    batch_size_t0 = int(0.125 * agent_buffer_batch_size)
+                                    batch_size_t1 = int(0.0625 * agent_buffer_batch_size)
+                                    batch_size_t2 = int(0.0625 * agent_buffer_batch_size)
+                                    batch_size_t = agent_buffer_batch_size - batch_size_t0 - batch_size_t1 - batch_size_t2
+                                    
+                                    
+                                    obses_t_t, actions_t, rewards_t, obses_tp1_t, dones_t, infos_t, _ = self.replay_buffer.sample(batch_size_t)
+                                    weights_t, batch_idxes_t = np.ones_like(rewards_t), None
 
-                                obses_t_t, actions_t, rewards_t, obses_tp1_t, dones_t, infos_t, _ = self.replay_buffer.sample(batch_size_t)
-                                weights_t, batch_idxes_t = np.ones_like(rewards_t), None
+                                    obses_t_t0, actions_t0, rewards_t0, obses_tp1_t0, dones_t0, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t0, [0])
+                                    weights_t0, batch_idxes_t0 = np.ones_like(rewards_t0), None
 
-                                obses_t_t0, actions_t0, rewards_t0, obses_tp1_t0, dones_t0, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t0, [0])
-                                weights_t0, batch_idxes_t0 = np.ones_like(rewards_t0), None
+                                    obses_t_t1, actions_t1, rewards_t1, obses_tp1_t1, dones_t1, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t1, [1])
+                                    weights_t1, batch_idxes_t1 = np.ones_like(rewards_t1), None
 
-                                obses_t_t1, actions_t1, rewards_t1, obses_tp1_t1, dones_t1, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t1, [1])
-                                weights_t1, batch_idxes_t1 = np.ones_like(rewards_t1), None
-
-                                obses_t_t2, actions_t2, rewards_t2, obses_tp1_t2, dones_t2, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t2, [2])
-                                weights_t2, batch_idxes_t2 = np.ones_like(rewards_t2), None
-                                
-                                # import pdb
-                                # pdb.set_trace()
-                                if concatenate:
+                                    obses_t_t2, actions_t2, rewards_t2, obses_tp1_t2, dones_t2, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t2, [2])
+                                    weights_t2, batch_idxes_t2 = np.ones_like(rewards_t2), None
+                                    
                                     obses_t = np.concatenate((obses_t_t, obses_t_t0, obses_t_t1, obses_t_t2))
                                     actions = np.concatenate((actions_t, actions_t0, actions_t1, actions_t2))
                                     rewards = np.concatenate((rewards_t, rewards_t0, rewards_t1, rewards_t2))
@@ -1557,16 +1594,54 @@ class Custom_DQN(DQN):
                                     
                                     weights = np.concatenate((weights_t, weights_t0, weights_t1, weights_t2))
                                     batch_idxes = None
-                                else:
-                                    obses_t = obses_t_t
-                                    actions = actions_t
-                                    rewards = rewards_t
-                                    obses_tp1 = obses_tp1_t
-                                    dones = dones_t
-                                    weights = weights_t
-                                    batch_idxes = None
                                 
                             # pytype:enable=bad-unpacking
+
+                            # sample from expert and concatenate
+
+                            if expert_buffer_batch_size > 0:
+
+                                batch_size_t0 = int(0.125 * expert_buffer_batch_size)
+
+                                if not special_sample or len(expert_replay_buffer._time_to_termination_idx[0]) < batch_size_t0:
+                                    e_obses_t, e_actions, e_rewards, e_obses_tp1, e_dones = self.sample_from_expert_buffer(expert_replay_buffer, expert_buffer_batch_size, input_type)
+                                    e_weights = np.ones_like(e_rewards)
+                                    
+                                else:
+                                    
+                                    batch_size_t0 = int(0.125 * expert_buffer_batch_size)
+                                    batch_size_t1 = int(0.0625 * expert_buffer_batch_size)
+                                    batch_size_t2 = int(0.0625 * expert_buffer_batch_size)
+                                    batch_size_t = expert_buffer_batch_size - batch_size_t0 - batch_size_t1 - batch_size_t2
+                                    
+                                    obses_t_t, actions_t, rewards_t, obses_tp1_t, dones_t = self.sample_from_expert_buffer(expert_replay_buffer, batch_size_t, input_type)
+                                    weights_t, batch_idxes_t = np.ones_like(rewards_t), None
+
+                                    obses_t_t0, actions_t0, rewards_t0, obses_tp1_t0, dones_t0 = self.sample_from_expert_buffer(expert_replay_buffer, batch_size_t0, input_type, [0])
+                                    weights_t0, batch_idxes_t0 = np.ones_like(rewards_t0), None
+
+                                    obses_t_t1, actions_t1, rewards_t1, obses_tp1_t1, dones_t1 = self.sample_from_expert_buffer(expert_replay_buffer, batch_size_t1, input_type, [1])
+                                    weights_t1, batch_idxes_t1 = np.ones_like(rewards_t1), None
+
+                                    obses_t_t2, actions_t2, rewards_t2, obses_tp1_t2, dones_t2 = self.sample_from_expert_buffer(expert_replay_buffer, batch_size_t2, input_type, [2])
+                                    weights_t2, batch_idxes_t2 = np.ones_like(rewards_t2), None
+                                    
+                                    e_obses_t = np.concatenate((obses_t_t, obses_t_t0, obses_t_t1, obses_t_t2))
+                                    e_actions = np.concatenate((actions_t, actions_t0, actions_t1, actions_t2))
+                                    e_rewards = np.concatenate((rewards_t, rewards_t0, rewards_t1, rewards_t2))
+                                    e_obses_tp1 = np.concatenate((obses_tp1_t, obses_tp1_t0, obses_tp1_t1, obses_tp1_t2))
+                                    e_dones = np.concatenate((dones_t, dones_t0, dones_t1, dones_t2))
+                                    e_weights = np.concatenate((weights_t, weights_t0, weights_t1, weights_t2))
+                                
+                                
+                                # Combine expert and agent samples
+                                obses_t = np.concatenate((obses_t, e_obses_t))
+                                actions = np.concatenate((actions, e_actions))
+                                rewards = np.concatenate((rewards, e_rewards))
+                                obses_tp1 = np.concatenate((obses_tp1, e_obses_tp1))
+                                dones = np.concatenate((dones, e_dones))
+                                
+                                weights = np.concatenate((weights, e_weights))
 
                             summary = None
                             run_metadata = None
@@ -2099,9 +2174,18 @@ class Custom_DQN(DQN):
             f.write(",")
             f.write(str(episode_num))
 
-def print_ram_usage(message):
+def print_ram_usage(message, replay_buffer_list=None):
     # Log memory usage
     process_id = os.getpid()
     process = psutil.Process(process_id)
     ram_usage = process.memory_info().rss / (1024*1024*1024)
     print("Process id: ", process_id, ", RAM (GB) ", message, ": ",ram_usage)
+
+    if replay_buffer_list is not None:
+        replay_buffer_size = sys.getsizeof(replay_buffer_list)
+        if len(replay_buffer_list) > 0:
+            refcount = sys.getrefcount(replay_buffer_list[0])
+        else:
+            refcount = -1
+        
+        print("Process id: ", process_id, ", Replay_buffer.sys.getsizeof ", message, ": ",ram_usage, "refcount", refcount)
