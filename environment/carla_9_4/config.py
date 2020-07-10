@@ -136,7 +136,8 @@ DEFAULT_ENV = {
     "disable_obstacle_info" : False,
     "sample_npc": False,
     "test_comparison": False,
-    "test_with_automatic_control": False
+    "test_with_automatic_control": False,
+    "updated_scenarios": False
 }
 
 episode_measurements = {

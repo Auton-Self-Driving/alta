@@ -149,7 +149,6 @@ class CarlaEnv(gym.Env):
         time.sleep(20)
 
         self._map = self._world.get_map()
-        
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
         
@@ -1030,6 +1029,22 @@ class CarlaEnv(gym.Env):
 
         self.episode_measurements['dist_to_light'] = dist
 
+    def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
+        if self.config["scenarios"] == "straight":
+            source_idx, destination_idx = scenarios.get_straight_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "curved":
+            source_idx, destination_idx = scenarios.get_curved_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
+            source_idx, destination_idx = scenarios.get_navigation_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        else:
+            raise ValueError("Scenarios Config not set!")
+
+        self.source_transform = self.spawn_points[source_idx]
+        self.destination_transform = self.spawn_points[destination_idx]
+
     def _set_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
@@ -1329,7 +1344,10 @@ class CarlaEnv(gym.Env):
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
-            self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+            if self.config["updated_scenarios"]:
+                self._set_updated_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+            else:
+                self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 

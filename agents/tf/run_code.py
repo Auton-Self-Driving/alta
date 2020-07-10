@@ -31,6 +31,7 @@ def parse_arguments():
     parser.add_argument('--agent_model_path',dest='agent_model_path',type=str, default=None, help='Agent Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
+    parser.add_argument('--updated-scenarios', dest='updated_scenarios', action='store_true', help='Enable updated scenarios similar to the benchmark defined for CARLA 0.9.6 in LBC(https://arxiv.org/pdf/1912.12294.pdf)')
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
@@ -338,6 +339,7 @@ if __name__ == '__main__':
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
     config.config["input_type"] = args.input_type
     config.config["scenarios"] = args.scenarios
+    config.config["updated_scenarios"] = args.updated_scenarios
     config.config["train_vae"] = (args.train_vae or args.finetune_vae)
     config.config["binarized_image"] = args.binarized_image
     config.config["single_channel_image"] = args.single_channel_image

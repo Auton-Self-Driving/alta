@@ -1911,6 +1911,32 @@ def get_straight_path(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
 
+def get_straight_path_updated(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_idx, target_idx]"
+
+    paths_Town01 = [[220, 216], [217, 72], [41, 37], [249, 253], [256, 252],
+                    [188, 206], [195, 197], [209, 192], [4, 61], [223, 88],
+                    [230, 237], [165, 180], [123, 207], [201, 212], [227, 44],
+                    [56, 47], [121, 222], [203, 120], [234, 239], [60, 3],
+                    [103, 44], [178, 186], [56, 129], [188, 212], [123, 187]]
+
+    paths_Town02 = [[47, 51], [81, 83], [73, 75], [23, 30], [42, 38],
+                    [21, 19], [7, 9], [26, 28], [24, 67], [50, 46],
+                    [73, 77], [100, 67], [10, 17], [31, 25], [40, 36],
+                    [39, 43], [32, 39], [5, 56], [20, 22], [100, 4],
+                    [31, 22], [34, 43], [69, 66], [68, 59], [8, 17]]
+
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_Town01)
+        elif town == "Town02":
+            return random.choice(paths_Town02)
+    else:
+        if town == "Town01":
+            return paths_Town01[index]
+        elif town == "Town02":
+            return paths_Town02[index]
+
 def get_curved_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     if not unseen:
@@ -1924,6 +1950,32 @@ def get_curved_path(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return benchmark_paths_turn_Town02()[index]
 
+def get_curved_path_updated(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_idx, target_idx]"
+
+    paths_Town01 = [[13, 239], [209, 240], [230, 247], [214, 207], [11, 27],
+                    [110, 53], [191, 18], [14, 205], [180, 190], [210, 217],
+                    [216, 196], [256, 227], [252, 177], [30, 11], [254, 177],
+                    [178, 212], [188, 110], [215, 129], [56, 186], [188, 177],
+                    [121, 187], [209, 176], [41, 234], [21, 239], [256, 239]]
+
+    paths_Town02 = [[48, 9], [77, 61], [25, 16], [47, 75], [64, 89],
+                    [27, 14], [11, 53], [41, 100], [14, 69], [71, 61],
+                    [51, 74], [42, 71], [10, 69], [5, 64], [82, 62],
+                    [10, 26], [35, 38], [74, 66], [8, 51], [6, 60],
+                    [45, 22], [27, 9], [6, 30], [69, 24], [58, 74]]
+
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_Town01)
+        elif town == "Town02":
+            return random.choice(paths_Town02)
+    else:
+        if town == "Town01":
+            return paths_Town01[index]
+        elif town == "Town02":
+            return paths_Town02[index]
+
 def get_navigation_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     if not unseen:
@@ -1936,6 +1988,32 @@ def get_navigation_path(unseen=False, town="Town01", index=0):
             return benchmark_paths_navigation_Town01()[index]
         elif town == "Town02":
             return benchmark_paths_navigation_Town02()[index]
+
+def get_navigation_path_updated(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_idx, target_idx]"
+
+    paths_Town01 = [[79, 227], [105, 21], [129, 88], [19, 105], [104, 212],
+                    [84, 230], [222, 120], [228, 255], [11, 17], [79, 247],
+                    [3, 177], [191, 240], [235, 240], [4, 54], [214, 205],
+                    [56, 215], [114, 44], [187, 123], [129, 56], [114, 6],
+                    [40, 192], [176, 123], [121, 187], [238, 225], [219, 154]]
+
+    paths_Town02 = [[66, 19], [6, 71], [66, 28], [62, 89], [32, 9],
+                    [43, 72], [54, 14], [52, 82], [31, 55], [75, 24],
+                    [19, 82], [58, 73], [6, 66], [83, 56], [69, 71],
+                    [82, 28], [19, 12], [39, 18], [28, 35], [24, 36],
+                    [64, 73], [34, 4], [8, 17], [29, 20], [42, 31]]
+
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_Town01)
+        elif town == "Town02":
+            return random.choice(paths_Town02)
+    else:
+        if town == "Town01":
+            return paths_Town01[index]
+        elif town == "Town02":
+            return paths_Town02[index]
 
 def get_t_junction_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
