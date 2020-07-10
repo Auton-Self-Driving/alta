@@ -150,7 +150,7 @@ def run_ppo_vae(args, prefix, config):
                     env.set_vae(vae)
                     model = PPO.load(args.agent_model_path, env=dummy_env)
 
-                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
+                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "a") as f:
                         total_reward, success_episodes, results = test(model, env)
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
@@ -168,7 +168,7 @@ def run_ppo_vae(args, prefix, config):
                     env.close()
                 rewards = np.array(rewards)
                 successes = np.array(successes)
-                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "w") as f:
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "a") as f:
                     f.write("Task Name: {}\n".format(config.config["scenarios"]))
                     f.write("Town Name: {}\n".format(config.config["city_name"]))
                     f.write("Model path used for testing: {}\n".format(args.agent_model_path))

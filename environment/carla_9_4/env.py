@@ -810,7 +810,7 @@ class CarlaEnv(gym.Env):
                     plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
                     self.episode_measurements['val_ep_idx'] = plotname
                     if self.config["testing"]:
-                        path = self.log_dir + 'test_episode_info_plots/'
+                        path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
                     else:
                         path = self.log_dir + 'val_episode_info_plots/'
                     plot_episode_info(path,

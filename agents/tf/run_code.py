@@ -45,6 +45,7 @@ def parse_arguments():
     parser.add_argument('--finetune-vae', dest='finetune_vae', action='store_true', help='Whether to finetune vae')
     parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
     parser.add_argument('--num-npc',dest='num_npc',type=int,default=0, help='number of other vehicles')
+    parser.add_argument('--disable-sample-npc', dest='disable_sample_npc', action='store_true', help='Disbale sampling npcs.')
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
     parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=0.0, help='Constant penalty for collision.')
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
@@ -58,6 +59,7 @@ def parse_arguments():
     parser.add_argument('--clip',dest='clip',type=float,default=0.2, help='Clip parameter for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
+    parser.add_argument('--disable-lane-invasion', dest='disable_lane_invasion', action='store_true', help='Whether to disable lane invasion sensor.')
     parser.add_argument('--disable-traffic-light', dest='disable_traffic_light', action='store_true', help='Whether to disable traffic light.')
     parser.add_argument('--disable-obstacle-info', dest='disable_obstacle_info', action='store_true', help='Whether to disable obstacle detector.')
     parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
@@ -351,6 +353,7 @@ if __name__ == '__main__':
     config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic
     config.config["disable_collision"] = args.disable_collision
+    config.config["enable_lane_invasion_sensor"] = not args.disable_lane_invasion
     config.config["disable_traffic_light"] = args.disable_traffic_light
     config.config["disable_obstacle_info"] = args.disable_obstacle_info
     config.config["enable_static"] = args.enable_static
@@ -363,6 +366,7 @@ if __name__ == '__main__':
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward
     config.config["constant_positive_reward"] = args.constant_reward
+    config.config["sample_npc"] = not args.disable_sample_npc
 
     try:
         if args.algo == "SAC":
