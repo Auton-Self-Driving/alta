@@ -52,6 +52,8 @@ def parse_arguments():
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=0.0, help='Speed coefficient for speed-proportional collision penalty.')
     parser.add_argument('--const-light-penalty',dest='const_light_penalty',type=float,default=0.0, help='Constant penalty for running traffic light.')
     parser.add_argument('--light-penalty-speed-coeff',dest='light_penalty_speed_coeff',type=float,default=0.0, help='Speed-proportional penalty for running light.')
+    parser.add_argument('--light-thresold',dest='light_threshold',type=int, default=10, help='Traffic Light Distance threshold.')
+    parser.add_argument('--min-light-thresold',dest='min_light_threshold',type=int, default=4, help='Min distance from Traffic Light to be detected as red.')
     # parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
@@ -350,6 +352,8 @@ if __name__ == '__main__':
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
     config.config["const_light_penalty"] = args.const_light_penalty
     config.config["light_penalty_speed_coeff"] = args.light_penalty_speed_coeff
+    config.config["traffic_light_proximity_threshold"] = args.light_threshold
+    config.config["min_dist_from_red_light"] = args.min_light_threshold
     # config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
     config.config["frame_stack_size"] = args.frame_stack
