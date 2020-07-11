@@ -1079,6 +1079,11 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
             self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "no_crash_empty" or self.config["scenarios"] == "no_crash_regular" or self.config["scenarios"] == "no_crash_dense":
+            source_idx, destination_idx = scenarios.get_no_crash_path(unseen, town, index)
+            self.source_transform = self.spawn_points[source_idx]
+            self.destination_transform = self.spawn_points[destination_idx]
+            self.config["num_episodes"] = 25
         else:
             raise ValueError("Scenarios Config not set!")
 

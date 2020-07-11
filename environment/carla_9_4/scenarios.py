@@ -2015,6 +2015,32 @@ def get_navigation_path_updated(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return paths_Town02[index]
 
+def get_no_crash_path(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_idx, target_idx]"
+
+    paths_Town01 = [[79, 227], [105, 21], [129, 88], [19, 105], [231, 212],
+                    [252, 192], [222, 120], [202, 226], [11, 17], [79, 247],
+                    [3, 177], [191, 114], [235, 240], [4, 54], [17, 207],
+                    [223, 212], [154, 66], [187, 123], [129, 56], [114, 6],
+                    [40, 192], [176, 123], [121, 187], [238, 225], [219, 154]]
+
+    paths_Town02 = [[66, 19], [6, 71], [66, 28], [46, 32], [25, 59],
+                    [32, 9], [43, 72], [54, 14], [26, 50], [38, 69],
+                    [75, 24], [19, 82], [65, 6], [71, 29], [59, 16],
+                    [6, 66], [83, 56], [69, 71], [82, 28], [8, 17],
+                    [19, 12], [39, 18], [51, 8], [24, 36], [64, 73]]
+
+    if not unseen:
+        if town == "Town01":
+            return random.choice(paths_Town01)
+        elif town == "Town02":
+            return random.choice(paths_Town02)
+    else:
+        if town == "Town01":
+            return paths_Town01[index]
+        elif town == "Town02":
+            return paths_Town02[index]
+
 def get_t_junction_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
     if not unseen:
