@@ -321,6 +321,8 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     print(results)
     print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Unexpected Collision: {}, Runover light: {}, Max_steps: {}, Max_steps Obstacle: {}, Max_steps Traffic Light: {}, Static: {}, Unknown: {}".format(success_episodes,
                 collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
+    data = [model_step, success_episodes, total_reward, collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes,
+                                    runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes]
     if dump_results and env.logger is not None:
         env.logger.log_scalar('test/term_success', success_episodes, model_step)
         env.logger.log_scalar('test/term_obstacle', collision_obs_episodes, model_step)
@@ -337,9 +339,8 @@ def test(model, env, dump_results=False, path='.', model_step=None):
 
         with open(path + 'test_results.csv','a') as f:
                 csvwriter = csv.writer(f, delimiter=',')
-                csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes,
-                                    runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes])
-    return total_reward, success_episodes, results
+                csvwriter.writerow(data)
+    return total_reward, success_episodes, results, data
 
 def get_best_model(env, total_rewards, total_successes, model_file_names, path):
     print("Searching for best model now!!!")
@@ -400,7 +401,7 @@ class PPO(PPO2):
                     self.save(save_file + str(update * self.n_batch))
                     if policy_plots:
                         plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
-                    total_reward, success_episodes, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
+                    total_reward, success_episodes, _, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
                     total_rewards.append(total_reward)
                     total_successes.append(success_episodes)
                     model_file_names.append(save_file + str(update * self.n_batch))
@@ -437,7 +438,7 @@ class PPO(PPO2):
                         self.save(save_file + str(update * self.n_batch))
                         if policy_plots:
                             plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
-                        total_reward, success_episodes, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
+                        total_reward, success_episodes, _, _ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=update * self.n_batch)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(update * self.n_batch))

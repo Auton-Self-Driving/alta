@@ -83,7 +83,7 @@ def model_learn(total_timesteps, trained_timesteps, ALTA_LOGS, save_file, valida
     print("Model object created")
 
     model = model.learn(total_timesteps, trained_timesteps, env, tb_log_name="PPO2", save_file=save_file, reset_num_timesteps=True, policy_plots=False, validation_interval=validation_interval, disable_greedy_best=disable_greedy_best)
-    total_reward, success_episodes, results = test(model, env)
+    total_reward, success_episodes, results, _ = test(model, env)
 
     pid = os.getpid()
     model.save(save_file, pid=pid)
@@ -193,7 +193,10 @@ def run_ppo(args, prefix, config):
                     model = PPO.load(args.agent_model_path, env=dummy_env)
 
                     with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "a") as f:
-                        total_reward, success_episodes, results = test(model, env)
+                        total_reward, success_episodes, results, data = test(model, env)
+                        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+                            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = data[3:]
+
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
                         # print("Results of test scenarios")
@@ -203,7 +206,8 @@ def run_ppo(args, prefix, config):
                         f.write("Town Name: {}\n".format(config.config["city_name"]))
                         f.write("Results of test scenarios\n")
                         f.write(str(results))
-                        f.write("Total Success Episodes: {}\n".format(str(success_episodes)))
+                        f.write("Total Success: {}, Collision Obstacle: {}, Collision LaneChange: {}, Collision OutOfRoad: {}, Collision Unexpected: {}, Runover Light: {}, Max Steps: {}, Max StepsObstacle: {}, Max StepsLight: {}, Static: {}, Unknown: {}\n".format(success_episodes,
+                                    collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
                         f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
                     rewards.append(total_reward)
                     successes.append(success_episodes)
@@ -254,7 +258,7 @@ def run_ppo(args, prefix, config):
                 update = 0
                 for model_file in model_files[:-1]:
                     model = PPO.load(model_file, env=dummy_env, seed=seed)
-                    total_reward, success_episodes, results = test(model, env)
+                    total_reward, success_episodes, results, _ = test(model, env)
                     print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
                     rewards.append(total_reward)
                     successes.append(success_episodes)
