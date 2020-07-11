@@ -275,6 +275,11 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['red_light_dist'] = -1
         self.episode_measurements['traffic_light_orientation'] = -1
         self.episode_measurements["runover_light"] = False
+        self.vehicle_collisions = 0
+        self.static_collisions = 0
+        self.total_collisions = 0
+        self.total_distance = 0
+        self.traffic_light_violations = 0
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
@@ -612,6 +617,9 @@ class CarlaEnv(gym.Env):
 
             # Set state variables for reward calculation
             self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+            self.episode_measurements['collision_actor_id'] = self.collision_sensor.actor_id
+            self.episode_measurements['collision_actor_type'] = self.collision_sensor.actor_type
+
             if self.config["enable_lane_invasion_sensor"]:
                 self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
                 self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
@@ -641,6 +649,24 @@ class CarlaEnv(gym.Env):
                                 config=self.config,
                                 verbose=self.config["verbose"])
             
+            obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
+
+            if obs_collision and self.episode_measurements["collision_actor_id"] != self.prev_measurement["collision_actor_id"]:
+                self.total_collisions += 1
+                if 'vehicle' in self.episode_measurements['collision_actor_type']:
+                    self.vehicle_collisions += 1
+                else:
+                    self.static_collisions += 1
+            elif not obs_collision:
+                self.episode_measurements["collision_actor_id"] = None
+
+            if self.episode_measurements['runover_light']:
+                self.traffic_light_violations += 1
+
+            if self.config["verbose"]:
+                print("Collisions Total: {}, Vehicle: {}, Static: {}".format(self.total_collisions, self.vehicle_collisions, self.static_collisions))
+                print("Traffic Light Violations: {}".format(self.traffic_light_violations))
+
             done = self._compute_done_condition()
 
             self.episode_measurements['done'] = done
@@ -1447,6 +1473,8 @@ class CarlaEnv(gym.Env):
             
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+        self.episode_measurements['collision_actor_id'] = self.collision_sensor.actor_id
+        self.episode_measurements['collision_actor_type'] = self.collision_sensor.actor_type
         if self.config["enable_lane_invasion_sensor"]:
             self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
             self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
@@ -1488,6 +1516,8 @@ class CarlaEnv(gym.Env):
         
         self.episode_measurements['next_orientation'] = next_orientation
         self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
+        if self.unseen:
+            self.total_distance += distance_to_goal_trajec
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements

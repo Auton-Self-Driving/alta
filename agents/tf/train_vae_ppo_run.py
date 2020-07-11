@@ -166,6 +166,9 @@ def run_ppo_vae(args, prefix, config):
                         f.write(str(results))
                         f.write("Total Success: {}, Collision Obstacle: {}, Collision LaneChange: {}, Collision OutOfRoad: {}, Collision Unexpected: {}, Runover Light: {}, Max Steps: {}, Max StepsObstacle: {}, Max StepsLight: {}, Static: {}, Unknown: {}\n".format(success_episodes,
                                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
+                        f.write("Total Collisions: {}, Static Collisions: {}, Vehicle Collisions:{}\n".format(env.total_collisions, env.static_collisions, env.vehicle_collisions))
+                        f.write("Traffic Light Violations: {}\n".format(env.traffic_light_violations))
+                        f.write("Total Distance: {}\n".format(env.total_distance))
                         f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
                     rewards.append(total_reward)
                     successes.append(success_episodes)
