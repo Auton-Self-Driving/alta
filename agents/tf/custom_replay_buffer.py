@@ -229,13 +229,11 @@ class Custom_PrioritizedReplayBuffer(Custom_ReplayBuffer):
         :param done: (bool) is the episode done
         :param info: (int) episode termination code
         """
-        data = (obs_t, action, reward, obs_tp1, done, term_state, time_to_termination)
 
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-        else:
-            self._storage[self._next_idx] = data
-        self._next_idx = (self._next_idx + 1) % self._maxsize
+        idx = self._next_idx
+        super().add(obs_t, action, reward, obs_tp1, done, term_state, time_to_termination)
+        self._it_sum[idx] = self._max_priority ** self._alpha
+        self._it_min[idx] = self._max_priority ** self._alpha
 
     def _sample_proportional(self, batch_size):
         res = []
