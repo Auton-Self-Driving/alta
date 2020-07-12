@@ -1968,7 +1968,8 @@ class Custom_DQN(DQN):
             "replay_buffer": self.replay_buffer,
             "exploration": self.exploration,
             "num_timesteps": self.num_timesteps,
-            "n_step": self.n_step
+            "n_step": self.n_step,
+            "beta_schedule": self.beta_schedule
         }
 
         # np.savez(save_path + '_buffer', replay_buffer=np.array(self.replay_buffer._storage))

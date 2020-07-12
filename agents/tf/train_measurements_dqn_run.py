@@ -525,8 +525,9 @@ def run_dqn(args, prefix, config):
                         with open(training_info_file, "r") as f:
                             line = f.readline()
                             line_info = line.split(',')
-                            completed_episodes = int(line_info[0])
-                            completed_steps = int(line_info[1])
+                            
+                            completed_steps = int(line_info[0])
+                            completed_episodes = int(line_info[1])
                         print("Loaded training info: Completed Episodes {0}, Completed steps {1}".format(completed_episodes, completed_steps))
                     else:
                         print("Warning: Found model file, but not training info file!")
