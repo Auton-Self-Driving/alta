@@ -8,6 +8,9 @@ from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
 from train_measurements_dqn_run import run_dqn
+from c51new import run_c51
+from iqn import run_iqn
+
 
 
 def parse_arguments():
@@ -290,6 +293,15 @@ def create_ppo_prefix(args):
     prefix = prefix + '_runid_' + args.run_id + '/'
     return prefix
 
+def get_drl_prefix(args): 
+    prefix = 'algo_' + args.algo \
+        + '_scenario_' + str(args.scenarios)  \
+        + '_npcs_' + str(args.num_npc)  \
+        + '_input_' + str(args.input_type) \
+        + '_lr_' + str(args.lr)  \
+        + '_runid_' + str(args.run_id) 
+    return prefix
+
 def extract_prefix(args):
     prefix = args.agent_model_path.split('/')[-2]
     return prefix
@@ -360,6 +372,14 @@ if __name__ == '__main__':
             else:
                 prefix = create_ppo_prefix(args)
             run_dqn(args, prefix, config)
+        elif args.algo == 'C51': 
+            # prefix = extract_prefix(args) 
+            prefix = get_drl_prefix(args)
+            run_c51(args, prefix, config)
+        elif args.algo == 'IQN': 
+            # prefix = extract_prefix(args) 
+            prefix = get_drl_prefix(args)
+            run_iqn(args, prefix, config)
 
     except Exception as e:
         print(e)
