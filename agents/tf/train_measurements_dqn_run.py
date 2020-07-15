@@ -589,17 +589,19 @@ def run_dqn(args, prefix, config):
                     dummy_env = DummyVecEnv([lambda: env])
                     if expert_data_sample_percent > 0:
                         learning_starts = 10000
+                    else:
+                        learning_starts = 25000
 
                     if args.ebu:
                         model = Custom_DQN_EBU(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=learning_starts,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, ebu_beta=0.5)
 
                     else:
                         model = Custom_DQN(policy=policy, env=dummy_env, learning_rate=args.lr, buffer_size=args.buffer_size,
-                                    exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
+                                    exploration_fraction=0.1,learning_starts=learning_starts,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
                                     tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step, clipped_DDQN=args.clipped_DDQN)

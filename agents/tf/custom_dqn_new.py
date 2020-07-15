@@ -1566,68 +1566,84 @@ class Custom_DQN(DQN):
 
                     # Do not train if the warmup phase is not over
                     # or if there are not enough samples in the replay buffer
-                    can_sample = self.replay_buffer.can_sample(agent_buffer_batch_size)
-                    if can_sample and self.num_timesteps > self.learning_starts \
+                    
+                    if agent_buffer_batch_size > 0:
+                        can_sample = self.replay_buffer.can_sample(agent_buffer_batch_size)
+                    else:
+                        can_sample = False
+
+                    can_start_agent_training = can_sample and self.num_timesteps > self.learning_starts
+                    can_start_expert_training = expert_buffer_batch_size > 0
+
+                    if (can_start_agent_training or can_start_expert_training) \
                             and self.num_timesteps % self.train_freq == 0:
+
 
                         # Running training optimizations for num_opt_epochs
                         for i_opt in range(num_opt_epochs):
 
-                            # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                            # pytype:disable=bad-unpacking
-                            if self.prioritized_replay:
-                                assert self.beta_schedule is not None, \
-                                    "BUG: should be LinearSchedule when self.prioritized_replay True"
-                                experience = self.replay_buffer.sample(agent_buffer_batch_size,
-                                                                    beta=self.beta_schedule.value(self.num_timesteps))
-                                # (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
-                                (obses_t, actions, rewards, obses_tp1, dones, infos, _, weights, batch_idxes) = experience
-                            else:
+                            if can_start_agent_training:
 
-                                batch_size_t0 = int(0.125 * agent_buffer_batch_size)
-
-                                if not special_sample or len(self.replay_buffer._time_to_termination_idx[0]) < batch_size_t0:
-                                    obses_t, actions, rewards, obses_tp1, dones, infos, _ = self.replay_buffer.sample(agent_buffer_batch_size)
-                                    weights, batch_idxes = np.ones_like(rewards), None
+                                # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
+                                # pytype:disable=bad-unpacking
+                                if self.prioritized_replay:
+                                    assert self.beta_schedule is not None, \
+                                        "BUG: should be LinearSchedule when self.prioritized_replay True"
+                                    experience = self.replay_buffer.sample(agent_buffer_batch_size,
+                                                                        beta=self.beta_schedule.value(self.num_timesteps))
+                                    # (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                                    (obses_t, actions, rewards, obses_tp1, dones, infos, _, weights, batch_idxes) = experience
                                 else:
-                                    
-                                    # batch_size_t = 384
-                                    # batch_size_t0 = 64
-                                    # batch_size_t1 = 32
-                                    # batch_size_t2 = 32
-                                    
+
                                     batch_size_t0 = int(0.125 * agent_buffer_batch_size)
-                                    batch_size_t1 = int(0.0625 * agent_buffer_batch_size)
-                                    batch_size_t2 = int(0.0625 * agent_buffer_batch_size)
-                                    batch_size_t = agent_buffer_batch_size - batch_size_t0 - batch_size_t1 - batch_size_t2
-                                    
-                                    
-                                    obses_t_t, actions_t, rewards_t, obses_tp1_t, dones_t, infos_t, _ = self.replay_buffer.sample(batch_size_t)
-                                    weights_t, batch_idxes_t = np.ones_like(rewards_t), None
 
-                                    obses_t_t0, actions_t0, rewards_t0, obses_tp1_t0, dones_t0, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t0, [0])
-                                    weights_t0, batch_idxes_t0 = np.ones_like(rewards_t0), None
+                                    if not special_sample or len(self.replay_buffer._time_to_termination_idx[0]) < batch_size_t0:
+                                        obses_t, actions, rewards, obses_tp1, dones, infos, _ = self.replay_buffer.sample(agent_buffer_batch_size)
+                                        weights, batch_idxes = np.ones_like(rewards), None
+                                    else:
+                                        
+                                        # batch_size_t = 384
+                                        # batch_size_t0 = 64
+                                        # batch_size_t1 = 32
+                                        # batch_size_t2 = 32
+                                        
+                                        batch_size_t0 = int(0.125 * agent_buffer_batch_size)
+                                        batch_size_t1 = int(0.0625 * agent_buffer_batch_size)
+                                        batch_size_t2 = int(0.0625 * agent_buffer_batch_size)
+                                        batch_size_t = agent_buffer_batch_size - batch_size_t0 - batch_size_t1 - batch_size_t2
+                                        
+                                        
+                                        obses_t_t, actions_t, rewards_t, obses_tp1_t, dones_t, infos_t, _ = self.replay_buffer.sample(batch_size_t)
+                                        weights_t, batch_idxes_t = np.ones_like(rewards_t), None
 
-                                    obses_t_t1, actions_t1, rewards_t1, obses_tp1_t1, dones_t1, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t1, [1])
-                                    weights_t1, batch_idxes_t1 = np.ones_like(rewards_t1), None
+                                        obses_t_t0, actions_t0, rewards_t0, obses_tp1_t0, dones_t0, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t0, [0])
+                                        weights_t0, batch_idxes_t0 = np.ones_like(rewards_t0), None
 
-                                    obses_t_t2, actions_t2, rewards_t2, obses_tp1_t2, dones_t2, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t2, [2])
-                                    weights_t2, batch_idxes_t2 = np.ones_like(rewards_t2), None
-                                    
-                                    obses_t = np.concatenate((obses_t_t, obses_t_t0, obses_t_t1, obses_t_t2))
-                                    actions = np.concatenate((actions_t, actions_t0, actions_t1, actions_t2))
-                                    rewards = np.concatenate((rewards_t, rewards_t0, rewards_t1, rewards_t2))
-                                    obses_tp1 = np.concatenate((obses_tp1_t, obses_tp1_t0, obses_tp1_t1, obses_tp1_t2))
-                                    dones = np.concatenate((dones_t, dones_t0, dones_t1, dones_t2))
-                                    
-                                    weights = np.concatenate((weights_t, weights_t0, weights_t1, weights_t2))
-                                    batch_idxes = None
+                                        obses_t_t1, actions_t1, rewards_t1, obses_tp1_t1, dones_t1, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t1, [1])
+                                        weights_t1, batch_idxes_t1 = np.ones_like(rewards_t1), None
+
+                                        obses_t_t2, actions_t2, rewards_t2, obses_tp1_t2, dones_t2, _, _ = self.replay_buffer.sample_time_to_termination(batch_size_t2, [2])
+                                        weights_t2, batch_idxes_t2 = np.ones_like(rewards_t2), None
+                                        
+                                        obses_t = np.concatenate((obses_t_t, obses_t_t0, obses_t_t1, obses_t_t2))
+                                        actions = np.concatenate((actions_t, actions_t0, actions_t1, actions_t2))
+                                        rewards = np.concatenate((rewards_t, rewards_t0, rewards_t1, rewards_t2))
+                                        obses_tp1 = np.concatenate((obses_tp1_t, obses_tp1_t0, obses_tp1_t1, obses_tp1_t2))
+                                        dones = np.concatenate((dones_t, dones_t0, dones_t1, dones_t2))
+                                        
+                                        weights = np.concatenate((weights_t, weights_t0, weights_t1, weights_t2))
+                                        batch_idxes = None
                                 
                             # pytype:enable=bad-unpacking
 
                             # sample from expert and concatenate
 
                             if expert_buffer_batch_size > 0:
+
+                                # start sampling from expert, but cannot yet sample from agent
+                                # sample complete batch_size from expert
+                                if not can_start_agent_training:
+                                    expert_buffer_batch_size = self.batch_size
 
                                 batch_size_t0 = int(0.125 * expert_buffer_batch_size)
 
@@ -1662,14 +1678,21 @@ class Custom_DQN(DQN):
                                     e_weights = np.concatenate((weights_t, weights_t0, weights_t1, weights_t2))
                                 
                                 
-                                # Combine expert and agent samples
-                                obses_t = np.concatenate((obses_t, e_obses_t))
-                                actions = np.concatenate((actions, e_actions))
-                                rewards = np.concatenate((rewards, e_rewards))
-                                obses_tp1 = np.concatenate((obses_tp1, e_obses_tp1))
-                                dones = np.concatenate((dones, e_dones))
-                                
-                                weights = np.concatenate((weights, e_weights))
+                                if can_start_agent_training:
+                                    # Combine expert and agent samples
+                                    obses_t = np.concatenate((obses_t, e_obses_t))
+                                    actions = np.concatenate((actions, e_actions))
+                                    rewards = np.concatenate((rewards, e_rewards))
+                                    obses_tp1 = np.concatenate((obses_tp1, e_obses_tp1))
+                                    dones = np.concatenate((dones, e_dones))
+                                    weights = np.concatenate((weights, e_weights))
+                                else:
+                                    obses_t = e_obses_t
+                                    actions = e_actions
+                                    rewards = e_rewards
+                                    obses_tp1 = e_obses_tp1
+                                    dones = e_dones
+                                    weights = e_weights
 
                             summary = None
                             run_metadata = None

@@ -97,7 +97,6 @@ python plot_rewards.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_1' \
 --run-path 'algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
 --title 'DN (wp angles, expert 25%, fs3, n=3, lr=3e-5,ss)' \
---inds 1 2 3
 
 
 python plot_rewards.py \
@@ -111,7 +110,6 @@ python plot_rewards.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_wp_orienation' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
 --title 'DN (wp orientation, expert 25%, fs3, n=3, lr=3e-5,ss)' \
---inds 1 2 3
 
 
 python plot_rewards.py \
@@ -130,3 +128,47 @@ python plot_rewards.py \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --title 'Long Junc (fs2, n=3, nn:256, 128, 64, lr=1e-5, target=10k, ss)' \
 --inds 1 2 
+
+
+#autobot
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_nav_ac12_dis_light_dis_lane_termination_scratch/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_navigation_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_dis_light_dis_lane_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'Nav w/o actors  (scratch, fs3, n=3, ss)' \
+--inds 1 2 3
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_nav_ac12_dis_light_dis_lane_termination_fs1/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_navigation_pre_tfs_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_pid_fs_dis_light_dis_lane_dqn_n_3_r_norm_8_suc_r_100_const_r_1' \
+--title 'Nav w/o actors (pretrained on tjunc-light, fs1, n=3, ss)' \
+--inds 1 2 3
+
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_nav_ac12_dis_light_dis_lane_termination_scratch_fs1/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_navigation_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_pid_fs_dis_light_dis_lane_dqn_n_3_r_norm_8_suc_r_100_const_r_1' \
+--title 'Nav w/o actors  (scratch, fs1, n=3, ss)' \
+--inds 1 2 3
+
+
+algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_dynamic_navigation_pre_tfs_npc_70_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_dynamic_navigation_pre_tfs_npc_70_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1_runid_1/test_results.csv
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_dynamic_nav_improv_large_steer_ac12_re/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_dynamic_navigation_pre_tfs_npc_70_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (pretrained on tjunc-light, fs3, n=3, ss)' \
+--inds 1 2 3
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_dynamic_nav_improv_large_steer_ac12_uniform_re/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_dynamic_navigation_pre_tfs_npc_70_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (pretrained on tjunc-light, fs3, n=3, uniform)' \
+--inds 1 2 3
+
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_nav_ac12_dis_light_dis_lane_termination/junc_steer7_throttle_0_20_ac_12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_navigation_pre_tfs_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_dis_light_dis_lane_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'Nav w/o actors (pretrained on tjunc-light, fs3, n=3, ss)' \
+--inds 1 2 3
