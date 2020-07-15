@@ -1971,7 +1971,8 @@ class Custom_DQN(DQN):
             "policy_kwargs": self.policy_kwargs,
             "exploration": self.exploration,
             "num_timesteps": self.num_timesteps,
-            "n_step": self.n_step
+            "n_step": self.n_step,
+            "clipped_DDQN": self.clipped_DDQN
         }
 
         # np.savez(save_path + '_buffer', replay_buffer=np.array(self.replay_buffer._storage))
@@ -2011,7 +2012,8 @@ class Custom_DQN(DQN):
             "exploration": self.exploration,
             "num_timesteps": self.num_timesteps,
             "n_step": self.n_step,
-            "beta_schedule": self.beta_schedule
+            "beta_schedule": self.beta_schedule,
+            "clipped_DDQN": self.clipped_DDQN
         }
 
         # np.savez(save_path + '_buffer', replay_buffer=np.array(self.replay_buffer._storage))
