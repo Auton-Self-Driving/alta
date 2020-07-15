@@ -89,3 +89,36 @@ python plot_rewards.py \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_long_straight_npc_50_buffer_1000000_brake_target_freq_500_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_dqn_n_3_rew_norm_24_successr_100_constantr_1' \
 --title 'Long Junc (fs3, n=3, lr=3e-5, target=500, uniform)' \
 --inds 1 2 3
+
+
+#gpu16
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_1' \
+--run-path 'algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (wp angles, expert 25%, fs3, n=3, lr=3e-5,ss)' \
+--inds 1 2 3
+
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_uniform_1' \
+--run-path 'algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (wp angles, expert 25%, fs3, n=3, lr=3e-5,uniform)' \
+--inds 1 2 3
+
+# gpu9
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_wp_orienation' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (wp orientation, expert 25%, fs3, n=3, lr=3e-5,ss)' \
+--inds 1 2 3
+
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_uniform_wp_orienation' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (wp angles, expert 25%, fs3, n=3, lr=3e-5,uniform)' \
+--inds 1 2 3
+
+
+algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1/algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1_runid_1/test_results.csv

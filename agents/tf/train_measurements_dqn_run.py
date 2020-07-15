@@ -602,7 +602,7 @@ def run_dqn(args, prefix, config):
                                     exploration_fraction=0.1,learning_starts=25000,exploration_final_eps=args.exp_final_eps, gamma=0.99,
                                     batch_size=512, target_network_update_freq=args.target_freq,
                                     prioritized_replay=args.prioritized_replay, param_noise=args.param_noise,
-                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step)
+                                    tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=args.full_tensorboard_log, n_step=args.dqn_n_step, clipped_DDQN=args.clipped_DDQN)
 
                 # Call appropriate learn method
                 if args.gen_expert_data:

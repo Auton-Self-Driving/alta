@@ -71,6 +71,7 @@ def parse_arguments():
     parser.add_argument('--expert-data-sample-percent',dest='expert_data_sample_percent',type=float,default=0.0, help='Expert Agent data sample percentage out of 100.')
     parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
     parser.add_argument('--disable-lane-termination',dest='disable_lane_termination', action='store_true', help='Whether to disable termination on lane invasion.')
+    parser.add_argument('--clipped-DDQN',dest='clipped_DDQN', action='store_true', help='Whether to enable clipped DDQN.')
 
     return parser.parse_args()
 def main(args):
@@ -245,6 +246,11 @@ def create_ppo_prefix(args):
     else:
         disable_lane_termination_str = ''
     
+    if args.clipped_DDQN:
+        clipped_DDQN_str = '_cDDQN'
+    else:
+        clipped_DDQN_str = ''
+    
     if args.param_noise:
         param_noise_str = '_param_noise'
     else:
@@ -303,6 +309,7 @@ def create_ppo_prefix(args):
         + clip_reward_str \
         + disable_light_str \
         + disable_lane_termination_str \
+        + clipped_DDQN_str \
         + param_noise_str \
         + special_sample_str \
         + ebu_str \

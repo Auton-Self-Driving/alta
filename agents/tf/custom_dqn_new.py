@@ -11,7 +11,7 @@ from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, Ten
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 # from stable_baselines.deepq.build_graph import build_train
-from custom_build_graph import custom_build_train
+from custom_build_graph import custom_build_train, custom_build_train_clipped_DDQN
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from custom_replay_buffer import Custom_ReplayBuffer, Custom_PrioritizedReplayBuffer
 from stable_baselines.deepq.policies import DQNPolicy
@@ -253,12 +253,13 @@ class Custom_DQN(DQN):
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
                  prioritized_replay_eps=1e-6, param_noise=False,
                  n_cpu_tf_sess=None, verbose=0, tensorboard_log=None,
-                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False, seed=None, n_step=1):
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False, seed=None, n_step=1, clipped_DDQN=False):
 
         
         self.n_step = n_step
         self.saver = None
         self.optimizer = None
+        self.clipped_DDQN = clipped_DDQN
         super(Custom_DQN, self).__init__(policy=policy, env=env, gamma=gamma, learning_rate=learning_rate, buffer_size=buffer_size,
                 exploration_fraction=exploration_fraction, exploration_final_eps=exploration_final_eps,
                 exploration_initial_eps=exploration_initial_eps, train_freq=train_freq, batch_size=batch_size, double_q=double_q,
@@ -291,20 +292,37 @@ class Custom_DQN(DQN):
 
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
                 self.optimizer = optimizer
+                optimizer2 = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
-                self.act, self._train_step, self.update_target, self.step_model = custom_build_train(
-                    q_func=partial(self.policy, **self.policy_kwargs),
-                    ob_space=self.observation_space,
-                    ac_space=self.action_space,
-                    optimizer=optimizer,
-                    gamma=self.gamma,
-                    grad_norm_clipping=10,
-                    param_noise=self.param_noise,
-                    sess=self.sess,
-                    full_tensorboard_log=self.full_tensorboard_log,
-                    double_q=self.double_q,
-                    n_step=self.n_step
-                )
+                if self.clipped_DDQN:
+                    self.act, self._train_step, self.update_target, self.step_model = custom_build_train_clipped_DDQN(
+                        q_func=partial(self.policy, **self.policy_kwargs),
+                        ob_space=self.observation_space,
+                        ac_space=self.action_space,
+                        optimizer=optimizer,
+                        optimizer2=optimizer2,
+                        gamma=self.gamma,
+                        grad_norm_clipping=10,
+                        param_noise=self.param_noise,
+                        sess=self.sess,
+                        full_tensorboard_log=self.full_tensorboard_log,
+                        double_q=self.double_q,
+                        n_step=self.n_step
+                    )
+                else:
+                    self.act, self._train_step, self.update_target, self.step_model = custom_build_train(
+                        q_func=partial(self.policy, **self.policy_kwargs),
+                        ob_space=self.observation_space,
+                        ac_space=self.action_space,
+                        optimizer=optimizer,
+                        gamma=self.gamma,
+                        grad_norm_clipping=10,
+                        param_noise=self.param_noise,
+                        sess=self.sess,
+                        full_tensorboard_log=self.full_tensorboard_log,
+                        double_q=self.double_q,
+                        n_step=self.n_step
+                    )
                 self.proba_step = self.step_model.proba_step
                 self.params = tf_util.get_trainable_vars("deepq")
 
@@ -1356,6 +1374,16 @@ class Custom_DQN(DQN):
                         self.replay_buffer = Custom_ReplayBuffer(self.buffer_size)
                         self.beta_schedule = None
 
+                if self.prioritized_replay and self.beta_schedule is None:
+                        
+                        if self.prioritized_replay_beta_iters is None:
+                            prioritized_replay_beta_iters = total_timesteps
+                        else:
+                            prioritized_replay_beta_iters = self.prioritized_replay_beta_iters
+                        self.beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                                            initial_p=self.prioritized_replay_beta0,
+                                                            final_p=1.0)
+
                 if replay_wrapper is not None:
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
@@ -1651,18 +1679,32 @@ class Custom_DQN(DQN):
                                 if (1 + self.num_timesteps) % 10000 == 0:
                                     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                                     run_metadata = tf.RunMetadata()
-                                    summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
-                                                                        dones, weights, sess=self.sess, options=run_options,
-                                                                        run_metadata=run_metadata)
+
+                                    if self.clipped_DDQN:
+                                        summary, td_errors = self._train_step(obses_t, obses_t, actions, rewards, obses_tp1, obses_tp1, obses_tp1, obses_tp1,
+                                                                            dones, weights, sess=self.sess, options=run_options,
+                                                                            run_metadata=run_metadata)
+                                    else:
+                                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                            dones, weights, sess=self.sess, options=run_options,
+                                                                            run_metadata=run_metadata)
                                     # writer.add_run_metadata(run_metadata, 'step%d' % self.num_timesteps)
                                 else:
-                                    summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
-                                                                        dones, weights, sess=self.sess)
+                                    if self.clipped_DDQN:
+                                        summary, td_errors = self._train_step(obses_t, obses_t, actions, rewards, obses_tp1, obses_tp1, obses_tp1, obses_tp1,
+                                                                            dones, weights, sess=self.sess)
+                                    else:
+                                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                            dones, weights, sess=self.sess)
                                 # Removing summary from here and adding it after all optimizations in this training step
                                 # writer.add_summary(summary, self.num_timesteps)
                             else:
-                                _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
-                                                                sess=self.sess)
+                                if self.clipped_DDQN:
+                                    _, td_errors = self._train_step(obses_t, obses_t, actions, rewards, obses_tp1, obses_tp1, obses_tp1, obses_tp1, dones, weights,
+                                                                    sess=self.sess)
+                                else:
+                                    _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
+                                                                    sess=self.sess)
 
                             if self.prioritized_replay:
                                 new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
