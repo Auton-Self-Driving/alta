@@ -1,5 +1,4 @@
-# ssh gpu21
-
+# ssh gpu21 (Killed)
 python run_code.py \
 --algo PPO \
 --enable-search \
@@ -10,7 +9,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios dynamic_navigation \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -34,7 +33,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios dynamic_navigation \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -58,7 +57,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios dynamic_navigation \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -72,6 +71,166 @@ python run_code.py \
 --run-id 3 &
 
 
+
+
+# PopSize: 3
+# ssh gpu20
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 2 --code-gpu 2 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 1 &
+
+sleep 120
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 2 --code-gpu 2 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 2 &
+
+sleep 240
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 3 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 2 --code-gpu 2 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 3 &
+
+
+# PopSize: 5
+# ssh gpu18 (Killed)
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 5 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 1 --code-gpu 1 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 1 &
+
+# ssh gpu17
+sleep 60
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 5 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 2 --code-gpu 2 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 2 &
+
+# ssh gpu21
+sleep 120
+python run_code.py \
+--algo PPO \
+--enable-search \
+--pop-size 5 \
+--pop-train-interval 120000 \
+--disable-greedy-best \
+--val-interval 120000 \
+--input-type wp_obs_info_speed_steer_ldist_goal_light \
+--network 2_layer \
+--scenarios dynamic_navigation \
+--timesteps 12000000 \
+--num-npc 70 \
+--const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
+--const-light-penalty 250 --light-penalty-speed-coeff 250 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/forward_search/low_dim_with_last_updated' \
+--carla-gpu 1 --code-gpu 1 \
+--n-steps 10000 \
+--lr 2e-4 \
+--no-epochs 10 \
+--no-minibatches 10 \
+--clip 0.1 \
+--run-id 3 &
+
+
+
+
+
+
+
+# Forward Search on long straight junction scenarios
+
+# ssh gpu21
 sleep 300
 python run_code.py \
 --algo PPO \
@@ -83,7 +242,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios long_straight_junction \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -107,7 +266,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios long_straight_junction \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -131,7 +290,7 @@ python run_code.py \
 --input-type wp_obs_info_speed_steer_ldist_goal_light \
 --network 2_layer \
 --scenarios long_straight_junction \
---timesteps 60000000 \
+--timesteps 12000000 \
 --num-npc 70 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \

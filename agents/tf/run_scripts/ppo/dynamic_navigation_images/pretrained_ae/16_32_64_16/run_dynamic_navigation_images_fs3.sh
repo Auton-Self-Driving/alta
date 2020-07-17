@@ -6,7 +6,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 5e-4 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
@@ -29,7 +29,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 5e-4 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
@@ -52,7 +52,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 5e-4 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
@@ -69,9 +69,8 @@ python run_code.py \
 sleep 60
 
 
-# ssh gpu11
+# ssh gpu11 # (killed)
 sleep 600
-# (killed)
 python run_code.py \
 --algo PPO \
 --input-type wp_vae_obs_info_speed_steer_ldist_goal_light \
@@ -79,7 +78,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 1e-3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
@@ -102,7 +101,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 1e-3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
@@ -125,7 +124,7 @@ python run_code.py \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/' \
 --vae_model_path '/zfsauton2/home/tanmaya/projects/alta/agents/tf/trained_models/ae_16_32_64_16_fs_3' \
 --scenarios dynamic_navigation \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --finetune-vae --ae-lr 1e-3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \

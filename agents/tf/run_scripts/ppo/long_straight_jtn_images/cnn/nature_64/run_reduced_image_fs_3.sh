@@ -8,7 +8,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -22,6 +22,7 @@ python run_code.py \
 --videos \
 --run-id 1 &
 
+# Got killed
 sleep 60
 python run_code.py \
 --algo PPO \
@@ -31,7 +32,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -54,7 +55,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -73,6 +74,7 @@ python run_code.py \
 
 
 # ssh gpu18
+# (Run 1 got killed)
 sleep 750
 python run_code.py \
 --algo PPO \
@@ -82,7 +84,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -105,7 +107,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -128,7 +130,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -148,6 +150,7 @@ python run_code.py \
 
 
 # ssh gpu19
+# (run3 got killed)
 python run_code.py \
 --algo PPO \
 --input-type wp_cnn_obs_info_speed_steer_ldist_goal_light \
@@ -156,7 +159,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -179,7 +182,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -202,7 +205,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 3 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \

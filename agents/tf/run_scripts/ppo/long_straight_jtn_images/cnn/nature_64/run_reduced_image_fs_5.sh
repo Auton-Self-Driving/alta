@@ -8,7 +8,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -31,7 +31,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -54,7 +54,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -72,7 +72,7 @@ python run_code.py \
 
 
 
-# ssh gpu20
+# ssh gpu20 (All 3 killed)
 python run_code.py \
 --algo PPO \
 --input-type wp_cnn_obs_info_speed_steer_ldist_goal_light \
@@ -81,11 +81,11 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---carla-gpu 1 --code-gpu 1 \
+--carla-gpu 3 --code-gpu 3 \
 --num-npc 70 \
 --n-steps 10000 \
 --lr 6e-4 \
@@ -104,11 +104,11 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---carla-gpu 1 --code-gpu 1 \
+--carla-gpu 3 --code-gpu 3 \
 --num-npc 70 \
 --n-steps 10000 \
 --lr 6e-4 \
@@ -127,11 +127,11 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---carla-gpu 1 --code-gpu 1 \
+--carla-gpu 3 --code-gpu 3 \
 --num-npc 70 \
 --n-steps 10000 \
 --lr 6e-4 \
@@ -146,7 +146,7 @@ python run_code.py \
 
 
 
-# ssh gpu19
+# ssh gpu14
 python run_code.py \
 --algo PPO \
 --input-type wp_cnn_obs_info_speed_steer_ldist_goal_light \
@@ -155,7 +155,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -178,7 +178,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
@@ -201,7 +201,7 @@ python run_code.py \
 --network CNN \
 --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_jtn_images/cnn/nature_64/' \
 --scenarios long_straight_junction \
---timesteps 8000000 \
+--timesteps 16000000 \
 --fstack 5 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
