@@ -340,6 +340,9 @@ def run_ppo(args, prefix, config):
                             train_stats = np.load(os.path.join(ALTA_LOGS, 'forward_search_train_stats.npz'))
                             pid = int(train_stats['pid'])
                             completed_steps = int(train_stats['completed_steps'])
+                            timesteps = list(train_stats['timesteps'])
+                            total_reward = list(train_stats['total_reward'])
+                            total_success = list(train_stats['total_success'])
                             model = PPO.load(FORWARD_SEARCH_MODEL, env=dummy_env, pid=pid)
                             print("Loading forward search model with pid:{}, completed_steps:{}".format(pid, completed_steps))
                         else:
