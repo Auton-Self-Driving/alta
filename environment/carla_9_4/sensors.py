@@ -71,7 +71,7 @@ class CollisionSensor(object):
             self.actor_id = event.other_actor.id
             self.actor_type = actor_type
             self.num_collisions += 1
-        print("actor type:{}".format(actor_type))
+        # print("actor type:{}".format(actor_type))
         #print('Collision with %r, id = %d' % (actor_type, event.other_actor.id))
         #impulse = event.normal_impulse
         #intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)

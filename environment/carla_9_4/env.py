@@ -875,8 +875,9 @@ class CarlaEnv(gym.Env):
 
                         # Termination logs
                         self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
+                        if self.config["enable_lane_invasion_sensor"]:
+                            self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+                            self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
                         self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
                         success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
                         self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
@@ -1777,10 +1778,10 @@ class CarlaEnv(gym.Env):
             if self.episode_measurements['obs_collision']:
                 termination_state = 'obs_collision'
                 termination_state_code = 1
-            elif self.episode_measurements["out_of_road"]:
+            elif self.config["enable_lane_invasion_sensor"] and self.episode_measurements["out_of_road"]:
                 termination_state = 'out_of_road'
                 termination_state_code = 2
-            elif self.episode_measurements['lane_change']:
+            elif self.config["enable_lane_invasion_sensor"] and self.episode_measurements['lane_change']:
                 termination_state = 'lane_invasion'
                 termination_state_code = 3
             else:
