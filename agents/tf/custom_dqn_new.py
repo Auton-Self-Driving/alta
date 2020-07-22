@@ -36,7 +36,7 @@ def compute_discounted_returns(rewards, gamma):
     return returns
 
 
-def test(model, env, model_step, path=None, val_trials=25):
+def test(model, env, model_step=None, path=None, val_trials=25):
     dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
@@ -126,26 +126,33 @@ def test(model, env, model_step, path=None, val_trials=25):
     env.reset()
     print("Results of train scenarios")
     print(results)
-    print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
-    env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
-    env.logger.log_scalar('test/total_reward', total_reward, model_step)
-    env.logger.log_scalar('test/e_obs_collision', e_obs_collision, model_step)
-    env.logger.log_scalar('test/e_out_of_road', e_out_of_road, model_step)
-    env.logger.log_scalar('test/e_lane_change', e_lane_change, model_step)
-    env.logger.log_scalar('test/e_runover_light', e_runover_light, model_step)
-    env.logger.log_scalar('test/e_static', e_static, model_step)
-    env.logger.log_scalar('test/e_max_steps', e_max_steps, model_step)
-    env.logger.log_scalar('test/e_unexpected_collision', e_unexpected_collision, model_step)
-    env.logger.log_scalar('test/e_unknown', e_unknown, model_step)
-    env.logger.log_scalar('test/last_td_error', last_td_error, model_step)
 
-    with open(path + 'test_results.csv','a') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow([model_step, success_episodes, total_reward[0],
-            e_obs_collision,  e_out_of_road, e_lane_change,
-            e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light, val_trials])
+    print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Unexpected Collision: {}, Runover light: {}, Max_steps: {}, Max_steps Obstacle: {}, Max_steps Traffic Light: {}, Static: {}, Unknown: {}".format(success_episodes,
+                e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision, e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown))
+    data = [model_step, success_episodes, total_reward, e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision,
+                                    e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown]
 
-    return total_reward, success_episodes
+    if model_step is not None and env.logger is not None:
+        print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
+        env.logger.log_scalar('test/success_episodes', success_episodes, model_step)
+        env.logger.log_scalar('test/total_reward', total_reward, model_step)
+        env.logger.log_scalar('test/e_obs_collision', e_obs_collision, model_step)
+        env.logger.log_scalar('test/e_out_of_road', e_out_of_road, model_step)
+        env.logger.log_scalar('test/e_lane_change', e_lane_change, model_step)
+        env.logger.log_scalar('test/e_runover_light', e_runover_light, model_step)
+        env.logger.log_scalar('test/e_static', e_static, model_step)
+        env.logger.log_scalar('test/e_max_steps', e_max_steps, model_step)
+        env.logger.log_scalar('test/e_unexpected_collision', e_unexpected_collision, model_step)
+        env.logger.log_scalar('test/e_unknown', e_unknown, model_step)
+        env.logger.log_scalar('test/last_td_error', last_td_error, model_step)
+
+        with open(path + 'test_results.csv','a') as f:
+            writer = csv.writer(f, delimiter=',')
+            writer.writerow([model_step, success_episodes, total_reward[0],
+                e_obs_collision,  e_out_of_road, e_lane_change,
+                e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light, val_trials])
+
+    return total_reward, success_episodes, results, data
 
 def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     print("Rewards at intermediate training: {}".format(total_rewards))
@@ -399,7 +406,7 @@ class Custom_DQN(DQN):
 
                         self.save_model_and_traininfo_file(save_file, env.episode_num)
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                        total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -611,7 +618,7 @@ class Custom_DQN(DQN):
 
                         self.save_model_and_traininfo_file(save_file, env.episode_num)
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                        total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -844,7 +851,7 @@ class Custom_DQN(DQN):
                             self.save(save_file + str(self.num_timesteps))
                             self.save_model_and_traininfo_file(save_file, env.episode_num)
                             
-                            total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                            total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                             total_rewards.append(total_reward)
                             total_successes.append(success_episodes)
                             model_file_names.append(save_file + str(self.num_timesteps))
@@ -1145,7 +1152,7 @@ class Custom_DQN(DQN):
                         self.save(save_file + str(self.num_timesteps))
                         self.save_model_and_traininfo_file(save_file, env.episode_num)
                     
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                        total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))
@@ -1441,7 +1448,7 @@ class Custom_DQN(DQN):
                             
                             self.save(save_file + str(self.num_timesteps))
                             self.save_model_and_traininfo_file(save_file, env.episode_num)
-                            total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                            total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                             total_rewards.append(total_reward)
                             total_successes.append(success_episodes)
                             model_file_names.append(save_file + str(self.num_timesteps))
@@ -2110,7 +2117,7 @@ class Custom_DQN(DQN):
 
                     if self.num_timesteps % MODEL_TEST_FREQ == 0:
                         
-                        total_reward, success_episodes = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
+                        total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
                         total_rewards.append(total_reward)
                         total_successes.append(success_episodes)
                         model_file_names.append(save_file + str(self.num_timesteps))

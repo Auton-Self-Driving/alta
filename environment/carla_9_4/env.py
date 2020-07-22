@@ -118,9 +118,9 @@ class CarlaEnv(gym.Env):
 
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
-        # self._world = self.client.load_world(self.config['city_name'])
+        self._world = self.client.load_world(self.config['city_name'])
 
-        # time.sleep(20)
+        time.sleep(20)
         
         self._world = self.client.get_world()
 
@@ -228,6 +228,8 @@ class CarlaEnv(gym.Env):
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
+        self.obstacle_speed_array = []
+        self.dist_to_trajectory_array = []
         self.steers_array = []
         self.brakes_array = []
         self.orientation_array = []
@@ -247,6 +249,11 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['initial_dist_to_red_light'] = -1
         self.episode_measurements['red_light_dist'] = -1
         self.episode_measurements["runover_light"] = False
+        self.vehicle_collisions = 0
+        self.static_collisions = 0
+        self.total_collisions = 0
+        self.total_distance = 0
+        self.traffic_light_violations = 0
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -349,6 +356,8 @@ class CarlaEnv(gym.Env):
 
             # Set state variables for reward calculation
             self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+            self.episode_measurements['collision_actor_id'] = self.collision_sensor.actor_id
+            self.episode_measurements['collision_actor_type'] = self.collision_sensor.actor_type
             if self.config["enable_lane_invasion_sensor"]:
                 self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
                 self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
@@ -364,6 +373,8 @@ class CarlaEnv(gym.Env):
                 next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
 
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
+            self.episode_measurements['dist_to_goal_along_trajec'] = dist_to_goal_along_trajec
+
             
             if self.config['scenarios'] == 'straight_crowded' or self.config['scenarios'] == 'town3' or \
                self.config['scenarios'] == 'long_straight' or self.config["scenarios"] == "straight_dynamic" or \
@@ -382,6 +393,24 @@ class CarlaEnv(gym.Env):
                                 config=self.config,
                                 verbose=self.config["verbose"])
             
+            obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
+
+            if obs_collision and self.episode_measurements["collision_actor_id"] != self.prev_measurement["collision_actor_id"]:
+                self.total_collisions += 1
+                if 'vehicle' in self.episode_measurements['collision_actor_type']:
+                    self.vehicle_collisions += 1
+                else:
+                    self.static_collisions += 1
+            elif not obs_collision:
+                self.episode_measurements["collision_actor_id"] = None
+
+            if self.episode_measurements['runover_light']:
+                self.traffic_light_violations += 1
+
+            if self.config["verbose"]:
+                print("Collisions Total: {}, Vehicle: {}, Static: {}".format(self.total_collisions, self.vehicle_collisions, self.static_collisions))
+                print("Traffic Light Violations: {}".format(self.traffic_light_violations))
+
             done = self._compute_done_condition()
 
             self.episode_measurements['done'] = done
@@ -398,8 +427,11 @@ class CarlaEnv(gym.Env):
             # self.collision_reward_array.append(self.episode_measurements['is_collision'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
-            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal'])
+            self.dist_to_target_array.append(self.episode_measurements['dist_to_goal_along_trajec'])
             self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
+
+            self.obstacle_speed_array.append(self.episode_measurements['obstacle_speed'])
+            self.dist_to_trajectory_array.append(self.episode_measurements['dist_to_trajectory'])
 
             if done:
                 break
@@ -713,7 +745,7 @@ class CarlaEnv(gym.Env):
                     self.episode_measurements['val_ep_idx'] = val_ep_idx
 
                     if self.config["testing"]:
-                        path = self.log_dir + 'test_episode_info_plots/'
+                        path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
                     else:
                         path = self.log_dir + 'val_episode_info_plots2/'
                     plot_episode_info(path,
@@ -729,6 +761,16 @@ class CarlaEnv(gym.Env):
                         self.dist_to_trajectory_reward_array,
                         self.red_light_dist_array,
                         val_ep_idx)
+                    
+                    if self.config["testing"]:
+                        np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
+                                            target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
+                                            throttle=self.throttles_array, brake=self.brakes_array,
+                                            obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
+                                            wp_orientation=self.orientation_array, red_light_dist=self.red_light_dist_array,
+                                            dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
+                                            step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
+                                            dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
                 
                 self.episode_measurements["episode_num"] = self.episode_num
 
@@ -750,8 +792,11 @@ class CarlaEnv(gym.Env):
 
                         # Termination logs
                         self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
+                        
+                        if self.config["enable_lane_invasion_sensor"]:
+                            self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
+                            self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+
                         self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
                         success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
                         self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
@@ -930,7 +975,22 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['nearest_traffic_actor_state'] = None
 
         self.episode_measurements['dist_to_light'] = dist
-    
+    def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
+        if self.config["scenarios"] == "straight":
+            source_idx, destination_idx = scenarios.get_straight_path_updated(unseen, town, index)
+            # self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "curved":
+            source_idx, destination_idx = scenarios.get_curved_path_updated(unseen, town, index)
+            # self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
+            source_idx, destination_idx = scenarios.get_navigation_path_updated(unseen, town, index)
+            # self.config["num_episodes"] = 25
+        else:
+            raise ValueError("Scenarios Config not set!")
+
+        self.source_transform = self.spawn_points[source_idx]
+        self.destination_transform = self.spawn_points[destination_idx]
+
     def _set_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
@@ -952,6 +1012,11 @@ class CarlaEnv(gym.Env):
             self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
         elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
             self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
+        elif self.config["scenarios"] == "no_crash_empty" or self.config["scenarios"] == "no_crash_regular" or self.config["scenarios"] == "no_crash_dense":
+            source_idx, destination_idx = scenarios.get_no_crash_path(unseen, town, index)
+            self.source_transform = self.spawn_points[source_idx]
+            self.destination_transform = self.spawn_points[destination_idx]
+            # self.config["num_episodes"] = 25
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -1137,7 +1202,10 @@ class CarlaEnv(gym.Env):
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
-            self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+            if self.config["updated_scenarios"]:
+                self._set_updated_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+            else:
+                self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -1172,7 +1240,7 @@ class CarlaEnv(gym.Env):
             spawn_vehicles = True
 
         if spawn_vehicles:
-            if self.config["scenarios"] == "dynamic_navigation":
+            if self.config["sample_npc"] and self.config["scenarios"] == "dynamic_navigation":
                 self.spawn_npc(np.random.randint(70, 150), unseen)
             else:
                 self.spawn_npc(self.config["num_npc"], unseen)
@@ -1212,6 +1280,8 @@ class CarlaEnv(gym.Env):
             
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
+        self.episode_measurements['collision_actor_id'] = self.collision_sensor.actor_id
+        self.episode_measurements['collision_actor_type'] = self.collision_sensor.actor_type
         if self.config["enable_lane_invasion_sensor"]:
             self.episode_measurements['num_laneintersections'] = self.lane_invasion_sensor.num_laneintersections
             self.episode_measurements['out_of_road'] = int(self.lane_invasion_sensor.out_of_road)
@@ -1477,6 +1547,8 @@ class CarlaEnv(gym.Env):
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
+        self.obstacle_speed_array = []
+        self.dist_to_trajectory_array = []
         self.steers_array = []
         self.brakes_array = []
         self.orientation_array = []
@@ -1701,7 +1773,7 @@ class CarlaEnv(gym.Env):
             collision = False
         if not self.config['enable_light'] or not self.config["terminate_on_light"]:
             runover_light = False
-        if self.config["enable_lane_invasion_collision"]:
+        if self.config["enable_lane_invasion_sensor"] and self.config["enable_lane_invasion_collision"]:
             offlane = self.episode_measurements['num_laneintersections'] > 0
 
         # Do not want to terminate on reaching goal
@@ -1716,10 +1788,10 @@ class CarlaEnv(gym.Env):
             if self.episode_measurements['obs_collision']:
                 termination_state = 'obs_collision'
                 termination_state_code = 1
-            elif self.episode_measurements["out_of_road"]:
+            elif self.config["enable_lane_invasion_sensor"] and self.episode_measurements["out_of_road"]:
                 termination_state = 'out_of_road'
                 termination_state_code = 2
-            elif self.episode_measurements['lane_change']:
+            elif self.config["enable_lane_invasion_sensor"] and self.episode_measurements['lane_change']:
                 termination_state = 'lane_invasion'
                 termination_state_code = 3
             else:

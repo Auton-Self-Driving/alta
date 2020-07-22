@@ -72,6 +72,12 @@ def parse_arguments():
     parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
     parser.add_argument('--disable-lane-termination',dest='disable_lane_termination', action='store_true', help='Whether to disable termination on lane invasion.')
     parser.add_argument('--clipped-DDQN',dest='clipped_DDQN', action='store_true', help='Whether to enable clipped DDQN.')
+    parser.add_argument('--updated-scenarios', dest='updated_scenarios', action='store_true', help='Enable updated scenarios similar to the benchmark defined for CARLA 0.9.6 in LBC(https://arxiv.org/pdf/1912.12294.pdf)')
+    parser.add_argument('--disable-sample-npc', dest='disable_sample_npc', action='store_true', help='Disbale sampling npcs.')
+    parser.add_argument('--light-thresold',dest='light_threshold',type=int, default=10, help='Traffic Light Distance threshold.')
+    parser.add_argument('--min-light-thresold',dest='min_light_threshold',type=int, default=4, help='Min distance from Traffic Light to be detected as red.')
+    parser.add_argument('--disable-lane-invasion', dest='disable_lane_invasion', action='store_true', help='Whether to disable lane invasion sensor.')
+    parser.add_argument('--disable-traffic-light-termination', dest='disable_traffic_light_termination', action='store_true', help='Whether to disable termination of traffic light violation.')
 
     return parser.parse_args()
 def main(args):
@@ -364,6 +370,12 @@ if __name__ == '__main__':
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward
     config.config["constant_positive_reward"] = args.constant_reward
+    config.config["updated_scenarios"] = args.updated_scenarios
+    config.config["traffic_light_proximity_threshold"] = args.light_threshold
+    config.config["min_dist_from_red_light"] = args.min_light_threshold
+    config.config["enable_lane_invasion_sensor"] = not args.disable_lane_invasion
+    config.config["terminate_on_light"] = not args.disable_traffic_light_termination
+    config.config["sample_npc"] = not args.disable_sample_npc
 
     try:
         if args.algo == "SAC":

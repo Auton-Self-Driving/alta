@@ -126,7 +126,9 @@ DEFAULT_ENV = {
     "default_obs_traffic_val": 1,
     "reward_normalize_factor": 1,
     "success_reward": 0,
-    "constant_positive_reward": 0
+    "constant_positive_reward": 0,
+    "updated_scenarios": False,
+    "sample_npc": True
 }
 
 episode_measurements = {

@@ -16,7 +16,7 @@ from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.deepq.policies import MlpPolicy
 from stable_baselines import DQN
 # from custom_dqn import Custom_DQN
-from custom_dqn_new import Custom_DQN
+from custom_dqn_new import Custom_DQN, test
 from custom_dqn_ebu import Custom_DQN_EBU
 import csv, os
 import matplotlib.pyplot as plt
@@ -33,176 +33,176 @@ def compute_discounted_returns(rewards, gamma):
 
     return returns
 
-def test(model, env, path=None):
+# def test(model, env, path=None):
     
     
-    '''
-    This method is used for testing a model.
-    Current it includes hard-coded changes for testing with custom actions.
-    TODO: Remove this function and reuse function from custom_dqn_new.py
-    '''
+#     '''
+#     This method is used for testing a model.
+#     Current it includes hard-coded changes for testing with custom actions.
+#     TODO: Remove this function and reuse function from custom_dqn_new.py
+#     '''
     
-    dummy_env = DummyVecEnv([lambda: env])
-    # dummy_env = env
+#     dummy_env = DummyVecEnv([lambda: env])
+#     # dummy_env = env
 
-    success_episodes = 0
-    e_obs_collision = 0
-    e_out_of_road = 0
-    e_lane_change = 0
-    e_runover_light = 0
-    e_static = 0
-    e_max_steps = 0
-    e_max_steps_obstacle = 0
-    e_max_steps_light = 0
-    e_unexpected_collision = 0
-    e_unknown = 0
+#     success_episodes = 0
+#     e_obs_collision = 0
+#     e_out_of_road = 0
+#     e_lane_change = 0
+#     e_runover_light = 0
+#     e_static = 0
+#     e_max_steps = 0
+#     e_max_steps_obstacle = 0
+#     e_max_steps_light = 0
+#     e_unexpected_collision = 0
+#     e_unknown = 0
 
-    results = {}
-    total_reward = 0
-    # import pdb;
-    # pdb.set_trace()
-    for ind in range(25):
-        obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
-        # obs[:] = env.reset(unseen=True, index=ind)
-        obs[:] = env.reset(unseen=True, index=ind, expert_agent=True)
-        done = False
-        reward = 0
+#     results = {}
+#     total_reward = 0
+#     # import pdb;
+#     # pdb.set_trace()
+#     for ind in range(25):
+#         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
+#         # obs[:] = env.reset(unseen=True, index=ind)
+#         obs[:] = env.reset(unseen=True, index=ind, expert_agent=True)
+#         done = False
+#         reward = 0
         
-        q_values_matrix = []
-        q_values_matrix_normalized = []
-        rewards = []
-        action_q_values = []
-        actions_taken = []
-        validation_ep_index = '0'
-        t = 0
-        last_t = 245
-        thres = last_t - ind
-        while not done:
-            control = env.vehicle_agent.run_step(debug=True)
+#         q_values_matrix = []
+#         q_values_matrix_normalized = []
+#         rewards = []
+#         action_q_values = []
+#         actions_taken = []
+#         validation_ep_index = '0'
+#         t = 0
+#         last_t = 245
+#         thres = last_t - ind
+#         while not done:
+#             control = env.vehicle_agent.run_step(debug=True)
 
-            # action = control
+#             # action = control
 
-            steer = control.steer
-            brake = control.brake
+#             steer = control.steer
+#             brake = control.brake
 
-            if steer < -0.49:
-                steer = -0.5
-            elif steer >= -0.49 and steer < -0.29:
-                steer = -0.3
-            elif steer >= -0.29 and steer < -0.05:
-                steer = -0.1
-            elif steer >= -0.05 and steer < 0.05:
-                steer = 0.0
-            elif steer >= 0.05 and steer < 0.29:
-                steer = 0.1
-            elif steer >= 0.29 and steer < 0.49:
-                steer = 0.3
-            elif steer > 0.49:
-                steer = 0.5
+#             if steer < -0.49:
+#                 steer = -0.5
+#             elif steer >= -0.49 and steer < -0.29:
+#                 steer = -0.3
+#             elif steer >= -0.29 and steer < -0.05:
+#                 steer = -0.1
+#             elif steer >= -0.05 and steer < 0.05:
+#                 steer = 0.0
+#             elif steer >= 0.05 and steer < 0.29:
+#                 steer = 0.1
+#             elif steer >= 0.29 and steer < 0.49:
+#                 steer = 0.3
+#             elif steer > 0.49:
+#                 steer = 0.5
 
-            # if steer < -0.4:
-            #     steer = -0.5
-            # elif steer >= -0.4 and steer < -0.2:
-            #     steer = -0.3
-            # elif steer >= -0.2 and steer < -0.05:
-            #     steer = -0.1
-            # elif steer >= -0.05 and steer < 0.05:
-            #     steer = 0.0
-            # elif steer >= 0.05 and steer < 0.2:
-            #     steer = 0.1
-            # elif steer >= 0.2 and steer < 0.4:
-            #     steer = 0.3
-            # elif steer > 0.4:
-            #     steer = 0.5
+#             # if steer < -0.4:
+#             #     steer = -0.5
+#             # elif steer >= -0.4 and steer < -0.2:
+#             #     steer = -0.3
+#             # elif steer >= -0.2 and steer < -0.05:
+#             #     steer = -0.1
+#             # elif steer >= -0.05 and steer < 0.05:
+#             #     steer = 0.0
+#             # elif steer >= 0.05 and steer < 0.2:
+#             #     steer = 0.1
+#             # elif steer >= 0.2 and steer < 0.4:
+#             #     steer = 0.3
+#             # elif steer > 0.4:
+#             #     steer = 0.5
 
-            if brake > 0:
-                target_speed = 0
-            else:
-                target_speed = 20
+#             if brake > 0:
+#                 target_speed = 0
+#             else:
+#                 target_speed = 20
 
-            for i in range(len(DISCRETE_ACTIONS)):
-                if DISCRETE_ACTIONS[i][0] == target_speed and DISCRETE_ACTIONS[i][1] == steer:
-                    action = np.array(i)
+#             for i in range(len(DISCRETE_ACTIONS)):
+#                 if DISCRETE_ACTIONS[i][0] == target_speed and DISCRETE_ACTIONS[i][1] == steer:
+#                     action = np.array(i)
 
-            # control = env.expert_agent.run_step()
+#             # control = env.expert_agent.run_step()
             
-            # action, q_values, actions_proba = model.predict(obs, deterministic=True)
-            # # action = np.array([4])
-            # # if t >= 476:
-            # #     action = np.array([1])
-            # if t >= thres and t < last_t:
-            #     action = np.array([3])
-            # q_values_matrix.append(q_values[0])
-            # q_values_matrix_normalized.append(actions_proba[0])
-            # action_q_values.append(q_values[0][action])
-            # actions_taken.append(action)
+#             # action, q_values, actions_proba = model.predict(obs, deterministic=True)
+#             # # action = np.array([4])
+#             # # if t >= 476:
+#             # #     action = np.array([1])
+#             # if t >= thres and t < last_t:
+#             #     action = np.array([3])
+#             # q_values_matrix.append(q_values[0])
+#             # q_values_matrix_normalized.append(actions_proba[0])
+#             # action_q_values.append(q_values[0][action])
+#             # actions_taken.append(action)
             
-            t = t+1
+#             t = t+1
 
-            info = env.step(action)
-            # print(info)
-            reward += info[1][0]
-            done = info[2]
-            obs = np.expand_dims(info[0], axis=0)
-            rewards.append(info[1][0])
+#             info = env.step(action)
+#             # print(info)
+#             reward += info[1][0]
+#             done = info[2]
+#             obs = np.expand_dims(info[0], axis=0)
+#             rewards.append(info[1][0])
             
-            if done:
-                validation_ep_index = info[3]['val_ep_idx']
+#             if done:
+#                 validation_ep_index = info[3]['val_ep_idx']
         
-        total_reward += reward
-        if info[3]['termination_state'] == 'success':
-            success_episodes += 1
-            results[ind] = 1
-        else:
-            results[ind] = 0
-            if info[3]['termination_state'] == 'obs_collision':
-                e_obs_collision += 1
-            elif info[3]['termination_state'] == 'out_of_road':
-                e_out_of_road += 1
-            elif info[3]['termination_state'] == 'lane_invasion':
-                e_lane_change += 1
-            elif info[3]['termination_state'] == 'runover_light':
-                e_runover_light += 1
-            elif info[3]['termination_state'] == 'static':
-                e_static += 1
-            elif info[3]['termination_state'] == 'max_steps':
-                e_max_steps += 1
-            elif info[3]['termination_state'] == 'max_steps_obstacle':
-                e_max_steps_obstacle += 1
-            elif info[3]['termination_state'] == 'max_steps_light':
-                e_max_steps_light += 1
-            elif info[3]['termination_state'] == 'unexpected_collision':
-                e_unexpected_collision += 1
-            else:
-                e_unknown += 1
+#         total_reward += reward
+#         if info[3]['termination_state'] == 'success':
+#             success_episodes += 1
+#             results[ind] = 1
+#         else:
+#             results[ind] = 0
+#             if info[3]['termination_state'] == 'obs_collision':
+#                 e_obs_collision += 1
+#             elif info[3]['termination_state'] == 'out_of_road':
+#                 e_out_of_road += 1
+#             elif info[3]['termination_state'] == 'lane_invasion':
+#                 e_lane_change += 1
+#             elif info[3]['termination_state'] == 'runover_light':
+#                 e_runover_light += 1
+#             elif info[3]['termination_state'] == 'static':
+#                 e_static += 1
+#             elif info[3]['termination_state'] == 'max_steps':
+#                 e_max_steps += 1
+#             elif info[3]['termination_state'] == 'max_steps_obstacle':
+#                 e_max_steps_obstacle += 1
+#             elif info[3]['termination_state'] == 'max_steps_light':
+#                 e_max_steps_light += 1
+#             elif info[3]['termination_state'] == 'unexpected_collision':
+#                 e_unexpected_collision += 1
+#             else:
+#                 e_unknown += 1
         
-        with open(path + 'my_test_results.csv','a') as f:
-            writer = csv.writer(f, delimiter=',')
-            writer.writerow([ind, success_episodes, total_reward[0],
-                e_obs_collision,  e_out_of_road, e_lane_change,
-                e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light])
+#         with open(path + 'my_test_results.csv','a') as f:
+#             writer = csv.writer(f, delimiter=',')
+#             writer.writerow([ind, success_episodes, total_reward[0],
+#                 e_obs_collision,  e_out_of_road, e_lane_change,
+#                 e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light])
 
-        # action_q_values = np.array(action_q_values)
-        # actions_taken = np.array(actions_taken)
-        # returns = compute_discounted_returns(np.array(rewards), gamma=0.975) 
+#         # action_q_values = np.array(action_q_values)
+#         # actions_taken = np.array(actions_taken)
+#         # returns = compute_discounted_returns(np.array(rewards), gamma=0.975) 
 
-        # plot q_values for this validation episode
-        # plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
-        # validation_ep_index, returns, action_q_values, actions_taken, path)
+#         # plot q_values for this validation episode
+#         # plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
+#         # validation_ep_index, returns, action_q_values, actions_taken, path)
 
-    # Reset env after testing
-    # env.reset()
-    # print("Results of train scenarios")
-    # print(results)
-    # print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
+#     # Reset env after testing
+#     # env.reset()
+#     # print("Results of train scenarios")
+#     # print(results)
+#     # print("Step: {0} Total Success Episodes: {1}".format(model_step, success_episodes))
 
-    # with open(path + 'test_results.csv','a') as f:
-    #     writer = csv.writer(f, delimiter=',')
-    #     writer.writerow([model_step, success_episodes, total_reward,
-    #         e_obs_collision,  e_out_of_road, e_lane_change,
-    #         e_runover_light, e_static, e_max_steps])
+#     # with open(path + 'test_results.csv','a') as f:
+#     #     writer = csv.writer(f, delimiter=',')
+#     #     writer.writerow([model_step, success_episodes, total_reward,
+#     #         e_obs_collision,  e_out_of_road, e_lane_change,
+#     #         e_runover_light, e_static, e_max_steps])
 
-    return total_reward, success_episodes
+#     return total_reward, success_episodes
 
 def plot_q_values(q_values_matrix, q_values_matrix_normalized, validation_ep_index,
                 returns, action_q_values, actions_taken, path):
@@ -378,10 +378,14 @@ def run_dqn(args, prefix, config):
                     dummy_env = DummyVecEnv([lambda: env])
 
                     model = Custom_DQN.load(args.agent_model_path, dummy_env)
-                    with open(ALTA_LOGS + 'test_results1_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "w") as f:
+                    with open(ALTA_LOGS + 'test_results1_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "a") as f:
                         #TODO: Add test() method
-                        total_reward, success_episodes= test(model, env, path=ALTA_LOGS)
-                        results = 0
+                        total_reward, success_episodes, results, data = test(model, env, path=ALTA_LOGS)
+                        
+                        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+                            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = data[3:]
+
+
                         # total_reward, success_episodes, results = 0, 0, 0
                         print("Task Name: {}".format(config.config["scenarios"]))
                         print("Town Name: {}".format(config.config["city_name"]))
@@ -392,6 +396,10 @@ def run_dqn(args, prefix, config):
                         f.write("Town Name: {}\n".format(config.config["city_name"]))
                         f.write("Results of test scenarios\n")
                         f.write(str(results))
+                        f.write("Total Success: {}, Collision Obstacle: {}, Collision LaneChange: {}, Collision OutOfRoad: {}, Collision Unexpected: {}, Runover Light: {}, Max Steps: {}, Max StepsObstacle: {}, Max StepsLight: {}, Static: {}, Unknown: {}\n".format(success_episodes,
+                                    collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
+                        f.write("Total Collisions: {}, Static Collisions: {}, Vehicle Collisions:{}\n".format(env.total_collisions, env.static_collisions, env.vehicle_collisions))
+                        f.write("Traffic Light Violations: {}\n".format(env.traffic_light_violations))
                         f.write("Total Success Episodes: {}\n".format(str(success_episodes)))
                         f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
                     rewards.append(total_reward)
@@ -399,7 +407,7 @@ def run_dqn(args, prefix, config):
                     env.close()
                 rewards = np.array(rewards)
                 successes = np.array(successes)
-                with open(ALTA_LOGS + 'final_test_results1_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "w") as f:
+                with open(ALTA_LOGS + 'final_test_results1_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "a") as f:
                     f.write("Task Name: {}\n".format(config.config["scenarios"]))
                     f.write("Town Name: {}\n".format(config.config["city_name"]))
                     f.write("Model path used for testing: {}\n".format(args.agent_model_path))
