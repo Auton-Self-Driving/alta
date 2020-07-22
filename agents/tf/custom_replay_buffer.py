@@ -77,7 +77,7 @@ class Custom_ReplayBuffer(ReplayBuffer):
             del data_popped
             del obs_t_p
             del obs_tp1_p
-            gc.collect()
+            # gc.collect()
 
         # Add to index lists
         if done:

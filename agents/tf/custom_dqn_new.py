@@ -1446,6 +1446,11 @@ class Custom_DQN(DQN):
                             # h=hpy()
                             # print(h.heap())
                             
+                            gc.collect()
+
+                            message = "After running gc" + str(self.num_timesteps)
+                            print_ram_usage(message, self.replay_buffer._storage)
+                            
                             self.save(save_file + str(self.num_timesteps))
                             self.save_model_and_traininfo_file(save_file, env.episode_num)
                             total_reward, success_episodes, _, _ = test(self, env, self.num_timesteps, save_file.split('dqn_me')[0], val_trials)
@@ -1559,7 +1564,7 @@ class Custom_DQN(DQN):
                         # print("Process id: ", process_id, ", RAM (GB) before clearing exp_list:", ram_usage)
                         
                         exp_list.clear()
-                        gc.collect()
+                        # gc.collect()
 
                         # message = "After exp_list clear " + str(self.num_timesteps)
                         # print_ram_usage(message)
