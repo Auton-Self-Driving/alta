@@ -11,7 +11,7 @@ waypoints and avoiding other vehicles.
 The agent also responds to traffic lights. """
 
 from enum import Enum
-
+import math
 import carla
 from environment.carla_9_4.agents.tools.misc import is_within_distance_ahead, is_within_distance_ahead_v2, compute_magnitude_angle
 
@@ -153,6 +153,28 @@ class Agent(object):
                     self._last_traffic_light = None
 
         return (False, None)
+    def _get_trafficlight_trigger_location(self, traffic_light):  # pylint: disable=no-self-use
+        """
+        Calculates the yaw of the waypoint that represents the trigger volume of the traffic light
+        """
+        def rotate_point(point, radians):
+            """
+            rotate a given point by a given angle
+            """
+            rotated_x = math.cos(radians) * point.x - math.sin(radians) * point.y
+            rotated_y = math.sin(radians) * point.x - math.cos(radians) * point.y
+
+            return carla.Vector3D(rotated_x, rotated_y, point.z)
+
+        base_transform = traffic_light.get_transform()
+        base_rot = base_transform.rotation.yaw
+        area_loc = base_transform.transform(traffic_light.trigger_volume.location)
+        area_ext = traffic_light.trigger_volume.extent
+
+        point = rotate_point(carla.Vector3D(0, 0, area_ext.z), math.radians(base_rot))
+        point_location = area_loc + carla.Location(x=point.x, y=point.y)
+
+        return carla.Location(point_location.x, point_location.y, point_location.z)
 
     def find_nearest_traffic_light(self, lights_list, waypoint=None):
         """
@@ -166,10 +188,10 @@ class Agent(object):
                  - traffic_light is the object itself or None if there is no
                    red traffic light affecting us
         """
-        if self._map.name == 'Town01' or self._map.name == 'Town02':
-            return self._find_nearest_traffic_light_europe_style(lights_list)
-        else:
-            return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
+        # if self._map.name == 'Town01' or self._map.name == 'Town02':
+        return self._find_nearest_traffic_light_europe_style(lights_list)
+        # else:
+        #     return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
 
     def _find_nearest_traffic_light_europe_style(self, lights_list):
         """
@@ -187,15 +209,35 @@ class Agent(object):
 
         nearest_traffic_light = None
         nearest_dist_to_light = 100000
+        
         traffic_light_found = False
         for traffic_light in lights_list:
-            object_waypoint = self._map.get_waypoint(traffic_light.get_location())
-            if object_waypoint.road_id != ego_vehicle_waypoint.road_id or \
-                    object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+            # object_waypoint = self._map.get_waypoint(traffic_light.get_location())
+
+            # if object_waypoint.road_id != ego_vehicle_waypoint.road_id or \
+            #         object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+            #     continue
+            object_location = self._get_trafficlight_trigger_location(traffic_light)
+            object_waypoint = self._map.get_waypoint(object_location)
+
+            if object_waypoint.road_id != ego_vehicle_waypoint.road_id:
                 continue
 
-            light_transform = traffic_light.get_location()
-            status, dist = is_within_distance_ahead_v2(traffic_light.get_transform(),
+            ve_dir = ego_vehicle_waypoint.transform.get_forward_vector()
+            wp_dir = object_waypoint.transform.get_forward_vector()
+            dot_ve_wp = ve_dir.x * wp_dir.x + ve_dir.y * wp_dir.y + ve_dir.z * wp_dir.z
+
+            if dot_ve_wp < 0:
+                continue
+
+            # if is_within_distance_ahead(object_waypoint.transform,
+            #                             self._vehicle.get_transform(),
+            #                             self._proximity_threshold):
+            #     if traffic_light.state == carla.TrafficLightState.Red:
+            #         return (True, traffic_light)
+
+
+            status, dist = is_within_distance_ahead_v2(object_waypoint.transform,
                                         self._vehicle.get_transform(),
                                         self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:

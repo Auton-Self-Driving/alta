@@ -352,7 +352,7 @@ def run_dqn(args, prefix, config):
                     vis_wrapper_vae = None
 
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
-                    config.config["verbose"] = True
+                    # config.config["verbose"] = True
                     
                     # Sending logger as None so as to not affect existing validation plots
                     

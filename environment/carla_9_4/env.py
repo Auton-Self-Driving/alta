@@ -1334,7 +1334,7 @@ class CarlaEnv(gym.Env):
             next_orientation, self.dist_to_trajectory, dist_to_goal_along_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
 
         if self.unseen:
-            self.total_distance += distance_to_goal_trajec
+            self.total_distance += dist_to_goal_along_trajec
             
         # Update obstacle distance measurements
         if self.config["scenarios"] == "straight_dynamic":
