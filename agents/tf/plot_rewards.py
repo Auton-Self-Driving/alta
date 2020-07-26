@@ -78,6 +78,9 @@ def compute_datapoints(new_rewards, new_success):
 
 def plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success.png", title="Navigation with dynamic obstacles", log_path_auton=None):
     plt.figure(figsize=(22, 14))
+    axes = plt.gca()
+    axes.set_ylim(top=25)
+    axes.set_ylim(bottom=0)
     plt.title(title)
     plt.xlabel('Timesteps (in M)', fontdict={'size' : 36})
     plt.ylabel('Total Success Episodes', fontdict={'size' : 36})

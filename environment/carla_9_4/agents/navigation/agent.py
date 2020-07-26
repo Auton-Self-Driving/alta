@@ -38,7 +38,7 @@ class Agent(object):
         self._vehicle = vehicle
         self._proximity_threshold = proximity_threshold  # meters
         self._vehicle_proximity_threshold = vehicle_proximity_threshold
-        self._traffic_light_proximity_threshold = traffic_light_proximity_threshold
+        self._traffic_light_proximity_threshold = proximity_threshold
         self._local_planner = None
         self._world = self._vehicle.get_world()
         self._map = self._vehicle.get_world().get_map()

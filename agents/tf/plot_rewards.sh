@@ -239,6 +239,20 @@ python plot_rewards.py \
 --title 'DN (expert 50, nn256-128-64, fs2, n=3, ss)' \
 --inds 1 2 3 &
 
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_target_freq_5000_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_2' \
+--title 'DN (expert 25, nn256-128-64, fs2, n=3, ss, target5k)' \
+--inds 1 2 3 &
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_target_freq_5000_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_2' \
+--title 'DN (expert 50, nn256-128-64, fs2, n=3, ss, target5k)' \
+--inds 1 2 3 &
+
+
 ccddqn
 
 python plot_rewards.py \
@@ -328,3 +342,12 @@ python plot_rewards.py \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_target_freq_10000_steer_pen_2.0_fs_2_cDDQNper_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --title 'DN with CDDQN(scratch, nn256-128-64, fs2, n=3, per)' \
 --inds 1 2 3 &
+
+
+/run/user/1000/gvfs/sftp:host=lop2.autonlab.org,user=hiteshar/zfsauton2/home/hiteshar/local_scratch5/gpu8/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_wp_orienation/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1_runid_3/test_results.csv
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_wp_orienation' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
+--title 'DN (wp orientation, expert 25%, fs3, n=3, lr=3e-5,ss)' \
+--save-auton --inds 1 2 3 &

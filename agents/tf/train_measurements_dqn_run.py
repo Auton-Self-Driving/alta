@@ -334,14 +334,22 @@ def run_dqn(args, prefix, config):
                 
                 # We want to keep same seed for testing across agents
                 np.random.seed(10)
-                if args.city_name == 'Town01':
-                    spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
-                elif args.city_name == 'Town02':
-                    spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
+                # if args.city_name == 'Town01':
+                #     spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                # elif args.city_name == 'Town02':
+                #     spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
                 
                 rewards = []
                 successes = []
                 for test_idx in range(args.test_trails):
+
+                    # Choose a different spawn point indices for each trial
+                    if args.city_name == 'Town01':
+                        spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                    elif args.city_name == 'Town02':
+                        spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
+
+
                     IMAGES_PATH = SCRATCH_DIR+'test_images1_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
                     VIDEO_PATH = SCRATCH_DIR+'test_videos1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
                     IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
