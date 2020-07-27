@@ -64,6 +64,13 @@ python plot_rewards.py \
 --title 'Long Junc (fs1, n=3, lr=3e-5,ss)' \
 --save-auton --inds 1 2 3 &
 
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/cddqn_lstjunc_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--title 'Long Junc (CDDQN, fs=2 n=3, lr=1e-5,ss)' \
+--save-auton --inds 1 2 3 &
+
+
 # gpu4
 python plot_rewards.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/dqn_dynamic_nav_improv_large_steer_ac12_ss_scratch/junc_steer7_throttle_0_20_ac_12' \
@@ -92,6 +99,19 @@ python plot_rewards.py \
 
 
 #gpu16
+/run/user/1000/gvfs/sftp:host=lop2.autonlab.org,user=hiteshar/zfsauton2/home/hiteshar/local_scratch5/gpu16/research/alta-logs/autobot-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64_target2k/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_runid_2/test_results.csv
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/autobot-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64_target2k/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1' \
+--title 'DN (wp angles, expert 25%, fs2, n=3, lr=1e-5,ss, target=2k)' \
+--save-auton --inds 1 2 3 &
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/autobot-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64_target2k/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1' \
+--title 'DN (wp angles, expert 50%, fs2, n=3, lr=1e-5,ss, target=2k)' \
+--save-auton --inds 1 2 3 &
 
 python plot_rewards.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/expert_dynamic_nav_nn128_128/expert_dynamic_nav_nn128_128_fs3_ss_1' \
@@ -130,6 +150,7 @@ python plot_rewards.py \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
 --title 'DN (wp orientation, expert 50%, fs3, n=3, lr=3e-5,uniform)' \
 --save-auton --inds 1 2 3 &
+
 
 
 algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1/algo_DQN_input_wp_angles_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1_runid_1/test_results.csv
@@ -237,6 +258,12 @@ python plot_rewards.py \
 --log-path '/home/hiteshar/alta-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_50.0_exp_0.1_dynamic_navigation_npc_50_target_freq_10000_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --title 'DN (expert 50, nn256-128-64, fs2, n=3, ss)' \
+--inds 1 2 3 &
+
+python plot_rewards.py \
+--log-path '/home/hiteshar/alta-logs/dqn_expert_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_100.0_exp_0.1_dynamic_navigation_npc_50_target_freq_10000_steer_pen_2.0_fs_2_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--title 'DN (expert 100, nn256-128-64, fs2, n=3, ss)' \
 --inds 1 2 3 &
 
 
@@ -351,3 +378,54 @@ python plot_rewards.py \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_expert_25.0_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_3_ss_dqn_n_3_r_norm_24_suc_r_100_const_r_1' \
 --title 'DN (wp orientation, expert 25%, fs3, n=3, lr=3e-5,ss)' \
 --save-auton --inds 1 2 3 &
+
+
+python plot_combined.py \
+--log-path '/home/hiteshar/alta-logs/thesis_dqn_results' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'Success Rate (DDQN Agent)' \
+--reward-title 'Cumulative Reward (DDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
+python plot_combined.py \
+--log-path '/home/hiteshar/alta-logs/thesis_cddqn_results' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'Success Rate (cDDQN Agent)' \
+--reward-title 'Cumulative Reward (cDDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
+python plot_combined_expert.py \
+--log-path '/home/hiteshar/alta-logs/thesis_expert_uniform' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'DDQN Agent with Expert Demonstrations - Uniform Sampling' \
+--reward-title 'DDQN Agent with Expert Demonstrations - Uniform Sampling' \
+--fs 2 \
+--inds 1 2 3 &
+
+python plot_combined_expert.py \
+--log-path '/home/hiteshar/alta-logs/thesis_expert_backward' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'DDQN Agent with Expert Demonstrations - Backward Sampling' \
+--reward-title 'DDQN Agent with Expert Demonstrations - Backward Sampling' \
+--fs 2 \
+--inds 1 2 3 &
+
+python plot_combined_expert_target.py \
+--log-path '/home/hiteshar/alta-logs/thesis_expert50_target' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'DDQN-Expert-50 Agent: Affect of Optimization Epochs' \
+--reward-title 'DDQN-Expert-50 Agent: Affect of Optimization Epochs' \
+--fs 2 \
+--inds 1 2 3 &
+
+python plot_combined_expert_target.py \
+--log-path '/home/hiteshar/alta-logs/thesis_expert25_target' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'DDQN-Expert-25 Agent: Affect of Optimization Epochs' \
+--reward-title 'DDQN-Expert-25 Agent: Affect of Optimization Epochs' \
+--fs 2 \
+--inds 1 2 3 &

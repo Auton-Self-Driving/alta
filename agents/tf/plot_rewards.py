@@ -41,8 +41,8 @@ def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
             reward = data[:, 2]
             max_steps_obs = data[:, 9]
 
-            # Adding max steps due to obstacle
-            success = success + max_steps_obs
+            # # Adding max steps due to obstacle
+            # success = success + max_steps_obs
             for idx in range(timestep.shape[0]):
                 new_rewards.setdefault(timestep[idx], []).append(reward[idx])
                 new_success.setdefault(timestep[idx], []).append(success[idx])

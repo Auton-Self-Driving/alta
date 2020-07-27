@@ -120,7 +120,7 @@ class CarlaEnv(gym.Env):
         # since sometimes, it causes timeout issues in the beginning
         self._world = self.client.load_world(self.config['city_name'])
 
-        time.sleep(20)
+        time.sleep(600)
         
         self._world = self.client.get_world()
 
