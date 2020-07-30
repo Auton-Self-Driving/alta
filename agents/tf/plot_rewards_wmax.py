@@ -11,8 +11,20 @@ import statistics
 font = {'size' : 36}
 matplotlib.rc('font', **font)
 
-log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_improv_fs3_uniform_nn128_nostpenalty1/lstjunc_steer7_throttle_0_20_ac12/"
-run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-05_exp_0.1_long_straight_npc_50_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_3_pid_fs_dqn_n_3_r_norm_24_suc_r_100_const_r_1"
+# gpu3/research/alta-logs/dqn_per_spl_sample_train2/longst_steer_throttle_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__prioritized_replay_/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__prioritized_replay__runid_1/test_results_learn_with_buffer.csv
+# algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__runid_5/buffer_training/test_results_learn_with_buffer.csv
+
+# gpu19/research/alta-logs/dqn_replayRL1_wo_buffer1/longst_steer_throttle_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__runid_3/buffer_training/test_results_learn_with_buffer.csv
+
+log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1_wo_buffer1/longst_steer_throttle_1"
+run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_"
+
+# log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_per_spl_sample_train2/longst_steer_throttle_1/"
+# run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__prioritized_replay_"
+
+
+# log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1/longst_steer_throttle_3/"
+# run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_"
 
 # log_path = "/home/scratch/hiteshar/research/alta-logs/dqn_replayRL1_spl_sample_train2/longst_steer_throttle_1/"
 # run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_0.0001_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__special_sample_"
@@ -25,7 +37,8 @@ run_path = "algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_3e-
 # /home/scratch/hiteshar/research/alta-logs/dqn_replayRL1/longst_steer_throttle_3/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs_/algo_DQN_input_wp_obs_info_speed_steer_ldist_goal_light_network_1_layer_lr_1e-05_long_straight_npc_50_buffer_1000000_brake_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_fs_5_use_pid_fs__runid_1/buffer_training/test_results_learn_with_buffer.csv
 # log_path = "/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/wp_obs_info_speed_steer_ldist_goal_light"
 # run_path = "algo_PPO_input_wp_obs_info_speed_steer_ldist_goal_light_network_2_layer_lr_0.0002_epochs_10__clip_0.1__dynamic_navigation_pretrained_agent__npc_110_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_n_1000"
-indexes = [1,2,3]
+indexes = [1,2, 3]
+# indexes = [2,4, 6]
 
 def get_data_from_file(indexes):
     successes = []
@@ -37,8 +50,9 @@ def get_data_from_file(indexes):
     new_success = {}
     for j in indexes:
         try:
-            file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results.csv")
-            # file_name = os.path.join(log_path, "{}_runid_{}".format(run_path, j), "buffer_training/test_results_learn_with_buffer.csv")
+            # file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results.csv")
+            # file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_learn_with_buffer.csv")
+            file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "buffer_training/test_results_learn_with_buffer.csv")
             # import pdb
             # pdb.set_trace()
             with open(file_name, "r") as f:
@@ -46,8 +60,8 @@ def get_data_from_file(indexes):
                 lines = [line for line in f.readlines()]
                 arr1 = np.array([line.strip().split(',') for line in lines])
 
-                # reward = np.array([float(x[1:-1]) for x in arr1[:,2]])
-                reward = np.array([float(x) for x in arr1[:,2]])
+                reward = np.array([float(x[1:-1]) for x in arr1[:,2]])
+                # reward = np.array([float(x) for x in arr1[:,2]])
                 # data = genfromtxt(file_name, delimiter=',')
 
                 # timestep = data[:, 0]
@@ -61,6 +75,7 @@ def get_data_from_file(indexes):
                 # reward = data[:, 2]
                 # import pdb
                 # pdb.set_trace()
+                # for idx in range(101):
                 for idx in range(timestep.shape[0]):
                     new_rewards.setdefault(timestep[idx], []).append(reward[idx])
                     new_success.setdefault(timestep[idx], []).append(success[idx])
@@ -69,6 +84,7 @@ def get_data_from_file(indexes):
                 rewards.append(reward)
                 timesteps.append(timestep)
         except Exception as e:
+            print(e)
             print("********** File Not Found: {} **********".format(file_name))
     
     return new_rewards, new_success
@@ -123,6 +139,11 @@ new_rewards, new_success = get_data_from_file(indexes)
 mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
 plot_success(timesteps, mean_success, min_success, max_success, figname="mean_success_wmax.png")
 plot_reward(timesteps, mean_reward, min_reward, max_reward, figname="mean_reward_wmax.png")
+
+array_path = os.path.join(log_path, run_path, "results_arrays")
+np.savez(array_path, mean_reward=mean_reward, min_reward=min_reward, 
+        max_reward=max_reward, mean_success=mean_success, min_success=min_success,
+        max_success=max_success, timesteps=timesteps)
 
 for i in range(len(indexes)):
     new_rewards, new_success = get_data_from_file(indexes[i: i+1])
