@@ -9,8 +9,8 @@ import statistics
 import argparse
 from shutil import copy
 
-# font = {'size' : 36}
-# matplotlib.rc('font', **font)
+font = {'size' : 18}
+matplotlib.rc('font', **font)
 
 def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
     successes = []
@@ -121,17 +121,17 @@ def plot_success_CARLA(log_path, timesteps, mean_success, min_success, max_succe
         alphas = [0.5, 0.3, 0.3, 0.2]
     else:
         label_names = ['Uniform', 'Backward', 'PER']
-        label_names = ['Q-Value', 'Discounted Return']
+        label_names = ['Avg Q-Values', 'Avg Discounted Return']
 #
 #          label_names = ['Navigation task']
         mean_colors = ['orangered', 'lightseagreen', 'goldenrod']
         fill_colors = ['mistyrose', 'paleturquoise', 'khaki']
         mean_colors = ['orangered', 'lightseagreen']
         fill_colors = ['mistyrose', 'paleturquoise']
-        alphas = [0.5, 0.3]
+        alphas = [0.7, 0.5]
     
     for ind in range(len(timesteps)):
-        tsteps = [s * 10000 for s in timesteps[ind]]
+        tsteps = [s * 80000 for s in timesteps[ind]]
         # plot percentage out of 25
         mean_success_i = mean_success[ind]
         min_success_i = min_success[ind]
@@ -153,10 +153,10 @@ def plot_success_CARLA(log_path, timesteps, mean_success, min_success, max_succe
             plt.title("Success Rate Vs Timesteps", fontdict={'size' : 18})
 #         plt.title("Cumulative Success Metric on Navigation task", fontdict={'size' : 18})
     plt.xlabel('Simulator Timesteps', fontdict={'size' : 18})
-    plt.ylabel('Values', fontdict={'size' : 18})
+    # plt.ylabel('Values', fontdict={'size' : 18})
     plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
     # plt.legend()
-    plt.legend(loc='lower right', prop={'size' : 18})
+    plt.legend(loc='upper left', prop={'size' : 18})
 #     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
     plt.savefig(os.path.join(log_path, figname), dpi=200)
     plt.clf()
@@ -375,28 +375,33 @@ if __name__ == "__main__":
 
     # paths = sorted(Path(log_path).iterdir(), key=os.path.getmtime)
 
+    index = 0
     # for file_name in sorted(os.listdir(log_path), key=lambda x: int(x.split('_v_')[-1].split('_')[0])):        
     for file_name in files:
         # print(file_name)
         # print(int(file_name.split('_v_')[-1].split('_')[0]))
         if file_name.endswith(".npz"):
-            print(file_name)
-            print(int(file_name.split('_v_')[-1].split('_')[0]))
-            file_names.append(file_name)
-            file_path = os.path.join(log_path, file_name)
-            data = np.load(file_path)
-            action_q_values = data['action_q_values']
-            returns = data['returns']
-            all_q_values.append(action_q_values)
-            all_returns.append(returns)
-            print(np.mean(action_q_values))
-            q_val_mean.append(np.mean(action_q_values))
-            q_val_min.append(np.min(action_q_values))
-            q_val_max.append(np.max(action_q_values))
 
-            return_mean.append(np.mean(returns))
-            return_min.append(np.min(returns))
-            return_max.append(np.max(returns))
+            if index % 3 == 0:
+                
+                print(file_name)
+                print(int(file_name.split('_v_')[-1].split('_')[0]))
+                file_names.append(file_name)
+                file_path = os.path.join(log_path, file_name)
+                data = np.load(file_path)
+                action_q_values = data['action_q_values']
+                returns = data['returns']
+                all_q_values.append(action_q_values)
+                all_returns.append(returns)
+                print(np.mean(action_q_values))
+                q_val_mean.append(np.mean(action_q_values))
+                q_val_min.append(np.min(action_q_values))
+                q_val_max.append(np.max(action_q_values))
+
+                return_mean.append(np.mean(returns))
+                return_min.append(np.min(returns))
+                return_max.append(np.max(returns))
+            index = index + 1
 
     n = len(return_mean)
     steps = np.arange(n)

@@ -9,8 +9,8 @@ import statistics
 import argparse
 from shutil import copy
 
-# font = {'size' : 36}
-# matplotlib.rc('font', **font)
+font = {'size' : 18}
+matplotlib.rc('font', **font)
 
 def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
     successes = []
@@ -256,7 +256,7 @@ def plot_q_values(returns, action_q_values, log_path, figname, title):
     # ax2.set_xlabel('Timesteps')
     # ax2.set_ylabel('Actions (Normalized))')
     plt.xlabel('Simulator Timesteps', fontdict={'size' : 18})
-    plt.ylabel('Value', fontdict={'size' : 18})
+    # plt.ylabel('Value', fontdict={'size' : 18})
 
     plt.savefig(os.path.join(log_path, figname), dpi=200)
     plt.clf()
@@ -347,12 +347,13 @@ if __name__ == "__main__":
     max_success = []
     steps = []
     file_name = 'E_1080_t_390000_i_0_v_40_qvalues_array.npz'
-    file_path = os.path.join(log_path, file_name)
+    file_path = os.path.join(log_path, run_path)
+
     data = np.load(file_path)
     action_q_values = data['action_q_values']
     returns = data['returns']
 
-    plot_q_values(returns, action_q_values,log_path, figname="Qvalue.png", title="Q-Values Vs Discounted Returns")
+    plot_q_values(returns, action_q_values,log_path, figname="Qvalue.png", title="Q-Values Vs Discounted Returns in an Episode")
 
     # for file_name in file_names:
         
