@@ -9,8 +9,8 @@ import statistics
 import argparse
 from shutil import copy
 
-# font = {'size' : 36}
-# matplotlib.rc('font', **font)
+font = {'size' : 18}
+matplotlib.rc('font', **font)
 
 def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
     successes = []

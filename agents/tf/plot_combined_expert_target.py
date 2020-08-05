@@ -9,8 +9,8 @@ import statistics
 import argparse
 from shutil import copy
 
-# font = {'size' : 36}
-# matplotlib.rc('font', **font)
+font = {'size' : 18}
+matplotlib.rc('font', **font)
 
 def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
     successes = []
@@ -120,7 +120,7 @@ def plot_success_CARLA(log_path, timesteps, mean_success, min_success, max_succe
         fill_colors = ['mistyrose', 'paleturquoise', 'khaki', 'mediumpurple']
         alphas = [0.5, 0.3, 0.3, 0.2]
     else:
-        label_names = ['ExpertData-0%', 'OptEpochs=1', 'OptEpochs=2', 'OptEpochs=5']
+        label_names = ['ExpertData-0%', 'NumOpt=1', 'NumOpt=2', 'NumOpt=5']
         mean_colors = ['orangered', 'lightseagreen', 'goldenrod', 'darkorchid']
         fill_colors = ['mistyrose', 'paleturquoise', 'khaki', 'mediumpurple']
         alphas = [0.5, 0.3, 0.3, 0.2]
@@ -158,7 +158,7 @@ def plot_success_CARLA(log_path, timesteps, mean_success, min_success, max_succe
     plt.ylabel('Success Rate', fontdict={'size' : 18})
     plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
     # plt.legend()
-    plt.legend(loc='lower right', prop={'size' : 12})
+    plt.legend(loc='lower right', prop={'size' : 18})
 #     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
     plt.savefig(os.path.join(log_path, figname), dpi=200)
     plt.clf()
@@ -176,7 +176,7 @@ def plot_reward_CARLA(log_path, timesteps, mean_reward, min_reward, max_reward, 
 #         label_names = ['with state A', 'with state A+I', 'with state I']
         # label_names = ['Navigation task']
         # label_names = ['Uniform', 'Backward', 'PER']
-        label_names = ['ExpertData-0%', 'OptEpochs=1', 'OptEpochs=2', 'OptEpochs=5']
+        label_names = ['ExpertData-0%', 'NumOpt=1', 'NumOpt=2', 'NumOpt=5']
         mean_colors = ['orangered', 'lightseagreen', 'goldenrod', 'darkorchid']
         fill_colors = ['mistyrose', 'paleturquoise', 'khaki', 'mediumpurple']
         alphas = [0.5, 0.3, 0.3, 0.2]
@@ -207,7 +207,7 @@ def plot_reward_CARLA(log_path, timesteps, mean_reward, min_reward, max_reward, 
     plt.xlabel('Simulator Timesteps', fontdict={'size' : 18})
     plt.ylabel('Cumulative Reward', fontdict={'size' : 18})
     plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
-    plt.legend(loc='lower right', prop={'size' : 12})
+    plt.legend(loc='lower right', prop={'size' : 18})
     # plt.legend()
 #     plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
     plt.savefig(os.path.join(log_path, figname), dpi=200)

@@ -375,43 +375,54 @@ if __name__ == "__main__":
 
     # paths = sorted(Path(log_path).iterdir(), key=os.path.getmtime)
 
-    index = 0
-    # for file_name in sorted(os.listdir(log_path), key=lambda x: int(x.split('_v_')[-1].split('_')[0])):        
-    for file_name in files:
-        # print(file_name)
-        # print(int(file_name.split('_v_')[-1].split('_')[0]))
-        if file_name.endswith(".npz"):
+    for i in range(25):
+        all_q_values = []
+        all_returns = []
+        file_names = []
+        q_val_mean = []
+        q_val_min = []
+        q_val_max = []
+        return_mean = []
+        return_min = []
+        return_max = []
 
-            if index % 3 == 0:
-                
-                print(file_name)
-                print(int(file_name.split('_v_')[-1].split('_')[0]))
-                file_names.append(file_name)
-                file_path = os.path.join(log_path, file_name)
-                data = np.load(file_path)
-                action_q_values = data['action_q_values']
-                returns = data['returns']
-                all_q_values.append(action_q_values)
-                all_returns.append(returns)
-                print(np.mean(action_q_values))
-                q_val_mean.append(np.mean(action_q_values))
-                q_val_min.append(np.min(action_q_values))
-                q_val_max.append(np.max(action_q_values))
+        index = 0
+        # for file_name in sorted(os.listdir(log_path), key=lambda x: int(x.split('_v_')[-1].split('_')[0])):        
+        for file_name in files:
+            # print(file_name)
+            # print(int(file_name.split('_v_')[-1].split('_')[0]))
+            if file_name.endswith(".npz"):
 
-                return_mean.append(np.mean(returns))
-                return_min.append(np.min(returns))
-                return_max.append(np.max(returns))
-            index = index + 1
+                if index % (i+1) == 0:
+                    
+                    print(file_name)
+                    print(int(file_name.split('_v_')[-1].split('_')[0]))
+                    file_names.append(file_name)
+                    file_path = os.path.join(log_path, file_name)
+                    data = np.load(file_path)
+                    action_q_values = data['action_q_values']
+                    returns = data['returns']
+                    all_q_values.append(action_q_values)
+                    all_returns.append(returns)
+                    print(np.mean(action_q_values))
+                    q_val_mean.append(np.mean(action_q_values))
+                    q_val_min.append(np.min(action_q_values))
+                    q_val_max.append(np.max(action_q_values))
 
-    n = len(return_mean)
-    steps = np.arange(n)
+                    return_mean.append(np.mean(returns))
+                    return_min.append(np.min(returns))
+                    return_max.append(np.max(returns))
+                index = index + 1
 
-    steps = [steps, steps]
+        n = len(return_mean)
+        steps = np.arange(n)
 
-    mean_success = [np.array(q_val_mean), np.array(return_mean)]
-    min_success = [np.array(q_val_min), np.array(return_min)]
-    max_success = [np.array(q_val_max), np.array(return_max)]
-    plot_success_CARLA(log_path, steps, mean_success, min_success, max_success, test_results=True, with_std=True, figname="mean_success.png", title=success_title)
+        steps = [steps, steps]
+
+        mean_success = [np.array(q_val_mean), np.array(return_mean)]
+        min_success = [np.array(q_val_min), np.array(return_min)]
+        max_success = [np.array(q_val_max), np.array(return_max)]
+        plot_success_CARLA(log_path, steps, mean_success, min_success, max_success, test_results=True, with_std=True, figname="mean_success{}.png".format(i), title=success_title)
 
     # plot_q_values(returns, action_q_values,log_path, figname="Qvalue.png", title="Q-Values Vs Discounted Returns")
 
