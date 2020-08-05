@@ -1678,6 +1678,7 @@ class CarlaEnv(gym.Env):
                     spawn_points = self.spawn_points_fixed_order
                 else:
                     spawn_points = self.spawn_points
+                    random.shuffle(spawn_points)
         
         elif self.config["scenarios"] == "straight_crowded":
             spawn_points = scenarios.get_straight_crowded_npcs(number_of_vehicles)

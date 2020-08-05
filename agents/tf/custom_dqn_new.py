@@ -129,7 +129,7 @@ def test(model, env, model_step=None, path=None, val_trials=25):
 
     print("# Success: {}, # Obstacle Collision: {}, # Lane-change Collision: {}, Out-of-road Collision: {}, Unexpected Collision: {}, Runover light: {}, Max_steps: {}, Max_steps Obstacle: {}, Max_steps Traffic Light: {}, Static: {}, Unknown: {}".format(success_episodes,
                 e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision, e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown))
-    data = [model_step, success_episodes, total_reward, e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision,
+    data = [model_step, success_episodes, total_reward[0], e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision,
                                     e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown]
 
     if model_step is not None and env.logger is not None:
@@ -152,7 +152,7 @@ def test(model, env, model_step=None, path=None, val_trials=25):
                 e_obs_collision,  e_out_of_road, e_lane_change,
                 e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light, val_trials])
 
-    return total_reward, success_episodes, results, data
+    return total_reward[0], success_episodes, results, data
 
 def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     print("Rewards at intermediate training: {}".format(total_rewards))

@@ -78,6 +78,12 @@ def parse_arguments():
     parser.add_argument('--min-light-thresold',dest='min_light_threshold',type=int, default=4, help='Min distance from Traffic Light to be detected as red.')
     parser.add_argument('--disable-lane-invasion', dest='disable_lane_invasion', action='store_true', help='Whether to disable lane invasion sensor.')
     parser.add_argument('--disable-traffic-light-termination', dest='disable_traffic_light_termination', action='store_true', help='Whether to disable termination of traffic light violation.')
+    parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
+    parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
+    parser.add_argument('--val-bucket',dest='val_bucket',type=int,default=0, help='Bucket for the validation.')
+    parser.add_argument('--val-run',dest='val_run',type=int,default=1, help='run for the validation.')
+
+    
 
     return parser.parse_args()
 def main(args):
@@ -400,7 +406,7 @@ if __name__ == '__main__':
         #     prefix = create_ppo_prefix(args)
         #     test_pid_method(args, prefix, config)
         elif args.algo == "DQN":
-            if args.test or args.train_buffer:
+            if args.test or args.train_buffer or args.validation:
                 prefix = extract_prefix(args) 
             else:
                 prefix = create_ppo_prefix(args)

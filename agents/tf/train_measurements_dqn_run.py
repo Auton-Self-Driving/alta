@@ -33,6 +33,18 @@ def compute_discounted_returns(rewards, gamma):
 
     return returns
 
+def find_ext_format(MODEL_PATH):
+    ext = None
+    for fname in os.listdir(MODEL_PATH):
+        if fname.endswith('.pkl'):
+            ext = '.pkl'
+        elif fname.endswith('.zip'):
+            ext = '.zip'
+        
+        if ext is not None:
+            break
+    return ext
+
 # def test(model, env, path=None):
     
     
@@ -425,7 +437,100 @@ def run_dqn(args, prefix, config):
                     f.write("Success: {}\n".format(" ".join(map(str, successes))))
                     f.write("Avg Success: {}\n".format(np.mean(successes)))
                     f.write("Std Success: {}\n".format(np.std(successes)))
-            
+
+            elif args.validation:
+                print('Validation Begins')
+
+                rewards = []
+                successes = []
+                for val_idx in range(args.test_trails):
+
+                    # Choose a different spawn point indices for each trial
+                    if args.city_name == 'Town01':
+                        spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                    elif args.city_name == 'Town02':
+                        spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
+
+
+                    IMAGES_PATH = SCRATCH_DIR+'val_images1_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(val_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'val_videos1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(val_idx) + '/'
+                    IMAGES_PATH_VAE = SCRATCH_DIR+'val_vae_images1_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(val_idx) + '/'
+                    VIDEO_PATH_VAE = SCRATCH_DIR+'val_vae_videos1_' + config.config["city_name"] +  config.config['scenarios'] + '_run_' + str(val_idx) + '/'
+
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper_vae = None
+
+                    config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[val_idx])
+                    # config.config["verbose"] = True
+                    
+                    # Sending logger as None so as to not affect existing validation plots
+                    
+                    RETRIES_ON_ERROR = 5
+                    serverStartRetries = 0
+                    serverStarted = False
+                    
+                    env = None
+                    while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+                        try:
+
+                            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=None, log_dir=ALTA_LOGS)
+                            serverStarted = True
+                        
+                        except Exception as identifier:
+                            print(prefix, identifier, serverStartRetries)
+                            traceback.print_exc()
+                            if env is not None:
+                                env.close()
+                                serverStartRetries += 1
+                                time.sleep(20)
+                    
+                    # dummy_env = DummyVecEnv([lambda: env])
+
+
+                    # import pdb
+                    # pdb.set_trace()
+                    rewards = []
+                    successes = []
+                    updates = []
+                    ext = '.zip'
+                    model_files = [os.path.join(ALTA_LOGS, model) for model in os.listdir(ALTA_LOGS) if model.endswith(ext) and ("buffer" not in model)]
+                    model_files = sorted(model_files, key=os.path.getmtime)
+
+                    # args.val_bucket is zero-indexed
+                    model_files = model_files[args.val_bucket*25: (args.val_bucket+1)*25]
+                    
+                    # update = args.val_bucket * args.validation_interval
+                    for model_file in model_files:
+
+                        update = int(model_file.split("dqn_measurements_weights")[1].split(".zip")[0])
+                        env.total_steps = update
+                        dummy_env = DummyVecEnv([lambda: env])
+                        
+                        kwargs = {}
+                        kwargs["skip_optimizer_state_load"] = True
+                        model = Custom_DQN.load(model_file, dummy_env, **kwargs)
+                        total_reward, success_episodes, results, data = test(model, env, path=ALTA_LOGS)
+                        # total_reward, success_episodes, results, data = 0, 0, 0, [0]*13
+
+                        # collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+                        #     runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = data[3:]
+
+                        e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision, \
+                                    e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown = data[3:]
+                        
+                        print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))                        
+                        with open(ALTA_LOGS + 'test_results_{}_{}.csv'.format(args.val_run, args.val_bucket),'a') as f:
+                            csvwriter = csv.writer(f, delimiter=',')
+                            # csvwriter.writerow([update, success_episodes, total_reward])
+
+                            csvwriter.writerow([update, success_episodes, total_reward,
+                                e_obs_collision,  e_out_of_road, e_lane_change,
+                                e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light, args.val_trials])
+                            # update += args.validation_interval
+                    
+                    env.close()
+
             elif args.train_buffer:
 
                 TB_LOGS_DIR = ALTA_LOGS+'tb_buffer/'
