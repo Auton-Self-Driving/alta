@@ -375,7 +375,8 @@ if __name__ == "__main__":
 
     # paths = sorted(Path(log_path).iterdir(), key=os.path.getmtime)
 
-    for i in range(25):
+    episodes = 1
+    for i in range(episodes):
         all_q_values = []
         all_returns = []
         file_names = []
@@ -393,7 +394,7 @@ if __name__ == "__main__":
             # print(int(file_name.split('_v_')[-1].split('_')[0]))
             if file_name.endswith(".npz"):
 
-                if index % (i+1) == 0:
+                if (index+i) % episodes == 0:
                     
                     print(file_name)
                     print(int(file_name.split('_v_')[-1].split('_')[0]))
