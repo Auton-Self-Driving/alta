@@ -519,8 +519,9 @@ def run_dqn(args, prefix, config):
                         e_obs_collision, e_lane_change, e_out_of_road, e_unexpected_collision, \
                                     e_runover_light, e_max_steps, e_max_steps_obstacle, e_max_steps_light, e_static, e_unknown = data[3:]
                         
-                        print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))                        
-                        with open(ALTA_LOGS + 'test_results_{}_{}.csv'.format(args.val_run, args.val_bucket),'a') as f:
+                        print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
+                        with open(ALTA_LOGS + 'test_results_{}_{}_'.format(args.val_run, args.val_bucket) + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(val_idx) + ".csv", "a") as f:
+                        # with open(ALTA_LOGS + 'test_results_{}_{}.csv'.format(args.val_run, args.val_bucket),'a') as f:
                             csvwriter = csv.writer(f, delimiter=',')
                             # csvwriter.writerow([update, success_episodes, total_reward])
 
