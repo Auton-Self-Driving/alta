@@ -375,7 +375,7 @@ if __name__ == "__main__":
 
     # paths = sorted(Path(log_path).iterdir(), key=os.path.getmtime)
 
-    episodes = 6
+    episodes = 25
     for i in range(episodes):
         all_q_values = []
         all_returns = []
