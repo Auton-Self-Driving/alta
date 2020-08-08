@@ -280,10 +280,13 @@ class GlobalPlanner():
             # use second_last_waypoint
             
             print("Needed to use second_last_waypoint")
-            self.dist_to_trajectory = self.getPointToLineDistance(
-                                    vehicle_transform,
-                                    self.second_last_waypoint,
-                                    self.last_waypoint)
+            if self.second_last_waypoint is not None and self.last_waypoint is not None:
+                self.dist_to_trajectory = self.getPointToLineDistance(
+                                        vehicle_transform,
+                                        self.second_last_waypoint,
+                                        self.last_waypoint)
+            else:
+                self.dist_to_trajectory = 0
 
         # TODO: Find the exact distance to goal. Below is an approximation
         dist_to_goal = len(self._waypoints_queue) *self._hop_resolution

@@ -36,7 +36,9 @@ def get_data_from_file(log_path, run_path, indexes, log_path_auton=None):
             for run_index in [1, 2, 3]:
                 for bucket_index in [0, 1, 2]:
 
-                    file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_{}_{}.csv".format(run_index, bucket_index))
+                    # file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_{}_{}.csv".format(run_index, bucket_index))
+                    file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_{}_{}_Town01dynamic_navigation_run_0.csv".format(run_index, bucket_index))
+                    file_name = os.path.join(log_path, run_path, "{}_runid_{}".format(run_path, j), "test_results_{}_{}_Town01no_crash_dense_run_0.csv".format(run_index, bucket_index))
 
                     data = genfromtxt(file_name, delimiter=',')
 
@@ -184,25 +186,25 @@ if __name__ == "__main__":
     mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
 
     # save arrays
-    array_path = os.path.join(log_path, run_path, "results_arrays_val")
+    array_path = os.path.join(log_path, run_path, "results_arrays_val_nc")
     np.savez(array_path, mean_reward=mean_reward, min_reward=min_reward, 
         max_reward=max_reward, mean_success=mean_success, min_success=min_success,
         max_success=max_success, timesteps=timesteps)
     
     if log_path_auton is not None:
-        array_path_auton = os.path.join(log_path_auton, run_path, "results_arrays_val")
+        array_path_auton = os.path.join(log_path_auton, run_path, "results_arrays_val_nc")
         np.savez(array_path_auton, mean_reward=mean_reward, min_reward=min_reward, 
             max_reward=max_reward, mean_success=mean_success, min_success=min_success,
             max_success=max_success, timesteps=timesteps)
 
-    plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success_val.png", title=title, log_path_auton=log_path_auton)
-    plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward_val.png",title=title, log_path_auton=log_path_auton)
+    plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success_val_nc.png", title=title, log_path_auton=log_path_auton)
+    plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward_val_nc.png",title=title, log_path_auton=log_path_auton)
 
     for i in range(len(indexes)):
         new_rewards, new_success = get_data_from_file(log_path, run_path, indexes[i: i+1])
         mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps = compute_datapoints(new_rewards, new_success)
-        plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success{}_val.png".format(indexes[i]), title=title, log_path_auton=log_path_auton)
-        plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward{}_val.png".format(indexes[i]), title=title, log_path_auton=log_path_auton)
+        plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success{}_val_nc.png".format(indexes[i]), title=title, log_path_auton=log_path_auton)
+        plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward{}_val_nc.png".format(indexes[i]), title=title, log_path_auton=log_path_auton)
 
 
     
