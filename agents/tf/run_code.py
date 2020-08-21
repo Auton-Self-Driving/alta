@@ -10,7 +10,7 @@ from test_pid import test_pid_method
 from train_measurements_dqn_run import run_dqn
 from c51new import run_c51
 from iqn import run_iqn
-
+from generate_iqn_plots import run_iqn_plots
 
 
 def parse_arguments():
@@ -28,7 +28,11 @@ def parse_arguments():
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=0.005, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
     parser.add_argument('--run-id',dest='run_id',type=str, required=True, help='Unique identifier for the run. It is appended to log directory name.')
-    parser.add_argument('--network',dest='network',type=str,default='1_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2.')
+    
+    parser.add_argument('--network',dest='network',type=str,default='2_layer', help='network: 1_layer, 2_layer, CustomPolicy1 or CustomPolicy2.')
+    parser.add_argument('--alpha',dest='alpha',type=float,default=1., help='quantile for iqn runs')
+    parser.add_argument('--num-atoms',dest='num_atoms',type=int,default=8, help='num atoms for dlr')
+    
     parser.add_argument('--steer-penalty-coeff',dest='steer_penalty_coeff',type=float,default=0, help='Coefficient of steer penalty in reward.')
     parser.add_argument('--noise-dim',dest='noise_dim',type=int,default=1, help='Dimension of noise vector.')
     parser.add_argument('--carla-gpu',dest='carla_gpu',type=str,default='0')
@@ -295,10 +299,16 @@ def create_ppo_prefix(args):
 
 def get_drl_prefix(args): 
     prefix = 'algo_' + args.algo \
+        + '_input_' + str(args.input_type) \
         + '_scenario_' + str(args.scenarios)  \
         + '_npcs_' + str(args.num_npc)  \
-        + '_input_' + str(args.input_type) \
         + '_lr_' + str(args.lr)  \
+        + '_alpha_' + str(args.alpha) \
+        + '_network_' + str(args.network) \
+        + '_targetfreq_' + str(args.target_freq) \
+        + '_rewardnorm_' + str(args.reward_norm) \
+        + '_lightpenalty_' + str(args.const_light_penalty) \
+        + '_frameskip_' + str(args.frame_skip) \
         + '_runid_' + str(args.run_id) 
     return prefix
 
@@ -379,7 +389,11 @@ if __name__ == '__main__':
         elif args.algo == 'IQN': 
             # prefix = extract_prefix(args) 
             prefix = get_drl_prefix(args)
-            run_iqn(args, prefix, config)
+            if args.test: 
+                print('PLOTTING')
+                run_iqn_plots(args, prefix, config)
+            else: 
+                run_iqn(args, prefix, config)
 
     except Exception as e:
         print(e)
