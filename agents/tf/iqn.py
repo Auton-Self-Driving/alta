@@ -174,12 +174,44 @@ class C51_Agent:
         Q_s_a = Q_s_a[0]
         Q_a = np.sum(Q_s_a, axis=1)
         action = np.argmax(Q_a)
-        return action
+        return action, Q_a
 
+
+def compute_discounted_returns(rewards, gamma):
+    returns = np.zeros_like(rewards)
+    n = np.size(rewards)
+    
+    returns[-1] = rewards[-1]
+    for i in range(n-2, 0, -1):
+        returns[i] = rewards[i] + gamma* returns[i+1]
+
+    return returns
+
+def plot_q_values(q_values_matrix, actions, action_q_values, returns, ind, model_step, path): 
+    n = len(actions)
+    # if model_step == 0: 
+    #     print(np.array(q_values_matrix).shape)
+    fig, (ax1, ax2, ax3)  = plt.subplots(3, 1, figsize=(12, 12))
+
+    ax1.matshow(np.transpose(np.array(q_values_matrix)), cmap=plt.cm.Blues, aspect='auto')
+    ax1.set_ylabel('action')
+
+    ax2.plot(range(n), actions)
+    ax2.set_ylabel('action')
+
+    ax3.plot(range(n), action_q_values, label='q values')
+    ax3.plot(range(n), returns, label='returns')
+    ax3.legend()
+    ax3.set_ylabel('returns')
+    ax3.set_xlabel('t')
+
+
+    plt.savefig(path + 'qvalues_step_%s_ind_%s.png' % (str(model_step), str(ind)))
+    plt.close()
 
             
     
-def test(agent, env, logger, model_step, path=None):
+def test(agent, env, logger, model_step, path=None, num_test=10):
     # dummy_env = DummyVecEnv([lambda: env])
     # dummy_env = env
     success_episodes = 0
@@ -195,19 +227,28 @@ def test(agent, env, logger, model_step, path=None):
     e_unknown = 0
     results = {}
     total_reward = 0
+    Q_action_total = np.zeros([num_test])
+    returns_total = np.zeros([num_test])
 
 
-    for ind in range(5):
+    for ind in range(num_test):
         # obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs = env.reset(unseen=True, index=ind).squeeze()
         done = False
         reward = 0
     
         rewards = []
+        q_values_matrix = []
+        actions = [] 
+        action_q_values = []
         validation_ep_index = '0'
         while not done:
-            action = agent.choose_action(obs) # np.array([agent.get_action(obs.reshape([1, 1, agent.state_dim[1]]), 0)])
+            action, Q_a = agent.choose_action(obs) # np.array([agent.get_action(obs.reshape([1, 1, agent.state_dim[1]]), 0)])
             info = env.step(np.array([action]))
+            
+            q_values_matrix.append(Q_a / np.sum(np.abs(Q_a)))
+            actions.append(action)
+            action_q_values.append(Q_a[action])
 
             reward += info[1][0]
             done = info[2]
@@ -243,6 +284,12 @@ def test(agent, env, logger, model_step, path=None):
                 e_unexpected_collision += 1
             else:
                 e_unknown += 1
+
+        returns = compute_discounted_returns(rewards, agent.gamma)
+        Q_action_total[ind] = np.mean(action_q_values)
+        returns_total[ind] = np.mean(returns)
+
+        plot_q_values(q_values_matrix, actions, action_q_values, returns, ind, model_step, path)
         
 
     # Reset env after testing
@@ -268,7 +315,7 @@ def test(agent, env, logger, model_step, path=None):
     #         e_obs_collision,  e_out_of_road, e_lane_change,
     #         e_runover_light, e_static, e_max_steps, e_max_steps_obstacle, e_max_steps_light])
 
-    return total_reward, success_episodes
+    return total_reward, success_episodes, Q_action_total, returns_total
 
 def plot_test_results(total_successes, total_rewards, total_updates, path):
     fig, (ax1, ax2)  = plt.subplots(1, 2)
@@ -288,8 +335,23 @@ def plot_test_results(total_successes, total_rewards, total_updates, path):
     plt.savefig(path + 'test_results.png')
     plt.close()
 
+def plot_average_q(q_action_mean_list, q_action_var_list, returns_mean_list, returns_var_list, total_updates, path): 
+    plt.figure() 
+    plt.plot(total_updates, q_action_mean_list, label='q values')
+    plt.fill_between(total_updates, q_action_mean_list - q_action_var_list, q_action_mean_list + q_action_var_list, alpha=0.2)
+
+    plt.plot(total_updates, returns_mean_list, label='returns')
+    plt.fill_between(total_updates, returns_mean_list - returns_var_list, returns_mean_list + returns_var_list, alpha=0.2)
+
+    plt.legend()
+    plt.xlabel('t')
+    plt.savefig(path + 'qvalues.png')
+    plt.close()
+
+
 
 def run_iqn(args, prefix, config): 
+
     ALTA_LOGS = os.path.join(args.base_log_dir, prefix) #os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
     if ALTA_LOGS[-1] != '/':
         ALTA_LOGS += '/'
@@ -311,8 +373,6 @@ def run_iqn(args, prefix, config):
 
     steps = args.timesteps
 
-    print('ALTA_LOGS: ', ALTA_LOGS)
-
     
 
     try:
@@ -322,15 +382,17 @@ def run_iqn(args, prefix, config):
         
         print("Training begins")
         IMAGES_PATH = SCRATCH_DIR+'images/'
-        
         VIDEO_PATH = SCRATCH_DIR+'videos/'
         IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'
         VIDEO_PATH_VAE = SCRATCH_DIR+'vae_videos/'
+        QVALUES_PATH = SCRATCH_DIR+'qvalue_plots/'
 
         if not os.path.exists(IMAGES_PATH):
             os.makedirs(IMAGES_PATH)
         if not os.path.exists(VIDEO_PATH):
             os.makedirs(VIDEO_PATH)
+        if not os.path.exists(QVALUES_PATH):
+            os.makedirs(QVALUES_PATH)
         
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
         vis_wrapper_vae = None
@@ -393,7 +455,7 @@ def run_iqn(args, prefix, config):
         # agent.main_network.save(TF_MODELS)
 
 
-        obs = env.reset().squeeze()
+        
         # print(agent.get_action(obs.reshape([1, 1, state_dim[1]]), 0))
         # import ipdb; ipdb.set_trace()
 
@@ -409,28 +471,87 @@ def run_iqn(args, prefix, config):
 
         total_reward_list = []
         success_episodes_list = []
+        q_action_mean_list = []
+        q_action_var_list = []
+        returns_mean_list = []
+        returns_var_list = []
         t_list = []
         to_test = False 
 
-        # total_reward, success_episodes = test(agent, env, logger, 0)
-        # t_list.append(0)
-        # print('TESTING: t %d | rew %d | success %d ' % (t, total_reward, success))
-        # total_reward_list.append(total_reward)
-        # success_episodes_list.append(success_episodes)
-        # plot_test_results(success_episodes_list, total_reward_list, np.array(t_list), ALTA_LOGS)
         
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(max_to_keep=None)
+
+        if args.train_buffer:
+            tf.reset_default_graph()
+            path = args.agent_model_path
+            saver.restore(sess, path)
+
+            # import ipdb; ipdb.set_trace()
+
+            time_done = int(path.split('/')[-2].split('_')[-1]) + 1
+            schedule_timesteps = int(exploration_fraction * steps - time_done)
+            initial_p = 1.0 - (1.0 - 0.05) / (exploration_fraction * steps) * time_done
+            # print('intial p: ', initial_p)
+            # print('time done: ', time_done)
+            # print('schedule_timesteps: ', schedule_timesteps)
+            exploration = LinearSchedule(schedule_timesteps=schedule_timesteps, initial_p=initial_p, final_p=0.05)
+            # print('time done: %s | schedule timesteps: %s | initial p: %f ' % (time_done, schedule_timesteps, initial_p))
+
+
+            t = 0
+            t_list.append(t)
+            total_reward, success_episodes, Q_action_total, returns_total = test(agent, env, logger, t, path=QVALUES_PATH)
+            print('INITIAL TESTING: t %d | rew %d | success %f ' % (t, total_reward, success_episodes))
+            # import ipdb; ipdb.set_trace()
+            total_reward_list.append(total_reward)
+            success_episodes_list.append(success_episodes)
+            plot_test_results(success_episodes_list, total_reward_list, np.array(t_list), ALTA_LOGS)
+
+            q_action_mean_list.append(np.mean(Q_action_total))
+            q_action_var_list.append(np.std(Q_action_total))
+            returns_mean_list.append(np.mean(returns_total))
+            returns_var_list.append(np.std(returns_total))
+            plot_average_q(np.array(q_action_mean_list), np.array(q_action_var_list), np.array(returns_mean_list), np.array(returns_var_list), t_list, ALTA_LOGS)
+
+            
+
+            obs = env.reset().squeeze()
+            epsilon = initial_p
+            for q in range(int(args.buffer_size * 0.1)): 
+                if np.random.rand() < epsilon:
+                    action = np.random.choice(action_dim)
+                else:
+                    action, _ = agent.choose_action(obs)
+                new_obs, rew, done, eps_measurements = env.step(np.array([action]))
+
+                rew = float(rew[0])
+                done = bool(done[0])
+                # import ipdb; ipdb.set_trace()
+                action_one_hot = np.zeros([action_dim])
+                action_one_hot[action] = 1
+                # replay_buffer.add(obs, action_one_hot, rew, new_obs.squeeze(), float(done))
+                replay_buffer.append([obs, new_obs.squeeze(), action_one_hot, rew, int(done)])
+                obs = new_obs.squeeze()
+
+                if q % 1000 == 0: 
+                    print('filling buffer: ', q)
+
+                if done: 
+                    obs = env.reset().squeeze()
+
+            
+            learning_starts = 0
+            sess.run(agent.assign_ops)
+
         save_path = saver.save(sess, TF_MODELS + 'iter_%s/model_%s.ckpt' % (str(0), str(0)))
-
-
-
+        obs = env.reset().squeeze()
 
 
         for t in range(steps): 
             if np.random.rand() < exploration.value(t):
                 action = np.random.choice(action_dim)
             else:
-                action = agent.choose_action(obs)
+                action, _ = agent.choose_action(obs)
 
             # action = np.array([agent.get_action(obs.reshape([1, 1, state_dim[1]]), exploration.value(t))])#[0]
             new_obs, rew, done, eps_measurements = env.step(np.array([action]))
@@ -447,46 +568,16 @@ def run_iqn(args, prefix, config):
 
             if t > learning_starts: 
                 _, td_error = agent.train(random.sample(replay_buffer, batch_size))#obses_t, actions, rewards, obses_tp1, dones, np.ones_like(rewards))
-                # if (t + 1) % SAVE_FREQ == 0: 
-                #     agent.model.save(ALTA_LOGS + 'model_%d.h5' % (t))
-
-                # if (t + 1) % args.target_freq == 0: 
-                #     agent.copy_target()
-
-                # if (t+1) % TEST_FREQ == 0: 
-                #     to_test = True
 
                 if (t+1) % PRINT_FREQ == 0: 
                     print('TRAINING: t %d | rew %d | loss %f ' % (t, rew, td_error))
                 
                 if (t+1) % SAVE_FREQ == 0: 
-                    # tf.saved_models.save(agent.main_network, os.path.join(tmpdir, str(t)))
                     save_path = saver.save(sess, TF_MODELS + 'iter_%s/model_%s.ckpt' % (str(t), str(t)))
 
                 if (t+1) % args.target_freq == 0: 
                     sess.run(agent.assign_ops)
 
-            # if done:
-                
-            #     num_episodes += 1
-            #     num_done += 1
-
-            #     if num_episodes % TEST_FREQ == 0: 
-            #         total_reward, success_episodes = test(agent, env, logger, t)
-            #         total_reward_list.append(total_reward)
-            #         success_episodes_list.append(success_episodes)
-            #         plot_test_results(success_episodes_list, total_reward_list, num_episodes, ALTA_LOGS)
-
-
-            # tf.reset_default_graph()
-
-            # sess = tf.Session()
-            # dqn = Distributional_RL(sess, model, learning_rate, upper=upper)
-            # sess.run(tf.global_variables_initializer())
-            # sess.run(dqn.assign_ops)
-
-            # saver = tf.train.Saver()
-            # saver.restore(sess, "./tmp/model.ckpt")
 
                 
                 if done: 
@@ -494,11 +585,17 @@ def run_iqn(args, prefix, config):
 
                     if num_episodes % TEST_FREQ == 0: #to_test: 
                         t_list.append(t)
-                        total_reward, success_episodes = test(agent, env, logger, t)
+                        total_reward, success_episodes, Q_action_total, returns_total = test(agent, env, logger, t, path=QVALUES_PATH)
                         print('TESTING: t %d | rew %d | success %f ' % (t, total_reward, success_episodes))
                         total_reward_list.append(total_reward)
                         success_episodes_list.append(success_episodes)
                         plot_test_results(success_episodes_list, total_reward_list, np.array(t_list), ALTA_LOGS)
+
+                        q_action_mean_list.append(np.mean(Q_action_total))
+                        q_action_var_list.append(np.std(Q_action_total))
+                        returns_mean_list.append(np.mean(returns_total))
+                        returns_var_list.append(np.std(returns_total))
+                        plot_average_q(np.array(q_action_mean_list), np.array(q_action_var_list), np.array(returns_mean_list), np.array(returns_var_list), t_list, ALTA_LOGS)
                         to_test = False 
 
 
