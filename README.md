@@ -7,40 +7,56 @@ Commands:
 
 cd ~
 
+
 2. Install CARLA v0.9.6 (https://carla.org/2019/07/12/release-0.9.6/) for which the binaries are available here: (http://carla-assets-internal.s3.amazonaws.com/Releases/Linux/CARLA_0.9.6.tar.gz)
 
 Commands: 
 
 mkdir $HOME/carla96
+
 cd $HOME/carla96
+
 wget "http://carla-assets-internal.s3.amazonaws.com/Releases/Linux/CARLA_0.9.6.tar.gz"
+
 tar xvzf CARLA*
+
 
 3. Install anaconda to setup CARLA environment.
 
 Commands:
 
 cd ~
+
 wget "https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh"
+
 bash Anaconda3*
+
 
 4. Git clone alta repository and switch to latest_v2_tanmaya branch. 
 
 Commands:
 
 mkdir $HOME/projects
+
 cd $HOME/projects
+
 git clone https://github.com/Auton-Self-Driving/alta.git
+
 cd alta
+
 git checkout latest_v2_tanmaya
+
 
 5. Install conda environment 'carla9.4_py35' from environment.yml file.
 
 Commands:
 
 cd $HOME/projects/alta
+
 conda env create -f environment.yml
+
 conda activate carla9.4_py35
+
 
 6a. Set the following paths in the bashrc file.
 
@@ -60,12 +76,15 @@ Commands:
 
 source ~/.bashrc
 
+
 7. Install alta repository as python package. 
 
 Commands:
 
 cd $ALTA
+
 pip install -e .
+
 
 8. Test installation on cluster. 
 
@@ -74,7 +93,7 @@ For Slurm Cluster,
 Commands:
 
 srun --gres gpu:1 --pty $SHELL
+
 cd $ALTA/agents/tf
+
 python run_code.py .......
-
-
