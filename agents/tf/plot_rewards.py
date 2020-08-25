@@ -63,27 +63,31 @@ def compute_datapoints(new_rewards, new_success):
     return mean_reward, min_reward, max_reward, mean_success, min_success, max_success, timesteps
 
 def plot_success(log_path, run_path, timesteps, mean_success, min_success, max_success, figname="mean_success.png"):
+    timesteps = [step * 1000000 for step in timesteps]
     plt.figure(figsize=(22, 14))
-    plt.title("Navigation with dynamic obstacles")
-    plt.xlabel('Timesteps (in M)', fontdict={'size' : 36})
+    # plt.title("Navigation with dynamic obstacles")
+    plt.xlabel('Timesteps', fontdict={'size' : 36})
     plt.ylabel('Total Success Episodes', fontdict={'size' : 36})
-    plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
+    # plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
+    plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
     plt.plot(timesteps, mean_success, label='WRL',  color='royalblue')
     plt.fill_between(timesteps, min_success, max_success, color='lavender')
     plt.savefig(os.path.join(log_path, run_path, figname), dpi=200)
     
 def plot_reward(log_path, run_path, timesteps, mean_reward, min_reward, max_reward, figname="mean_reward.png"):
+    timesteps = [step * 1000000 for step in timesteps]
     plt.figure(figsize=(22, 14))
     plt.plot(timesteps, mean_reward, label='WRL+',  color='orangered')
     plt.fill_between(timesteps, min_reward, max_reward, color='mistyrose')
 
     axes = plt.gca()
-    axes.set_ylim(bottom=-5000)
+    # axes.set_ylim(bottom=0)
     # plt.legend(loc='lower right', prop={'size' : 36})
-    plt.title("Navigation with dynamic obstacles")
-    plt.xlabel('Timesteps (in M)', fontdict={'size' : 36})
+    # plt.title("Navigation with dynamic obstacles")
+    plt.xlabel('Timesteps', fontdict={'size' : 36})
     plt.ylabel('Total Cumulative Reward', fontdict={'size' : 36})
-    plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
+    # plt.xticks(list(np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)), ('{}'.format(str(x)) for x in np.arange(0, (math.ceil(timesteps[-1] / 0.5) + 1) * 0.5, 0.5)))
+    plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
     plt.savefig(os.path.join(log_path, run_path, figname), dpi=200)
 
 if __name__ == "__main__":
