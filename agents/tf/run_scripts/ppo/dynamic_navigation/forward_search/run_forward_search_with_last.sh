@@ -172,7 +172,7 @@ python run_code.py \
 --clip 0.1 \
 --run-id 1 &
 
-# ssh gpu17
+# ssh gpu17 (Killed)
 sleep 60
 python run_code.py \
 --algo PPO \
