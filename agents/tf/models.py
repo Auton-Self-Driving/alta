@@ -290,6 +290,26 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 features = tf.layers.flatten(tf.concat([vis_vf_latent, meas_vf_latent], axis=2))
                 vf_latent = activ(linear(features, "vf_fc", 128, init_scale=np.sqrt(2)))
 
+                # observation_features = self.processed_obs[:, :, -8:]
+                # observation_features_flat = tf.layers.flatten(observation_features)
+
+                # visual_features = self.processed_obs[:, :, :-8]
+                # visual_features = tf.reshape(visual_features, [-1, 64, 64, 5])
+
+                # vis_pi_latent = vis_vf_latent = cnn_extractor(visual_features, **kwargs)
+                # vis_pi_latent = tf.reshape(vis_pi_latent, [-1, 1, 64])
+                # vis_vf_latent = tf.reshape(vis_vf_latent, [-1, 1, 64])
+
+                # meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+                # meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+                # features = tf.layers.flatten(tf.concat([vis_pi_latent, meas_pi_latent], axis=2))
+                # pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+                # meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+                # meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+                # features = tf.layers.flatten(tf.concat([vis_vf_latent, meas_vf_latent], axis=2))
+                # vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+
             else:
                 pi_latent, vf_latent = mlp_extractor(tf.layers.flatten(self.processed_obs), net_arch, act_fun)
 
@@ -440,6 +460,7 @@ class CustomPolicy2(CustomPolicy):
         self._value_fn = value_fn
         self._setup_init()
 
+
 class CustomPolicy3(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
         super(CustomPolicy3, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
@@ -477,6 +498,43 @@ class CustomPolicy3(CustomPolicy):
         self._value_fn = value_fn
         self._setup_init()
 
+
+class CustomPolicy4(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy4, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+
+            # HARD CODED: Taking last 6 observation input
+            observation_features = self.processed_obs[:, :, -6:]
+            observation_features_flat = tf.layers.flatten(observation_features)
+            vae_features = self.processed_obs[:, :, :-6]
+            vae_features_flat = tf.layers.flatten(vae_features)
+
+            vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
+            meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
+            meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+
+            # value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
 
 class CustomWPPolicy(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):

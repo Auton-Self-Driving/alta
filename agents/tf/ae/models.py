@@ -50,11 +50,23 @@ class ConvAutoEncoder(object):
             h = tf.layers.conv2d(self.x, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv1")
             h = tf.layers.conv2d(h, 32, 5, strides=2, activation=tf.nn.relu, name="enc_conv2")
             h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="enc_conv3")
-            h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
-            self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
+
+            # Model used for Learning to drive using Waypoints (last layer dim = 16)
+            # h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            # self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
+
+            # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+            h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            self.encoded = tf.reshape(h, [-1, 5 * 5 * 64])
 
             # Decoder
-            h = tf.reshape(self.encoded, [-1, 5, 5, 16])
+
+            # Model used for Learning to drive using Waypoints (last layer dim = 16)
+            # h = tf.reshape(self.encoded, [-1, 5, 5, 16])
+
+            # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+            h = tf.reshape(self.encoded, [-1, 5, 5, 64])
+
             h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
             h = tf.layers.conv2d_transpose(h, 32, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
             h = tf.layers.conv2d_transpose(h, 16, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")

@@ -20,7 +20,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 from stable_baselines.common.policies import register_policy
 from ppo import PPO, test, plot_test_results
-from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2, CustomPolicy3
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2, CustomPolicy3, CustomPolicy4
 
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
@@ -68,10 +68,13 @@ def run_ppo_vae(args, prefix, config):
     
     if SCRATCH_DIR[-1] != '/':
         SCRATCH_DIR += '/'
-    if args.binarized_image:
-        vae = AEController(image_size=(128, 128, 2), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+    if config.config["semantic"]:
+        if args.binarized_image:
+            vae = AEController(image_size=(128, 128, 2), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+        else:
+            vae = AEController(image_size=(128, 128, 5), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
     else:
-        vae = AEController(image_size=(128, 128, 5), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+        vae = AEController(image_size=(128, 128, 3), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
 
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
@@ -93,6 +96,7 @@ def run_ppo_vae(args, prefix, config):
     register_policy('CustomPolicy1', CustomPolicy1)
     register_policy('CustomPolicy2', CustomPolicy2)
     register_policy('CustomPolicy3', CustomPolicy3)
+    register_policy('CustomPolicy4', CustomPolicy4)
 
     def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
         list_of_files = glob.glob(os.path.join(log_dir, ext))
@@ -266,8 +270,10 @@ def run_ppo_vae(args, prefix, config):
                     policy = CustomPolicy2
                 elif args.network == "CustomPolicy3":
                     policy = CustomPolicy3
+                elif args.network == "CustomPolicy4":
+                    policy = CustomPolicy4
                 else:
-                    print("specify either 1_layer, 2_layer CustomPolicy1, CustomPolicy2, CustomPolicy3 as network input")
+                    print("specify either 1_layer, 2_layer CustomPolicy1, CustomPolicy2, CustomPolicy3, CustomPolicy4 as network input")
                     env.close()
                     print("exiting")
                     return
