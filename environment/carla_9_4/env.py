@@ -675,15 +675,6 @@ class CarlaEnv(gym.Env):
         world_frame = None
         reward = 0
 
-        self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
-        self.obstacle_speed_array.append(self.episode_measurements['obstacle_speed'])
-        self.wp_orientation_array.append(self.episode_measurements['next_orientation'])
-        self.input_steer_array.append(self.episode_measurements['control_steer'])
-        self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
-        self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
-        self.dist_to_trajectory_array.append(self.episode_measurements['dist_to_trajectory'])
-        self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
-
         if not self.config["use_pid_in_frame_skip"]:
             # compute control using PID for each timestep
             control = self.get_control(action)
@@ -714,6 +705,15 @@ class CarlaEnv(gym.Env):
                 self.episode_measurements['control_brake'] = control.brake
                 self.episode_measurements['control_reverse'] = control.reverse
                 self.episode_measurements['control_hand_brake'] = control.hand_brake
+
+            self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
+            self.obstacle_speed_array.append(self.episode_measurements['obstacle_speed'])
+            self.wp_orientation_array.append(self.episode_measurements['next_orientation'])
+            self.input_steer_array.append(self.episode_measurements['control_steer'])
+            self.speeds_array.append(self.episode_measurements['speed'] * 3.6)
+            self.red_light_dist_array.append(self.episode_measurements['red_light_dist'])
+            self.dist_to_trajectory_array.append(self.episode_measurements['dist_to_trajectory'])
+            self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
 
             self.vehicle_actor.apply_control(control)
             world_frame = self._world.tick()
