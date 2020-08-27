@@ -230,7 +230,7 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     is_collision = False
     lane_change = False
     obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
-    is_collision = obs_collision 
+    is_collision = obs_collision
 
     # count out_of_road also as a collision
     if config["enable_lane_invasion_sensor"]:

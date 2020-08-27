@@ -252,12 +252,14 @@ class CarlaEnv(gym.Env):
             elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 406), dtype=np.float32)
+                                        # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                        shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
             elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 408), dtype=np.float32)
+                                        # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                        shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
             elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light':
                 if not self.config["single_channel_image"]:
@@ -949,7 +951,7 @@ class CarlaEnv(gym.Env):
                     if self.config["testing"]:
                         path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
                     else:
-                        path = self.log_dir + 'val_episode_info_plots2/'
+                        path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
                     plot_episode_info(path,
                         self.target_speeds_array,
                         self.speeds_array,
@@ -1574,8 +1576,12 @@ class CarlaEnv(gym.Env):
         # camera.set_attribute('fov', '120')
         camera.set_attribute('fov', '90')
 
-        # camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
+        # Orientation for top-down (BEV) facing camera
         camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+
+        # Orientation for forward-facing camera
+        # camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
         

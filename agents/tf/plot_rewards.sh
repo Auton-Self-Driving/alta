@@ -1,24 +1,24 @@
-# Navigation Old VAE Before NeurIPS
+# # Navigation Old VAE Before NeurIPS
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae --inds 1 2 3 4 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_brake algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_finetune_vae --inds 1 2 3 4 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_collision algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_col_250.0_col_sp_250.0_finetune_vae --inds 1 2 3 4 &
 
-# Navigation New VAE Post NeurIPS
+# # Navigation New VAE Post NeurIPS
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_brake_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_finetune_vae --inds 1 2 3 4 5 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_only_collision_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_col_250.0_col_sp_250.0_finetune_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_collision_fs_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_col_100.0_col_sp_100.0_fs_3_finetune_vae --inds 1 2 3 4 5 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_collision_fs_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_col_100.0_col_sp_100.0_fs_5_finetune_vae --inds 1 2 3 4 5 &
 
-# Dynamic Navigation New VAE Post NeurIPS
+# # Dynamic Navigation New VAE Post NeurIPS
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_w_collision_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_dynamic_navigation_npc_20_brake_col_50.0_col_sp_50.0_finetune_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_w_collision_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_dynamic_navigation_npc_20_brake_col_100.0_col_sp_100.0_finetune_vae --inds 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_w_collision_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_dynamic_navigation_npc_20_brake_col_250.0_col_sp_250.0_finetune_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_w_collision_new_vae algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_dynamic_navigation_npc_20_brake_col_500.0_col_sp_500.0_finetune_vae --inds 1 2 3 &
 
-# Navigation SAC + AE
+# # Navigation SAC + AE
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_sac_ae_runs algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_ae_lr_0.0005_navigation_brake_col_100.0_col_sp_100.0_fs_3_fstack_3_train_vae --inds 1 2 3 &
-# Dynamic Navigation SAC + AE
+# # Dynamic Navigation SAC + AE
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_sac_ae_runs algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_ae_lr_0.0005_dynamic_navigation_npc_20_brake_col_100.0_col_sp_100.0_fs_3_fstack_3_train_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_sac_ae_runs algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_ae_lr_0.0005_dynamic_navigation_npc_20_brake_col_250.0_col_sp_250.0_fs_3_fstack_3_train_vae --inds 1 2 3 &
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_sac_ae_runs algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_ae_lr_0.0005_dynamic_navigation_npc_20_brake_col_500.0_col_sp_500.0_fs_3_fstack_3_train_vae --inds 1 2 3 &
@@ -30,10 +30,15 @@ python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_ru
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_dynamic_navigation_sac_ae_runs algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_ae_lr_0.001_dynamic_navigation_npc_20_brake_col_500.0_col_sp_500.0_fstack_3_train_vae --inds 1 2 3 &
 
 
+# # NeuriIPS new VAE reproduce (Old Code)
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_w_collision_new_vae/updated algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_brake_col_250.0_col_sp_250.0_finetune_vae --inds 1 2 3 4 &
+# # NeuriIPS new VAE reproduce (New Code)
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/neurips_new_vae/updated algo_PPO_input_wp_vae_network_CustomPolicy3_lr_0.0002_navigation_disable_light__disable_obs__col_100.0_col_sp_100.0_finetune_vae_epochs_4__clip_0.2__mb_4_ --inds 1 2 3 4 &
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/neurips_new_vae/updated algo_PPO_input_wp_vae_network_CustomPolicy3_lr_0.0002_navigation_disable_light__disable_obs__col_250.0_col_sp_250.0_finetune_vae_epochs_4__clip_0.2__mb_4_ --inds 1 2 4 &
 
 
-
-
+# Forward Search Motivation Plot
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/long_straight_framestack/wp_obs_info_speed_steer_ldist_goal_light_fixed_scen algo_PPO_input_wp_obs_info_speed_steer_ldist_goal_light_network_2_layer_lr_0.0002_epochs_10__clip_0.1__long_straight_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_n_1000 --inds 1 2 3 4 5 6 &
 
 
 
@@ -55,6 +60,10 @@ python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_ru
 
 # Pretrained AE (16_32_64_64) -> without obstacle info
 python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/16_32_64_64 algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.001_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_finetune_vae_epochs_10__clip_0.2__mb_10_ --inds 1 2 3 &
+# python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/16_32_64_64 algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_ --inds 4 5 6 &
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/16_32_64_64/forward_facing_ss algo_PPO_input_wp_vae_obs_info_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_ --inds 1 2 3 &
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/16_32_64_64/forward_facing_rgb algo_PPO_input_wp_vae_obs_info_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_ --inds 1 2 3 &
+python plot_rewards.py /zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/dynamic_navigation_images/pretrained_ae/16_32_64_64/forward_facing_rgb algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_ --inds 1 2 3 &
 
 
 # CNN (Reduced Image 64x64, Nature_64)
