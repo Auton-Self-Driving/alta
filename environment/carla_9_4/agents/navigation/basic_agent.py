@@ -23,20 +23,26 @@ class BasicAgent(Agent):
     target destination. This agent respects traffic lights and other vehicles.
     """
 
-    def __init__(self, vehicle, target_speed=20):
+    def __init__(self, vehicle, proximity_threshold=10.0, target_speed=20):
         """
 
         :param vehicle: actor to apply to local planner logic onto
         """
         super(BasicAgent, self).__init__(vehicle)
 
-        self._proximity_threshold = 10.0  # meters
+        # self._proximity_threshold = 10.0  # meters
+        self._proximity_threshold = proximity_threshold  # meters
         self._state = AgentState.NAVIGATING
+        # args_lateral_dict = {
+        #     'K_P': 1,
+        #     'K_D': 0.02,
+        #     'K_I': 0,
+        #     'dt': 1.0/20.0}
         args_lateral_dict = {
-            'K_P': 1,
-            'K_D': 0.02,
-            'K_I': 0,
-            'dt': 1.0/20.0}
+            'K_P': 1.95,
+            'K_D': 0.01,
+            'K_I': 1.4,
+            'dt': 1.0/10.0}
         self._local_planner = LocalPlanner(
             self._vehicle, opt_dict={'target_speed' : target_speed,
             'lateral_control_dict':args_lateral_dict})

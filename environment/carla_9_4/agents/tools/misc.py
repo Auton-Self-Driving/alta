@@ -81,15 +81,13 @@ def is_within_distance_ahead_v2(target_transform, current_transform, max_distanc
     norm_target = np.linalg.norm(target_vector)
 
     if norm_target > max_distance:
-        return False, norm_target, None
+        return False, norm_target
 
     fwd = current_transform.get_forward_vector()
     forward_vector = np.array([fwd.x, fwd.y])
     d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
-    crossed_vector = np.cross(target_vector, forward_vector)
-
-    return d_angle < 90.0, norm_target, crossed_vector
+    return d_angle < 90.0, norm_target
 
 
 def compute_magnitude_angle(target_location, current_location, orientation):

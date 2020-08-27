@@ -45,7 +45,7 @@ DEFAULT_ENV = {
     "framestack" : 1,
     "grayscale" : False,
     "num_pedestrians" : 0,
-    "max_steps" : 10000,
+    "max_steps" : 5000,
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -60,7 +60,7 @@ DEFAULT_ENV = {
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
     "sensor_tick": '0.0',
-    "dist_for_success" : 10.0,
+    "dist_for_success" : 20.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 1000,
     "log_measurements_to_file": False,
@@ -115,7 +115,7 @@ DEFAULT_ENV = {
        189, 192, 190, 187, 142, 232,   9, 127, 206, 169,  23, 208,  94,
        218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
        225,  31, 229, 250, 110, 177, 199, 184, 144],
-    "test_fixed_spawn_points" : True,
+    "test_fixed_spawn_points" : False,
     "train_fixed_spawn_points": False,
     "testing" : False,
     "disable_collision" : False,
@@ -134,10 +134,10 @@ DEFAULT_ENV = {
     "num_episodes" : 1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False,
-    "sample_npc": False,
     "test_comparison": False,
     "test_with_automatic_control": False,
-    "updated_scenarios": False
+    "updated_scenarios": False,
+    "sample_npc": True
 }
 
 episode_measurements = {
@@ -217,6 +217,10 @@ episode_measurements = {
 #     7: [10.0, 0.2],
 #     # Brake right
 #     8: [10.0, 0.3],
+<<<<<<< HEAD
+=======
+
+>>>>>>> neurips_wrl_plus_dqn
 #     9: [10.0, 0.4],
 #     10: [10.0, 0.5]
 # }
@@ -241,14 +245,35 @@ episode_measurements = {
 #     9: [18.0, 0.0],
 #     10: [20.0, 0.0]
 # }
+# def get_discrete_actions():
+#     steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
+#     # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+#     # steer = [-0.1, 0.0, 0.1]
+#     # steer = [0.0]
+#     # target_speed = [0, 10, 20]
+#     target_speed = [20]
+#     # target_speed = [0, 20]
+
+#     # Dictionary of discrete (Target_Speed, Steer) actions
+#     action_space = {}
+
+#     n = 0
+#     for i in range(len(target_speed)):
+#         for j in range(len(steer)):
+#             action_space[n] = [target_speed[i], steer[j]]
+#             n = n+1
+    
+#     # action_space[n] = [20, -0.5]
+#     # action_space[n+1] = [20, 0.5]
+#     return action_space
 
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
-    # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
-    steer = [-0.1, 0.0, 0.1]
+    steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+    # steer = [-0.1, 0.0, 0.1]
     # steer = [0.0]
     # target_speed = [0, 10, 20]
-    # target_speed = [10]
+    # target_speed = [20]
     target_speed = [0, 20]
 
     # Dictionary of discrete (Target_Speed, Steer) actions
@@ -259,6 +284,9 @@ def get_discrete_actions():
         for j in range(len(steer)):
             action_space[n] = [target_speed[i], steer[j]]
             n = n+1
+    
+    action_space[n] = [20, -0.5]
+    action_space[n+1] = [20, 0.5]
     return action_space
 
 DISCRETE_ACTIONS = get_discrete_actions()
@@ -285,13 +313,13 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "discrete"
+            # self.config["action_type"] = "control"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "navigation"
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
-            self.config["max_steps"] = 5000
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"

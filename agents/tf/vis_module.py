@@ -33,18 +33,17 @@ class vis():
         overlay = Image.new('RGBA', image.size, (255,255,255,0))
         draw_overlay = ImageDraw.Draw(overlay)
         draw_overlay.text((10, 10), 
-                          "Sp={:0.2f}, TSp={:0.2f}\nTh={:0.2f}, St={:0.2f}\nBr={:0.2f}\nd={:0.2f}\nObs_d={:0.2f},Or={:0.2f}\nObs_s={:0.2f}\nTL={:0.2f},TLo={:0.2f}".format(
+                          "Sp={:0.2f}, TSp={:0.2f}\nTh={:0.2f}, St={:0.2f}\nBr={:0.2f}, Or={:0.2f}\nd={:0.2f}\nObs_d={:0.2f}\nObs_s={:0.2f}\nTL={:0.2f}".format(
                               step_info['speed'] * 3.6, 
                               step_info['target_speed'],
                               step_info['control_throttle'], 
                               step_info['control_steer'], 
                               step_info['control_brake'], 
+                              step_info['orientation'], 
                               step_info['dist_to_trajectory'],
                               step_info['obstacle_dist'],
-                              step_info['obstacle_orientation'],
                               step_info['obstacle_speed'],
-                              step_info['red_light_dist'],
-                              step_info['traffic_light_orientation']),
+                              step_info['red_light_dist']), 
                           fill=(255,255,255,128))
         
         return Image.alpha_composite(image, overlay)
@@ -58,6 +57,7 @@ class vis():
             im_path = os.path.join(self.images_path, img_id+'.png')
             image.save(im_path)
 
+    # @profile
     def generate_video(self, episode_number, total_steps, index):
         file_name = 'Ep_' + str(episode_number) + '_step_' + str(total_steps) + "_ind_" + str(index) + '.mp4'
         vid_path = os.path.join(self.video_path, file_name)
@@ -67,6 +67,7 @@ class vis():
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         gen_vid_process.wait()
 
+    # @profile
     def remove_images(self):
         # rm_img_command = ["rm", "-f", "{}/*.png".format(self.images_path)]
         # rm_img_process = subprocess.Popen(rm_img_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))

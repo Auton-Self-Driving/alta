@@ -98,20 +98,28 @@ class LocalPlanner(object):
         :return:
         """
         # default params
-        self._dt = 1.0 / 20.0
+        # for fs=3 made _dt = 3 /10. Works fine with fs=1 as well
+        self._dt = 3.0 / 10.0
         self._target_speed = 20.0  # Km/h
         self._sampling_radius = self._target_speed * 1 / 3.6  # 1 seconds horizon
         self._min_distance = self._sampling_radius * self.MIN_DISTANCE_PERCENTAGE
         args_lateral_dict = {
-            'K_P': 2.95,
-            'K_D': 0.05,
+            'K_P': 1.95,
+            'K_D': 0.01,
             'K_I': 1.4,
             'dt': self._dt}
+        
         args_longitudinal_dict = {
-            'K_P': 1.0,
-            'K_D': 0,
-            'K_I': 1,
-            'dt': self._dt}
+            'K_P': 0.1,
+            'K_D': 0.0005,
+            'K_I': 0.4,
+            'dt': 1/10.0}
+        
+        # args_longitudinal_dict = {
+        #     'K_P': 1.0,
+        #     'K_D': 0,
+        #     'K_I': 1,
+        #     'dt': self._dt}
 
         # parameters overload
         if opt_dict:
@@ -224,7 +232,8 @@ class LocalPlanner(object):
         self.target_waypoint, self._target_road_option = self._waypoint_buffer[0]
         # move using PID controllers
         control = self._vehicle_controller.run_step(self._target_speed, self.target_waypoint)
-
+        # print(self._vehicle.get_location().x, self._vehicle.get_location().y, self.target_waypoint.transform.location.x, self.target_waypoint.transform.location.y)
+        # print(control)
         # purge the queue of obsolete waypoints
         vehicle_transform = self._vehicle.get_transform()
         max_index = -1

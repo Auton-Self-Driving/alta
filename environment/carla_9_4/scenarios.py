@@ -2050,7 +2050,7 @@ def get_t_junction_path(unseen=False, town="Town01", index=0):
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
     else:
         if town == "Town01":
-            return paths_t_junction_Town01()[index]
+            return paths_t_junction_Town01()[index%2]
         else:
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
         
@@ -2081,6 +2081,87 @@ def get_left_turn(unseen = False):
         return random.choice(paths_left_Town01_test())
     else:
         return random.choice(paths_left_Town01_train())
+
+def paths_long_straight(): 
+    paths = [
+        [
+            # WAYPOINT_DICT_Town01[96],
+            # WAYPOINT_DICT_Town01[17]
+            Transform(Location(x=92.10997772216797, y=320.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+            Transform(Location(x=92.11000061035156, y=10.820009231567383, z=1.32), Rotation(yaw=-90.00029754638672))
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[53]
+            WAYPOINT_DICT_Town01[56]
+        ],
+        [
+            WAYPOINT_DICT_Town01[17],
+            # WAYPOINT_DICT_Town01[46]
+            WAYPOINT_DICT_Town01[44]
+        ]
+    ]
+
+    return paths
+
+def get_long_straight_path(unseen=False, town='Town01', index=0): 
+    # return random.choice(paths_long_straight())
+    return paths_long_straight()[(index % 3)]
+
+def get_long_straight_npcs(): 
+    # npc_list = [
+    #     WAYPOINT_DICT_Town01[15],
+    #     WAYPOINT_DICT_Town01[16], 
+    #     WAYPOINT_DICT_Town01[18],
+    #     WAYPOINT_DICT_Town01[19], 
+    #     WAYPOINT_DICT_Town01[20],
+    #     WAYPOINT_DICT_Town01[22], 
+    #     WAYPOINT_DICT_Town01[23],
+    #     WAYPOINT_DICT_Town01[24], 
+    #     WAYPOINT_DICT_Town01[25], 
+    #     WAYPOINT_DICT_Town01[26], 
+    #     WAYPOINT_DICT_Town01[27],
+    #     WAYPOINT_DICT_Town01[28], 
+    #     WAYPOINT_DICT_Town01[29], 
+    #     WAYPOINT_DICT_Town01[151], 
+    #     WAYPOINT_DICT_Town01[140],
+    #     WAYPOINT_DICT_Town01[128], 
+    #     WAYPOINT_DICT_Town01[129], 
+    #     WAYPOINT_DICT_Town01[96], 
+    #     WAYPOINT_DICT_Town01[107], 
+    # ]
+
+    npc_list = [
+        WAYPOINT_DICT_Town01[17],
+        WAYPOINT_DICT_Town01[15],
+        Transform(Location(x=92.11000061035156, y=50.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
+        Transform(Location(x=92.11000061035156, y=70.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
+        WAYPOINT_DICT_Town01[19], 
+        WAYPOINT_DICT_Town01[22], 
+        WAYPOINT_DICT_Town01[24], 
+        Transform(Location(x=92.11000061035156, y=125.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
+        WAYPOINT_DICT_Town01[26], 
+        WAYPOINT_DICT_Town01[28],
+        Transform(Location(x=92.1099853515625, y=200.88999938964844, z=1.32), Rotation(yaw=-90.00029754638672)), 
+        WAYPOINT_DICT_Town01[140],
+        WAYPOINT_DICT_Town01[118], 
+        Transform(Location(x=92.10997772216797, y=270.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+        Transform(Location(x=92.10997772216797, y=290.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+    ]
+
+
+    # 15: Transform(Location(x=92.11000061035156, y=39.709999084472656, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 17: Transform(Location(x=92.11000061035156, y=30.820009231567383, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 19: Transform(Location(x=92.11000061035156, y=86.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 96: Transform(Location(x=92.10997772216797, y=308.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 24: Transform(Location(x=92.1099853515625, y=113.05999755859375, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 118: Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672)),
+    # 28: Transform(Location(x=92.1099853515625, y=176.88999938964844, z=1.32), Rotation(yaw=-90.00029754638672)),
+
+    random.shuffle(npc_list)
+
+    return npc_list
+
 
 '''
 # Deprecated Helper functions
