@@ -96,9 +96,6 @@ def parse_arguments():
     parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
     parser.add_argument('--disable-lane-termination',dest='disable_lane_termination', action='store_true', help='Whether to disable termination on lane invasion.')
     parser.add_argument('--clipped-DDQN',dest='clipped_DDQN', action='store_true', help='Whether to enable clipped DDQN.')
-    parser.add_argument('--updated-scenarios', dest='updated_scenarios', action='store_true', help='Enable updated scenarios similar to the benchmark defined for CARLA 0.9.6 in LBC(https://arxiv.org/pdf/1912.12294.pdf)')
-    parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
-    parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
     parser.add_argument('--val-bucket',dest='val_bucket',type=int,default=0, help='Bucket for the validation.')
     parser.add_argument('--val-run',dest='val_run',type=int,default=1, help='run for the validation.')
 
@@ -380,7 +377,6 @@ def create_ppo_prefix(args):
         + frame_stack_str \
         + disable_pid_fs_str \
         + clip_reward_str \
-        + disable_light_str \
         + disable_lane_termination_str \
         + clipped_DDQN_str \
         + param_noise_str \
@@ -448,7 +444,6 @@ if __name__ == '__main__':
     config.config["testing"] = args.test
     config.config["use_pid_in_frame_skip"] = not args.disable_pid_fs
     config.config["verbose"] = args.verbose
-    config.config["use_pid_in_frame_skip"] = args.use_pid_fs
     config.config["clip_reward"] = args.clip_reward
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward

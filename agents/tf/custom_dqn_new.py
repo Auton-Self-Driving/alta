@@ -20,7 +20,7 @@ from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.common.vec_env import DummyVecEnv
 import csv, os, sys
 import matplotlib.pyplot as plt
-from guppy import hpy
+# from guppy import hpy
 import psutil
 from environment.carla_9_4.config import DISCRETE_ACTIONS
 import gc

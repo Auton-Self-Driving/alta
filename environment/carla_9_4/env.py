@@ -1131,7 +1131,7 @@ class CarlaEnv(gym.Env):
 
             # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-            d_bool, d_angle, distance = self.is_within_dis  le.get_transform(),
+            d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
                                         self.config['vehicle_proximity_threshold'])
 

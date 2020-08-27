@@ -20,7 +20,6 @@ from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.common.vec_env import DummyVecEnv
 import csv, os
 import matplotlib.pyplot as plt
-from guppy import hpy
 import psutil
 
 def compute_discounted_returns(rewards, gamma):

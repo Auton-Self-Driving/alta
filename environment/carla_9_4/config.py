@@ -217,10 +217,6 @@ episode_measurements = {
 #     7: [10.0, 0.2],
 #     # Brake right
 #     8: [10.0, 0.3],
-<<<<<<< HEAD
-=======
-
->>>>>>> neurips_wrl_plus_dqn
 #     9: [10.0, 0.4],
 #     10: [10.0, 0.5]
 # }

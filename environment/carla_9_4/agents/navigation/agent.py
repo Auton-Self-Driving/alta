@@ -155,7 +155,67 @@ class Agent(object):
                 else:
                     self._last_traffic_light = None
 
-        return (False, None)
+    def find_nearest_traffic_light(self, lights_list, waypoint=None):
+        """
+        Method to check if there is a red light affecting us. This version of
+        the method is compatible with both European and US style traffic lights.
+
+        :param lights_list: list containing TrafficLight objects
+        :return: a tuple given by (bool_flag, traffic_light), where
+                 - bool_flag is True if there is a traffic light in RED
+                   affecting us and False otherwise
+                 - traffic_light is the object itself or None if there is no
+                   red traffic light affecting us
+        """
+
+        # New traffic light waypoint computation logic
+        return self._find_nearest_traffic_light(lights_list)
+
+        # Old traffic light waypoint computation logic
+        # if self._map.name == 'Town01' or self._map.name == 'Town02':
+        #     return self._find_nearest_traffic_light_europe_style(lights_list)
+        # else:
+        #     return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
+        # return (False, None)
+    
+    def _find_nearest_traffic_light_europe_style(self, lights_list):
+        """
+        This method is specialized to check European style traffic lights.
+
+        :param lights_list: list containing TrafficLight objects
+        :return: a tuple given by (bool_flag, traffic_light), where
+                 - bool_flag is True if there is a traffic light in RED
+                  affecting us and False otherwise
+                 - traffic_light is the object itself or None if there is no
+                   red traffic light affecting us
+        """
+        ego_vehicle_location = self._vehicle.get_location()
+        ego_vehicle_waypoint = self._map.get_waypoint(ego_vehicle_location)
+
+        nearest_traffic_light = None
+        nearest_dist_to_light = 100000
+        nearest_crossed_vector = None
+        traffic_light_found = False
+        for traffic_light in lights_list:
+            object_waypoint = self._map.get_waypoint(traffic_light.get_location())
+            if object_waypoint.road_id != ego_vehicle_waypoint.road_id or \
+                    object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+                continue
+
+            light_transform = traffic_light.get_location()
+            status, dist, crossed_vector = is_within_distance_ahead_v2(traffic_light.get_transform(),
+                                        self._vehicle.get_transform(),
+                                        self._traffic_light_proximity_threshold)
+            if status and nearest_dist_to_light > dist:
+                traffic_light_found = True
+                nearest_traffic_light = traffic_light
+                nearest_dist_to_light = dist
+                nearest_crossed_vector = crossed_vector
+        if traffic_light_found:
+            return (nearest_traffic_light, nearest_dist_to_light, nearest_crossed_vector)
+        else:
+            return (None, -1, None)
+
     def _get_trafficlight_trigger_location(self, traffic_light):  # pylint: disable=no-self-use
         """
         Calculates the yaw of the waypoint that represents the trigger volume of the traffic light
@@ -179,7 +239,7 @@ class Agent(object):
 
         return carla.Location(point_location.x, point_location.y, point_location.z)
 
-    def _find_nearest_traffic_light_europe_style(self, lights_list):
+    def _find_nearest_traffic_light(self, lights_list):
         """
         This method is specialized to check European style traffic lights.
 
@@ -195,14 +255,9 @@ class Agent(object):
 
         nearest_traffic_light = None
         nearest_dist_to_light = 100000
-        
+        nearest_crossed_vector = None
         traffic_light_found = False
         for traffic_light in lights_list:
-            # object_waypoint = self._map.get_waypoint(traffic_light.get_location())
-
-            # if object_waypoint.road_id != ego_vehicle_waypoint.road_id or \
-            #         object_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
-            #     continue
             object_location = self._get_trafficlight_trigger_location(traffic_light)
             object_waypoint = self._map.get_waypoint(object_location)
 
@@ -216,89 +271,18 @@ class Agent(object):
             if dot_ve_wp < 0:
                 continue
 
-            # if is_within_distance_ahead(object_waypoint.transform,
-            #                             self._vehicle.get_transform(),
-            #                             self._proximity_threshold):
-            #     if traffic_light.state == carla.TrafficLightState.Red:
-            #         return (True, traffic_light)
-
-
-            status, dist = is_within_distance_ahead_v2(object_waypoint.transform,
+            status, dist, crossed_vector = is_within_distance_ahead_v2(object_waypoint.transform,
                                         self._vehicle.get_transform(),
                                         self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light
                 nearest_dist_to_light = dist
+                nearest_crossed_vector = crossed_vector
         if traffic_light_found:
-            return (nearest_traffic_light, nearest_dist_to_light)
+            return (nearest_traffic_light, nearest_dist_to_light, nearest_crossed_vector)
         else:
-            return (None, -1)
-
-    def _find_nearest_traffic_light_us_style(self, lights_list, waypoint=None, debug=False):
-        """
-        This method is specialized to check US style traffic lights.
-
-        :param lights_list: list containing TrafficLight objects
-        :return: a tuple given by (bool_flag, traffic_light), where
-                 - bool_flag is True if there is a traffic light in RED
-                   affecting us and False otherwise
-                 - traffic_light is the object itself or None if there is no
-                   red traffic light affecting us
-        """
-        ego_vehicle_location = self._vehicle.get_location()
-        ego_vehicle_waypoint = self._map.get_waypoint(ego_vehicle_location)
-
-        if ego_vehicle_waypoint.is_junction:
-            # It is too late. Do not block the intersection! Keep going!
-            return (None, -1)
-
-        if waypoint is not None:
-            if waypoint.is_junction:
-                min_angle = 180.0
-                sel_magnitude = 0.0
-                sel_traffic_light = None
-                for traffic_light in lights_list:
-                    loc = traffic_light.get_location()
-                    magnitude, angle = compute_magnitude_angle(loc,
-                                                               ego_vehicle_location,
-                                                               self._vehicle.get_transform().rotation.yaw)
-                    if magnitude < 60.0 and angle < min(25.0, min_angle):
-                        sel_magnitude = magnitude
-                        sel_traffic_light = traffic_light
-                        min_angle = angle
-
-                if sel_traffic_light is not None:
-                    if debug:
-                        print('=== Magnitude = {} | Angle = {} | ID = {}'.format(
-                            sel_magnitude, min_angle, sel_traffic_light.id))
-
-                    if self._last_traffic_light is None:
-                        self._last_traffic_light = sel_traffic_light
-
-                    if self._last_traffic_light.state == carla.TrafficLightState.Red:
-                        return (self._last_traffic_light, sel_magnitude)
-                else:
-                    self._last_traffic_light = None
-
-        return (None, -1)
-
-    def find_nearest_traffic_light(self, lights_list, waypoint=None):
-        """
-        Method to check if there is a red light affecting us. This version of
-        the method is compatible with both European and US style traffic lights.
-
-        :param lights_list: list containing TrafficLight objects
-        :return: a tuple given by (bool_flag, traffic_light), where
-                 - bool_flag is True if there is a traffic light in RED
-                   affecting us and False otherwise
-                 - traffic_light is the object itself or None if there is no
-                   red traffic light affecting us
-        """
-        if self._map.name == 'Town01' or self._map.name == 'Town02':
-            return self._find_nearest_traffic_light_europe_style(lights_list)
-        else:
-            return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
+            return (None, -1, None)
 
     def _find_nearest_traffic_light_us_style(self, lights_list, waypoint=None, debug=False):
         """
@@ -347,7 +331,7 @@ class Agent(object):
                     self._last_traffic_light = None
 
         return (None, -1, None)
-
+ 
     def _is_vehicle_hazard(self, vehicle_list):
         """
         Check if a given vehicle is an obstacle in our way. To this end we take
