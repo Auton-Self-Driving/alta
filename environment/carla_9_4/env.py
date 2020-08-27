@@ -132,7 +132,7 @@ class CarlaEnv(gym.Env):
         # since sometimes, it causes timeout issues in the beginning
         self._world = self.client.load_world(self.config['city_name'])
 
-        time.sleep(600)
+        # time.sleep(600)
         
         self._world = self.client.get_world()
 
@@ -740,7 +740,6 @@ class CarlaEnv(gym.Env):
             if self.config["algo"] == "AE":
                 next_orientation, self.dist_to_trajectory = 0, 0
             else:
-                next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
                 next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
             self.episode_measurements['next_orientation'] = next_orientation
             self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
