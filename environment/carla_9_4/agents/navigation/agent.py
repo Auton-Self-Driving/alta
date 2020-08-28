@@ -155,6 +155,8 @@ class Agent(object):
                 else:
                     self._last_traffic_light = None
 
+        return (False, None)
+
     def find_nearest_traffic_light(self, lights_list, waypoint=None):
         """
         Method to check if there is a red light affecting us. This version of
@@ -273,7 +275,7 @@ class Agent(object):
 
             status, dist, crossed_vector = is_within_distance_ahead_v2(object_waypoint.transform,
                                         self._vehicle.get_transform(),
-                                        self._proximity_threshold)
+                                        self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light

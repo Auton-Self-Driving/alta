@@ -294,7 +294,7 @@ class ConfigManager(object):
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
-            self.config['max_steps'] = 5000
+            self.config["max_steps"] = 5000
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"

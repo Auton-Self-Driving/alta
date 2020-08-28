@@ -39,7 +39,7 @@ class vis():
                               step_info['control_throttle'], 
                               step_info['control_steer'], 
                               step_info['control_brake'], 
-                              step_info['orientation'], 
+                              step_info['next_orientation'], 
                               step_info['dist_to_trajectory'],
                               step_info['obstacle_dist'],
                               step_info['obstacle_speed'],
