@@ -303,8 +303,9 @@ class GlobalPlanner():
             else:
                 self.dist_to_trajectory = 0
 
-        # TODO: Find the exact distance to goal. Below is an approximation
-        dist_to_goal = len(self._waypoints_queue) *self._hop_resolution
+        # Below is an approximation of dist_to_goal which was used earlier.
+        dist_to_goal_approx = len(self._waypoints_queue) *self._hop_resolution
+        
         return angle, self.dist_to_trajectory, dist_to_goal, next_waypoints, next_waypoints_angles, next_waypoints_vectors
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):

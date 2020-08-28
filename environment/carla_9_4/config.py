@@ -45,7 +45,7 @@ DEFAULT_ENV = {
     "framestack" : 1,
     "grayscale" : False,
     "num_pedestrians" : 0,
-    "max_steps" : 5000,
+    "max_steps" : 10000,
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
@@ -60,7 +60,7 @@ DEFAULT_ENV = {
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
     "sensor_tick": '0.0',
-    "dist_for_success" : 20.0,
+    "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
     "max_static_steps" : 1000,
     "log_measurements_to_file": False,
@@ -241,27 +241,6 @@ episode_measurements = {
 #     9: [18.0, 0.0],
 #     10: [20.0, 0.0]
 # }
-# def get_discrete_actions():
-#     steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
-#     # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
-#     # steer = [-0.1, 0.0, 0.1]
-#     # steer = [0.0]
-#     # target_speed = [0, 10, 20]
-#     target_speed = [20]
-#     # target_speed = [0, 20]
-
-#     # Dictionary of discrete (Target_Speed, Steer) actions
-#     action_space = {}
-
-#     n = 0
-#     for i in range(len(target_speed)):
-#         for j in range(len(steer)):
-#             action_space[n] = [target_speed[i], steer[j]]
-#             n = n+1
-    
-#     # action_space[n] = [20, -0.5]
-#     # action_space[n+1] = [20, 0.5]
-#     return action_space
 
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
@@ -309,13 +288,13 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["train_config"] = "PPO"
             self.config["action_type"] = "discrete"
-            # self.config["action_type"] = "control"
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["scenarios"] = "navigation"
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
+            self.config['max_steps'] = 5000
         elif algo == 'PPO':
             self.config["algo"] = "PPO"
             self.config["reward_function"] = "simple2"

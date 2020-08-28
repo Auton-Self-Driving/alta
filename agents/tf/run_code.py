@@ -94,10 +94,9 @@ def parse_arguments():
     parser.add_argument('--expert-buffer-path',dest='expert_buffer_path',type=str, default=None, help='Expert Agent Model/Buffer path.')
     parser.add_argument('--expert-data-sample-percent',dest='expert_data_sample_percent',type=float,default=0.0, help='Expert Agent data sample percentage out of 100.')
     parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
-    parser.add_argument('--disable-lane-termination',dest='disable_lane_termination', action='store_true', help='Whether to disable termination on lane invasion.')
     parser.add_argument('--clipped-DDQN',dest='clipped_DDQN', action='store_true', help='Whether to enable clipped DDQN.')
-    parser.add_argument('--val-bucket',dest='val_bucket',type=int,default=0, help='Bucket for the validation.')
-    parser.add_argument('--val-run',dest='val_run',type=int,default=1, help='run for the validation.')
+    parser.add_argument('--val-bucket',dest='val_bucket',type=int,default=0, help='Bucket number for the validation. Validation is divided across 3 buckets of models for parallel runs.')
+    parser.add_argument('--val-run',dest='val_run',type=int,default=1, help='Refers to the run number for the validation. Multiple validation runs are done for each seed. Used in parallel validation.')
 
     
 
@@ -200,7 +199,7 @@ def create_ppo_prefix(args):
     #     enable_brake_str = ''
 
     if args.disable_collision != False:
-        disable_collision_str = "_disable_collision"
+        disable_collision_str = "_disable_collision_"
     else:
         disable_collision_str = ''
 
@@ -215,12 +214,12 @@ def create_ppo_prefix(args):
         disable_obstacle_info_str = ''
 
     if args.enable_static != False:
-        enable_static_str = "_enable_static_" + str(args.static_steps)
+        enable_static_str = "_enable_static_" + str(args.static_steps) + "_"
     else:
         enable_static_str = ''
 
     if args.target_freq != 2000:
-        target_freq_str = "_target_freq_" + str(args.target_freq)
+        target_freq_str = "_target_freq_" + str(args.target_freq) + "_"
     else:
         target_freq_str = ''
 
@@ -255,7 +254,7 @@ def create_ppo_prefix(args):
         dqn_n_step_str = ''
 
     if args.agent_model_path is not None:
-        use_pretrained_agent_str = '_pre'
+        use_pretrained_agent_str = '_pretrained_agent_'
     else:
         use_pretrained_agent_str = ''
 
@@ -306,10 +305,15 @@ def create_ppo_prefix(args):
     else:
         clip_reward_str = ''
     
-    if args.disable_lane_termination:
-        disable_lane_termination_str = '_dis_lane'
+    if args.disable_lane_invasion:
+        disable_lane_invasion_str = '_dis_lane'
     else:
-        disable_lane_termination_str = ''
+        disable_lane_invasion_str = ''
+
+    if args.disable_lane_invasion_termination:
+        disable_lane_invasion_termination_str = '_dis_lane_term'
+    else:
+        disable_lane_invasion_termination_str = ''
     
     if args.clipped_DDQN:
         clipped_DDQN_str = '_cDDQN'
@@ -377,7 +381,8 @@ def create_ppo_prefix(args):
         + frame_stack_str \
         + disable_pid_fs_str \
         + clip_reward_str \
-        + disable_lane_termination_str \
+        + disable_lane_invasion_str \
+        + disable_lane_invasion_termination_str \
         + clipped_DDQN_str \
         + param_noise_str \
         + special_sample_str \
@@ -448,7 +453,6 @@ if __name__ == '__main__':
     config.config["reward_normalize_factor"] = args.reward_norm
     config.config["success_reward"] = args.success_reward
     config.config["constant_positive_reward"] = args.constant_reward
-    config.config["updated_scenarios"] = args.updated_scenarios
     config.config["sample_npc"] = not args.disable_sample_npc
 
     try:

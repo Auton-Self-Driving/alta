@@ -281,7 +281,6 @@ class CarlaEnv(gym.Env):
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
         
-        self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
         self.episode_measurements["episode_num"] = 0
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_dist'] = -1
@@ -314,8 +313,6 @@ class CarlaEnv(gym.Env):
         self.wp_orientation_array = []
         self.input_steer_array = []
         self.obstacle_dist_array = []
-        self.orientation_array = []
-        self.obstacle_visible_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
@@ -786,10 +783,8 @@ class CarlaEnv(gym.Env):
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
-            self.orientation_array.append(next_orientation)
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
-            # self.collision_reward_array.append(self.episode_measurements['is_collision'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
 
@@ -849,7 +844,6 @@ class CarlaEnv(gym.Env):
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
-        self.episode_measurements['orientation'] = next_orientation
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
             if self.config["videos"] and self.unseen:
@@ -935,7 +929,7 @@ class CarlaEnv(gym.Env):
                             self.throttles_array,
                             self.steers_array,
                             # self.brakes_array,
-                            self.orientation_array,
+                            self.wp_orientation_array,
                             self.obstacle_dist_array,
                             self.step_reward_array,
                             self.collision_reward_array,
@@ -958,7 +952,7 @@ class CarlaEnv(gym.Env):
                         self.throttles_array,
                         self.steers_array,
                         # self.brakes_array,
-                        self.orientation_array,
+                        self.wp_orientation_array,
                         self.obstacle_dist_array,
                         self.step_reward_array,
                         self.collision_reward_array,
@@ -1015,23 +1009,9 @@ class CarlaEnv(gym.Env):
                 # Save videos now only for validation runs
                 if self.config["videos"] and self.unseen:
                     if self.vis_wrapper is not None:
-                        # self.vis_wrapper.generate_video(self.episode_num)
-                        
-                        for i in range(1):
-                            self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                            
-                            # if i % 100 == 0:
-                            #     process_id = os.getpid()
-                            #     process = psutil.Process(process_id)
-                            #     ram_usage = process.memory_info().rss / (1024*1024*1024)
-                            #     print("Process id: ", process_id, ", RAM (GB) before testing:", ram_usage)
-                            #     from guppy import hpy
-                            #     h=hpy()
-                            #     print(h.heap())
-            
+                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
                         self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
-                        # self.vis_wrapper_vae.generate_video(self.episode_num)
                         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
                         self.vis_wrapper_vae.remove_images()
 
@@ -1740,10 +1720,6 @@ class CarlaEnv(gym.Env):
         self.wp_orientation_array = []
         self.input_steer_array = []
         self.obstacle_dist_array = []
-        self.obstacle_speed_array = []
-        self.dist_to_trajectory_array = []
-        self.orientation_array = []
-        self.obstacle_visible_array = []
         self.step_reward_array = []
         self.collision_reward_array = []
         self.dist_to_trajectory_reward_array = []
