@@ -115,7 +115,7 @@ DEFAULT_ENV = {
        189, 192, 190, 187, 142, 232,   9, 127, 206, 169,  23, 208,  94,
        218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
        225,  31, 229, 250, 110, 177, 199, 184, 144],
-    "test_fixed_spawn_points" : False,
+    "test_fixed_spawn_points" : True,
     "train_fixed_spawn_points": False,
     "testing" : False,
     "disable_collision" : False,
