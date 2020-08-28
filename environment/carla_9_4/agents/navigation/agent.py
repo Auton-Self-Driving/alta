@@ -30,13 +30,18 @@ class Agent(object):
     Base class to define agents in CARLA
     """
 
-    def __init__(self, vehicle, proximity_threshold=10.0):
+    def __init__(self, vehicle, proximity_threshold=10.0, traffic_light_proximity_threshold=10.0, vehicle_proximity_threshold=15.0):
         """
 
         :param vehicle: actor to apply to local planner logic onto
         """
         self._vehicle = vehicle
         self._proximity_threshold = proximity_threshold  # meters
+        self._vehicle_proximity_threshold = vehicle_proximity_threshold
+
+        # Setting _traffic_light_proximity_threshold using the argument proximity_threshold 
+        # as the current codebase uses that to pass in the value
+        self._traffic_light_proximity_threshold = proximity_threshold
         self._local_planner = None
         self._world = self._vehicle.get_world()
         self._map = self._vehicle.get_world().get_map()
@@ -98,7 +103,7 @@ class Agent(object):
             loc = traffic_light.get_location()
             if is_within_distance_ahead(loc, ego_vehicle_location,
                                         self._vehicle.get_transform().rotation.yaw,
-                                        self._proximity_threshold):
+                                        self._traffic_light_proximity_threshold):
                 if traffic_light.state == carla.TrafficLightState.Red:
                     return (True, traffic_light)
 
@@ -173,8 +178,7 @@ class Agent(object):
         #     return self._find_nearest_traffic_light_europe_style(lights_list)
         # else:
         #     return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
-
-
+    
     def _find_nearest_traffic_light_europe_style(self, lights_list):
         """
         This method is specialized to check European style traffic lights.
@@ -202,7 +206,7 @@ class Agent(object):
             light_transform = traffic_light.get_location()
             status, dist, crossed_vector = is_within_distance_ahead_v2(traffic_light.get_transform(),
                                         self._vehicle.get_transform(),
-                                        self._proximity_threshold)
+                                        self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light
@@ -212,6 +216,7 @@ class Agent(object):
             return (nearest_traffic_light, nearest_dist_to_light, nearest_crossed_vector)
         else:
             return (None, -1, None)
+
 
     def _get_trafficlight_trigger_location(self, traffic_light):  # pylint: disable=no-self-use
         """
@@ -270,7 +275,7 @@ class Agent(object):
 
             status, dist, crossed_vector = is_within_distance_ahead_v2(object_waypoint.transform,
                                         self._vehicle.get_transform(),
-                                        self._proximity_threshold)
+                                        self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light
@@ -328,7 +333,7 @@ class Agent(object):
                     self._last_traffic_light = None
 
         return (None, -1, None)
-
+ 
     def _is_vehicle_hazard(self, vehicle_list):
         """
         Check if a given vehicle is an obstacle in our way. To this end we take
@@ -364,7 +369,7 @@ class Agent(object):
             loc = target_vehicle.get_location()
             if is_within_distance_ahead(loc, ego_vehicle_location,
                                         self._vehicle.get_transform().rotation.yaw,
-                                        self._proximity_threshold):
+                                        self._vehicle_proximity_threshold):
                 return (True, target_vehicle)
 
         return (False, None)

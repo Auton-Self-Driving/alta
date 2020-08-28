@@ -2050,7 +2050,7 @@ def get_t_junction_path(unseen=False, town="Town01", index=0):
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
     else:
         if town == "Town01":
-            return paths_t_junction_Town01()[index]
+            return paths_t_junction_Town01()[index%2]
         else:
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
         

@@ -65,7 +65,6 @@ class CollisionSensor(object):
         if not self:
             return
         # actor_type = get_actor_display_name(event.other_actor)
-        
         actor_type = event.other_actor.type_id
         if 'road' not in actor_type:
             self.actor_id = event.other_actor.id

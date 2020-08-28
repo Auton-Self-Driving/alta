@@ -84,6 +84,21 @@ def parse_arguments():
     parser.add_argument('--success-reward', dest='success_reward', type=int, default=0, help='Constant reward to add on success.')
     parser.add_argument('--dqn-n-step',dest='dqn_n_step',type=int,default=1, help='n in n-step DQN. n=1 corresponds to standard DQN.')
     parser.add_argument('--constant-reward', dest='constant_reward', type=int, default=0, help='Constant reward to add on each time step.')
+    parser.add_argument('--ebu', dest='ebu', action='store_true', help='Episodic backward update.')
+    parser.add_argument('--ebu-beta',dest='ebu_beta',type=float,default=0.5)
+    parser.add_argument('--exp-final-eps',dest='exp_final_eps',type=float,default=0.05)
+    parser.add_argument('--opt-epochs', dest='opt_epochs', type=int, default=5, help='Number of optimization epochs in DQN.')
+    parser.add_argument('--train-from-scratch', dest='train_from_scratch', action='store_true', help='Train from scratch using a pretrained model.')
+    parser.add_argument('--val-trials', dest='val_trials', type=int, default=25, help='No of validation trials.')
+    parser.add_argument('--gen-expert-data', dest='gen_expert_data', action='store_true', help='Generate expert data.')
+    parser.add_argument('--expert-buffer-path',dest='expert_buffer_path',type=str, default=None, help='Expert Agent Model/Buffer path.')
+    parser.add_argument('--expert-data-sample-percent',dest='expert_data_sample_percent',type=float,default=0.0, help='Expert Agent data sample percentage out of 100.')
+    parser.add_argument('--reduce-filename', dest='reduce_filename', action='store_true', help='reduce final name by removing fixed parameters')
+    parser.add_argument('--clipped-DDQN',dest='clipped_DDQN', action='store_true', help='Whether to enable clipped DDQN.')
+    parser.add_argument('--val-bucket',dest='val_bucket',type=int,default=0, help='Bucket number for the validation. Validation is divided across 3 buckets of models for parallel runs.')
+    parser.add_argument('--val-run',dest='val_run',type=int,default=1, help='Refers to the run number for the validation. Multiple validation runs are done for each seed. Used in parallel validation.')
+
+    
 
     return parser.parse_args()
 def main(args):
@@ -128,42 +143,47 @@ def create_ppo_prefix(args):
     else:
         num_npc_str = ""
 
-    if args.buffer_size != 50000:
+    if args.buffer_size != 1000000:
         buffer_size_str = '_buffer_' + str(args.buffer_size)
     else:
         buffer_size_str = ""
 
     if args.reward_norm != 1:
-        reward_norm_str = '_rew_norm_' + str(args.reward_norm)
+        reward_norm_str = '_r_norm_' + str(args.reward_norm)
     else:
         reward_norm_str = ""
     
     if args.success_reward != 0:
-        success_reward_str = '_successr_' + str(args.success_reward)
+        success_reward_str = '_suc_r_' + str(args.success_reward)
     else:
         success_reward_str = ""
 
     if args.constant_reward != 0:
-        constant_reward_str = '_constantr_' + str(args.constant_reward)
+        constant_reward_str = '_const_r_' + str(args.constant_reward)
     else:
         constant_reward_str = ""
     
-    if args.const_collision_penalty != 0:
+    if args.opt_epochs != 5:
+        opt_epochs_str = '_optep_' + str(args.opt_epochs)
+    else:
+        opt_epochs_str = ""
+    
+    if args.const_collision_penalty != 0 and not args.reduce_filename:
         const_collision_penalty_str = '_col_' + str(args.const_collision_penalty)
     else:
         const_collision_penalty_str = ""
     
-    if args.collision_penalty_speed_coeff != 0:
+    if args.collision_penalty_speed_coeff != 0 and not args.reduce_filename:
         collision_penalty_speed_coeff_str = '_col_sp_' + str(args.collision_penalty_speed_coeff)
     else:
         collision_penalty_speed_coeff_str = ""
-
-    if args.const_light_penalty != 0:
+    
+    if args.const_light_penalty != 0 and not args.reduce_filename:
         const_light_penalty_str = '_light_' + str(args.const_light_penalty)
     else:
         const_light_penalty_str = ""
 
-    if args.light_penalty_speed_coeff != 0:
+    if args.light_penalty_speed_coeff != 0 and not args.reduce_filename:
         light_penalty_speed_coeff_str = '_light_sp_' + str(args.light_penalty_speed_coeff)
     else:
         light_penalty_speed_coeff_str = ""
@@ -243,27 +263,6 @@ def create_ppo_prefix(args):
     else:
         ae_lr_str = ''
 
-    if args.clip_reward:
-        clip_reward_str = '_clip_reward_'
-    else:
-        clip_reward_str = ''
-    
-    if args.param_noise:
-        param_noise_str = '_param_noise_'
-    else:
-        param_noise_str = ''
-    
-    if args.special_sample:
-        special_sample_str = '_special_sample_'
-    else:
-        special_sample_str = ''
-    
-    if args.prioritized_replay:
-        prioritized_replay_str = '_prioritized_replay_'
-    else:
-        prioritized_replay_str = ''
-
-
     if args.disable_pid_fs:
         disable_pid_fs_str = '_disable_pid_fs_'
     else:
@@ -280,17 +279,91 @@ def create_ppo_prefix(args):
     noptepochs_str = '_epochs_{}_'.format(args.no_epochs)
     clip_str = '_clip_{}_'.format(args.clip)
     no_minibatches_str = '_mb_{}_'.format(args.no_minibatches)
+    
+    if args.ebu_beta != 0.5:
+        ebu_beta_str = '_beta' + str(args.ebu_beta)
+    else:
+        ebu_beta_str = ''
+    
+    if args.expert_data_sample_percent != 0.0 and args.expert_buffer_path is not None:
+        expert_data_sample_percent_str = '_expert_' + str(args.expert_data_sample_percent)
+    else:
+        expert_data_sample_percent_str = ''
+
+    if args.exp_final_eps != 0.05:
+        exp_final_eps_str = '_exp_' + str(args.exp_final_eps)
+    else:
+        exp_final_eps_str = ''
+    
+    # if args.use_pid_fs and not args.reduce_filename:
+    #     use_pid_fs_str = '_pid_fs'
+    # else:
+    #     use_pid_fs_str = ''
+    
+    if args.clip_reward:
+        clip_reward_str = '_clip_reward'
+    else:
+        clip_reward_str = ''
+    
+    if args.disable_lane_invasion:
+        disable_lane_invasion_str = '_dis_lane'
+    else:
+        disable_lane_invasion_str = ''
+
+    if args.disable_lane_invasion_termination:
+        disable_lane_invasion_termination_str = '_dis_lane_term'
+    else:
+        disable_lane_invasion_termination_str = ''
+    
+    if args.clipped_DDQN:
+        clipped_DDQN_str = '_cDDQN'
+    else:
+        clipped_DDQN_str = ''
+    
+    if args.param_noise:
+        param_noise_str = '_param_noise'
+    else:
+        param_noise_str = ''
+    
+    if args.special_sample:
+        special_sample_str = '_ss'
+    else:
+        special_sample_str = ''
+    
+    if args.ebu:
+        ebu_str = '_ebu'
+    else:
+        ebu_str = ''
+
+    if args.train_from_scratch:
+        train_from_scratch_str = '_tfs'
+    else:
+        train_from_scratch_str = ''
+    
+    if args.prioritized_replay:
+        prioritized_replay_str = 'per'
+    else:
+        prioritized_replay_str = ''
+    
+    if not args.reduce_filename:
+        nw_str = '_nw_' + str(args.network)
+    else:
+        nw_str = ''
 
     prefix = 'algo_' + args.algo \
         + binarized_image_str \
         + single_img_str \
         + enable_search_str \
         + '_input_' + input_type \
-        + '_network_' + str(args.network) \
+        + nw_str \
         + '_lr_' + str(args.lr)  \
         + ae_lr_str \
+        + ebu_beta_str \
+        + expert_data_sample_percent_str \
+        + exp_final_eps_str \
         + '_' + args.scenarios \
         + use_pretrained_agent_str \
+        + train_from_scratch_str \
         + num_npc_str \
         + buffer_size_str \
         + disable_collision_str \
@@ -308,8 +381,12 @@ def create_ppo_prefix(args):
         + frame_stack_str \
         + disable_pid_fs_str \
         + clip_reward_str \
+        + disable_lane_invasion_str \
+        + disable_lane_invasion_termination_str \
+        + clipped_DDQN_str \
         + param_noise_str \
         + special_sample_str \
+        + ebu_str \
         + prioritized_replay_str \
         + n_steps_str \
         + dqn_n_step_str \
@@ -408,7 +485,7 @@ if __name__ == '__main__':
             prefix = create_ppo_prefix(args)
             test_pid_method(args, prefix, config)
         elif args.algo == "DQN":
-            if args.test or args.train_buffer:
+            if args.test or args.train_buffer or args.validation:
                 prefix = extract_prefix(args) 
             else:
                 prefix = create_ppo_prefix(args)

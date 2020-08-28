@@ -2,6 +2,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplay
 import numpy as np
 import random
 from stable_baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
+import gc
 
 class Custom_ReplayBuffer(ReplayBuffer):
     '''
@@ -72,6 +73,11 @@ class Custom_ReplayBuffer(ReplayBuffer):
             
             if time_to_termination_p < self._max_time_to_termination:
                 self._time_to_termination_idx[time_to_termination_p].remove(self._next_idx)
+
+            del data_popped
+            del obs_t_p
+            del obs_tp1_p
+            # gc.collect()
 
         # Add to index lists
         if done:
@@ -155,6 +161,38 @@ class Custom_ReplayBuffer(ReplayBuffer):
         idxes = random.sample(final_list, batch_size)
         return self._encode_sample(idxes)
 
+    def sample_random_episode(self, batch_size):
+
+        '''
+        Sample random episode method following Episodic Backward Update (EBU) paper.
+        Code is based on EBU codebase.
+        '''
+
+        terminal_array = self._done_idx
+
+        batchnum = 0
+        while batchnum == 0:
+            # exclude some early and final episodes from sampling due to indexing issues,
+            # sample two episodes (ind1 for main, and ind2 for the remaining steps to make multiple of 32)
+            ind = random.sample(range(5,len(terminal_array)-3), 2)
+            ind1 = ind[0]
+            ind2 = ind[1]
+
+            # NOTE: Custom change: Removed +3 from terminal_array[ind1-1]+3 to include complete episode
+            # Perhaps EBU code had a stack of 3 frames, so it had +3 in it.
+            indice_array = range(terminal_array[ind1],terminal_array[ind1-1],-1)
+            epi_len = len(indice_array)
+            batchnum = int(np.ceil(epi_len/float(batch_size)))
+
+        remainindex = int(batchnum * batch_size - epi_len)
+
+        # Normally an episode does not have steps=multiple of 32.
+        # Fill last minibatch with redundant steps from another episode
+        indice_array= np.append(indice_array, range(terminal_array[ind2], terminal_array[ind2]-remainindex, -1))
+        indice_array = indice_array.astype(int)
+        idxes = list(indice_array)
+
+        return batchnum, self._encode_sample(idxes)
 
 class Custom_PrioritizedReplayBuffer(Custom_ReplayBuffer):
 
@@ -191,13 +229,11 @@ class Custom_PrioritizedReplayBuffer(Custom_ReplayBuffer):
         :param done: (bool) is the episode done
         :param info: (int) episode termination code
         """
-        data = (obs_t, action, reward, obs_tp1, done, term_state, time_to_termination)
 
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-        else:
-            self._storage[self._next_idx] = data
-        self._next_idx = (self._next_idx + 1) % self._maxsize
+        idx = self._next_idx
+        super().add(obs_t, action, reward, obs_tp1, done, term_state, time_to_termination)
+        self._it_sum[idx] = self._max_priority ** self._alpha
+        self._it_min[idx] = self._max_priority ** self._alpha
 
     def _sample_proportional(self, batch_size):
         res = []
