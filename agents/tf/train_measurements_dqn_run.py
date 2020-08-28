@@ -13,7 +13,8 @@ import tensorboard_logging as tf_log
 
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
-from stable_baselines.deepq.policies import MlpPolicy
+# from stable_baselines.deepq.policies import MlpPolicy
+from dqn_custom_policies import MlpPolicy
 from stable_baselines import DQN
 # from custom_dqn import Custom_DQN
 from custom_dqn_new import Custom_DQN, test
