@@ -92,7 +92,7 @@ pip install -e .
 ```
 srun --gres gpu:1 --pty $SHELL (Skip this if not using SLURM)
 cd $ALTA/agents/tf
-python run_code.py --algo PPO --input-type wp --network 2_layer --base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/' --scenarios navigation --timesteps 1000000 --n-steps 1000 --carla-gpu 0 --code-gpu 0 --lr 2e-4 --run-id 1 &
+python run_code.py --algo PPO --input-type wp --network 2_layer --base-log-dir '../../../alta-logs/' --scenarios navigation --timesteps 1000000 --n-steps 1000 --carla-gpu 0 --code-gpu 0 --lr 2e-4 --run-id 1 &
 ````
 
 ## Contact
