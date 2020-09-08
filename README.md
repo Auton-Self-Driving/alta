@@ -1,11 +1,19 @@
 # Agents Learning to Act (alta)
 
 Webpage: https://sites.google.com/view/rl4ad/
-Stored models directory on Auton Cluster: /zfsauton/datasets/ArgoRL
+
 Thesis Documents: 
-* [Tanmay Agarwal, Jeff Schneider](https://www.ri.cmu.edu/publications/on-policy-reinforcement-learning-for-learning-to-drive-in-urban-settings/)
-* [Hitesh Arora, Jeff Schneider](https://www.ri.cmu.edu/publications/off-policy-reinforcement-learning-for-autonomous-driving/)
-* Scripts directory to run thesis models (PPO: alta/agents/tf/run_scripts/ppo/thesis, DQN: alta/agents/tf/run_scripts/dqn/thesis)
+
+* [On-Policy Reinforcement Learning for Learning to Drive in Urban Settings - Tanmay Agarwal, Jeff Schneider](https://www.ri.cmu.edu/publications/on-policy-reinforcement-learning-for-learning-to-drive-in-urban-settings/)
+
+* [Off-Policy Reinforcement Learning for Autonomous Driving - Hitesh Arora, Jeff Schneider](https://www.ri.cmu.edu/publications/off-policy-reinforcement-learning-for-autonomous-driving/)
+
+Reproduce thesis results:
+
+* Scripts directory to run thesis models (**PPO**: alta/agents/tf/run_scripts/ppo/thesis, **DQN**: alta/agents/tf/run_scripts/dqn/thesis)
+
+* Thesis saved models directory on **Auton Cluster**: /zfsauton/datasets/ArgoRL
+
 
 ## Setup Instructions
 
