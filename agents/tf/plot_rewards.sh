@@ -356,6 +356,15 @@ python plot_rewards.py \
 --title 'DN with CDDQN (scratch, nn256-128-64, fs2, n=3, uniform)' \
 --inds 1 2 3 &
 
+/run/user/1000/gvfs/sftp:host=lop2.autonlab.org,user=hiteshar/zfsauton2/home/hiteshar/local_scratch5/gpu15/research/alta-logs/autobot-logs/cddqn_dynamic_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1/results_arrays.npz
+
+python plot_rewards.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/autobot-logs/cddqn_dynamic_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1' \
+--title 'DN with CDDQN (scratch, nn256-128-64, fs2, n=3, ss)' \
+--inds 1 2 3 &
+
+
 python plot_rewards.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/autobot-logs/cddqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/steer7_throttle_0_20_ac12' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
@@ -381,7 +390,7 @@ python plot_rewards.py \
 
 
 python plot_combined.py \
---log-path '/home/hiteshar/alta-logs/thesis_dqn_results' \
+--log-path '/home/hiteshar/alta-logs/thesis_dqn_results_new_run_longer' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --success-title 'Success Rate (DDQN Agent)' \
 --reward-title 'Cumulative Reward (DDQN Agent)' \
@@ -390,7 +399,7 @@ python plot_combined.py \
 
 
 python plot_combined.py \
---log-path '/home/hiteshar/alta-logs/thesis_cddqn_results' \
+--log-path '/home/hiteshar/alta-logs/thesis_cddqn_results_new_run_longer' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --success-title 'Success Rate (cDDQN Agent)' \
 --reward-title 'Cumulative Reward (cDDQN Agent)' \
@@ -415,7 +424,7 @@ python plot_combined_expert.py \
 --inds 1 2 3 &
 
 python plot_combined_expert_target.py \
---log-path '/home/hiteshar/alta-logs/thesis_expert50_target' \
+--log-path '/home/hiteshar/alta-logs/thesis_expert50_target_new_run_longer' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --success-title 'DDQN-Expert-50 Agent' \
 --reward-title 'DDQN-Expert-50 Agent' \
@@ -423,7 +432,7 @@ python plot_combined_expert_target.py \
 --inds 1 2 3 &
 
 python plot_combined_expert_target.py \
---log-path '/home/hiteshar/alta-logs/thesis_expert25_target' \
+--log-path '/home/hiteshar/alta-logs/thesis_expert25_target_new_run_longer' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --success-title 'DDQN-Expert-25 Agent' \
 --reward-title 'DDQN-Expert-25 Agent' \
@@ -496,7 +505,7 @@ python plot_average_qvalues.py \
 python plot_average_qvalues.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/cddqn_lstjunc_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_1/Validation_qvalue_plots_buffer/' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
---success-title 'Average Episodic Q-values over Training' \
+--success-title 'Average Episodic Q-values over Training (cDDQN-Backward)' \
 --reward-title 'Cumulative Reward (cDDQN Agent)' \
 --fs 2 \
 --inds 1 2 3 &
@@ -514,11 +523,19 @@ python plot_average_qvalues.py \
 python plot_average_qvalues.py \
 --log-path '/home/scratch/hiteshar/research/alta-logs/cddqn_lstjunc_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/Validation_qvalue_plots_buffer/' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
---success-title 'Average Episodic Q-values over Training' \
+--success-title 'Average Episodic Q-values over Training (cDDQN-Backward)' \
 --reward-title 'Cumulative Reward (cDDQN Agent)' \
 --fs 2 \
 --inds 1 2 3 &
 
+
+python plot_average_qvalues.py \
+--log-path '/home/scratch/hiteshar/research/alta-logs/cddqn_lstjunc_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'Clipped-DDQN-Backward' \
+--reward-title 'Cumulative Reward (cDDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
 
 Average Episodic Q-values over Training
 
@@ -618,6 +635,7 @@ python plot_average_qvalues.py \
 --fs 2 \
 --inds 1 2 3 &
 
+sftp://hiteshar@lop2.autonlab.org/zfsauton2/home/hiteshar/local_scratch5/gpu6/research/alta-logs/cddqn_lstjunc_nav_steer7_speed_0_20_ac12_fs2_ss_nn256_128_64/steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_lr_1e-05_exp_0.1_long_straight_npc_10_target_freq_10000_steer_pen_2.0_fs_2_cDDQN_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/mean_success.png
 
 # gpu3 long st ss 
 python plot_average_qvalues.py \
@@ -747,6 +765,36 @@ python plot_average_qvalues.py \
 --fs 5 \
 --inds 1 2 3 &
 
+sftp://hiteshar@carla.auton.cs.cmu.edu/media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/E_1013222_t_5473892_i_5_v_318_qvalues.png
+
+python plot_average_qvalues.py \
+--log-path '/media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'DDQN-Backward' \
+--reward-title 'Cumulative Reward (DDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
+python plot_average_qvalues.py \
+--log-path '/media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_1/Validation_qvalue_plots_buffer/' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'Average Episodic Q-values over Training (DDQN-Backward)' \
+--reward-title 'Cumulative Reward (DDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
+sftp://hiteshar@carla.auton.cs.cmu.edu/media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/E_1013446_t_5553782_i_0_v_319_qvalues_array.npz
+python plot_qvalues.py \
+--log-path '/media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_ss_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_2/Validation_qvalue_plots_buffer/' \
+--run-path 'E_1013446_t_5553782_i_0_v_319_qvalues_array.npz' \
+--success-title 'Success Rate (cDDQN Agent)' \
+--reward-title 'Cumulative Reward (cDDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
 
 /media/hdd/hiteshar/new-alta-logs/dqn_lstjunc_steer7_speed_0_20_ac12_fs3_ss_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_ss_dqn_n_3_r_norm_24_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_long_straight_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_3_pid_fs_ss_dqn_n_3_r_norm_24_suc_r_75_const_r_1_optep_1_runid_1/Validation_qvalue_plots_buffer/E_0_t_0_i_0_v_1_qvalues.png
 
@@ -833,6 +881,15 @@ python plot_combined.py \
 --log-path '/home/hiteshar/alta-logs/thesis_dqn_val_results_new' \
 --run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
 --success-title 'Success Rate (DDQN Agent)' \
+--reward-title 'Cumulative Reward (DDQN Agent)' \
+--fs 2 \
+--inds 1 2 3 &
+
+
+python plot_combined_lst_junc.py \
+--log-path '/home/hiteshar/alta-logs/thesis_lst_junc' \
+--run-path 'algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1' \
+--success-title 'Success Rate: DDQN vs Clipped-DDQN Agent' \
 --reward-title 'Cumulative Reward (DDQN Agent)' \
 --fs 2 \
 --inds 1 2 3 &

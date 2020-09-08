@@ -510,7 +510,8 @@ def run_dqn(args, prefix, config):
                         kwargs = {}
                         kwargs["skip_optimizer_state_load"] = True
                         model = Custom_DQN.load(model_file, dummy_env, **kwargs)
-                        total_reward, success_episodes, results, data = test(model, env, path=ALTA_LOGS)
+                        validation_plots_path = os.path.join(ALTA_LOGS, "validation_plots")
+                        total_reward, success_episodes, results, data = test(model, env, path=validation_plots_path)
                         # total_reward, success_episodes, results, data = 0, 0, 0, [0]*13
 
                         # collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
