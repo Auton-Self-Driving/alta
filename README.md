@@ -1,6 +1,8 @@
 # alta
 Agents Learning to Act
 
+Below are the instructions to setup and run the code.
+
 1. Change to home directory ($HOME).
 
 Commands:
@@ -32,7 +34,7 @@ wget "https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh"
 bash Anaconda3*
 
 
-4. Git clone alta repository and switch to latest_v2_tanmaya branch. 
+4. Git clone alta repository and switch to 'master' branch. 
 
 Commands:
 
@@ -44,7 +46,7 @@ git clone https://github.com/Auton-Self-Driving/alta.git
 
 cd alta
 
-git checkout latest_v2_tanmaya
+git checkout master
 
 
 5. Install conda environment 'carla9.4_py35' from environment.yml file.
@@ -69,6 +71,7 @@ export CPLUS_INCLUDE_PATH=$LIBS/libjpeg8/include:$LIBS/libpng/include:$LIBS/libj
 export CARLA_9_4_PATH=$HOME/carla96
 conda activate carla9.4_py35
 
+(Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.6 in the latest version.)
 
 6b. Execute bashrc file if not already done or if conda environment 'carla9.4_py35' is not active. 
 
@@ -92,8 +95,12 @@ For Slurm Cluster,
 
 Commands:
 
-srun --gres gpu:1 --pty $SHELL
+srun --gres gpu:1 --pty $SHELL (Skip this if not using SLURM)
 
 cd $ALTA/agents/tf
 
 python run_code.py .......
+
+
+
+For more details like thesis document and slides, kindly refer to our webpage (https://sites.google.com/view/rl4ad/)
