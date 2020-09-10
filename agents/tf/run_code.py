@@ -2,10 +2,12 @@ import argparse
 import sys, os
 
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+sys.path.append('../../../')
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
+from train_resnet_ppo_run import run_ppo_resnet
 from test_pid import test_pid_method
 from test_with_automatic_control import run_test_comparison
 from train_measurements_dqn_run import run_dqn
@@ -478,6 +480,8 @@ if __name__ == '__main__':
                     run_ppo(args, prefix, config)
                 elif args.input_type in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
                     run_ppo_vae(args, prefix, config)
+                elif args.input_type in ['wp_resnet']:
+                    run_ppo_resnet(args, prefix, config)
                 else:
                     print("specify correct input_type: wp, wp_vae")
                     print("exiting")

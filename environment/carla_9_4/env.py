@@ -29,7 +29,7 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 import scipy.misc
-from scipy.misc import imsave
+#from scipy.misc import imsave
 from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
@@ -254,7 +254,11 @@ class CarlaEnv(gym.Env):
                                         high=np.finfo(np.float32).max,
                                         # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
                                         shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
-
+            elif self.config["input_type"] == 'wp_resnet':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 30723), dtype=np.float32)
+            #Why not normalize the output of the network to have restricted range on the Box?
             elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -828,6 +832,12 @@ class CarlaEnv(gym.Env):
             else:
                 visual_observation = stacked_observation
         
+        if self.config["input_type"] == 'wp_resnet':
+            rgb_image = sensor_image
+            encoded_observation = self.Resnet_Class.forward(rgb_image)
+            encoded_observation = [encoded_observation.flatten()]
+            obs['rgb_image'] = rgb_image
+
         if self.config["input_type"] == "ae_train":
             semantic_image = sensor_image[:,:,0]
             obs['semantic_image'] = semantic_image
@@ -862,8 +872,9 @@ class CarlaEnv(gym.Env):
                     # Logic for combined videos
                     # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper.save_image(temp_image, self.num_steps)
-                    
-                    if self.config["semantic"]:
+                    if self.config["input_type"] == "wp_resnet":
+                        self.vis_wrapper.save_pil_image(obs['image'].astype(np.uint8), self.num_steps, self.episode_measurements)
+                    elif self.config["semantic"]:
                         self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
                         self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
@@ -1036,6 +1047,10 @@ class CarlaEnv(gym.Env):
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             return observation, reward, done, self.episode_measurements
+        elif self.config["input_type"] == "wp_resnet":
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, observation])
+            return fused_input, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
     
@@ -1226,6 +1241,9 @@ class CarlaEnv(gym.Env):
     def set_vae(self, vae):
         self.vae = vae
     
+    def set_resnet(self, Resnet_Class):
+        self.Resnet_Class = Resnet_Class
+
     def vae_observation(self, observation_image):
         if self.config["train_vae"]:
             self.vae.buffer_append(observation_image)
@@ -1549,6 +1567,11 @@ class CarlaEnv(gym.Env):
         else:
             sensor = self.config['sensors'][0]
 
+        if self.config["input_type"] == "wp_resnet":
+            sensor = self.config['sensors'][0]
+            self.config['sensor_x_res']='384'
+            self.config['sensor_y_res']='160'
+
         camera = self.blueprint_library.find(sensor)
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
@@ -1558,6 +1581,9 @@ class CarlaEnv(gym.Env):
 
         # Orientation for top-down (BEV) facing camera
         camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        
+        if self.config["input_type"] == "wp_resnet":
+            camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0))
 
         # Orientation for forward-facing camera
         # camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
@@ -1697,6 +1723,12 @@ class CarlaEnv(gym.Env):
             else:
                 visual_observation = stacked_observation
 
+        if self.config["input_type"] == 'wp_resnet':
+            rgb_image = image
+            encoded_observation = self.Resnet_Class.forward(rgb_image)
+            encoded_observation = [encoded_observation.flatten()]
+            obs['rgb_image'] = rgb_image
+
 
         if self.config["input_type"] == "ae_train":
             semantic_image = image[:,:,0]
@@ -1753,6 +1785,10 @@ class CarlaEnv(gym.Env):
         
             observation = np.expand_dims(obs['observation'], axis = 0)
             return observation
+        elif self.config["input_type"] == "wp_resnet":
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([encoded_observation, observation])
+            return fused_input
         else:
             return obs
 

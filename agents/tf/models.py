@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib.layers import xavier_initializer
-from stable_baselines.common.policies import BasePolicy, register_policy, mlp_extractor
+from stable_baselines.common.policies import BasePolicy, register_policy, mlp_extractor, CnnPolicy
 from stable_baselines.a2c.utils import conv, linear, conv_to_fc, batch_to_seq, seq_to_batch, lstm
 from stable_baselines.common.distributions import CategoricalProbabilityDistribution, \
     MultiCategoricalProbabilityDistribution, DiagGaussianProbabilityDistribution, BernoulliProbabilityDistribution
@@ -588,3 +588,127 @@ class CnnPolicy(FeedForwardPolicy):
                                                                     self.logstd, self.mean],
                                                    {self.obs_ph: obs})
             return action, value, self.initial_state, neglogp, logstd, mean
+
+
+#RUN 11,12,13 WITH CAPPED NEG REWARD
+class CustomResnetPolicy(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomResnetPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.relu
+
+            measurement_features = self.processed_obs[:, :, -3:]
+            # RUN 6,7,8 WITH DIST TO TRAJ REWARD
+            #measurement_features = tf.concat([measurement_features, measurement_features], axis=2)
+            #measurement_features = tf.concat([measurement_features, measurement_features], axis=2)
+            #measurement_features = tf.concat([measurement_features, measurement_features], axis=2)
+            #measurement_features = tf.concat([measurement_features, measurement_features], axis=2)
+            #measurement_features = tf.concat([measurement_features, measurement_features], axis=2)
+            res_features = self.processed_obs[:, :, :-3]
+            res_features_2d = tf.reshape(res_features,[tf.shape(res_features)[0],5,12,512])
+
+            #Policy Net
+            feats1 = activ(conv(res_features_2d,"pi_conv_1",n_filters=32, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"pi_conv_2",n_filters=48, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            pi_h = activ(linear(feats_flat, "pi_fc", 128, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 128])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc_speed_steer", 64, init_scale=np.sqrt(2)))
+
+            #Value Net
+            feats1 = activ(conv(res_features_2d,"vf_conv_1",n_filters=32, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"vf_conv_2",n_filters=48, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            vf_h = activ(linear(feats_flat, "vf_fc", 128, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(pi_h, [-1, 1, 128])
+            features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            vf_latent = activ(linear(features, "vf_fc_speed_steer", 64, init_scale=np.sqrt(2)))
+
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+### RESNET MODEL - 512, 5, 12 - 36k 
+
+### 1x1 Conv - 32 Channels - 
+### Conv - 3x3 Kernel
+### Flatten                                      8 feats - 512
+### Linear                                       Linear (64) - (Nav)
+### Append - WP 
+### Linear  (Nav * 64)                                Linear (64) - 64*64
+### - PPO -                                 
+### 10k Parameters
+### RUN 3,4,5 # WITH DIST TO TRAJ REWARD.
+'''
+class CustomResnetPolicy(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomResnetPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.relu
+            
+            measurement_features = self.processed_obs[:, :, -3:]
+            res_features = self.processed_obs[:, :, :-3]
+            res_features_2d = tf.reshape(res_features,[tf.shape(res_features)[0],5,12,512])
+            
+            #Policy Net
+            feats1 = activ(conv(res_features_2d,"pi_conv_1",n_filters=32, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"pi_conv_2",n_filters=48, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            pi_h = activ(linear(feats_flat, "pi_fc", 128, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 128])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc_speed_steer", 64, init_scale=np.sqrt(2)))
+            #Value Net
+            feats1 = activ(conv(res_features_2d,"vf_conv_1",n_filters=32, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"vf_conv_2",n_filters=48, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            vf_h = activ(linear(feats_flat, "vf_fc", 128, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(pi_h, [-1, 1, 128])
+            features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            vf_latent = activ(linear(features, "vf_fc_speed_steer", 64, init_scale=np.sqrt(2)))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+        self._value_fn = value_fn
+        self._setup_init()
+'''
+### RUN 10
+'''
+class CustomResnetPolicy(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomResnetPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.relu
+            
+            measurement_features = self.processed_obs[:, :, -3:]
+            res_features = self.processed_obs[:, :, :-3]
+            res_features_2d = tf.reshape(res_features,[tf.shape(res_features)[0],5,12,512])
+            
+            #Policy Net
+            feats1 = activ(conv(res_features_2d,"pi_conv_1",n_filters=64, filter_size=3, stride=1))
+            feats2 = activ(conv(feats1,"pi_conv_2",n_filters=8, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            pi_h = activ(linear(feats_flat, "pi_fc", 16, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 16])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc_speed_steer", 8, init_scale=np.sqrt(2)))
+            #Value Net
+            feats1 = activ(conv(res_features_2d,"vf_conv_1",n_filters=64, filter_size=3, stride=1))
+            feats2 = activ(conv(feats1,"vf_conv_2",n_filters=8, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats2)
+            vf_h = activ(linear(feats_flat, "vf_fc", 16, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(pi_h, [-1, 1, 16])
+            features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            vf_latent = activ(linear(features, "vf_fc_speed_steer", 8, init_scale=np.sqrt(2)))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+        self._value_fn = value_fn
+        self._setup_init()
+''' 
