@@ -9,11 +9,8 @@
 """ This module implements an agent that roams around a track following random waypoints and avoiding other vehicles.
 The agent also responds to traffic lights. """
 
-from enum import Enum
-
-import carla
-from environment.carla.agents.navigation.agent import *
-from environment.carla.agents.navigation.local_planner import LocalPlanner
+from environment.carla_9_4.agents.navigation.agent import Agent, AgentState
+from environment.carla_9_4.agents.navigation.local_planner import LocalPlanner
 
 
 class RoamingAgent(Agent):
@@ -30,7 +27,7 @@ class RoamingAgent(Agent):
         :param vehicle: actor to apply to local planner logic onto
         """
         super(RoamingAgent, self).__init__(vehicle)
-        self._proximity_threshold = 10.0  # meters
+        self._proximity_threshold = 2.0  # meters
         self._state = AgentState.NAVIGATING
         self._local_planner = LocalPlanner(self._vehicle)
 
@@ -59,13 +56,13 @@ class RoamingAgent(Agent):
             hazard_detected = True
 
         # check for the state of the traffic lights
-        light_state, traffic_light = self._is_light_red(lights_list)
-        if light_state:
-            if debug:
-                print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
+        # light_state, traffic_light = self._is_light_red(lights_list)
+        # if light_state:
+        #     if debug:
+        #         print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
 
-            self._state = AgentState.BLOCKED_RED_LIGHT
-            hazard_detected = True
+        #     self._state = AgentState.BLOCKED_RED_LIGHT
+        #     hazard_detected = True
 
         if hazard_detected:
             control = self.emergency_stop()

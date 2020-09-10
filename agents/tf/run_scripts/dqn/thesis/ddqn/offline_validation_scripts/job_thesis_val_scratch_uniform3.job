@@ -1,0 +1,273 @@
+#! /bin/bash
+#SBATCH -N 1
+#SBATCH -p long
+#SBATCH --gres gpu:2
+#SBATCH --ntasks-per-node 32
+#SBATCH -t 3-12:00:00
+
+source ~/.bashrc
+
+trap "kill $(jobs -p)" EXIT
+
+#echo commands to stdout
+set -x
+
+#move to working directory
+# this job assumes:
+# - all input data is stored in this directory 
+# - all output should be stored in this directory 
+cd /home/hiteshar/research/repos/alta/agents/tf
+
+
+# No Crash Dense
+
+
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 0 \
+--val-run 1 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 0 --code-gpu 0 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 1 \
+--val-run 1 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 0 --code-gpu 0 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 2 \
+--val-run 1 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 0 --code-gpu 0 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 0 \
+--val-run 2 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 0 --code-gpu 0 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 1 \
+--val-run 2 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 2 \
+--val-run 2 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 0 \
+--val-run 3 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 1 \
+--val-run 3 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+sleep 120
+python run_code.py \
+--algo DQN \
+--input-type wp_obs_info_speed_steer_ldist_light \
+--base-log-dir '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/' \
+--agent_model_path '/home/hiteshar/alta-logs/dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64/lstjunc_steer7_throttle_0_20_ac12/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1/algo_DQN_input_wp_obs_info_speed_steer_ldist_light_nw_1_layer_lr_1e-05_exp_0.1_dynamic_navigation_npc_50_brake_target_freq_10000_col_3.0_col_sp_3.0_light_3.0_light_sp_3.0_steer_pen_2.0_fs_2_pid_fs_dqn_n_3_r_norm_16_suc_r_75_const_r_1_optep_1_runid_3/dqn_measurements_weights2520000.zip' \
+--timesteps 10000000 \
+--scenarios dynamic_navigation --val-trials 25 \
+--num-npc 100 \
+--disable-sample-npc \
+--validation \
+--val-bucket 2 \
+--val-run 3 \
+--test-trails 1 \
+--light-thresold 15  --min-light-thresold 6 \
+--city_name 'Town01' \
+--enable-brake \
+--disable-semantic  \
+--special-sample --use-pid-fs --target-freq 10000 --opt-epochs 1 --exp-final-eps 0.1 \
+--const-collision-penalty 3  --steer-penalty-coeff  2 \
+--const-light-penalty 3 --light-penalty-speed-coeff 3 \
+--collision-penalty-speed-coeff 3 \
+--fs 2 --reward-norm 16 --success-reward 75 --constant-reward 1 --dqn-n-step 3 \
+--lr 1e-5 --buffer-size 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--run-id 1 >> dqn_dynamic_nav_steer7_speed_0_20_ac12_fs3_uniform_nn256_128_64_val.txt 2>&1 &
+
+
+
+
+wait
+
+
+

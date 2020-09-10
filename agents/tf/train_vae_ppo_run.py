@@ -1,0 +1,330 @@
+import sys, os, time, glob
+sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+
+from environment.carla_9_4.env import CarlaEnv
+from environment.carla_9_4.config import ConfigManager
+
+import numpy as np
+import time
+import vis_module
+import traceback
+import csv
+
+from datetime import datetime
+import tensorboard_logging as tf_log
+
+from ae.controller import AEController
+
+# PPO specific
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.misc_util import set_global_seeds
+from stable_baselines.common.policies import register_policy
+from ppo import PPO, test, plot_test_results
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2, CustomPolicy3, CustomPolicy4
+
+def get_scratch_dir(base_log_dir):
+    return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
+
+def find_ext_format(MODEL_PATH):
+    ext = None
+    for fname in os.listdir(MODEL_PATH):
+        if fname.endswith('.pkl'):
+            ext = '.pkl'
+        elif fname.endswith('.zip'):
+            ext = '.zip'
+        
+        if ext is not None:
+            break
+    return ext
+
+def launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=None, logger=None):
+    RETRIES_ON_ERROR = 5
+    serverStartRetries = 0
+    serverStarted = False
+
+    env = None
+    while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
+        try:
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+            serverStarted = True
+
+        except Exception as identifier:
+            traceback.print_exc()
+            if env is not None:
+                env.close()
+                serverStartRetries += 1
+                time.sleep(20)
+    return env
+
+def run_ppo_vae(args, prefix, config):
+    ALTA_LOGS = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
+    if ALTA_LOGS[-1] != '/':
+        ALTA_LOGS += '/'
+
+    if "/home/scratch" not in args.base_log_dir and os.path.exists('/home/scratch'):
+        SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
+    else:
+        SCRATCH_DIR = ALTA_LOGS
+    
+    if SCRATCH_DIR[-1] != '/':
+        SCRATCH_DIR += '/'
+    if config.config["semantic"]:
+        if args.binarized_image:
+            vae = AEController(image_size=(128, 128, 2), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+        else:
+            vae = AEController(image_size=(128, 128, 5), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+    else:
+        vae = AEController(image_size=(128, 128, 3), frame_stack=args.frame_stack, learning_rate=args.ae_lr)
+
+    if not os.path.exists(ALTA_LOGS):
+        os.makedirs(ALTA_LOGS)
+
+    TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
+    if not os.path.exists(TF_MODELS):
+        os.makedirs(TF_MODELS)
+
+    VIDEO_FRAME_SKIP = 1
+    MODEL_PATH = os.path.join(ALTA_LOGS, 'models')
+    if not os.path.exists(MODEL_PATH):
+        os.makedirs(MODEL_PATH)
+    SAVE_PATH = os.path.join(MODEL_PATH, 'ppo2_weights')
+    TB_LOGS_DIR = ALTA_LOGS+'tb/'
+
+    MAX_TRIALS = 5
+    
+    # Register the policy, it will check that the name is not already taken
+    register_policy('CustomPolicy1', CustomPolicy1)
+    register_policy('CustomPolicy2', CustomPolicy2)
+    register_policy('CustomPolicy3', CustomPolicy3)
+    register_policy('CustomPolicy4', CustomPolicy4)
+
+    def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
+        list_of_files = glob.glob(os.path.join(log_dir, ext))
+        latest_file = max(list_of_files, key=os.path.getctime)
+        if '.' in ext:
+            latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        ind = int(latest_file.split(sep)[1])
+        return ind, latest_file
+
+    def get_completed_episodes(log_dir=ALTA_LOGS, ext='*.zip', sep1='_step_', sep2='_ind_'):
+        list_of_files = glob.glob(os.path.join(log_dir, ext))
+        latest_file = max(list_of_files, key=os.path.getctime)
+        latest_file = latest_file.split('{}'.format('.' + ext.split('.')[1]))[0]
+        ind = int(latest_file.split(sep1)[1].split(sep2)[0])
+        return ind, latest_file
+
+
+    for i in range(MAX_TRIALS):
+        try:
+            # Create the environment
+            logger = tf_log.Logger(TB_LOGS_DIR)
+            # if os.path.exists(SAVE_PATH + ".zip"):
+                # print("Best model exists, Validating !!!!")
+            if args.test:
+                print('Testing Begins')
+                np.random.seed(10)
+                if args.city_name == 'Town01':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                elif args.city_name == 'Town02':
+                    spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
+                # with open(ALTA_LOGS + "/seed.txt", "r") as f:
+                #     seed = int(f.readline())
+                # print("Using the pre-initialized seed: {}".format(seed))
+                # set_global_seeds(seed)
+
+                rewards = []
+                successes = []
+                for test_idx in range(args.test_trails):
+                    IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH = SCRATCH_DIR+'test_videos_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
+                    IMAGES_PATH_VAE = SCRATCH_DIR+'test_vae_images_' + config.config["city_name"] + config.config['scenarios'] +  '_run_' + str(test_idx) + '/'
+                    VIDEO_PATH_VAE = SCRATCH_DIR+'test_vae_videos_' + config.config["city_name"] +  config.config['scenarios'] + '_run_' + str(test_idx) + '/'
+
+                    vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                    vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+
+                    config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
+
+                    # Sending logger as None so as to not affect existing validation plots
+                    # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=None, log_dir=ALTA_LOGS)
+                    env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae)
+                    dummy_env = DummyVecEnv([lambda: env])
+                    if not args.train_vae:
+                        print("Loading pretrained AE!!!")
+                        vae.load(args.vae_model_path)
+                    env.set_vae(vae)
+                    model = PPO.load(args.agent_model_path, env=dummy_env)
+
+                    with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "a") as f:
+                        total_reward, success_episodes, results, data = test(model, env)
+                        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+                            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = data[3:]
+
+                        print("Task Name: {}".format(config.config["scenarios"]))
+                        print("Town Name: {}".format(config.config["city_name"]))
+                        # print("Results of test scenarios")
+                        # print(results)
+                        print("Total Success Episodes: {}".format(success_episodes))
+                        f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                        f.write("Town Name: {}\n".format(config.config["city_name"]))
+                        f.write("Results of test scenarios\n")
+                        f.write(str(results))
+                        f.write("Total Success: {}, Collision Obstacle: {}, Collision LaneChange: {}, Collision OutOfRoad: {}, Collision Unexpected: {}, Runover Light: {}, Max Steps: {}, Max StepsObstacle: {}, Max StepsLight: {}, Static: {}, Unknown: {}\n".format(success_episodes,
+                                    collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes))
+                        f.write("Total Collisions: {}, Static Collisions: {}, Vehicle Collisions:{}\n".format(env.total_collisions, env.static_collisions, env.vehicle_collisions))
+                        f.write("Traffic Light Violations: {}\n".format(env.traffic_light_violations))
+                        f.write("Total Distance: {}\n".format(env.total_distance))
+                        f.write("Spawn Points Permutation: {}\n".format(str(env.config['spawn_points_fixed_idx'])))
+                    rewards.append(total_reward)
+                    successes.append(success_episodes)
+                    env.close()
+                rewards = np.array(rewards)
+                successes = np.array(successes)
+                with open(ALTA_LOGS + 'final_test_results_' + config.config["city_name"]+  config.config['scenarios'] + ".txt", "a") as f:
+                    f.write("Task Name: {}\n".format(config.config["scenarios"]))
+                    f.write("Town Name: {}\n".format(config.config["city_name"]))
+                    f.write("Model path used for testing: {}\n".format(args.agent_model_path))
+                    f.write("Results of final testing\n")
+                    f.write("Rewards: {}\n".format(" ".join(map(str, rewards))))
+                    f.write("Success: {}\n".format(" ".join(map(str, successes))))
+                    f.write("Avg Success: {}\n".format(np.mean(successes)))
+                    f.write("Std Success: {}\n".format(np.std(successes)))
+                    f.write("Total Successes: {}\n".format(np.sum(successes)))
+            elif args.validation:
+                print('Validation Begins')
+                with open(ALTA_LOGS + "seed.txt", "r") as f:
+                    seed = int(f.readline())
+                print("Using the pre-initialized seed: {}".format(seed))
+                set_global_seeds(seed)
+
+                spawn_points_fixed_idx = np.load(ALTA_LOGS + "spawn_pt_order.npy")
+
+                rewards = []
+                successes = []
+
+                IMAGES_PATH = SCRATCH_DIR+'val_images/'
+                VIDEO_PATH = SCRATCH_DIR+'val_videos/'
+                IMAGES_PATH_VAE = SCRATCH_DIR+'val_vae_images/'
+                VIDEO_PATH_VAE = SCRATCH_DIR+'val_vae_videos/'
+
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+
+                config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
+
+                # Sending logger as None so as to not affect existing validation plots
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
+                dummy_env = DummyVecEnv([lambda: env])
+                if not args.train_vae:
+                    print("Loading pretrained AE!!!")
+                    vae.load(args.vae_model_path)
+                env.set_vae(vae)
+
+                rewards = []
+                successes = []
+                updates = []
+                ext = find_ext_format(MODEL_PATH)
+                model_files = [os.path.join(ALTA_LOGS, model) for model in os.listdir(ALTA_LOGS) if model.endswith(ext)]
+                model_files = sorted(model_files, key=os.path.getctime)
+
+                update = 0
+                for model_file in model_files[:-1]:
+                    model = PPO.load(model_file, env=dummy_env, seed=seed)
+                    total_reward, success_episodes, results, _ = test(model, env)
+                    print("Model: {}, Success: {}, Reward: {}".format(model_file, success_episodes, total_reward))
+                    rewards.append(total_reward)
+                    successes.append(success_episodes)
+                    updates.append(update)
+                    plot_test_results(successes, rewards, updates, ALTA_LOGS)
+                    with open(ALTA_LOGS + 'test_results.csv','a') as f:
+                        csvwriter = csv.writer(f, delimiter=',')
+                        csvwriter.writerow([update, success_episodes, total_reward])
+                    update += args.validation_interval
+                env.close()
+            else:
+                print("Training begins")
+                IMAGES_PATH = SCRATCH_DIR+'images/'
+                VIDEO_PATH = SCRATCH_DIR+'videos/'
+                IMAGES_PATH_VAE = SCRATCH_DIR+'vae_images/'
+                VIDEO_PATH_VAE = SCRATCH_DIR+'vae_videos/'
+                
+                vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+                vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, VIDEO_FRAME_SKIP, videos=config.config["videos"])
+
+                # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, vis_wrapper_vae=vis_wrapper_vae, logger=logger, log_dir=ALTA_LOGS)
+                env = launch_server(config, vis_wrapper, ALTA_LOGS, vis_wrapper_vae=vis_wrapper_vae, logger=logger)
+                dummy_env = DummyVecEnv([lambda: env])
+                if not args.train_vae:
+                    print("Loading pretrained AE!!!")
+                    vae.load(args.vae_model_path)
+                env.set_vae(vae)
+                
+                if args.network == "1_layer":
+                    policy = Policy_1_layer
+                elif args.network == "2_layer":
+                    policy = Policy_2_layer
+                elif args.network == "CustomPolicy1":
+                    policy = CustomPolicy1
+                elif args.network == "CustomPolicy2":
+                    policy = CustomPolicy2
+                elif args.network == "CustomPolicy3":
+                    policy = CustomPolicy3
+                elif args.network == "CustomPolicy4":
+                    policy = CustomPolicy4
+                else:
+                    print("specify either 1_layer, 2_layer CustomPolicy1, CustomPolicy2, CustomPolicy3, CustomPolicy4 as network input")
+                    env.close()
+                    print("exiting")
+                    return
+                
+                if any(fname.endswith('.pkl') or fname.endswith('.zip') for fname in os.listdir(MODEL_PATH)):
+                    ext = find_ext_format(MODEL_PATH)
+                    with open(ALTA_LOGS + "seed.txt", "r") as f:
+                        seed = int(f.readline())
+                    print("Using the pre-initialized seed: {}".format(seed))
+                    set_global_seeds(seed)
+                    completed_steps, latest_model = get_latest_model(log_dir=MODEL_PATH, ext='*[0-9]' + ext, sep='hts')
+                    env.total_steps = completed_steps
+                    completed_episodes, _ = get_completed_episodes(log_dir=ALTA_LOGS + 'val_episode_info_plots/', ext='*.png', sep1='_TrainEp_', sep2='_step_')
+                    env.episode_num = completed_episodes
+                    print("Completed episodes: {}".format(completed_episodes))
+                    print("Loading Latest model!!!")
+                    model = PPO.load(latest_model, env=dummy_env, seed=seed)
+                    print("Model: {} loaded successfully".format(latest_model))
+
+                    # Loading latest Auto-encoder model
+                    _, latest_vae_model = get_latest_model(log_dir=os.path.join(MODEL_PATH.rsplit('/', 1)[0], 'ae_weights'), ext='*[0-9]', sep='ae_weights/ae_')
+                    args.vae_model_path = latest_vae_model
+                    # args.vae_model_path = os.path.join('/'.join(latest_model.split('/')[:-2]), 'ae_weights', 'ae_{}'.format(completed_steps))
+                    vae.load(args.vae_model_path)
+                    env.set_vae(vae)
+                    print("AE Model: {} loaded successfully".format(args.vae_model_path))
+
+                    best_model = model.learn(args.timesteps, completed_steps, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=False, vae=vae, train_vae=(args.train_vae or args.finetune_vae), validation_interval=args.validation_interval)
+                else:
+                    dt = datetime.now()
+                    millis = dt.microsecond
+                    print(millis)
+                    with open(ALTA_LOGS + "seed.txt", "w") as f:
+                        f.write(str(millis))
+                    if args.agent_model_path is None:
+                        model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
+                    else:
+                        model = PPO.load(args.agent_model_path, env=dummy_env, seed=millis)
+                        print("Loading pretrained agent from: {}".format(args.agent_model_path))
+                    best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, vae=vae, train_vae=(args.train_vae or args.finetune_vae), validation_interval=args.validation_interval)
+                
+                best_model.save(SAVE_PATH)
+            break
+        except Exception as e:
+            with open(ALTA_LOGS + "error.txt", "w") as f:
+                print("********** Code ERROR for prefix: {} **********".format(prefix))
+                print(e)
+                print(traceback.format_exc())
+                f.write(str(e))
+                f.write(traceback.format_exc())
+        finally:
+            env.close()
+            time.sleep(120)
