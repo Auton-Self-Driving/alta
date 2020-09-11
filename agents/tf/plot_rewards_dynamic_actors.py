@@ -98,7 +98,7 @@ if __name__=='__main__':
 
 	if mode == "dynamic-navigation":
 		#labels_list = ['SAC_n25_nb1', 'SAC_n25_nb10', 'SAC_n25_nb30', 'SAC_n25_nb100', 'SAC_n25_nb30_4layer']
-		labels_list = ['SAC_n25_nb100_col10', 'SAC_n25_nb100_ent5e-1']
+		labels_list = ['SAC_n25_nb100_col10', 'SAC_n25_nb100_ent5e-1', 'SAC_n25_nb100_ent5e-1_bootstrap']
 		algo_list = ['sac', 'sac', 'sac', 'sac', 'sac']
 
 		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep'
@@ -109,8 +109,10 @@ if __name__=='__main__':
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_30_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_4_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_30_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')'''
+
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.5_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.5_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap')
 
 
 	if mode == "long-straight":

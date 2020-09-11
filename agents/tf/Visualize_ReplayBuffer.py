@@ -5,18 +5,22 @@ from __future__ import print_function
 import sys
 import argparse
 import numpy as np
+import ipdb
+trace = ipdb.set_trace
+
 import sys, os, glob
+
+sys.path.append('/zfsauton2/home/vkadi/visdom/py/')
 sys.path.append('./../../')
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+import visdom
+
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.misc_util import set_global_seeds
 import tensorflow as tf
 import gym
-import ipdb
-trace = ipdb.set_trace
-import visdom
 
 import matplotlib.pyplot as plt
 import plotly.tools as tls
@@ -524,7 +528,7 @@ if __name__=='__main__':
 		plot_3d = True
 
 	if args.states:
-		buff = np.load(args.path)
+		buff = np.load(args.path)[:100000]
 		states	= np.squeeze(np.array([elt[0] for elt in buff]))
 		vis_states(vis, states, plot_3d = plot_3d, save_path = save_path)
 
