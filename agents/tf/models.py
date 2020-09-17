@@ -590,6 +590,47 @@ class CnnPolicy(FeedForwardPolicy):
             return action, value, self.initial_state, neglogp, logstd, mean
 
 
+class CustomResnetPolicy(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomResnetPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.relu
+
+            measurement_features = self.processed_obs[:, :, -3:]
+
+            res_features = self.processed_obs[:, :, :-3]
+            res_features_2d = tf.reshape(res_features,[tf.shape(res_features)[0],5,12,512])
+
+            #Policy Net
+            feats1 = activ(conv(res_features_2d,"pi_conv_1",n_filters=64, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"pi_conv_2",n_filters=32, filter_size=3, stride=1))
+            feats3 = activ(conv(feats2,"pi_conv_3",n_filters=16, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats3)
+            pi_h = activ(linear(feats_flat, "pi_fc", 64, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc_speed_steer", 32, init_scale=np.sqrt(2)))
+
+            #Value Net
+            feats1 = activ(conv(res_features_2d,"vf_conv_1",n_filters=64, filter_size=1, stride=1))
+            feats2 = activ(conv(feats1,"vf_conv_2",n_filters=32, filter_size=3, stride=1))
+            feats3 = activ(conv(feats1,"vf_conv_3",n_filters=16, filter_size=3, stride=1))
+            feats_flat = tf.layers.flatten(feats3)
+            vf_h = activ(linear(feats_flat, "vf_fc", 64, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            vf_latent = activ(linear(features, "vf_fc_speed_steer", 32, init_scale=np.sqrt(2)))
+
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+'''
 #RUN 11,12,13 WITH CAPPED NEG REWARD
 class CustomResnetPolicy(CustomPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
@@ -633,7 +674,7 @@ class CustomResnetPolicy(CustomPolicy):
 
         self._value_fn = value_fn
         self._setup_init()
-
+'''
 ### RESNET MODEL - 512, 5, 12 - 36k 
 
 ### 1x1 Conv - 32 Channels - 

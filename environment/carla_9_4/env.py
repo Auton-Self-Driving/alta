@@ -612,6 +612,11 @@ class CarlaEnv(gym.Env):
             else:
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+        
+        elif self.config["input_type"] == "wp_resnet":
+            speed = self.episode_measurements['speed'] / 10
+            steer = self.episode_measurements['control_steer']
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer])))
 
     def step(self, action):
         try:
@@ -856,7 +861,7 @@ class CarlaEnv(gym.Env):
 
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
-            if self.config["videos"] and self.unseen:
+            if self.config["videos"]:# and self.unseen:
                 if self.vis_wrapper is not None:
                     # TODO: Check and uncomment when running with VAE
                     # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
@@ -1018,7 +1023,7 @@ class CarlaEnv(gym.Env):
                         # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
-                if self.config["videos"] and self.unseen:
+                if self.config["videos"]:# and self.unseen:
                     if self.vis_wrapper is not None:
                         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
                         self.vis_wrapper.remove_images()

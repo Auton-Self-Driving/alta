@@ -374,7 +374,7 @@ class PPO(PPO2):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
         self.cliprange = get_schedule_fn(self.cliprange)
-
+        
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
@@ -397,7 +397,7 @@ class PPO(PPO2):
             model_file_names = []
             total_updates = []
             for update in range((trained_timesteps // self.n_batch), nupdates + 1):
-                if update == (trained_timesteps // self.n_batch):
+                if update == (trained_timesteps // self.n_batch) and update != 0:
                     self.save(save_file + str(update * self.n_batch))
                     if policy_plots:
                         plot_policy_and_value_fns(self, update * self.n_batch, save_file.split('models')[0] + 'policy_plots/')
