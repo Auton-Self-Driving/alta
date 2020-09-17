@@ -17,7 +17,7 @@ import cv2
 import collections
 import queue
 import time
-
+print("PYTHON VERSION: ", sys.version_info.major, ".", sys.version_info.minor)
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
 import environment.carla_9_4.planner as planner
@@ -29,7 +29,7 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 import scipy.misc
-from scipy.misc import imsave
+#from scipy.misc import imsave
 from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt

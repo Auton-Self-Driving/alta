@@ -15,6 +15,8 @@ except IndexError:
     print(".egg file not found! Kindly check for your Carla installation.")
     pass
 
+sys.path.append(CARLA_9_4_PATH+'/PythonAPI/carla/dist/carla-0.9.6-py3.5-linux-x86_64.egg')
+
 DEFAULT_ENV = {
     "server_path" : CARLA_9_4_PATH,
     "server_binary" : CARLA_9_4_PATH + '/CarlaUE4.sh',

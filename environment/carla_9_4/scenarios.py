@@ -16,6 +16,8 @@ try:
 except IndexError:
     pass
 
+sys.path.append(CARLA_9_4_PATH+'/PythonAPI/carla/dist/carla-0.9.6-py3.5-linux-x86_64.egg')
+
 from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation

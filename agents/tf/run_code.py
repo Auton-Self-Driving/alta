@@ -2,6 +2,7 @@ import argparse
 import sys, os
 
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+sys.path.append('../../')
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
