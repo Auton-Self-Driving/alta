@@ -31,6 +31,7 @@ from gym import wrappers
 from datetime import datetime
 import matplotlib.pyplot as plt
 import tensorboard_logging as tf_log
+import pickle as pkl
 
 # PPO specific
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -128,6 +129,8 @@ def run_sac(args, prefix, base_prefix, config):
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
 
+    pkl.dump(config.config, open(os.path.join(ALTA_LOGS, "config.pkl"), "wb"))
+
     POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
     if not os.path.exists(POLICY_PLOTS):
         os.makedirs(POLICY_PLOTS)
@@ -220,8 +223,8 @@ def run_sac(args, prefix, base_prefix, config):
 
 if __name__ == '__main__':
     #run_ids = np.arange(5)+1
-    run_ids = [1]
-    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation/'
+    run_ids = [5]
+    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep/'
 
     config = ConfigManager(algo="SAC")
     config.config["videos"] = True
@@ -233,7 +236,7 @@ if __name__ == '__main__':
     config.config["test_fixed_spawn_points"] = True
     config.config["city_name"] = "Town01"
     config.config["input_type"] = "wp_obs_info_speed_steer_ldist_goal_light"
-    config.config["num_npc"] = 70
+    config.config["num_npc"] = 20
     #config.config['spawn_points_fixed_idx'] = np.load(base_log_dir+'spawn_pt_order_2.npy')
     config.config["ent_coef"] = -1
     config.config["n_steps"] = 1
@@ -241,9 +244,11 @@ if __name__ == '__main__':
     config.config["target_update_interval"] = 1
     config.config["task"] = "self-driving"
     config.config["network"] = "2_layer"
-    config.config["num_npc_lower_threshold"] = 70
+    config.config["num_npc_lower_threshold"] = 20
     config.config["num_episodes"] = 25
     config.config["train_freq"] = 1
+    config.config["enable_lane_invasion_collision"] = False         # PPO evalution setting by Tanmay
+    config.config["disable_traffic_light"]= True
 
     from my_sac import MY_SAC
 
@@ -253,9 +258,9 @@ if __name__ == '__main__':
     #env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = base_log_dir, base_prefix = base_prefix, prefix = prefix)
     set_global_seeds(5)
 
-    base_prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0/'
+    base_prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0/'
     for run_id in run_ids:
-        prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_runid_run'+str(run_id)+'/'
+        prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0_runid_run'+str(run_id)+'/'
     
         ALTA_LOGS = base_log_dir + base_prefix + prefix
 
@@ -263,12 +268,14 @@ if __name__ == '__main__':
         VIDEO_PATH = ALTA_LOGS+'videos/'
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1)
 
-        config.config['spawn_points_fixed_idx'] = np.load(ALTA_LOGS+'spawn_pt_order.npy')
+        #config.config['spawn_points_fixed_idx'] = np.load(ALTA_LOGS+'spawn_pt_order.npy')
+        spawn_points_fixed_idx = np.random.permutation(101)
+        config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx)
 
         env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir = ALTA_LOGS, base_prefix = None, prefix = None)
         dummy_env = DummyVecEnv([lambda: env])
         
-        MODEL_PATH = ALTA_LOGS+'sac_weights4425000.pkl'    
+        MODEL_PATH = ALTA_LOGS+'sac_weights5775000.pkl'    
 
         model = MY_SAC.load(MODEL_PATH, env)
         print('Starting evaluation on run id : '+str(run_id))

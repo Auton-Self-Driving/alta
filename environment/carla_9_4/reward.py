@@ -1,4 +1,5 @@
 import numpy as np
+import carla
 
 def compute_reward(name, prev_measurement, cur_measurement, config=None, verbose=False):
     if name == 'corl':
@@ -241,7 +242,8 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     current["is_collision"] = is_collision
     # Collision damage
     if(is_collision):
-        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
+        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
+        speed_reward = prev["speed"]
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -254,6 +256,26 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     # current["lane_intersection_reward"] = lane_intersection_reward
 
     reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
+
+    '''# Adding constant positive reward to make dist_to_trajectory_reward positive
+    reward += config["constant_positive_reward"]
+
+    # clipping reward
+    if config["clip_reward"]:
+        if reward > 0:
+            clipped_reward = 1
+        elif reward < 0:
+            clipped_reward = -1
+    else:
+        clipped_reward = reward
+
+    # normalize reward
+    clipped_reward = clipped_reward / config["reward_normalize_factor"]
+
+    # success reward
+    success = current["distance_to_goal"] < config["dist_for_success"]
+    if success:
+        clipped_reward += config["success_reward"]'''
 
     current["step_reward"] = reward
 
@@ -328,7 +350,7 @@ def _compute_reward_SAC(prev, current, config=None, verbose=False):
 def _check_if_signal_crossed(prev, current, config):
 
     # cross_from_one_light_to_no_light
-    cross_to_no_light = current['dist_to_light'] == config['default_obs_traffic_val'] and prev['dist_to_light'] > 0
+    cross_to_no_light = current['dist_to_light'] == -1 and prev['dist_to_light'] > 0
 
     cross_to_next_light = (current['nearest_traffic_actor_id'] != -1 and prev['nearest_traffic_actor_id'] != -1 \
         and current['nearest_traffic_actor_id'] != prev['nearest_traffic_actor_id'])

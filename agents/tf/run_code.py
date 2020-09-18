@@ -8,7 +8,6 @@ from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Parser to run all deep RL algorithms')
     parser.add_argument('--algo',dest='algo',type=str,required=True, help='Algo: PPO or SAC or PID_TUNE')
@@ -109,6 +108,7 @@ def create_sac_prefix(args):
         + '_buffer_' + str(args.buffer_size) \
         + '_batchsz_'+ str(args.batch_size) \
         + '_nSteps_'+ str(args.n_steps) \
+        + '_trainFreq_'+str(args.train_freq)\
         + '_gdUpdFreq_'+ str(args.gradient_steps_per_iteration) \
         + '_tgtUpdInt_'+ str(args.target_update_interval) \
         + '_ent_'+ str(args.ent_coef) \
