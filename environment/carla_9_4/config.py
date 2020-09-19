@@ -49,7 +49,7 @@ DEFAULT_ENV = {
     "next_command": None,
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
-    "disable_two_wheeler" : False,
+    "disable_two_wheeler" : True,
     "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
@@ -82,6 +82,8 @@ DEFAULT_ENV = {
     "num_npc_lower_threshold" : 70,
     "num_npc_upper_threshold" : 150,
     "train_vae" : False,
+    "binarized_image": False,
+    "single_channel_image": False,    
     "noise_dim" : 1,
     "const_collision_penalty": 0,
     "collision_penalty_speed_coeff": 0,
@@ -120,6 +122,9 @@ DEFAULT_ENV = {
     "enable_static" : False,
     "use_pid_in_frame_skip" : True,
     "enable_lane_invasion_collision" : True,
+    "vehicle_proximity_threshold" : 15,
+    "traffic_light_proximity_threshold" : 10,  
+    "min_dist_from_red_light" : 4,      
     "frame_stack_size" : 1,
     "num_episodes" : 1,
     "proximity_threshold" : 15,
@@ -127,7 +132,11 @@ DEFAULT_ENV = {
     "default_obs_traffic_val": 1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False,
-    "no_rendering_mode" : True
+    "no_rendering_mode" : True,
+    "test_comparison": False,    
+    "test_with_automatic_control": False,
+    "updated_scenarios": False,
+    "sample_npc": True        
 }
 
 episode_measurements = {
@@ -280,6 +289,7 @@ class ConfigManager(object):
             self.config["carla_gpu"] = "1"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
+            self.config["sample_npc"] = True            
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
             self.config["reward_function"] = "simple2"
@@ -300,6 +310,7 @@ class ConfigManager(object):
             self.config["carla_gpu"] = "1"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
+            self.config["sample_npc"] = True            
         elif algo == 'AE':
             self.config["algo"] = "AE"
             self.config["action_type"] = "control"

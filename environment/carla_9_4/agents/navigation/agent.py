@@ -30,12 +30,14 @@ class Agent(object):
     Base class to define agents in CARLA
     """
 
-    def __init__(self, vehicle, proximity_threshold=10.0):
+    def __init__(self, vehicle, proximity_threshold=10.0, traffic_light_proximity_threshold=10.0, vehicle_proximity_threshold=15.0):
         """
         :param vehicle: actor to apply to local planner logic onto
         """
         self._vehicle = vehicle
         self._proximity_threshold = proximity_threshold  # meters
+        self._vehicle_proximity_threshold = vehicle_proximity_threshold 
+        self._traffic_light_proximity_threshold = proximity_threshold               
         self._local_planner = None
         self._world = self._vehicle.get_world()
         self._map = self._vehicle.get_world().get_map()
@@ -180,6 +182,7 @@ class Agent(object):
 
         nearest_traffic_light = None
         nearest_dist_to_light = 100000
+        nearest_crossed_vector = None        
         traffic_light_found = False
         for traffic_light in lights_list:
             object_waypoint = self._map.get_waypoint(traffic_light.get_location())
@@ -188,17 +191,18 @@ class Agent(object):
                 continue
 
             light_transform = traffic_light.get_location()
-            status, dist = is_within_distance_ahead_v2(traffic_light.get_transform(),
+            status, dist, crossed_vector = is_within_distance_ahead_v2(traffic_light.get_transform(),
                                         self._vehicle.get_transform(),
-                                        self._proximity_threshold)
+                                        self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light
                 nearest_dist_to_light = dist
+                nearest_crossed_vector = crossed_vector                
         if traffic_light_found:
-            return (nearest_traffic_light, nearest_dist_to_light)
+            return (nearest_traffic_light, nearest_dist_to_light, nearest_crossed_vector)
         else:
-            return (None, -1)
+            return (None, -1, None)
 
     def _get_trafficlight_trigger_location(self, traffic_light):  # pylint: disable=no-self-use
         """
@@ -256,7 +260,7 @@ class Agent(object):
 
             status, dist, crossed_vector = is_within_distance_ahead_v2(object_waypoint.transform,
                                         self._vehicle.get_transform(),
-                                        self._proximity_threshold)
+                                        self._traffic_light_proximity_threshold)
             if status and nearest_dist_to_light > dist:
                 traffic_light_found = True
                 nearest_traffic_light = traffic_light

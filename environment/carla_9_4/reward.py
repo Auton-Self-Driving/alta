@@ -215,15 +215,22 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     
     current["speed_reward"] = speed_reward
 
-    if (not config['disable_traffic_light']) and (_check_if_signal_crossed(prev, current, config) and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red) and (current["speed"] > config["zero_speed_threshold"]) and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
-        current["runover_light"] = True
-        light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
-    else:
-        current["runover_light"] = False
-        light_reward = 0
+    light_reward = 0
+    current["runover_light"] = False
+    if (not config['disable_traffic_light']):
+        if (_check_if_signal_crossed(prev, current)
+            and (prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red)
+            and (current["speed"] > config["zero_speed_threshold"])
+            and (prev['initial_dist_to_red_light'] > config['min_dist_from_red_light'])):
+            current["runover_light"] = True
+            light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+        else:
+            current["runover_light"] = False
+            light_reward = 0
     current["light_reward"] = light_reward
 
     #is_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+    is_collision = False    
     lane_change = False
     obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
     is_collision = obs_collision

@@ -1,6 +1,7 @@
 import argparse
 import sys, os
 sys.path.append('./../../../')
+sys.path.append('./../../')
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
@@ -14,12 +15,14 @@ def parse_arguments():
     parser.add_argument('--task',dest='task',type=str, default='self-driving', required=True, help='Task')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
+    parser.add_argument('--test-comparison', dest='test_comparison', action='store_true', help='Enable Testing comparison between automatic control and our learnt policies.')    
     parser.add_argument('--test-trails', dest='test_trails', type=int, default=5, help='No of different test trials.')
     parser.add_argument('--city_name',dest='city_name',type=str, default='Town01', help='Carla Town.')
     parser.add_argument('--vae_model_path',dest='vae_model_path',type=str, default='/zfsauton2/home/vkadi/projects/alta/agents/tf/trained_models/ae_model.json', help='VAE Model path.')
     parser.add_argument('--agent_model_path',dest='agent_model_path',type=str, default=None, help='Agent Model path.')
     parser.add_argument('--input-type', dest='input_type', type=str, default='wp', help='Observation type: "wp", "wp_constant", "wp_noise" or "wp_vae"')
     parser.add_argument('--scenarios', dest='scenarios', type=str, default='navigation', help='CARLA Scenarios type: "straight", "curved", "navigation" or "dynamic_navigation"')
+    parser.add_argument('--updated-scenarios', dest='updated_scenarios', action='store_true', help='Enable updated scenarios similar to the benchmark defined for CARLA 0.9.6 in LBC(https://arxiv.org/pdf/1912.12294.pdf)')    
     parser.add_argument('--lr',dest='lr',type=float,default=3e-4)
     parser.add_argument('--ent-coef',dest='ent_coef',type=float,default=-1, help='Entropy term for PPO runs.')
     parser.add_argument('--buffer-size',dest='buffer_size',type=int,default=50000)
@@ -37,12 +40,15 @@ def parse_arguments():
     parser.add_argument('--finetune-vae', dest='finetune_vae', action='store_true', help='Whether to finetune vae')
     parser.add_argument('--train-vae', dest='train_vae', action='store_true', help='Whether to train vae from scratch.')
     parser.add_argument('--num-npc',dest='num_npc',type=int,default=0, help='number of other vehicles')
+    parser.add_argument('--disable-sample-npc', dest='disable_sample_npc', action='store_true', help='Disbale sampling npcs.')    
     parser.add_argument('--videos', dest='videos', action='store_true', help='Whether to save videos')
     parser.add_argument('--const-collision-penalty',dest='const_collision_penalty',type=float,default=100.0, help='Constant penalty for collision.')
     parser.add_argument('--collision-penalty-speed-coeff',dest='collision_penalty_speed_coeff',type=float,default=100.0, help='Speed coefficient for speed-proportional collision penalty.')
     parser.add_argument('--const-light-penalty',dest='const_light_penalty',type=float,default=0.0, help='Constant penalty for running traffic light.')
     parser.add_argument('--light-penalty-speed-coeff',dest='light_penalty_speed_coeff',type=float,default=0.0, help='Speed-proportional penalty for running light.')
     #parser.add_argument('--enable-brake', dest='enable_brake', action='store_true', help='Whether to enable brake action')
+    parser.add_argument('--light-thresold',dest='light_threshold',type=int, default=10, help='Traffic Light Distance threshold.')
+    parser.add_argument('--min-light-thresold',dest='min_light_threshold',type=int, default=4, help='Min distance from Traffic Light to be detected as red.')        
     parser.add_argument('--fs',dest='frame_skip',type=int,default=1, help='Number of frame skip (default:1)')
     parser.add_argument('--n-steps',dest='n_steps',type=int,default=500, help='Number of steps in trajectory for PPO.')
     parser.add_argument('--train-freq',dest='train_freq',type=int,default=500, help='Internval of training steps for SAC.')
@@ -51,6 +57,9 @@ def parse_arguments():
     parser.add_argument('--clip',dest='clip',type=float,default=0.2, help='Clip parameter for PPO.')
     parser.add_argument('--disable-semantic', dest='disable_semantic', action='store_true', help='Whether to disable semantic segmentation camera and enable RGB camera. (semantic is enabled by default).')
     parser.add_argument('--disable-collision', dest='disable_collision', action='store_true', help='Whether to disable collision for episode done condition.')
+    parser.add_argument('--disable-lane-invasion-termination', dest='disable_lane_invasion_termination', action='store_true', help='Whether to disable termination of lane invasion.')
+    parser.add_argument('--disable-lane-invasion', dest='disable_lane_invasion', action='store_true', help='Whether to disable lane invasion sensor.')
+    parser.add_argument('--disable-traffic-light-termination', dest='disable_traffic_light_termination', action='store_true', help='Whether to disable termination of traffic light violation.')
     parser.add_argument('--disable-traffic-light', dest='disable_traffic_light', action='store_true', help='Whether to disable traffic light.')
     parser.add_argument('--disable-obstacle-info', dest='disable_obstacle_info', action='store_true', help='Whether to disable obstacle detector.')
     parser.add_argument('--enable-static', dest='enable_static', action='store_true', help='Whether to enable max static steps for episode done condition.')
@@ -272,6 +281,7 @@ if __name__ == '__main__':
     config.config["steer_penalty_coeff"] = args.steer_penalty_coeff
     config.config["input_type"] = args.input_type
     config.config["scenarios"] = args.scenarios
+    config.config["updated_scenarios"] = args.updated_scenarios    
     config.config["train_vae"] = (args.train_vae or args.finetune_vae)
     config.config["noise_dim"] = args.noise_dim
     config.config["num_npc"] = args.num_npc
@@ -280,11 +290,16 @@ if __name__ == '__main__':
     config.config["collision_penalty_speed_coeff"] = args.collision_penalty_speed_coeff
     config.config["const_light_penalty"] = args.const_light_penalty
     config.config["light_penalty_speed_coeff"] = args.light_penalty_speed_coeff
+    config.config["traffic_light_proximity_threshold"] = args.light_threshold
+    config.config["min_dist_from_red_light"] = args.min_light_threshold    
     # config.config["enable_brake"] = args.enable_brake
     config.config["frame_skip"] = args.frame_skip
     config.config["frame_stack_size"] = args.frame_stack
     config.config["semantic"] = not args.disable_semantic
     config.config["disable_collision"] = args.disable_collision
+    config.config["enable_lane_invasion_sensor"] = not args.disable_lane_invasion
+    config.config["enable_lane_invasion_collision"] = not args.disable_lane_invasion_termination
+    config.config["terminate_on_light"] = not args.disable_traffic_light_termination        
     config.config["disable_traffic_light"] = args.disable_traffic_light
     config.config["disable_obstacle_info"] = args.disable_obstacle_info
     config.config["enable_static"] = args.enable_static
@@ -300,6 +315,7 @@ if __name__ == '__main__':
     config.config["n_steps"] = args.n_steps
     config.config["train_freq"] = args.train_freq
     config.config["verbose"] = args.verbose
+    config.config["sample_npc"] = not args.disable_sample_npc
 
     try:
         if args.algo == "SAC":
