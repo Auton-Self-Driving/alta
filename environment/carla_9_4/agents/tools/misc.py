@@ -54,6 +54,11 @@ def is_within_distance_ahead(target_location, current_location, orientation, max
     """
     target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
     norm_target = np.linalg.norm(target_vector)
+
+    # If the vector is too short, we can simply stop here
+    if norm_target < 0.001:
+        return True
+
     if norm_target > max_distance:
         return False
 
@@ -62,6 +67,29 @@ def is_within_distance_ahead(target_location, current_location, orientation, max
     d_angle = math.degrees(math.acos(np.dot(forward_vector, target_vector) / norm_target))
 
     return d_angle < 90.0
+
+def is_within_distance_ahead_v2(target_transform, current_transform, max_distance=10.0, min_distance=6.0):
+    """
+    Check if a target object is within a certain distance in front of a reference object.
+    :param target_transform: location of the target object
+    :param current_transform: location of the reference object
+    :param orientation: orientation of the reference object
+    :param max_distance: maximum allowed distance
+    :return: True if target object is within max_distance ahead of the reference object
+    """
+    target_vector = np.array([target_transform.location.x - current_transform.location.x, target_transform.location.y - current_transform.location.y])
+    norm_target = np.linalg.norm(target_vector)
+
+    if norm_target > max_distance:
+        return False, norm_target, None
+
+    fwd = current_transform.get_forward_vector()
+    forward_vector = np.array([fwd.x, fwd.y])
+    d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+
+    crossed_vector = np.cross(target_vector, forward_vector)
+
+    return d_angle < 90.0, norm_target, crossed_vector
 
 
 def compute_magnitude_angle(target_location, current_location, orientation):
@@ -89,14 +117,15 @@ def distance_vehicle(waypoint, vehicle_transform):
 
     return math.sqrt(dx * dx + dy * dy)
 
-def vector(location_1, location_2):
-        """
-        Returns the unit vector from location_1 to location_2
-        location_1, location_2    :   carla.Location objects
-        """
-        x = location_2.x - location_1.x
-        y = location_2.y - location_1.y
-        z = location_2.z - location_1.z
-        norm = np.linalg.norm([x, y, z])
 
-        return [x/norm, y/norm, z/norm]
+def vector(location_1, location_2):
+    """
+    Returns the unit vector from location_1 to location_2
+    location_1, location_2:   carla.Location objects
+    """
+    x = location_2.x - location_1.x
+    y = location_2.y - location_1.y
+    z = location_2.z - location_1.z
+    norm = np.linalg.norm([x, y, z]) + np.finfo(float).eps
+
+    return [x / norm, y / norm, z / norm]

@@ -1,0 +1,10 @@
+prefix=/zfsauton2/home/shubhand/libjpeg
+exec_prefix=/zfsauton2/home/shubhand/libjpeg
+libdir=/zfsauton2/home/shubhand/libjpeg/lib64
+includedir=/zfsauton2/home/shubhand/libjpeg/include
+
+Name: libturbojpeg
+Description: A SIMD-accelerated JPEG codec that provides the TurboJPEG API
+Version: 2.0.3
+Libs: -L${libdir} -lturbojpeg
+Cflags: -I${includedir}

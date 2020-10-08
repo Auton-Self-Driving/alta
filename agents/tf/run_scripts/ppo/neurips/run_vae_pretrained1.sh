@@ -1,0 +1,51 @@
+python run_code.py \
+--algo PPO \
+--input-type wp_vae \
+--network CustomPolicy2 \
+--base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env/ppo_runs/navigation_pretrained_fs10/' \
+--scenarios navigation \
+--timesteps 1000000 \
+--num-npc 20 \
+--finetune-vae --enable-brake \
+--const-collision-penalty 250 \
+--collision-penalty-speed-coeff 250 \
+--vae_model_path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_collision_fs_10_350000.json' \
+--use-pretrained-agent \
+--agent-model-path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ppo_model_collision_fs_10_350000.pkl' \
+--carla-gpu 1 --code-gpu 1 --fs 10 --n-steps 1000 \
+--videos \
+--lr 2e-4 --run-id 1 &
+sleep 60
+python run_code.py \
+--algo PPO \
+--input-type wp_vae \
+--network CustomPolicy2 \
+--base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env/ppo_runs/navigation_pretrained_fs10/' \
+--scenarios navigation \
+--timesteps 1000000 \
+--num-npc 20 \
+--finetune-vae --enable-brake \
+--const-collision-penalty 250 \
+--collision-penalty-speed-coeff 250 \
+--vae_model_path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_collision_fs_10_350000.json' \
+--use-pretrained-agent \
+--agent-model-path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ppo_model_collision_fs_10_350000.pkl' \
+--carla-gpu 1 --code-gpu 1 --fs 10 --n-steps 1000 \
+--lr 2e-4 --run-id 2 &
+sleep 60
+python run_code.py \
+--algo PPO \
+--input-type wp_vae \
+--network CustomPolicy2 \
+--base-log-dir '/zfsauton2/home/hiteshar/research/alta-logs/new_env/ppo_runs/navigation_pretrained_fs10/' \
+--scenarios navigation \
+--timesteps 1000000 \
+--num-npc 20 \
+--finetune-vae --enable-brake \
+--const-collision-penalty 250 \
+--collision-penalty-speed-coeff 250 \
+--vae_model_path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ae_collision_fs_10_350000.json' \
+--use-pretrained-agent \
+--agent-model-path '/zfsauton2/home/hiteshar/research/alta/agents/tf/trained_models/ppo_model_collision_fs_10_350000.pkl' \
+--carla-gpu 1 --code-gpu 1 --fs 10 --n-steps 1000 \
+--lr 2e-4 --run-id 3 &

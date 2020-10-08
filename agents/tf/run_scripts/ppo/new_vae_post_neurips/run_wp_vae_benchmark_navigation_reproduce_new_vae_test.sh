@@ -1,0 +1,17 @@
+python run_code.py \
+--algo PPO \
+--test \
+--test-trails 2 \
+--input-type wp_vae \
+--network CustomPolicy2 \
+--base-log-dir '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_new_vae/' \
+--agent_model_path '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_new_vae/algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae/algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae_runid_1/ppo2_measurements_weights590000.pkl' \
+--vae_model_path '/zfsauton2/home/tanmaya/projects/alta-logs/new_env/ppo_runs/benchmark_navigation_reproduce_new_vae/algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae/algo_PPO_input_wp_vae_network_CustomPolicy2_lr_0.0002_navigation_finetune_vae_runid_1/ae_weights/ae_590000' \
+--scenarios navigation \
+--disable-traffic-light \
+--num-npc 30 \
+--disable-obstacle-info \
+--timesteps 1000000 \
+--carla-gpu 1 --code-gpu 1 \
+--videos \
+--lr 2e-4 --run-id 1
