@@ -24,9 +24,9 @@ import time
 # NOTE: not using baselines logger for now
 # from baselines import logger
 from baselines import deepq
-from baselines.deepq.deepq import ActWrapper
+# from baselines.deepq.deepq import ActWrapper
 from baselines.deepq.replay_buffer import ReplayBuffer
-from baselines.deepq.utils import ObservationInput
+# from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
 
 import vis_module
@@ -41,6 +41,7 @@ import matplotlib.pyplot as plt
 
 import tensorboard_logging as tf_log
 from collections import deque
+import pickle 
 
 
 
@@ -172,9 +173,11 @@ class C51_Agent:
         t = np.random.uniform(high=self.alpha, size=[1, self.num_support])
         Q_s_a = self.sess.run(self.main_action_support, feed_dict={self.state: [state], self.tau: t})
         Q_s_a = Q_s_a[0]
-        Q_a = np.sum(Q_s_a, axis=1)
+        # print(Q_s_a.shape)
+        # import ipdb; ipdb.set_trace()
+        Q_a = np.mean(Q_s_a, axis=1)# np.sum(Q_s_a, axis=1)
         action = np.argmax(Q_a)
-        return action, Q_a
+        return action, Q_a, t, Q_s_a
 
 
 def compute_discounted_returns(rewards, gamma):
@@ -209,6 +212,35 @@ def plot_q_values(q_values_matrix, actions, action_q_values, returns, ind, model
     plt.savefig(path + 'qvalues_step_%s_ind_%s.png' % (str(model_step), str(ind)))
     plt.close()
 
+def plot_samples(samples, f_samples, actions, ind, model_step, path): 
+    
+
+    samples = np.array(samples)
+    f_samples = np.array(f_samples)
+    (traj_length, num_actions, num_atoms) = samples.shape
+    if traj_length < 200: 
+        fig, axes = plt.subplots(num_actions, traj_length, figsize=(traj_length, num_actions))
+        for a in range(num_actions): 
+            for t in range(traj_length): 
+                ax = axes[a, t] 
+                uniform = f_samples[t, 0, :]
+                returns = samples[t, a, :] 
+
+                color = 'blue'
+                if actions[t] == a: 
+                    color = 'red'
+
+                for s in range(num_atoms): 
+                    ax.plot([uniform[s], uniform[s]], [0, returns[s]], linewidth=2, c=color)
+                ax.set_ylim([-5, 100])
+                ax.set_xlim([0, 1])
+                ax.get_xaxis().set_ticks([])
+                ax.get_yaxis().set_ticks([])
+
+                ax.get_xaxis().set_ticklabels([])
+                ax.get_yaxis().set_ticklabels([])
+        plt.savefig(path + 'samples_step_%s_ind_%s.png' % (str(model_step), str(ind)))
+        plt.close()
             
     
 def test(agent, env, logger, model_step, path=None, num_test=10):
@@ -241,14 +273,19 @@ def test(agent, env, logger, model_step, path=None, num_test=10):
         q_values_matrix = []
         actions = [] 
         action_q_values = []
+        samples = []
+        f_samples = []
         validation_ep_index = '0'
         while not done:
-            action, Q_a = agent.choose_action(obs) # np.array([agent.get_action(obs.reshape([1, 1, agent.state_dim[1]]), 0)])
+            action, Q_a, f, Q_s_a = agent.choose_action(obs) # np.array([agent.get_action(obs.reshape([1, 1, agent.state_dim[1]]), 0)])
             info = env.step(np.array([action]))
             
             q_values_matrix.append(Q_a / np.sum(np.abs(Q_a)))
             actions.append(action)
             action_q_values.append(Q_a[action])
+            samples.append(Q_s_a)
+            f_samples.append(f)
+
 
             reward += info[1][0]
             done = info[2]
@@ -290,6 +327,7 @@ def test(agent, env, logger, model_step, path=None, num_test=10):
         returns_total[ind] = np.mean(returns)
 
         plot_q_values(q_values_matrix, actions, action_q_values, returns, ind, model_step, path)
+        plot_samples(samples, f_samples, actions, ind, model_step, path)
         
 
     # Reset env after testing
@@ -387,12 +425,15 @@ def run_iqn(args, prefix, config):
         VIDEO_PATH_VAE = SCRATCH_DIR+'vae_videos/'
         QVALUES_PATH = SCRATCH_DIR+'qvalue_plots/'
 
+        REPLAY_PATH = SCRATCH_DIR + 'replay/'
+
         if not os.path.exists(IMAGES_PATH):
             os.makedirs(IMAGES_PATH)
         if not os.path.exists(VIDEO_PATH):
             os.makedirs(VIDEO_PATH)
         if not os.path.exists(QVALUES_PATH):
             os.makedirs(QVALUES_PATH)
+            os.makedirs(REPLAY_PATH)
         
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP, videos=config.config["videos"])
         vis_wrapper_vae = None
@@ -462,7 +503,7 @@ def run_iqn(args, prefix, config):
         num_episodes = 0 
         num_done = 0
         PRINT_FREQ = 100
-        TEST_FREQ = 1000
+        TEST_FREQ = 500
         SAVE_FREQ = 100000
         TARGET_FREQ = args.target_freq
         learning_starts = 1000
@@ -479,7 +520,7 @@ def run_iqn(args, prefix, config):
         to_test = False 
 
         
-        saver = tf.train.Saver(max_to_keep=None)
+        saver = tf.train.Saver(max_to_keep=50)
 
         if args.train_buffer:
             tf.reset_default_graph()
@@ -517,11 +558,11 @@ def run_iqn(args, prefix, config):
 
             obs = env.reset().squeeze()
             epsilon = initial_p
-            for q in range(int(args.buffer_size * 0.1)): 
+            for q in range(int(args.buffer_size * 0.05)): 
                 if np.random.rand() < epsilon:
                     action = np.random.choice(action_dim)
                 else:
-                    action, _ = agent.choose_action(obs)
+                    action, _, _, _ = agent.choose_action(obs)
                 new_obs, rew, done, eps_measurements = env.step(np.array([action]))
 
                 rew = float(rew[0])
@@ -533,7 +574,7 @@ def run_iqn(args, prefix, config):
                 replay_buffer.append([obs, new_obs.squeeze(), action_one_hot, rew, int(done)])
                 obs = new_obs.squeeze()
 
-                if q % 1000 == 0: 
+                if q % 100 == 0: 
                     print('filling buffer: ', q)
 
                 if done: 
@@ -544,14 +585,20 @@ def run_iqn(args, prefix, config):
             sess.run(agent.assign_ops)
 
         save_path = saver.save(sess, TF_MODELS + 'iter_%s/model_%s.ckpt' % (str(0), str(0)))
+        total_reward, success_episodes, Q_action_total, returns_total = test(agent, env, logger, 0, path=QVALUES_PATH, num_test=1)
+        print('TESTING: t %d | rew %d | success %f ' % (0, total_reward, success_episodes))
         obs = env.reset().squeeze()
 
 
         for t in range(steps): 
             if np.random.rand() < exploration.value(t):
                 action = np.random.choice(action_dim)
+                # if t == 1: 
+                #     print('PRACTICE SAVING')
+                #     with open(REPLAY_PATH + 'buffer_' + str(1) + '.pickle', 'wb') as handle:
+                #         pickle.dump(replay_buffer, handle, protocol=pickle.HIGHEST_PROTOCOL)
             else:
-                action, _ = agent.choose_action(obs)
+                action, _, _, _ = agent.choose_action(obs)
 
             # action = np.array([agent.get_action(obs.reshape([1, 1, state_dim[1]]), exploration.value(t))])#[0]
             new_obs, rew, done, eps_measurements = env.step(np.array([action]))
@@ -574,6 +621,8 @@ def run_iqn(args, prefix, config):
                 
                 if (t+1) % SAVE_FREQ == 0: 
                     save_path = saver.save(sess, TF_MODELS + 'iter_%s/model_%s.ckpt' % (str(t), str(t)))
+                    with open(REPLAY_PATH + 'buffer_' + str(t) + '.pickle', 'wb') as handle:
+                        pickle.dump(replay_buffer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 if (t+1) % args.target_freq == 0: 
                     sess.run(agent.assign_ops)

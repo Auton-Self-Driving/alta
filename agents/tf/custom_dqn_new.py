@@ -62,6 +62,11 @@ def test(model, env, model_step, path=None):
         validation_ep_index = '0'
         while not done:
             action, q_values, actions_proba = model.predict(obs, deterministic=True)
+            # print(obs)
+            # print(q_values)
+            # import ipdb; ipdb.set_trace()
+            # print(q_values, q_values.shape, actions_proba.shape)
+            # import ipdb; ipdb.set_trace()
             q_values_matrix.append(q_values[0])
             q_values_matrix_normalized.append(actions_proba[0])
             action_q_values.append(q_values[0][action])
@@ -110,8 +115,8 @@ def test(model, env, model_step, path=None):
         last_td_error = action_q_values.reshape(-1)[-1] - returns.reshape(-1)[-1] 
         
         # plot q_values for this validation episode
-        plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
-        validation_ep_index, returns, action_q_values, actions_taken, path)
+        # plot_q_values(np.array(q_values_matrix), np.array(q_values_matrix_normalized),
+        # validation_ep_index, returns, action_q_values, actions_taken, path)
         
 
     # Reset env after testing
@@ -336,7 +341,7 @@ class Custom_DQN(DQN):
                     assert not self.prioritized_replay, "Prioritized replay buffer is not supported by HER"
                     self.replay_buffer = replay_wrapper(self.replay_buffer)
 
-                if self.exploration is not None:
+                if self.exploration is None: #not None:
                     # Create the schedule for exploration starting from 1.
                     self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
                                                     initial_p=self.exploration_initial_eps,
@@ -1290,7 +1295,7 @@ class Custom_DQN(DQN):
         if not vectorized_env:
             actions = actions[0]
 
-        return actions, q_values, actions_proba
+        return actions, q_values, [1] # actions_proba
     
     def save(self, save_path, cloudpickle=False):
         # params

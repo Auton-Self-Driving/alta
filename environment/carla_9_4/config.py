@@ -237,6 +237,28 @@ episode_measurements = {
 #     10: [20.0, 0.0]
 # }
 
+def get_discrete_actions_navigation():
+    # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
+    steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
+    # steer = [-0.1, 0.0, 0.1]
+    # steer = [0.0]
+    # target_speed = [0, 10, 20]
+    # target_speed = [20]
+    target_speed = [0, 20]
+
+    # Dictionary of discrete (Target_Speed, Steer) actions
+    action_space = {}
+
+    n = 0
+    for i in range(len(target_speed)):
+        for j in range(len(steer)):
+            action_space[n] = [target_speed[i], steer[j]]
+            n = n+1
+    
+    action_space[n] = [20, -0.5]
+    action_space[n+1] = [20, 0.5]
+    return action_space
+
 def get_discrete_actions():
     # steer = [-0.5, -0.3, -0.1, 0.0, 0.1, 0.3, 0.5]
     # steer = [-0.3, -0.1, 0.0, 0.1, 0.3]
@@ -255,8 +277,8 @@ def get_discrete_actions():
             action_space[n] = [target_speed[i], steer[j]]
             n = n+1
     return action_space
-
-DISCRETE_ACTIONS = get_discrete_actions()
+ 
+DISCRETE_ACTIONS = get_discrete_actions_navigation()
 
 class ConfigManager(object):
     def __init__(self, algo='DDPG'):
@@ -284,6 +306,51 @@ class ConfigManager(object):
             self.config["grayscale"] = False
             self.config["scenarios"] = "navigation"
             self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["max_steps"] = 5000
+            self.config["semantic"] = True
+        elif algo == 'C51':
+            self.config["algo"] = "C51"
+            self.config["x_res"] = 84
+            self.config["y_res"] = 84
+            self.config["reward_function"] = "simple2"
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "discrete"
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["scenarios"] = "navigation"
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["max_steps"] = 5000
+            self.config["semantic"] = True
+        elif algo == 'IQN':
+            self.config["algo"] = "IQN"
+            self.config["x_res"] = 84
+            self.config["y_res"] = 84
+            self.config["reward_function"] = "simple2"
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "discrete"
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["scenarios"] = "navigation"
+            self.config["input_type"] = "wp"
+            self.config["city_name"] = "Town01"
+            self.config["verbose"] = False
+            self.config["max_steps"] = 5000
+            self.config["semantic"] = True
+        elif algo == 'DQN_semantic':
+            self.config["algo"] = "DQN"
+            self.config["x_res"] = 84
+            self.config["y_res"] = 84
+            self.config["reward_function"] = "simple2"
+            self.config["train_config"] = "PPO"
+            self.config["action_type"] = "discrete"
+            self.config["framestack"] = 1
+            self.config["grayscale"] = False
+            self.config["scenarios"] = "navigation"
+            self.config["input_type"] = "semantic"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["max_steps"] = 5000

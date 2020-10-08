@@ -6,6 +6,7 @@
 AE models.
 '''
 
+import time
 import numpy as np
 import os
 import tensorflow as tf
@@ -21,8 +22,8 @@ def denormalize(data):
 
 
 class ConvAutoEncoder(object):
-    def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, is_training=True,
-                 reuse=False, num_classes=5, frame_stack=1, gpu_mode=True):
+    def __init__(self, z_size=512, batch_size=100, learning_rate=0.0001, is_training=False,
+                 reuse=False, num_classes=15, frame_stack=1, gpu_mode=True):
         self.z_size = z_size # Unused
         self.batch_size = batch_size
         self.learning_rate = learning_rate
@@ -49,11 +50,23 @@ class ConvAutoEncoder(object):
             h = tf.layers.conv2d(self.x, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv1")
             h = tf.layers.conv2d(h, 32, 5, strides=2, activation=tf.nn.relu, name="enc_conv2")
             h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="enc_conv3")
-            h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
-            self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
+
+            # Model used for Learning to drive using Waypoints (last layer dim = 16)
+            # h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            # self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
+
+            # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+            h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
+            self.encoded = tf.reshape(h, [-1, 5 * 5 * 64])
 
             # Decoder
-            h = tf.reshape(self.encoded, [-1, 5, 5, 16])
+
+            # Model used for Learning to drive using Waypoints (last layer dim = 16)
+            # h = tf.reshape(self.encoded, [-1, 5, 5, 16])
+
+            # # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+            h = tf.reshape(self.encoded, [-1, 5, 5, 64])
+
             h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
             h = tf.layers.conv2d_transpose(h, 32, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
             h = tf.layers.conv2d_transpose(h, 16, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
@@ -159,17 +172,26 @@ class ConvAutoEncoder(object):
         with self.g.as_default():
             t_vars = tf.trainable_variables()
             idx = 0
+            print("No of trainable variables: {}".format(len(t_vars)))
+            assign_ops = []
             for var in t_vars:
-                pshape = self.sess.run(var).shape
+                time_start = time.time()
+                # pshape = self.sess.run(var).shape
                 p = np.array(params[idx])
-                assert pshape == p.shape, "inconsistent shape"
+                # assert pshape == p.shape, "inconsistent shape"
                 assign_op = var.assign(p.astype(np.float) / 10000.)
-                self.sess.run(assign_op)
+                assign_ops.append(assign_op)
                 idx += 1
+                print("Time to set AE target model param: {}, shape: {}, time: {}".format(idx, p.shape, time.time() - time_start))
+            time_start = time.time()
+            assign_ops = tf.group(*assign_ops)
+            self.sess.run(assign_ops)
+            print("Time to assign AE target model params: {}".format(time.time() - time_start))
 
     def load_json(self, jsonfile='ae.json'):
         with open(jsonfile, 'r') as f:
             params = json.load(f)
+        #import ipdb; ipdb.set_trace()
         self.set_model_params(params)
 
     def save_json(self, jsonfile='ae.json'):

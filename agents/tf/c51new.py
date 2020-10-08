@@ -230,9 +230,10 @@ class C51_Agent:
                 net_action = net
 
             elif self.model == 'C51':
-                layer_1 = tf.layers.dense(inputs=self.state, units=64, activation=tf.nn.relu, trainable=True)
-                layer_2 = tf.layers.dense(inputs=layer_1, units=64, activation=tf.nn.relu, trainable=True)
-                layer_3 = tf.layers.dense(inputs=layer_2, units=self.action_size * self.num_support, activation=None,
+                layer_1 = tf.layers.dense(inputs=self.state, units=256, activation=tf.nn.relu, trainable=True)
+                layer_2 = tf.layers.dense(inputs=layer_1, units=128, activation=tf.nn.relu, trainable=True)
+                layer_2a = tf.layers.dense(inputs=layer_1, units=64, activation=tf.nn.relu, trainable=True)
+                layer_3 = tf.layers.dense(inputs=layer_2a, units=self.action_size * self.num_support, activation=None,
                                           trainable=True)
 
                 net_pre = tf.reshape(layer_3, [-1, self.action_size, self.num_support])
@@ -507,8 +508,9 @@ def run_c51(args, prefix, config):
         num_episodes = 0 
         num_done = 0
         PRINT_FREQ = 100
-        TEST_FREQ = 50000
+        TEST_FREQ = 2000
         SAVE_FREQ = 500000
+        TARGET_FREQ = args.target_freq
         learning_starts = 1000
         batch_size = 32
 
@@ -554,11 +556,15 @@ def run_c51(args, prefix, config):
                 # if (t + 1) % args.target_freq == 0: 
                 #     agent.copy_target()
 
-                if (t+1) % TEST_FREQ == 0: 
-                    to_test = True
+                # if (t+1) % TEST_FREQ == 0: 
+                #     to_test = True
 
                 if (t+1) % PRINT_FREQ == 0: 
                     print('TRAINING: t %d | rew %d | loss %f' % (t, rew, td_error))
+
+                if (t+1) % args.target_freq == 0: 
+                    sess.run(agent.assign_ops)
+
 
             # if done:
                 
@@ -578,7 +584,7 @@ def run_c51(args, prefix, config):
                 if done: 
                     num_episodes += 1
 
-                    if to_test: 
+                    if num_episodes % TEST_FREQ == 0: #to_test: 
                         t_list.append(t)
                         total_reward, success_episodes = test(agent, env, logger, t)
                         print('TESTING: t %d | rew %d | success %d ' % (t, total_reward, success_episodes))

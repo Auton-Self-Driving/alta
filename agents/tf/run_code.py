@@ -8,9 +8,10 @@ from train_measurements_ppo_run import run_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
 from train_measurements_dqn_run import run_dqn
-from c51new import run_c51
+# from c51new import run_c51
 from iqn import run_iqn
 from generate_iqn_plots import run_iqn_plots
+from iqn_vae import run_iqn_vae
 
 
 def parse_arguments():
@@ -382,16 +383,16 @@ if __name__ == '__main__':
             else:
                 prefix = create_ppo_prefix(args)
             run_dqn(args, prefix, config)
-        elif args.algo == 'C51': 
-            # prefix = extract_prefix(args) 
-            prefix = get_drl_prefix(args)
-            run_c51(args, prefix, config)
+        # elif args.algo == 'C51': 
+        #     # prefix = extract_prefix(args) 
+        #     prefix = get_drl_prefix(args)
+        #     run_c51(args, prefix, config)
         elif args.algo == 'IQN': 
             # prefix = extract_prefix(args) 
             prefix = get_drl_prefix(args)
             if args.test: 
-                print('PLOTTING')
-                run_iqn_plots(args, prefix, config)
+                
+                run_iqn_vae(args, prefix, config)
             else: 
                 run_iqn(args, prefix, config)
 

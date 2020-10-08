@@ -41,7 +41,9 @@ import matplotlib.pyplot as plt
 import tensorboard_logging as tf_log
 
 if __name__ == '__main__':
-    prefix = 'dqn_rgb_lr_5e4_g_95_straight_run1'
+    prefix = 'dqn_rgb_lr_5e4_g_95_straight_run1/'
+    ALTA_LOGS = '~/alta-logs/' + prefix
+    TB_LOGS_DIR = ALTA_LOGS+'tb/'
     MODEL_SAVE_DIR = '~/saved_models/'
     IMAGES_PATH = MODEL_SAVE_DIR+'alta-logs/images/' + prefix
     VIDEO_PATH = MODEL_SAVE_DIR+'alta-logs/videos/' + prefix
@@ -49,19 +51,32 @@ if __name__ == '__main__':
     
     with U.make_session():
         # Create the environment
-        config = ConfigManager(algo="DQN")
-        env = CarlaEnv(config.config, log_dir='~/saved_models/')
+        config = ConfigManager(algo="DQN_semantic")
+
+        # env = CarlaEnv(config.config)
         vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
+        logger = tf_log.Logger(TB_LOGS_DIR)
+        env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
+        print('INPUT TYPE: ', env.config['input_type'])
+        
+        obs = env.reset()
+        print('SEMANTIC SHAPE: ', obs['semantic_image'].shape)
+        plt.figure()
+        plt.imshow(obs['semantic_image'])
+        plt.savefig('./img.png')
+        plt.close()
+       # import ipdb; ipdb.set_trace()
+        
         # NOTE: not using Monitor for now. integrate later
         # env = wrappers.Monitor(env, '/tmp/deepq'+str(datetime.now()), force=True)
-        logger = tf_log.Logger('./tf-logs/'+ prefix +str(datetime.now()))
+        # logger = tf_log.Logger('./tf-logs/'+ prefix +str(datetime.now()))
         print('-'*50)
         print('Launched environment!')
         print('-'*50)
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
-            q_func=CoRLModel,
+            q_func=AtariModel, # CoRLModel,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),
             gamma=0.95,
@@ -89,20 +104,22 @@ if __name__ == '__main__':
 
         obs = env.reset()
         print('-'*50)
-        print('Received observation of shape:', obs['image'].shape)
+        print('Received observation of shape:', obs['semantic_image'].shape)
         print('-'*50)
         num_episodes = 0
         num_done = 0
         for t in itertools.count():
             # Take action and update exploration to the newest value
-            action = act(obs['image'], update_eps=exploration.value(t))[0]
+            # action = act(obs['image'], update_eps=exploration.value(t))[0]
+            action = act(obs['semantic_image'], update_eps=exploration.value(t))[0]
             new_obs, rew, done, eps_measurements = env.step(action)
-            vis_wrapper.save_image(obs['image'], t)
+            # vis_wrapper.save_image(obs['image'], t)
+            vis_wrapper.save_image(obs['semantic_image'], t)
             # Store transition in the replay buffer.
             # Read only sensor image part of the observation (sensor_image, [measurements_array])
             rew = float(rew[0, 0])
             done = bool(done[0, 0])
-            replay_buffer.add(obs['image'], action, rew, new_obs['image'], float(done))
+            replay_buffer.add(obs['semantic_image'], action, rew, new_obs['image'], float(done))
             obs = new_obs
             if done:
                 num_episodes += 1
@@ -128,7 +145,7 @@ if __name__ == '__main__':
                     validation_done = None
                     while(validation_done != True):
                         # Take action and update exploration to the newest value
-                        action = act(obs['image'], update_eps=0)[0]
+                        action = act(obs['semantic_image'], update_eps=0)[0]
                         new_obs, rew, done, eps_measurements = env.step(action)
                         # Store transition in the replay buffer.
                         # Read only sensor image part of the observation (sensor_image, [measurements_array])
@@ -150,7 +167,7 @@ if __name__ == '__main__':
                     validation_done = None
                     while(validation_done != True):
                         # Take action and update exploration to the newest value
-                        action = act(obs['image'], update_eps=0)[0]
+                        action = act(obs['semantic_image'], update_eps=0)[0]
                         new_obs, rew, done, eps_measurements = env.step(action)
                         # Store transition in the replay buffer.
                         # Read only sensor image part of the observation (sensor_image, [measurements_array])

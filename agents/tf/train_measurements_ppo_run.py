@@ -234,9 +234,9 @@ def run_ppo(args, prefix, config):
                         f.write(str(millis))
                     if args.agent_model_path is None:
                         model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
-                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)#, seed=millis)
                     else:
-                        model = PPO.load(args.agent_model_path, dummy_env, seed=millis)
+                        model = PPO.load(args.agent_model_path, dummy_env)#, seed=millis)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     best_model = model.learn(steps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False)
                 

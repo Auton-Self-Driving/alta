@@ -19,13 +19,17 @@ def AtariModel(inputs, num_actions, scope, reuse=False):
         ]
         net = inputs
         out_size, kernel, stride = convs1[0]
-        net = slim.conv2d(net, out_size, kernel, stride, scope="conv1/conv3_1")
+        # net = slim.conv2d(net, out_size, kernel, stride, scope="conv1/conv3_1")
+        net = tf.layers.conv2d(net, out_size, kernel, stride)#, scope="conv1/conv3_1")
+
         #--------
         out_size, kernel, stride = convs2[0]
-        net = slim.conv2d(net, out_size, kernel, stride, scope="conv2/conv3_1")
+        # net = slim.conv2d(net, out_size, kernel, stride, scope="conv2/conv3_1")
+        net = tf.layers.conv2d(net, out_size, kernel, stride)#, scope="conv2/conv3_1")
         net = tf.squeeze(net)
         net = tf.reshape(net, [-1, 84, 84, 32])
-        net = slim.flatten(net, scope="flatten3")
+        # net = slim.flatten(net, scope="flatten3")
+        net = tf.layers.flatten(net)#, scope="flatten3")
         #--------
         net = tf.layers.dense(inputs=net, 
         units= 256, 
