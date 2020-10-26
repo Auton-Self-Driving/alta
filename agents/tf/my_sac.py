@@ -318,10 +318,10 @@ class MY_SAC(SAC):
 
                     for i in range(len(mini_ep_info))[::-1]:
                         if(mini_ep_info[i][-1]):
-                            mc_reward = 0
-                            mc_next_obs = mini_ep_info[i][0]
-                            '''mc_reward = mini_ep_info[i][2]
-                            mc_next_obs = mini_ep_info[i][3]'''
+                            #mc_reward = 0
+                            #mc_next_obs = mini_ep_info[i][0]
+                            mc_reward = mini_ep_info[i][2]
+                            mc_next_obs = mini_ep_info[i][3]
                             gamma_next_s = 1.0
                             gamma_bs = 1.0
                             interrupt = 1
@@ -331,8 +331,8 @@ class MY_SAC(SAC):
                             gamma_next_s = gamma_next_s*self.gamma
                             gamma_bs = 1.0-(gamma_next_s/self.gamma)
 
-                    '''if(interrupt):
-                        gamma_bs = 1.0'''
+                    if(interrupt):
+                        gamma_bs = 1.0
 
                     if(mini_ep_info[0][-1]):					# We are looking at terminal state
                         self.replay_buffer.add(mini_ep_info[0][0], mini_ep_info[0][1], mini_ep_info[0][2], mini_ep_info[0][3],1.0)

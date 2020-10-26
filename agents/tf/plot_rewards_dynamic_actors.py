@@ -9,6 +9,9 @@ import os
 import matplotlib.colors as mc
 import colorsys
 
+import ipdb
+st = ipdb.set_trace
+
 def lighten_color(color, amount=0.5):
 	try:
 		c = mc.cnames[color]
@@ -40,12 +43,14 @@ def plot_runs(idx, exp_folder, exp_name, color, min_steps= 100, label = None, al
 				reward = np.asarray(eval(row[2]))
 				if reward.ndim>1:
 					reward = reward[0][0]
+					num_succ = num_succ[0][0]
 				my_data.append([int(row[0]), int(row[1]), reward])
 		#my_data = genfromtxt(file_name, delimiter=',')
 		my_data = np.asarray(my_data)
 		#print(my_data.shape)
 		timesteps = my_data[:,0]
-		reward = my_data[:,2]
+		reward = my_data[:,1]
+		num_succ = my_data[:,1]
 		rewards.append(reward)
 		if(len(timesteps)<=min_steps):
 			min_steps = len(timesteps)
@@ -98,24 +103,33 @@ if __name__=='__main__':
 
 	if mode == "dynamic-navigation":
 		#labels_list = ['SAC_n25_nb1', 'SAC_n25_nb10', 'SAC_n25_nb30', 'SAC_n25_nb30_4layer']
-		labels_list = ['SAC_n25_nb100_col10', 'SAC_n25_nb100_col10_bs', 'SAC_n25_nb100_ent5e-1', 'SAC_n25_nb100_ent5e-1_bs', 'SAC_n25_nb100_ent5e-3_bootstrap']
 		algo_list = ['sac', 'sac', 'sac', 'sac', 'sac']
 
-		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep'
 		min_steps = 100
 
-		'''exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_1_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
+		'''exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep'
+		labels_list = ['SAC_n25_nb100_col10', 'SAC_n25_nb100_col10_bs', 'SAC_n25_nb100_ent5e-1', 'SAC_n25_nb100_ent5e-1_bs', 'SAC_n25_nb100_ent5e-3_bootstrap']
+
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_1_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_10_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_30_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		#exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
-		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_4_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_30_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')'''
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_4_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_30_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.5_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.5_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap')
-		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap')'''
 
+		exp_folder = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep_envSem3'
+
+		labels_list = ['SAC_n25_ent-1', 'SAC_n25_nb100_ent5e-2', 'SAC_n25_nb100_ent5e-2_corr', 'SAC_n10_nb100_ent5e-2', 'SAC_n25_nb30_ent5e-2']
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_-1.0_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_10_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
+		exp_list.append('algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_30_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0')
 
 	if mode == "long-straight":
 		labels_list = ['PPO', 'SAC_n1_ent-1']
@@ -141,7 +155,7 @@ if __name__=='__main__':
 		ctr+=1
 
 		axes = plt.gca()
-		axes.set_ylim(bottom=0, top = 120000)
+		#axes.set_ylim(bottom=0, top = 120000)
 		plt.legend(loc='lower right', prop={'size' : 36})
 		print('Saving plot to ', os.path.join(exp_folder, 'actor_rewards_new.png'))
 		plt.savefig(os.path.join(exp_folder, 'actor_rewards_'+str(ctr)+'.png'), dpi=200)

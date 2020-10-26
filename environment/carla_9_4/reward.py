@@ -354,7 +354,7 @@ def _compute_reward_SAC(prev, current, config=None, verbose=False):
         current["static_steps"] += 1
     return reward
 
-def _check_if_signal_crossed(prev, current, config):
+def _check_if_signal_crossed(prev, current):
 
     # cross_from_one_light_to_no_light
     cross_to_no_light = current['dist_to_light'] == -1 and prev['dist_to_light'] > 0

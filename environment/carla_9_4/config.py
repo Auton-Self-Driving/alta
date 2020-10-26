@@ -132,7 +132,7 @@ DEFAULT_ENV = {
     "default_obs_traffic_val": 1,
     "disable_traffic_light": False,
     "disable_obstacle_info" : False,
-    "no_rendering_mode" : True,
+    "no_rendering_mode" : False,
     "test_comparison": False,    
     "test_with_automatic_control": False,
     "updated_scenarios": False,

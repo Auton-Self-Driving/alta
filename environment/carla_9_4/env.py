@@ -899,7 +899,7 @@ class CarlaEnv(gym.Env):
                     # self.vis_wrapper.save_image(temp_image, self.num_steps)
                     
                     if self.config["semantic"]:
-                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0]), reduced_classes=True).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
                         self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:

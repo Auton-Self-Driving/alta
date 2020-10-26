@@ -125,7 +125,7 @@ def vis_policyloss(vis, model_dir_path, replay_buffer, fname=None, tseries = Fal
 		filenames.append(fname)
 
 	qloss_hist = []
-	for filename in filenames:
+	for filename in filenames[-10:]:
 		MODEL_PATH = os.path.join(ALTA_LOGS, filename)
 
 		model = MY_SAC.load(MODEL_PATH, env)
@@ -221,6 +221,7 @@ def compute_done_idxs(states):
 	return done_idxs
 
 def vis_qvalues2(vis, model_dir_path, replay_buffer, fname=None, tseries = False, gpu='3', st = 0, ed= -1):
+	run_ids = np.arange(5)+1
 	states = []
 	actions = []
 	rewards = []
@@ -239,9 +240,9 @@ def vis_qvalues2(vis, model_dir_path, replay_buffer, fname=None, tseries = False
 	rewards = np.array(rewards)
 	next_states = np.array(next_states)
 	dones = np.array(dones)
-	#done_idxs = np.where(dones==1)[0]
-	trace()
-	done_idxs = compute_done_idxs(states)
+	done_idxs = np.where(dones==1)[0]
+	#trace()
+	#done_idxs = compute_done_idxs(states)
 
 	config = ConfigManager(algo="SAC")
 	config.config["carla_gpu"] = gpu
@@ -259,100 +260,122 @@ def vis_qvalues2(vis, model_dir_path, replay_buffer, fname=None, tseries = False
 
 	from my_sac import MY_SAC
 
-	ALTA_LOGS = model_dir_path
+	#ALTA_LOGS = os.path.basename(model_dir_path)
+	ALTA_LOGS = model_dir_path[:-1].split('/')[-1]
 
 	set_global_seeds(5)
 
-	env = CarlaEnv(config=config.config, vis_wrapper=None, logger=None, log_dir = ALTA_LOGS, base_prefix = None, prefix = None)
+	env = CarlaEnv(config=config.config, vis_wrapper=None, logger=None, log_dir = os.path.join(model_dir_path, ALTA_LOGS+'_runid_run'+str(1)), base_prefix = None, prefix = None)
 	dummy_env = DummyVecEnv([lambda: env])
 
 	#MODEL_PATH = ALTA_LOGS+'/sac_weights3000000.pkl'
 	filenames = []
 	if tseries:
-		for fl in sorted(os.listdir(model_dir_path)):
-			if fl[-4:]=='.pkl':
-				filenames.append(fl)
+		filename_prefix = 'sac_weights'
+		stepsize = 75000
+		ctr = 1
+		unsorted_files = os.listdir(os.path.join(model_dir_path, ALTA_LOGS+'_runid_run'+str(1)))
+		unsorted_files = [fl for fl in unsorted_files if (fl[-4:]=='.pkl' and fl[:len(filename_prefix)]==filename_prefix)]
+		num_files = len(unsorted_files)
+		while len(filenames)<num_files:
+			curr_filename = filename_prefix+str(ctr*stepsize)+'.pkl'
+			if curr_filename in unsorted_files:
+				filenames.append(curr_filename)
+			ctr+=1
 	else:
 		filenames.append(fname)
 
 	qloss_hist = []
 	for filename in filenames:
-		MODEL_PATH = os.path.join(ALTA_LOGS, filename)
+		file_terminal_qloss = []
+		for run_id in run_ids:
+			MODEL_PATH = os.path.join(os.path.join(model_dir_path, ALTA_LOGS+'_runid_run'+str(run_id)), filename)
+			model = MY_SAC.load(MODEL_PATH, env)
 
-		model = MY_SAC.load(MODEL_PATH, env)
+			'''for samp in replay_buffer:
+				self.replay_buffer.add(samp[0], samp[1], samp[2], samp[3], samp[4])'''
 
-		'''for samp in replay_buffer:
-			self.replay_buffer.add(samp[0], samp[1], samp[2], samp[3], samp[4])'''
 
-		batch_sz = 1024
-		n_batches = int(len(replay_buffer)/batch_sz)
+			batch_sz = 1024
+			n_batches = int(len(replay_buffer)/batch_sz)
 
-		with tf.variable_scope("loss", reuse=True):
-			q_backup = tf.stop_gradient(model.rewards_ph + (1 - model.terminals_ph) * model.gamma * model.value_target)
+			with tf.variable_scope("loss", reuse=True):
+				q_backup = tf.stop_gradient(model.rewards_ph + (1 - model.terminals_ph) * model.gamma * model.value_target)
 
-		q1_values = np.zeros((len(replay_buffer), ))
-		stp1_values = np.zeros((len(replay_buffer), ))
-		q1_loss = np.zeros((len(replay_buffer), ))
-		q2_loss = np.zeros((len(replay_buffer), ))
-		terminal_state_loss = 0.0
-		terminal_states = 0
-		nonterminal_state_loss = 0.0
-		nonterminal_states = 0
-		for i in range(len(done_idxs))[:-1]:
-			batch_obs = states[done_idxs[i]+1:done_idxs[i+1]+1, :]
-			batch_actions = actions[done_idxs[i]+1:done_idxs[i+1]+1, :]
-			batch_rewards = rewards[done_idxs[i]+1:done_idxs[i+1]+1]
-			batch_next_obs = next_states[done_idxs[i]+1:done_idxs[i+1]+1, :]
-			batch_dones = dones[done_idxs[i]+1:done_idxs[i+1]+1]
+			q1_values = np.zeros((len(replay_buffer), ))
+			stp1_values = np.zeros((len(replay_buffer), ))
+			q1_loss = np.zeros((len(replay_buffer), ))
+			q2_loss = np.zeros((len(replay_buffer), ))
 
-			batch_pred_actions = model.predict(batch_obs, deterministic=True)[0]
+			terminal_qloss = []
 
-			feed_dict = {
-				model.observations_ph: batch_obs,
-				#model.actions_ph: batch_pred_actions,
-				model.actions_ph: batch_actions,
-				model.next_observations_ph: batch_next_obs,
-				model.rewards_ph: batch_rewards.reshape(len(batch_rewards), -1),
-				model.terminals_ph: batch_dones.reshape(len(batch_dones), -1),
-				model.learning_rate_ph: 0.0
-			}
+			terminal_state_loss = 0.0
+			terminal_states = 0
+			nonterminal_state_loss = 0.0
+			nonterminal_states = 0
+			#trace()
+			penultimate_state_value = 0.0
+			for i in range(len(done_idxs))[:-1]:
+				batch_obs = states[done_idxs[i]+1:done_idxs[i+1]+1, :]
+				batch_actions = actions[done_idxs[i]+1:done_idxs[i+1]+1, :]
+				batch_rewards = rewards[done_idxs[i]+1:done_idxs[i+1]+1]
+				batch_next_obs = next_states[done_idxs[i]+1:done_idxs[i+1]+1, :]
+				batch_dones = dones[done_idxs[i]+1:done_idxs[i+1]+1]
 
-			target_q = model.sess.run(q_backup, feed_dict)
-			next_s_val = model.sess.run(model.value_target, feed_dict)
-			out = model.sess.run(model.step_ops, feed_dict)
-			policy_loss, qf1_loss, qf2_loss, value_loss, qf1, qf2, *values = out
-			qf1_loss2 = (target_q-qf1)**2
-			qf2_loss2 = (target_q-qf2)**2
+				batch_pred_actions = model.predict(batch_obs, deterministic=True)[0]
 
-			'''batch_done_idxs = np.where(batch_dones==1)[0]
-			terminal_state_loss += np.sum(qf1_loss2[batch_done_idxs]) 
-			terminal_states += len(batch_done_idxs)
-			nondone_idxs = np.where(batch_dones<1)[0]
-			nonterminal_state_loss += np.sum(qf1_loss2[nondone_idxs]) 
-			nonterminal_states += len(nondone_idxs)'''
+				feed_dict = {
+					model.observations_ph: batch_obs,
+					#model.actions_ph: batch_pred_actions,
+					model.actions_ph: batch_actions,
+					model.next_observations_ph: batch_next_obs,
+					model.rewards_ph: batch_rewards.reshape(len(batch_rewards), -1),
+					model.terminals_ph: batch_dones.reshape(len(batch_dones), -1),
+					model.learning_rate_ph: 0.0
+				}
 
-			q1_loss[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf1_loss2)
-			q2_loss[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf2_loss2)
-			q1_values[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf1)
-			stp1_values[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(next_s_val)
-			#out = model._train_step(step, None, 0.0)
+				target_q = model.sess.run(q_backup, feed_dict)
+				next_s_val = model.sess.run(model.value_target, feed_dict)
+				out = model.sess.run(model.step_ops, feed_dict)
+				policy_loss, qf1_loss, qf2_loss, value_loss, qf1, qf2, *values = out
+				qf1_loss2 = (target_q-qf1)**2
+				qf2_loss2 = (target_q-qf2)**2
 
-			if(len(qf1_loss2)<2):
-				continue
+				'''batch_done_idxs = np.where(batch_dones==1)[0]
+				terminal_state_loss += np.sum(qf1_loss2[batch_done_idxs]) 
+				terminal_states += len(batch_done_idxs)
+				nondone_idxs = np.where(batch_dones<1)[0]
+				nonterminal_state_loss += np.sum(qf1_loss2[nondone_idxs]) 
+				nonterminal_states += len(nondone_idxs)'''
 
-			vis.line(X = np.arange(len(qf1_loss2)), Y = np.squeeze(qf1_loss2), opts = {'title': 'q1loss', 'width':1200, 'height':600})
-			vis.line(X = np.arange(len(qf1)), Y = np.squeeze(qf1), opts = {'title': 'q1Values', 'width':1200, 'height':600})
-			vis.line(X = np.arange(len(next_s_val)), Y =  np.squeeze(next_s_val),\
-										opts = {'title': 'V_Values', 'width':1200, 'height':600})
-			vis.line(X = np.arange(len(batch_dones)), Y = np.squeeze(batch_dones),\
-										opts = {'title': 'dones', 'width':1200, 'height':600})
-			#vis.line(X = np.arange(len(policy_loss)), Y = np.squeeze(policy_loss), opts = {'title': 'KL_loss', 'width':1200, 'height':600})
-			vis.line(X = np.arange(len(batch_rewards)), Y = np.squeeze(batch_rewards),\
-										opts = {'title': 'rewards', 'width':1200, 'height':600})
-			trace()
+				q1_loss[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf1_loss2)
+				q2_loss[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf2_loss2)
+				q1_values[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(qf1)
+				stp1_values[done_idxs[i]+1:done_idxs[i+1]+1] = np.squeeze(next_s_val)
+				#out = model._train_step(step, None, 0.0)
 
-		qloss_hist.append(np.mean(q1_loss))
-		#trace()
+				terminal_qloss.append(qf1_loss2[-1])
+
+				if(len(qf1_loss2)<2):
+					continue
+
+				'''vis.line(X = np.arange(len(qf1_loss2)), Y = np.squeeze(qf1_loss2), opts = {'title': 'q1loss', 'width':1200, 'height':600})
+				vis.line(X = np.arange(len(qf1)), Y = np.squeeze(qf1), opts = {'title': 'q1Values', 'width':1200, 'height':600})
+				vis.line(X = np.arange(len(next_s_val)), Y =  np.squeeze(next_s_val),\
+											opts = {'title': 'V_Values', 'width':1200, 'height':600})
+				vis.line(X = np.arange(len(batch_dones)), Y = np.squeeze(batch_dones),\
+											opts = {'title': 'dones', 'width':1200, 'height':600})
+				#vis.line(X = np.arange(len(policy_loss)), Y = np.squeeze(policy_loss), opts = {'title': 'KL_loss', 'width':1200, 'height':600})
+				vis.line(X = np.arange(len(batch_rewards)), Y = np.squeeze(batch_rewards),\
+											opts = {'title': 'rewards', 'width':1200, 'height':600})
+				trace()'''
+
+			terminal_qloss = np.asarray(terminal_qloss)
+			file_terminal_qloss.append(np.mean(terminal_qloss))
+
+		file_terminal_qloss = np.asarray(file_terminal_qloss)
+		qloss_hist.append(np.mean(file_terminal_qloss))
+			#trace()
 
 	if tseries:
 		vis.line(X = np.arange(len(qloss_hist)), Y = qloss_hist, opts = {'title': 'q1Loss', 'width':1200, 'height':600})
@@ -558,10 +581,10 @@ if __name__=='__main__':
 			#vis_policyloss(vis, args.exp_path, buff, None, True, args.gpu)
 			vis_exp_qvalues(args, vis, args.exp_path, buff, None, True, args.gpu)
 		else:
-			filename = 'sac_weights300000.pkl'
+			filename = 'sac_weights6750000.pkl'
 			if not args.model_name=='':
 				filename = args.model_name
-			vis_qvalues2(vis, args.exp_path, buff, filename, False, args.gpu)
+			vis_qvalues2(vis, args.exp_path, buff, filename, True, args.gpu)
 
 	if args.val:
 		vis_validation(vis, os.path.dirname(path))

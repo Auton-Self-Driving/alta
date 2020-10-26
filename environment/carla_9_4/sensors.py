@@ -1,5 +1,6 @@
 #TODO: Integrate sensor wrappers into main env code
 
+
 from __future__ import print_function
 
 import argparse
@@ -41,6 +42,8 @@ class CollisionSensor(object):
     def __init__(self, parent_actor):
         self.sensor = None
         self.num_collisions = 0
+        self.actor_id = None
+        self.actor_type = None
         self._history = []
         self._parent = parent_actor
         world = self._parent.get_world()
@@ -62,8 +65,13 @@ class CollisionSensor(object):
         self = weak_self()
         if not self:
             return
-        actor_type = get_actor_display_name(event.other_actor)
-        self.num_collisions += 1
+        # actor_type = get_actor_display_name(event.other_actor)
+        actor_type = event.other_actor.type_id
+        if 'road' not in actor_type:
+            self.actor_id = event.other_actor.id
+            self.actor_type = actor_type
+            self.num_collisions += 1
+        # print("actor type:{}".format(actor_type))
         #print('Collision with %r, id = %d' % (actor_type, event.other_actor.id))
         #impulse = event.normal_impulse
         #intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)

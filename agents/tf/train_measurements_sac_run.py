@@ -3,8 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import sys, os, glob
-sys.path.append('./../../')
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
+sys.path.append('./../../')
 # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
@@ -41,7 +41,7 @@ from sac_models import My_MlpPolicy_1layer, My_MlpPolicy_2layer, My_MlpPolicy_4l
 import traceback
 import time
 import csv
-np.random.seed(5)
+#np.random.seed(5)
 def test(model, env, dump_results=False, path='.', model_step=None):
     dummy_env = DummyVecEnv([lambda: env])
     success_episodes = 0
@@ -54,8 +54,12 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     results = {}
     total_reward = 0
     #env.reset()
+
+    '''saved_scenarios = env.base_dir+"/testing_scenarios/"
+    if not os.path.exists(saved_scenarios):
+        os.makedirs(saved_scenarios)'''
+
     for ind in range(env.config["num_episodes"]):
-        print(ind, "of", env.config["num_episodes"])
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
@@ -86,6 +90,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
                 static_episodes += 1
             elif info[3]['termination_state'] == 'max_steps':
                 max_steps_episodes += 1
+        #env.client.stop_recorder()
 
     env.reset()
     print("Results of train scenarios")
@@ -106,7 +111,7 @@ def test(model, env, dump_results=False, path='.', model_step=None):
                 csvwriter = csv.writer(f, delimiter=',')
                 csvwriter.writerow([model_step, success_episodes, total_reward, collision_obs_episodes,
                         collision_out_of_road_episodes, collision_lane_change_episodes, runover_light_episodes, static_episodes, max_steps_episodes])
-    return total_reward, success_episodes, results
+    return total_reward, success_episodes, results 
 
 def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
@@ -222,21 +227,21 @@ def run_sac(args, prefix, base_prefix, config):
             env.close()
 
 if __name__ == '__main__':
-    #run_ids = np.arange(5)+1
-    run_ids = [5]
-    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep/'
+    run_ids = np.arange(5)+1
+    run_ids = [1]
+    base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep_envSem3/'
 
     config = ConfigManager(algo="SAC")
     config.config["videos"] = True
-    config.config["carla_gpu"] = '2'
-    config.config["code_gpu"]  = '2'
+    config.config["carla_gpu"] = '0'
+    config.config["code_gpu"]  = '0'
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(config.config["code_gpu"])
     config.config["testing"] = True
     config.config["test_fixed_spawn_points"] = True
-    config.config["city_name"] = "Town01"
+    config.config["city_name"] = "Town02"
     config.config["input_type"] = "wp_obs_info_speed_steer_ldist_goal_light"
-    config.config["num_npc"] = 20
+    config.config["num_npc"] = 15
     #config.config['spawn_points_fixed_idx'] = np.load(base_log_dir+'spawn_pt_order_2.npy')
     config.config["ent_coef"] = -1
     config.config["n_steps"] = 1
@@ -244,11 +249,11 @@ if __name__ == '__main__':
     config.config["target_update_interval"] = 1
     config.config["task"] = "self-driving"
     config.config["network"] = "2_layer"
-    config.config["num_npc_lower_threshold"] = 20
+    config.config["num_npc_lower_threshold"] = 15
     config.config["num_episodes"] = 25
     config.config["train_freq"] = 1
     config.config["enable_lane_invasion_collision"] = False         # PPO evalution setting by Tanmay
-    config.config["disable_traffic_light"]= True
+    config.config["disable_traffic_light"]= False
 
     from my_sac import MY_SAC
 
@@ -256,11 +261,11 @@ if __name__ == '__main__':
     tot_rewards = []
 
     #env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = base_log_dir, base_prefix = base_prefix, prefix = prefix)
-    set_global_seeds(5)
+    #set_global_seeds(5)
 
-    base_prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0/'
+    base_prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap/'
     for run_id in run_ids:
-        prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_gdUpdFreq_100_tgtUpdInt_1_ent_0.005_dynamic_navigation_npc_70_cp-10.0-10.0_lp-10.0-10.0_runid_run'+str(run_id)+'/'
+        prefix = 'algo_SAC_task_self-driving_input_8dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_bootstrap_runid_run'+str(run_id)+'/'
     
         ALTA_LOGS = base_log_dir + base_prefix + prefix
 
@@ -275,7 +280,7 @@ if __name__ == '__main__':
         env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir = ALTA_LOGS, base_prefix = None, prefix = None)
         dummy_env = DummyVecEnv([lambda: env])
         
-        MODEL_PATH = ALTA_LOGS+'sac_weights5775000.pkl'    
+        MODEL_PATH = ALTA_LOGS+'sac_weights6750000.pkl'    
 
         model = MY_SAC.load(MODEL_PATH, env)
         print('Starting evaluation on run id : '+str(run_id))
