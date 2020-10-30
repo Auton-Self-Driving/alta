@@ -64,7 +64,7 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
-        # self.rgb_camera_queue = queue.Queue()
+        self.rgb_camera_queue = queue.Queue()
         # self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
@@ -122,7 +122,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(120)
+        time.sleep(10)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -736,10 +736,11 @@ class CarlaEnv(gym.Env):
                 self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
             self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-            if self.config["algo"] == "AE":
-                next_orientation, self.dist_to_trajectory = 0, 0
-            else:
-                next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            # if self.config["algo"] == "AE":
+                # next_orientation, self.dist_to_trajectory = 0, 0
+            # else:
+                # next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
             self.episode_measurements['next_orientation'] = next_orientation
             self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
@@ -783,8 +784,10 @@ class CarlaEnv(gym.Env):
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
+            self.episode_measurements['step_reward'] = 0
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
+            self.episode_measurements['dist_to_trajectory_reward'] = 0
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
 
@@ -802,7 +805,7 @@ class CarlaEnv(gym.Env):
         
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
-        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
 
@@ -816,7 +819,7 @@ class CarlaEnv(gym.Env):
                 if self.config['binarized_image']:
                     semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
                 else:
-                    semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+                    semantic_image = convert_to_one_hot(semantic_image, num_classes=13)
             self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
             if not self.config['single_channel_image']:
                 stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
@@ -833,6 +836,7 @@ class CarlaEnv(gym.Env):
             obs['semantic_image'] = semantic_image
 
         obs['image'] = sensor_image
+        obs['rgb_image'] = rgb_image
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -872,7 +876,8 @@ class CarlaEnv(gym.Env):
                     # Logic for combined videos
                     # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
-                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    # self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -13:]), reduced_classes=False, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
                 # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
                 # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -1476,7 +1481,7 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
-        # self.rgb_camera_queue.queue.clear()
+        self.rgb_camera_queue.queue.clear()
         # self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
@@ -1567,19 +1572,19 @@ class CarlaEnv(gym.Env):
         
         self.camera_actor.listen(self.camera_queue.put)
 
-        # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
-        # rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
+        rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         # # rgb_camera.set_attribute('fov', '120')
-        # rgb_camera.set_attribute('fov', '90')
+        rgb_camera.set_attribute('fov', '90')
 
         # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        # self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.rgb_camera_actor)
+        self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, camera_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.rgb_camera_actor)
 
-        # self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
+        self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
 
 
         # front_camera = self.blueprint_library.find(self.config['sensors'][0])
@@ -1633,7 +1638,7 @@ class CarlaEnv(gym.Env):
             world_frame = self._world.tick()
 
         image = self._read_data(self.camera_queue, world_frame)
-        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
@@ -1651,12 +1656,14 @@ class CarlaEnv(gym.Env):
             # Hence we use traffic_light_proximity_threshold while creating an Agent.
             self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
         
-        if self.config["algo"] == "AE":
-            next_orientation, self.dist_to_trajectory = 0, 0
-        else:
-            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        # if self.config["algo"] == "AE":
+        #     next_orientation, self.dist_to_trajectory = 0, 0
+        # else:
+        next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
         
         self.episode_measurements['next_orientation'] = next_orientation
+        # print('self.config["algo"]', self.config["algo"], flush=True)
+        # distance_to_goal_trajec = 0
         self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
         if self.unseen:
             self.total_distance += distance_to_goal_trajec
@@ -1669,6 +1676,7 @@ class CarlaEnv(gym.Env):
             self._update_straight_dynamic_obs()
 
         obs['image'] = image
+        obs['rgb_image'] = rgb_image
         visual_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
@@ -1931,7 +1939,7 @@ class CarlaEnv(gym.Env):
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"] # Unused
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = self.episode_measurements["is_collision"]
+        collision = self.episode_measurements["is_collision"] = False
         runover_light = self.episode_measurements["runover_light"]
         maxStepsTaken = self.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False

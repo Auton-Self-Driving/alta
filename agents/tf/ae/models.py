@@ -30,6 +30,7 @@ class ConvAutoEncoder(object):
         self.is_training = is_training
         self.reuse = reuse
         self.num_classes = num_classes
+        print(' self.num_classes', self.num_classes, flush=True)
         self.frame_stack = frame_stack
         with tf.variable_scope('conv_ae', reuse=self.reuse):
             if not gpu_mode:
