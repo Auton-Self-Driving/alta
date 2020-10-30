@@ -42,7 +42,7 @@ def get_scratch_dir(base_log_dir):
 
 def train_vae_ae(args, prefix, config):
     
-    env = CarlaEnv(config.config)
+    # env = CarlaEnv(config.config, log_dir=ALTA_LOGS)
 
     ALTA_LOGS = args.base_log_dir + prefix
     if not os.path.exists(ALTA_LOGS):
@@ -64,6 +64,9 @@ def train_vae_ae(args, prefix, config):
     plot_param_histogram = True
     TRAIN_FREQ = 500 * FRAME_SKIP
     VAL_FREQ = 5000 * FRAME_SKIP
+
+        
+    env = CarlaEnv(config.config, log_dir=ALTA_LOGS)
 
     TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
     if not os.path.exists(TF_MODELS):
@@ -252,7 +255,8 @@ if __name__ == '__main__':
     prefix = 'ae_v125_sem_lr_5e3_nn_16_32_32_32_c5_fs_10_test3/'
 
     class Args:
-        base_log_dir = '/zfsauton2/home/hiteshar/research/alta-logs/test/ae'
+        # base_log_dir = '/zfsauton2/home/hiteshar/research/alta-logs/test/ae'
+        base_log_dir = '/home/zheh/Documents/CARLA/alta-logs/test/ae'
         algo = "VAE"
         lr = 5e-4
         vae_zsize = 512

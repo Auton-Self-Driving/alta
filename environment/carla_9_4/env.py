@@ -1557,10 +1557,10 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('fov', '90')
 
         # Orientation for top-down (BEV) facing camera
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        # camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
-        # Orientation for forward-facing camera
-        # camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+        # Orientation for forward-facing cameras
+        camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
 
         self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
