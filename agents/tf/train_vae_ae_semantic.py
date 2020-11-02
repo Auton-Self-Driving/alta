@@ -48,7 +48,8 @@ def train_vae_ae(args, prefix, config):
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
     # SCRATCH_DIR = os.path.join(get_scratch_dir(args.base_log_dir), prefix.split('_runid_')[0], prefix)
-    SCRATCH_DIR = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
+    # SCRATCH_DIR = os.path.join(args.base_log_dir, prefix.split('_runid_')[0], prefix)
+    SCRATCH_DIR = ALTA_LOGS
     print('SCRATCH_DIR', SCRATCH_DIR, flush=True)
     IMAGES_PATH = SCRATCH_DIR + 'images/'
     VIDEO_PATH = SCRATCH_DIR + 'videos/'
@@ -60,7 +61,7 @@ def train_vae_ae(args, prefix, config):
     FRAME_SKIP = 10
     TOTAL_TIMESTEPS = 50000 * FRAME_SKIP
     VAL_TIMESTEPS = 1000 * FRAME_SKIP
-    NUM_CLASSES  = 5
+    NUM_CLASSES  = 13
     Accuracy_File = ALTA_LOGS+"acurracy_town1.csv"
     confusion_matrix_file = ALTA_LOGS+"cm_town1.txt"
     VIDEO_FRAME_SKIP = 1
@@ -101,19 +102,23 @@ def train_vae_ae(args, prefix, config):
     for t in range(TOTAL_TIMESTEPS):
 
         if (t % FRAME_SKIP == 0):
+            
+            save_name = str(t) + '_' + str(obs['dist_to_light'])
 
             semantic_image = obs['semantic_image']
             # semantic_image = util.reduce_classes(semantic_image)
             semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=False).astype(np.uint8)
-            np.save(SEMANTIC_IMAGES_PATH + str(t), semantic_image)
+            np.save(SEMANTIC_IMAGES_PATH + save_name, semantic_image)
 
             rgb_image = obs['rgb_image']
-            np.save(RGB_IMAGES_PATH + str(t), rgb_image)
+            plt.imsave(RGB_IMAGES_PATH + save_name + '.jpg', rgb_image)
+            # np.save(RGB_IMAGES_PATH + str(t), rgb_image)
             # vis_wrapper.save_image(rgb_image, t)
 
-            semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
+            # semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
             # encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
-            vis_wrapper.save_image(semantic_image_rgb, t)
+            plt.imsave(IMAGES_PATH + save_name + '.jpg', semantic_image_rgb)
+            # vis_wrapper.save_image(semantic_image_rgb, t)
 
             # decoded_image_onehot = model.decode(encoded_image)[0]
             # decoded_image = util.convert_from_one_hot(decoded_image_onehot)

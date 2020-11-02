@@ -837,6 +837,7 @@ class CarlaEnv(gym.Env):
 
         obs['image'] = sensor_image
         obs['rgb_image'] = rgb_image
+        obs['dist_to_light'] = self.episode_measurements['dist_to_light']
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -1677,6 +1678,7 @@ class CarlaEnv(gym.Env):
 
         obs['image'] = image
         obs['rgb_image'] = rgb_image
+        obs['dist_to_light'] = self.episode_measurements['dist_to_light']
         visual_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
