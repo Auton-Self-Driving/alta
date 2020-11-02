@@ -838,6 +838,7 @@ class CarlaEnv(gym.Env):
         obs['image'] = sensor_image
         obs['rgb_image'] = rgb_image
         obs['dist_to_light'] = self.episode_measurements['dist_to_light']
+        obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -1559,8 +1560,8 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # camera.set_attribute('fov', '120')
-        camera.set_attribute('fov', '90')
+        camera.set_attribute('fov', '120')
+        # camera.set_attribute('fov', '90')
 
         # Orientation for top-down (BEV) facing camera
         # camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
@@ -1577,8 +1578,8 @@ class CarlaEnv(gym.Env):
         rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # rgb_camera.set_attribute('fov', '120')
-        rgb_camera.set_attribute('fov', '90')
+        rgb_camera.set_attribute('fov', '120')
+        # rgb_camera.set_attribute('fov', '90')
 
         # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
@@ -1679,6 +1680,7 @@ class CarlaEnv(gym.Env):
         obs['image'] = image
         obs['rgb_image'] = rgb_image
         obs['dist_to_light'] = self.episode_measurements['dist_to_light']
+        obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
         visual_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',

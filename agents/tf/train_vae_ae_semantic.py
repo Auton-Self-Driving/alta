@@ -103,7 +103,7 @@ def train_vae_ae(args, prefix, config):
 
         if (t % FRAME_SKIP == 0):
             
-            save_name = str(t) + '_' + str(obs['dist_to_light'])
+            save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
 
             semantic_image = obs['semantic_image']
             # semantic_image = util.reduce_classes(semantic_image)
