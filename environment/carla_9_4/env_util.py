@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import pyproj
 import glob
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
@@ -94,7 +95,7 @@ def get_wp_from_bb(bbox_cords, world_map):
         vertex_location = Location(x=vertex[0], y=vertex[1], z=vertex[2])
         vertex_wp = world_map.get_waypoint(vertex_location)
         bb_wps.append(vertex_wp)
-    
+
     return bb_wps
 
 def get_road_lane_id_set_from_wp(wp_list):
@@ -134,4 +135,63 @@ def check_if_vehicle_in_same_lane(vehicle_actor, target_vehicle, next_waypoints,
 
     return (len(intersection_set) > 0)
 
-    
+def _latlon_to_ecef(lat,lon,alt):
+    # Projections
+    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+
+    # Transform from lat/lon to ecef
+    x,y,z= pyproj.transform(p1=lla,
+        p2 = ecef,
+        x = lon,
+        y = lat,
+        z = alt,
+        radians=False)
+
+    return x, y, z
+
+def _ecef_to_latlon(x,y,z):
+    # Projections
+    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+
+    # Transform from lat/lon to ecef
+    lon, lat, alt= pyproj.transform(p1=ecef,
+        p2 = lla,
+        x = x,
+        y = y,
+        z = z,
+        radians=False)
+
+    return lat, lon, alt
+
+def get_world_coords_from_latlong(latitude, longitude, altitude):
+    # Georeference for town 01 is 0,0, so let's ignore this for now,
+    #TODO we need to add this back in eventually
+    # Origin in ECEF coordinates
+    O_ecef = _latlon_to_ecef(0,0,0)
+
+    # Convert GNSS data to ECEF coordinates
+    P_ecef = _latlon_to_ecef(latitude, longitude, altitude)
+
+    # Calculate difference between current location and origin
+    #FIXME The /2 constant is a hacky fix to get this working - this shouldn't be here
+    delta = np.expand_dims(np.array(P_ecef) - np.array(O_ecef), axis = 1) / 2
+
+    # Create the rotation matrix to convert from ECEF to ENU Coords
+    ecef_to_enu_rot = np.array(
+        [[-np.sin(longitude), np.cos(longitude), 0],
+         [-np.sin(latitude) * np.cos(longitude), -np.sin(latitude) * np.sin(longitude), np.cos(latitude)],
+         [np.cos(latitude) * np.cos(longitude), np.cos(latitude) * np.sin(longitude), np.sin(latitude)]]
+    )
+    enu = ecef_to_enu_rot@delta
+
+    # Create rotation matrix to convert from right hand ENU frame to left-hand CARLA frame
+    enu_to_carla_rot = np.array(
+        [[1, 0, 0],
+         [0,-1, 0],
+         [0, 0, 1]]
+    )
+
+    return enu_to_carla_rot@enu
+
