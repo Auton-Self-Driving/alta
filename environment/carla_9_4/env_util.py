@@ -165,11 +165,11 @@ def _ecef_to_latlon(x,y,z):
 
     return lat, lon, alt
 
-def get_world_coords_from_latlong(latitude, longitude, altitude):
-    # Georeference for town 01 is 0,0, so let's ignore this for now,
-    #TODO we need to add this back in eventually
+def get_world_coords_from_latlong(latitude, longitude, altitude, world_map):
+    origin_latlong = world_map.transform_to_geolocation(carla.Location())
+
     # Origin in ECEF coordinates
-    O_ecef = _latlon_to_ecef(0,0,0)
+    O_ecef = _latlon_to_ecef(origin_latlong.latitude, origin_latlong.longitude, origin_latlong.altitude)
 
     # Convert GNSS data to ECEF coordinates
     P_ecef = _latlon_to_ecef(latitude, longitude, altitude)
