@@ -195,3 +195,21 @@ def get_world_coords_from_latlong(latitude, longitude, altitude, world_map):
 
     return enu_to_carla_rot@enu
 
+def convert_route_from_GPS_world(route, world_map):
+
+    # Example route input
+    # route =[({'z': 0.0, 'lat': 48.99822669411668, 'lon': 8.002271601998707}, RoadOption.LEFT),
+    #     ({'z': 0.0, 'lat': 48.99822669411668, 'lon': 8.002709765148996}, RoadOption.RIGHT),
+    #     ({'z': 0.0, 'lat': 48.99822679980298, 'lon': 8.002735250105061}, RoadOption.STRAIGHT)
+    #     ]
+
+    mapped_route = []
+    for idx, pt in enumerate(route):
+        altitude = pt[0]['z']
+        latitude = pt[0]['lat']
+        longitude = pt[0]['lon']
+        world_coord = get_world_coords_from_latlong(latitude, longitude, altitude, world_map)
+        x, y, z = world_coord[0][0], world_coord[1][0], world_coord[2][0]
+        mapped_route.append(carla.Transform(carla.Location(x=x, y=y, z=z), carla.Rotation())
+    return mapped_route
+

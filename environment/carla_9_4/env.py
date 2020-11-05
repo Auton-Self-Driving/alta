@@ -46,7 +46,11 @@ from carla.libcarla import Location
 from carla.libcarla import Rotation
 import psutil
 
-from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
+from environment.carla_9_4.env_util import (
+    check_if_vehicle_in_same_lane, 
+    get_world_coords_from_latlong
+)
+
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
@@ -87,6 +91,7 @@ class CarlaEnv(gym.Env):
         self.image_data = None
         self.source_transform = None
         self.destination_transform = None
+        self.scenario_route = None
         self.global_planner = None
         self.trace_route = None
         self.episode_num = 0
@@ -150,7 +155,12 @@ class CarlaEnv(gym.Env):
 
         time.sleep(20)
 
-        self._map = self._world.get_map()
+        if self.config["use_offline_map"]:
+            with open(self.config["map_path"], 'r') as f:
+                map_content = f.read()
+                self._map = carla.Map(self.config["city_name"], map_content)
+        else:    
+            self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
         
@@ -1220,6 +1230,11 @@ class CarlaEnv(gym.Env):
             self.source_transform = self.spawn_points[source_idx]
             self.destination_transform = self.spawn_points[destination_idx]
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "challenge_test_scenario":
+            route = scenarios.get_test_route()
+            self.scenario_route = convert_route_from_GPS_world(route, self._map)
+            self.source_transform = scenario_route[0]
+            self.destination_transform = scenario_route[-1]
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -1637,7 +1652,17 @@ class CarlaEnv(gym.Env):
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
-        self.trace_route  = self.global_planner._trace_route(self._map,
+
+        if self.config["use_route_to_plan"]:
+            self.trace_route = []
+            for idx in range(self.scenario_route) - 1:
+                source = self.scenario_route[idx]
+                destination = self.scenario_route[idx+1]
+                trace_route self.global_planner._trace_route(self._map,
+                                source, destination)
+                self.trace_route.extend(trace_route)
+        else:
+            self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
