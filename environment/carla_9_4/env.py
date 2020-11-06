@@ -122,7 +122,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(120)
+        time.sleep(3)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -1007,7 +1007,7 @@ class CarlaEnv(gym.Env):
                         # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
-                if self.config["videos"] and self.unseen:
+                if self.config["videos"]: # and self.unseen:
                     if self.vis_wrapper is not None:
                         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
                         self.vis_wrapper.remove_images()
