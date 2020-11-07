@@ -148,7 +148,7 @@ class CarlaEnv(gym.Env):
 
         self._world.apply_settings(settings)
 
-        time.sleep(20)
+        time.sleep(3)
 
         self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
@@ -214,7 +214,7 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
             elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
+                self.observation_space = Box(low=np.array([-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]), high=np.array([4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]), dtype=np.float32)
 
             elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
                 self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
@@ -770,9 +770,9 @@ class CarlaEnv(gym.Env):
             if self.episode_measurements['runover_light']:
                 self.traffic_light_violations += 1
 
-            if self.config["verbose"]:
-                print("Collisions Total: {}, Vehicle: {}, Static: {}".format(self.total_collisions, self.vehicle_collisions, self.static_collisions))
-                print("Traffic Light Violations: {}".format(self.traffic_light_violations))
+            # if self.config["verbose"]:
+            #     print("Collisions Total: {}, Vehicle: {}, Static: {}".format(self.total_collisions, self.vehicle_collisions, self.static_collisions))
+            #     print("Traffic Light Violations: {}".format(self.traffic_light_violations))
 
             done = self._compute_done_condition()
 
@@ -805,6 +805,11 @@ class CarlaEnv(gym.Env):
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
+
+        spectator = self._world.get_spectator()
+        location = self.vehicle_actor.get_location() + carla.Location(0,0,15.0)
+        transform = carla.Transform(location, carla.Rotation(pitch=270))
+        spectator.set_transform(transform)
 
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
@@ -840,6 +845,9 @@ class CarlaEnv(gym.Env):
 
         # Update observation input in obs dictionary 
         self.create_observations(obs)
+
+        if self.config['verbose']:
+            print('OBS: {}'.format(obs['observation']))
 
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
@@ -1007,7 +1015,7 @@ class CarlaEnv(gym.Env):
                         # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
-                if self.config["videos"]: # and self.unseen:
+                if self.config["videos"] and self.unseen:
                     if self.vis_wrapper is not None:
                         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
                         self.vis_wrapper.remove_images()
@@ -1034,10 +1042,11 @@ class CarlaEnv(gym.Env):
                                            'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
-            observation = np.expand_dims(obs['observation'], axis = 0)
-            return observation, reward, done, self.episode_measurements
+            # observation = np.expand_dims(obs['observation'], axis = 0)
+            observation = obs['observation'].copy()
+            return observation, reward, done, {} # self.episode_measurements
         else:
-            return obs, reward, done, self.episode_measurements
+            return obs, reward, done, {} # self.episode_measurements
     
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
@@ -1092,12 +1101,12 @@ class CarlaEnv(gym.Env):
         if not self.config['disable_traffic_light']:
             self._update_traffic_light_states()
 
-            if self.config['verbose']:
-                print(self.episode_measurements['dist_to_light'],
-                    self.episode_measurements['nearest_traffic_actor_id'],
-                    self.episode_measurements['nearest_traffic_actor_state'],
-                    self.episode_measurements['initial_dist_to_red_light'],
-                    self.episode_measurements['red_light_dist'])
+            # if self.config['verbose']:
+            #     print(self.episode_measurements['dist_to_light'],
+            #         self.episode_measurements['nearest_traffic_actor_id'],
+            #         self.episode_measurements['nearest_traffic_actor_state'],
+            #         self.episode_measurements['initial_dist_to_red_light'],
+            #         self.episode_measurements['red_light_dist'])
 
     def _update_obs_detector(self):
         self.episode_measurements['obstacle_visible'] = False
@@ -1751,7 +1760,8 @@ class CarlaEnv(gym.Env):
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                            'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
         
-            observation = np.expand_dims(obs['observation'], axis = 0)
+            # observation = np.expand_dims(obs['observation'], axis = 0)
+            observation = obs['observation'].copy()
             return observation
         else:
             return obs
@@ -1816,8 +1826,8 @@ class CarlaEnv(gym.Env):
             if self.config['test_comparison']:
                 self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))
 
-            if self.config["verbose"]:
-                print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
+            # if self.config["verbose"]:
+            #     print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
             return True
         return False
     
@@ -1873,8 +1883,8 @@ class CarlaEnv(gym.Env):
                     random.shuffle(spawn_points)
 
 
-        if self.config["verbose"]:
-            print('found %d spawn points.' % len(spawn_points))
+        # if self.config["verbose"]:
+        #     print('found %d spawn points.' % len(spawn_points))
 
         if self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
             for spawn_point in spawn_points_1:
@@ -1921,9 +1931,9 @@ class CarlaEnv(gym.Env):
             data = sensor_queue.get(timeout=timeout)
             if data.frame == world_frame:
                 return data
-            else:
-                if self.config["verbose"]:
-                    print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
+            # else:
+            #     if self.config["verbose"]:
+            #         print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
     def _compute_done_condition(self):
 
