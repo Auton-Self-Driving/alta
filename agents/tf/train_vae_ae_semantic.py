@@ -101,8 +101,8 @@ def train_vae_ae(args, prefix, config):
 
     for t in range(TOTAL_TIMESTEPS):
 
-        if (t % FRAME_SKIP == 0):
-            
+        if obs['nearest_traffic_actor_state'] is not None:
+
             save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
 
             semantic_image = obs['semantic_image']
