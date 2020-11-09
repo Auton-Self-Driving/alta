@@ -18,6 +18,14 @@ import collections
 import queue
 import time
 
+import yaml
+import torch
+from detectron2.config import CfgNode
+# from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.engine.defaults import DefaultPredictor
+from AdelaiDet.tools.train_net import Trainer
+
+
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
 import environment.carla_9_4.planner as planner
@@ -64,7 +72,7 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
-        # self.rgb_camera_queue = queue.Queue()
+        self.rgb_camera_queue = queue.Queue()
         # self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
@@ -109,6 +117,21 @@ class CarlaEnv(gym.Env):
         
         self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
 
+
+        # traffic lights detection model
+        # print(os.getcwd())
+
+        with open('../../AdelaiDet_model/config.yaml', 'r') as f:
+            cfg = yaml.load(f, Loader=yaml.FullLoader)
+            model = Trainer.build_model(CfgNode(cfg))
+            ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+            # ckpt = DetectionCheckpointer(model)
+            # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
+
+        self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
+        # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
+        self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+
         # Start Carla Server
         serverStarted = False
         serverStartRetries = 0
@@ -122,7 +145,8 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(120)
+        # time.sleep(120)
+        time.sleep(10)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -745,7 +769,8 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
             # Update obstacle distance measurements
-            self._update_env_obs()
+            rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+            self._update_env_obs(front_rgb_image=rgb_image)
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -802,7 +827,6 @@ class CarlaEnv(gym.Env):
         
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
-        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
 
@@ -1085,12 +1109,15 @@ class CarlaEnv(gym.Env):
 
         return d_angle < 90.0, d_angle, norm_target
 
-    def _update_env_obs(self):
+    def _update_env_obs(self, front_rgb_image=None):
         if not self.config['disable_obstacle_info']:
             self._update_obs_detector()
 
         if not self.config['disable_traffic_light']:
-            self._update_traffic_light_states()
+            if front_rgb_image is None:
+                self._update_traffic_light_states()
+            else:
+                self._update_traffic_light_states_nonprivilege(front_rgb_image)
 
             if self.config['verbose']:
                 print(self.episode_measurements['dist_to_light'],
@@ -1164,6 +1191,53 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['nearest_traffic_actor_state'] = None
 
         self.episode_measurements['dist_to_light'] = dist
+
+
+
+    def _update_traffic_light_states_nonprivilege(self, front_rgb_image):
+        front_rgb_image = front_rgb_image[:, :, ::-1] # RGB -> GBR
+        res = self.traffic_light_detector(front_rgb_image)
+        print(res, flush=True)
+        if len(res['instances']) == 0: # no lights
+            color, dist, traffic_light_orientation = None, -1, None
+        else:
+            area = res['instances'].pred_boxes[0].area().item()
+            color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
+
+            # traffic_light_orientation = dist = 500 / (area + 1e-6)
+
+            traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+
+        if traffic_light_orientation is not None:
+            self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
+        else:
+            self.episode_measurements['traffic_light_orientation'] = -1
+
+        if color is not None:
+            if color == 1: # red
+                self.episode_measurements['red_light_dist'] = dist
+
+                if self.episode_measurements['initial_dist_to_red_light'] == -1:
+                # if self.episode_measurements['initial_dist_to_red_light'] == -1 \
+                    # or (self.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != self.episode_measurements['nearest_traffic_actor_id']):
+                    self.episode_measurements['initial_dist_to_red_light'] = dist
+
+            else:
+                self.episode_measurements['red_light_dist'] = -1
+                self.episode_measurements['initial_dist_to_red_light'] = -1
+
+            # self.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
+            # self.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
+        else:
+            self.episode_measurements['red_light_dist'] = -1
+            self.episode_measurements['initial_dist_to_red_light'] = -1
+            self.episode_measurements['nearest_traffic_actor_id'] = -1
+            self.episode_measurements['nearest_traffic_actor_state'] = None
+
+        self.episode_measurements['dist_to_light'] = dist
+
+
+
 
     def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
@@ -1476,7 +1550,7 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
-        # self.rgb_camera_queue.queue.clear()
+        self.rgb_camera_queue.queue.clear()
         # self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
@@ -1567,19 +1641,19 @@ class CarlaEnv(gym.Env):
         
         self.camera_actor.listen(self.camera_queue.put)
 
-        # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
-        # rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # rgb_camera.set_attribute('fov', '120')
+        rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
+        rgb_camera.set_attribute('image_size_x', '512')
+        rgb_camera.set_attribute('image_size_y', '512')
+        rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        rgb_camera.set_attribute('fov', '120')
         # rgb_camera.set_attribute('fov', '90')
 
         # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        # self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.rgb_camera_actor)
+        self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, camera_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.rgb_camera_actor)
 
-        # self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
+        self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
 
 
         # front_camera = self.blueprint_library.find(self.config['sensors'][0])
@@ -1633,7 +1707,7 @@ class CarlaEnv(gym.Env):
             world_frame = self._world.tick()
 
         image = self._read_data(self.camera_queue, world_frame)
-        # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
@@ -1663,7 +1737,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        self._update_env_obs()
+        self._update_env_obs(front_rgb_image=rgb_image)
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
