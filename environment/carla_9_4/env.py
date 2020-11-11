@@ -774,6 +774,7 @@ class CarlaEnv(gym.Env):
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
             self._update_env_obs(front_rgb_image=rgb_image)
+            # self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -1205,12 +1206,15 @@ class CarlaEnv(gym.Env):
 
         if len(res['instances']) == 0: # no lights
             pass
-        elif len(res['instances']) == 1:
+        # elif res['instances'].scores[0].item() > .5:
+        else:
             area = res['instances'].pred_boxes[0].area().item()
             color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
-            if color == 1:
+            score = res['instances'].scores[0].item()
+            num_ins = len(res['instances'])
+            if color == 1 and score > .667:
                 dist_pred = self.dist_interpolator(area)
-                print('detector Red, dist: {:.4f}, score: {:.4f}'.format(dist_pred, res['instances'].scores[0].item()), flush=True)
+                print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
 
         if traffic_light_orientation is not None:
             self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
@@ -1671,6 +1675,13 @@ class CarlaEnv(gym.Env):
         # camera.set_attribute('fov', '120')
         camera.set_attribute('fov', '90')
 
+        # front_seg_cam = self.blueprint_library.find(sensor)
+        # front_seg_cam.set_attribute('image_size_x', self.config['sensor_x_res'])
+        # front_seg_cam.set_attribute('image_size_y', self.config['sensor_y_res'])
+        # front_seg_cam.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # # camera.set_attribute('fov', '120')
+        # front_seg_cam.set_attribute('fov', '90')
+
         # Orientation for top-down (BEV) facing camera
         camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
@@ -1691,7 +1702,8 @@ class CarlaEnv(gym.Env):
 
         # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, camera_transform, attach_to=self.vehicle_actor)
+        rgb_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+        self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.rgb_camera_actor)
 
         self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
@@ -1779,6 +1791,7 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         self._update_env_obs(front_rgb_image=rgb_image)
+        # self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
