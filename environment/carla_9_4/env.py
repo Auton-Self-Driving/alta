@@ -50,7 +50,7 @@ from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
-        self.config = DEFAULT_ENV
+        self.config = copy.deepcopy(DEFAULT_ENV)
         self._update_config(config)
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
