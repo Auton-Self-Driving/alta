@@ -1,4 +1,4 @@
-name: carla9.4_py35
+name: carla_challenge_9.4_py35
 channels:
   - kne
   - pytorch
@@ -178,5 +178,5 @@ dependencies:
     - tqdm==4.31.1
     - wrapt==1.11.2
     - zmq==0.0.0
-prefix: /zfsauton2/home/tanmaya/anaconda3/envs/carla9.4_py35
+prefix: /zfsauton2/home/vkadi/anaconda3/envs/carla_challenge_9.4_py35
 
