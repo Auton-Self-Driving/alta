@@ -270,4 +270,3 @@ dependencies:
     - tqdm==4.51.0
     - zmq==0.0.0
 prefix: /home/swapnil/anaconda3/envs/carla9.10_py37
-

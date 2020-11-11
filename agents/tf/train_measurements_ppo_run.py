@@ -167,7 +167,7 @@ def run_ppo(args, prefix, config):
                 print('Testing Begins')
                 np.random.seed(10)
                 if args.city_name == 'Town01':
-                    spawn_points_fixed_idx = np.array([np.random.permutation(257) for i in range(args.test_trails)])
+                    spawn_points_fixed_idx = np.array([np.random.permutation(255) for i in range(args.test_trails)])
                 elif args.city_name == 'Town02':
                     spawn_points_fixed_idx = np.array([np.random.permutation(101) for i in range(args.test_trails)])
 
@@ -184,7 +184,6 @@ def run_ppo(args, prefix, config):
                     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
 
                     config.config['spawn_points_fixed_idx'] = list(spawn_points_fixed_idx[test_idx])
-
                     # Sending logger as None so as to not affect existing validation plots
                     # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=None, log_dir=ALTA_LOGS)
                     env = launch_server(config, vis_wrapper, ALTA_LOGS)

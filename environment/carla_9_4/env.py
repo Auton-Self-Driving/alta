@@ -34,6 +34,9 @@ from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
 
+import ipdb
+st = ipdb.set_trace
+
 try:
     import carla
 except Exception as e:
@@ -69,6 +72,7 @@ class CarlaEnv(gym.Env):
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
+        self.rv_camera_queue = queue.Queue()
         # self.rgb_camera_queue = queue.Queue()
         # self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
@@ -87,7 +91,9 @@ class CarlaEnv(gym.Env):
         self.total_successes = 0
 
         # Queue for stacked frames and measurements
+        self.rv_stack_size = 1
         self.stacked_observation_queue = queue.Queue(maxsize=self.config['frame_stack_size'])
+        self.rv_stacked_observation_queue = queue.Queue(maxsize=self.rv_stack_size)
 
         self.image_data = None
         self.source_transform = None
@@ -139,7 +145,7 @@ class CarlaEnv(gym.Env):
         self._world = self.client.load_world(self.config['city_name'])
 
         # time.sleep(600)
-
+        
         self._world = self.client.get_world()
 
         settings = self._world.get_settings()
@@ -164,6 +170,9 @@ class CarlaEnv(gym.Env):
             self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
+
+        self.tm = self.client.get_trafficmanager(4050)
+        self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
@@ -272,7 +281,7 @@ class CarlaEnv(gym.Env):
                                         # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
                                         shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
-            elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light':
+            elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light' or self.config["input_type"] == 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light':
                 if not self.config["single_channel_image"]:
                     if self.config["binarized_image"]:
                         dim = 2
@@ -507,8 +516,7 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
-        elif self.config["input_type"] in ['wp_vae_obs_info_speed_steer_ldist_goal_light', 'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
-
+        elif self.config["input_type"] in ['wp_vae_obs_info_speed_steer_ldist_goal_light', 'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
             speed = self.episode_measurements['speed'] / 10
             obstacle_dist = self.episode_measurements['obstacle_dist']
             obstacle_speed = self.episode_measurements['obstacle_speed']
@@ -813,37 +821,65 @@ class CarlaEnv(gym.Env):
 
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
+        rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)        
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
 
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
-                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
-            semantic_image = sensor_image[:,:,0]
-            semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
-            obs['semantic_image'] = semantic_image
-            if not self.config['single_channel_image']:
-                if self.config['binarized_image']:
-                    semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
-                else:
-                    semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
-            self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+
+            if self.config["semantic"]:
+                semantic_image = sensor_image[:,:,0]
+                rv_semantic_image = rv_sensor_image[:,:,0]
+
+                semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
+                rv_semantic_image = reduce_classes(rv_semantic_image, binarized_image=self.config['binarized_image'])
+
+                obs['semantic_image'] = semantic_image
+                obs['rv_semantic_image'] = rv_semantic_image
+
+                if not self.config['single_channel_image']:
+                    if self.config['binarized_image']:
+                        semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
+                        rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=2)
+                    else:
+                        semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+                        rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=5)
+
+                self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+                self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_semantic_image)            
+            else:
+                self._add_to_stacked_queue(self.stacked_observation_queue, sensor_image)
+                self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_sensor_image)            
+
+
             if not self.config['single_channel_image']:
                 stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+                rv_stacked_observation = np.concatenate(list(self.rv_stacked_observation_queue.queue), axis=2)
             else:
                 stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
+                rv_stacked_observation = np.stack(list(self.rv_stacked_observation_queue.queue), axis=2)                
+
             if 'vae' in self.config["input_type"]:
                 visual_observation = self.vae_observation(stacked_observation)
+                rv_visual_observation = self.vae_observation(rv_stacked_observation)                
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
+                rv_visual_observation = rv_visual_observation / self.config["vae_encoding_norm_factor"]
             else:
                 visual_observation = stacked_observation
-
+                rv_visual_observation = rv_stacked_observation
+        
         if self.config["input_type"] == "ae_train":
             semantic_image = sensor_image[:,:,0]
+            rv_semantic_image = rv_sensor_image[:,:,0]            
             obs['semantic_image'] = semantic_image
+            obs['rv_semantic_image'] = rv_semantic_image            
 
         obs['image'] = sensor_image
+        obs['rv_image'] = rv_sensor_image
+
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
         obs['dist_to_target'] = np.array(
@@ -875,7 +911,7 @@ class CarlaEnv(gym.Env):
                     # self.vis_wrapper.save_image(temp_image, self.num_steps)
 
                     if self.config["semantic"]:
-                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
                         self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
@@ -1037,6 +1073,11 @@ class CarlaEnv(gym.Env):
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
             return fused_input, reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, reward, done, self.episode_measurements, rv_visual_observation
         elif self.config["input_type"] == "wp":
             return obs['observation'], reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
@@ -1415,7 +1456,7 @@ class CarlaEnv(gym.Env):
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
         if self.config['city_name'] == 'Town01':
-            source_spawn_points_inds = np.random.permutation(257)
+            source_spawn_points_inds = np.random.permutation(255)
         elif self.config['city_name'] == 'Town02':
             source_spawn_points_inds = np.random.permutation(101)
 
@@ -1493,6 +1534,7 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_actors()
 
         self.camera_queue.queue.clear()
+        self.rv_camera_queue.queue.clear()
         # self.rgb_camera_queue.queue.clear()
         # self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
@@ -1574,16 +1616,29 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('fov', '90')
 
         # Orientation for top-down (BEV) facing camera
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+        bev_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
-        # Orientation for forward-facing camera
-        # camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
 
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.vehicle_actor)
+        self.camera_actor = self._world.spawn_actor(camera, bev_camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
 
         self.camera_actor.listen(self.camera_queue.put)
 
+        # Additional front-view/range-view(rv) camera
+        rv_camera = self.blueprint_library.find(sensor)
+        rv_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+        rv_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+        rv_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+        # camera.set_attribute('fov', '120')
+        rv_camera.set_attribute('fov', '90')
+
+        # Orientation for forward-facing camera
+        rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+
+        self.rv_camera_actor = self._world.spawn_actor(rv_camera, rv_camera_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.rv_camera_actor)
+        
+        self.rv_camera_actor.listen(self.rv_camera_queue.put)
         # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
         # rgb_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
         # rgb_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
@@ -1650,6 +1705,7 @@ class CarlaEnv(gym.Env):
             world_frame = self._world.tick()
 
         image = self._read_data(self.camera_queue, world_frame)
+        rv_image = self._read_data(self.rv_camera_queue, world_frame)        
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
@@ -1696,38 +1752,65 @@ class CarlaEnv(gym.Env):
             self._update_straight_dynamic_obs()
 
         obs['image'] = image
+        obs['rv_image'] = rv_image
+
         visual_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
-                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
-            semantic_image = image[:,:,0]
-            semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
-            obs['semantic_image'] = semantic_image
-            if not self.config['single_channel_image']:
-                if self.config['binarized_image']:
-                    semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
-                else:
-                    semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
 
-            for _ in range(self.config['frame_stack_size']):
-                # Update stacked frames and measurements
-                self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+            if self.config["semantic"]:
+                semantic_image = image[:,:,0]
+                rv_semantic_image = rv_image[:,:,0]
+
+                semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
+                rv_semantic_image = reduce_classes(rv_semantic_image, binarized_image=self.config['binarized_image'])            
+                obs['semantic_image'] = semantic_image
+                obs['rv_semantic_image'] = rv_semantic_image
+                if not self.config['single_channel_image']:
+                    if self.config['binarized_image']:
+                        semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
+                        rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=2)                    
+                    else:
+                        semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
+                        rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=5)
+
+                for _ in range(self.rv_stack_size):
+                    self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_semantic_image)
+
+                for _ in range(self.config['frame_stack_size']):
+                    # Update stacked frames and measurements
+                    self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+            else:
+                for _ in range(self.rv_stack_size):
+                    self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_image)
+
+                for _ in range(self.config['frame_stack_size']):
+                    # Update stacked frames and measurements
+                    self._add_to_stacked_queue(self.stacked_observation_queue, image)
 
             if not self.config['single_channel_image']:
                 stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
+                rv_stacked_observation = np.concatenate(list(self.rv_stacked_observation_queue.queue), axis=2)                
             else:
                 stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
+                rv_stacked_observation = np.stack(list(self.rv_stacked_observation_queue.queue), axis=2)
 
             if 'vae' in self.config["input_type"]:
                 visual_observation = self.vae_observation(stacked_observation)
+                rv_visual_observation = self.vae_observation(rv_stacked_observation)                
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
+                rv_visual_observation = rv_visual_observation / self.config["vae_encoding_norm_factor"]                
             else:
                 visual_observation = stacked_observation
-
+                rv_visual_observation = rv_stacked_observation
 
         if self.config["input_type"] == "ae_train":
             semantic_image = image[:,:,0]
+            rv_semantic_image = rv_image[:,:,0]
+
             obs['semantic_image'] = semantic_image
+            obs['rv_semantic_image'] = rv_semantic_image
 
         obs['speed'] = np.expand_dims(np.array([self.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([self.episode_measurements['distance_to_goal']])
@@ -1767,6 +1850,12 @@ class CarlaEnv(gym.Env):
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
             return fused_input
+
+        elif self.config["input_type"] in ['wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, rv_visual_observation
 
         elif self.config["input_type"] == "wp":
             return obs['observation']
@@ -1834,11 +1923,12 @@ class CarlaEnv(gym.Env):
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
+        tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
             if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-                vehicle.set_autopilot()
+                vehicle.set_autopilot(True, tm_port)
 
             if self.config['test_comparison']:
                 self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))
