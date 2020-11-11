@@ -133,7 +133,9 @@ conda activate carla9.10_py37
 ```
 
 * Set the following paths in the bashrc file.
-(Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.6 in the latest version.)
+(Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.10 in the latest version.)
+
+The setup file `configure_env.setup` contains all of the environment variables to necessary to setup the environment. Confim that these variables match your configuration (Specifically confirm `ALTA` and `CARLA_9_4_PATH`)
 
 ```
 export ALTA=$HOME/projects/alta
@@ -142,15 +144,17 @@ export PATH=$LIBS/nasm/bin:$LIBS/libjpeg8/bin:$LIBS/libpng/bin:$LIBS/libjpeg/bin
 export LD_LIBRARY_PATH=$LIBS/libjpeg8/lib:$LIBS/libpng/lib:$LIBS/libjpeg/lib64:$LIBS/libjpeglua/lib:$LD_LIBRARY_PATH
 export C_INCLUDE_PATH=$LIBS/libjpeg8/include:$LIBS/libpng/include:$LIBS/libjpeg/include:$LIBS/libjpeglua/include:$C_INCLUDE_PATH
 export CPLUS_INCLUDE_PATH=$LIBS/libjpeg8/include:$LIBS/libpng/include:$LIBS/libjpeg/include:$LIBS/libjpeglua/include:$CPLUS_INCLUDE_PATH
-export CARLA_9_4_PATH=$HOME/carla96
-conda activate carla9.4_py35
+export CARLA_9_4_PATH=$HOME/carla910
+export SDL_AUDIODRIVER='dsp'
+conda activate carla9.10_py37
 ```
 
-* Execute bashrc file if not already done or if conda environment 'carla9.4_py35' is not active.
+* Execute this file by running
+```
+source configure_env.setup
+```
 
-```
-source ~/.bashrc
-```
+To match the previous configuration steps, you can also add this the contents of the setup file to your `~/.bashrc` file.
 
 * Install alta repository as python package.
 
@@ -159,6 +163,7 @@ cd $ALTA
 pip install -e .
 ```
 
+## For both environments
 
 * Test installation on cluster.
 
