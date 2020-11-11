@@ -1,10 +1,15 @@
 import argparse
 import sys, os
 
+sys.path.append('./../../')
+sys.path.append('/zfsauton2/home/vkadi/projects/alta/')
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
+from imitate_ppo_agent import collect_data
+from imitate_ppo_agent import imitate_ppo
+#from imitate_ppo_agent import train_visual_encoder
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
 from test_with_automatic_control import run_test_comparison
@@ -22,6 +27,8 @@ def parse_arguments():
     parser.add_argument('--disable-greedy-best', dest='disable_greedy_best', action='store_true', help='Whether to disable greedy best model and return the last saved model instead.')
     parser.add_argument('--test', dest='test', action='store_true', help='Enable testing.')
     parser.add_argument('--validation', dest='validation', action='store_true', help='Enable validation.')
+    parser.add_argument('--imitate', dest='imitate', action='store_true', help='Learn a policy by imitating the expert algo')
+    parser.add_argument('--dataset-path', dest='dataset_path',type=str, default=None, help='Imitation supervision dataset path')    
     parser.add_argument('--test-comparison', dest='test_comparison', action='store_true', help='Enable Testing comparison between automatic control and our learnt policies.')
     parser.add_argument('--automatic-control', dest='automatic_control', action='store_true', help='Enable Testing comparison with automatic control agent.')
     parser.add_argument('--val-interval',dest='validation_interval',type=int,default=40000, help='No of steps after which validation should run.')
@@ -472,7 +479,9 @@ if __name__ == '__main__':
                 else:
                     prefix = extract_prefix(args)
                 print("prefix", prefix)
-                if args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
+                if args.imitate:
+                    imitate_ppo(args, prefix, config)
+                elif args.input_type in ['wp', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
                                     'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
                                     'wp_cnn_obs_info_speed_steer_ldist_goal_light']:
                     run_ppo(args, prefix, config)
@@ -490,6 +499,5 @@ if __name__ == '__main__':
             else:
                 prefix = create_ppo_prefix(args)
             run_dqn(args, prefix, config)
-
     except Exception as e:
         print(e)

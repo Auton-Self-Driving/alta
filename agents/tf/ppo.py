@@ -21,6 +21,8 @@ from stable_baselines.ppo2.ppo2 import PPO2, Runner
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
+import ipdb
+st = ipdb.set_trace
 
 # change
 PATH_MODEL_VAE = "ppo_vae_turn_rgb3_test.json"
@@ -277,10 +279,11 @@ def test(model, env, dump_results=False, path='.', model_step=None):
     env.reset()
     for ind in range(env.config["num_episodes"]):
         obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
+
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
-        
+        print("Episode", ind)
         while not done:
             actions = model.predict(obs, deterministic=True)[0]
             info = env.step(actions)
