@@ -18,6 +18,8 @@ import collections
 import queue
 import time
 
+import ae.util as util
+
 import yaml
 import pickle
 from scipy.interpolate import interp1d
@@ -75,7 +77,7 @@ class CarlaEnv(gym.Env):
         self.weather = None
         self.camera_queue = queue.Queue()
         self.rgb_camera_queue = queue.Queue()
-        # self.front_camera_queue = queue.Queue()
+        self.front_camera_queue = queue.Queue()
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -831,7 +833,7 @@ class CarlaEnv(gym.Env):
         
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
-        # front_image = self._read_data(self.front_camera_queue, world_frame)
+        front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
 
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
@@ -1596,7 +1598,7 @@ class CarlaEnv(gym.Env):
 
         self.camera_queue.queue.clear()
         self.rgb_camera_queue.queue.clear()
-        # self.front_camera_queue.queue.clear()
+        self.front_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
         try:
@@ -1697,8 +1699,8 @@ class CarlaEnv(gym.Env):
         rgb_camera.set_attribute('image_size_x', '512')
         rgb_camera.set_attribute('image_size_y', '512')
         rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        rgb_camera.set_attribute('fov', '120')
-        # rgb_camera.set_attribute('fov', '90')
+        # rgb_camera.set_attribute('fov', '120')
+        rgb_camera.set_attribute('fov', '90')
 
         # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
@@ -1709,19 +1711,19 @@ class CarlaEnv(gym.Env):
         self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
 
 
-        # front_camera = self.blueprint_library.find(self.config['sensors'][0])
-        # front_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # front_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # front_camera.set_attribute('fov', '120')
+        front_camera = self.blueprint_library.find(self.config['sensors'][1])
+        front_camera.set_attribute('image_size_x', '512')
+        front_camera.set_attribute('image_size_y', '512')
+        front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         # front_camera.set_attribute('fov', '120')
+        front_camera.set_attribute('fov', '90')
 
         # # front_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
         # front_camera_transform = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
-        # self.front_camera_actor = self._world.spawn_actor(front_camera, front_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.front_camera_actor)
+        self.front_camera_actor = self._world.spawn_actor(front_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
+        self.actor_list.append(self.front_camera_actor)
 
-        # self.front_camera_actor.listen(self.front_camera_queue.put)
+        self.front_camera_actor.listen(self.front_camera_queue.put)
 
         self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
         self.actor_list.append(self.collision_sensor.sensor)
@@ -1761,7 +1763,10 @@ class CarlaEnv(gym.Env):
 
         image = self._read_data(self.camera_queue, world_frame)
         rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-        # front_image = self._read_data(self.front_camera_queue, world_frame)
+        front_image = self._read_data(self.front_camera_queue, world_frame)
+
+        # collect data
+        
 
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
