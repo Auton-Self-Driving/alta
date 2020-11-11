@@ -19,6 +19,8 @@ import queue
 import time
 
 import yaml
+import pickle
+from scipy.interpolate import interp1d
 import torch
 from detectron2.config import CfgNode
 # from detectron2.checkpoint import DetectionCheckpointer
@@ -127,7 +129,8 @@ class CarlaEnv(gym.Env):
             ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
             # ckpt = DetectionCheckpointer(model)
             # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
-
+        with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+            self.dist_interpolator = pickle.load(f) 
         self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
         # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
         self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
@@ -1197,37 +1200,38 @@ class CarlaEnv(gym.Env):
     def _update_traffic_light_states_nonprivilege(self, front_rgb_image):
         front_rgb_image = front_rgb_image[:, :, ::-1] # RGB -> GBR
         res = self.traffic_light_detector(front_rgb_image)
-        print(res, flush=True)
+        # print(res, flush=True)
+        traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+
         if len(res['instances']) == 0: # no lights
-            color, dist, traffic_light_orientation = None, -1, None
-        else:
+            pass
+        elif len(res['instances']) == 1:
             area = res['instances'].pred_boxes[0].area().item()
             color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
-
-            # traffic_light_orientation = dist = 500 / (area + 1e-6)
-
-            traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+            if color == 1:
+                dist_pred = self.dist_interpolator(area)
+                print('detector Red, dist: {:.4f}, score: {:.4f}'.format(dist_pred, res['instances'].scores[0].item()), flush=True)
 
         if traffic_light_orientation is not None:
             self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
         else:
             self.episode_measurements['traffic_light_orientation'] = -1
 
-        if color is not None:
-            if color == 1: # red
+        if traffic_actor is not None:
+            if traffic_actor.state == carla.TrafficLightState.Red:
+                print('privilege Red, dist: {:.4f}'.format(dist), flush=True)
                 self.episode_measurements['red_light_dist'] = dist
 
-                if self.episode_measurements['initial_dist_to_red_light'] == -1:
-                # if self.episode_measurements['initial_dist_to_red_light'] == -1 \
-                    # or (self.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != self.episode_measurements['nearest_traffic_actor_id']):
+                if self.episode_measurements['initial_dist_to_red_light'] == -1 \
+                    or (self.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != self.episode_measurements['nearest_traffic_actor_id']):
                     self.episode_measurements['initial_dist_to_red_light'] = dist
 
             else:
                 self.episode_measurements['red_light_dist'] = -1
                 self.episode_measurements['initial_dist_to_red_light'] = -1
 
-            # self.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
-            # self.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
+            self.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
+            self.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
         else:
             self.episode_measurements['red_light_dist'] = -1
             self.episode_measurements['initial_dist_to_red_light'] = -1
@@ -1235,6 +1239,43 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['nearest_traffic_actor_state'] = None
 
         self.episode_measurements['dist_to_light'] = dist
+        # if len(res['instances']) == 0: # no lights
+        #     color, dist, traffic_light_orientation = None, -1, None
+        # else:
+        #     area = res['instances'].pred_boxes[0].area().item()
+        #     color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
+
+        #     # traffic_light_orientation = dist = 500 / (area + 1e-6)
+
+        #     traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+
+        # if traffic_light_orientation is not None:
+        #     self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
+        # else:
+        #     self.episode_measurements['traffic_light_orientation'] = -1
+
+        # if color is not None:
+        #     if color == 1: # red
+        #         self.episode_measurements['red_light_dist'] = dist
+
+        #         if self.episode_measurements['initial_dist_to_red_light'] == -1:
+        #         # if self.episode_measurements['initial_dist_to_red_light'] == -1 \
+        #             # or (self.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != self.episode_measurements['nearest_traffic_actor_id']):
+        #             self.episode_measurements['initial_dist_to_red_light'] = dist
+
+        #     else:
+        #         self.episode_measurements['red_light_dist'] = -1
+        #         self.episode_measurements['initial_dist_to_red_light'] = -1
+
+        #     # self.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
+        #     # self.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
+        # else:
+        #     self.episode_measurements['red_light_dist'] = -1
+        #     self.episode_measurements['initial_dist_to_red_light'] = -1
+        #     self.episode_measurements['nearest_traffic_actor_id'] = -1
+        #     self.episode_measurements['nearest_traffic_actor_state'] = None
+
+        # self.episode_measurements['dist_to_light'] = dist
 
 
 
