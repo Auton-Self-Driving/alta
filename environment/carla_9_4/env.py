@@ -49,7 +49,12 @@ from carla.libcarla import Location
 from carla.libcarla import Rotation
 import psutil
 
-from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
+from environment.carla_9_4.env_util import (
+    check_if_vehicle_in_same_lane,
+    get_world_coords_from_latlong,
+    convert_route_from_GPS_world
+)
+
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
@@ -63,7 +68,7 @@ class CarlaEnv(gym.Env):
         self.total_reward = 0
         self.prev_measurement = None
         self.log_dir = log_dir
-        
+
         # Can pass in train/test weather as an array
         self.weather = None
         self.camera_queue = queue.Queue()
@@ -93,6 +98,7 @@ class CarlaEnv(gym.Env):
         self.image_data = None
         self.source_transform = None
         self.destination_transform = None
+        self.scenario_route = None
         self.global_planner = None
         self.trace_route = None
         self.episode_num = 0
@@ -112,7 +118,7 @@ class CarlaEnv(gym.Env):
             self.im_channels = 1
         else:
             self.im_channels = 3
-        
+
         self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
 
         # Start Carla Server
@@ -127,7 +133,7 @@ class CarlaEnv(gym.Env):
                 self.CarlaServer.close()
                 error = e
                 serverStartRetries += 1
-        
+
         time.sleep(120)
 
         # Create new client
@@ -139,23 +145,29 @@ class CarlaEnv(gym.Env):
         self._world = self.client.load_world(self.config['city_name'])
 
         # time.sleep(600)
+        
         self._world = self.client.get_world()
 
         settings = self._world.get_settings()
-        if(self.config['sync_mode']):            
+        if(self.config['sync_mode']):
             settings.synchronous_mode = True
-        
+
         if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
             settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
-        
+
         # We want to enable rendering
         settings.no_rendering_mode = False
 
         self._world.apply_settings(settings)
 
         time.sleep(20)
-        
-        self._map = self._world.get_map()
+
+        if self.config["use_offline_map"]:
+            with open(self.config["map_path"], 'r') as f:
+                map_content = f.read()
+                self._map = carla.Map(self.config["city_name"], map_content)
+        else:
+            self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
@@ -191,8 +203,8 @@ class CarlaEnv(gym.Env):
             elif self.config["action_type"] == 'control':
                 # Discrete actions
                 self.action_space = Discrete(len(DISCRETE_ACTIONS))
-            
- 
+
+
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
@@ -229,19 +241,19 @@ class CarlaEnv(gym.Env):
 
             elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
                 self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-            
+
             elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
-                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]), 
+                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                                 high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-            
+
             elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
                 self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                         high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-            
+
             elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
                 self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                         high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
-            
+
             elif self.config["input_type"] == 'vae':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -282,13 +294,13 @@ class CarlaEnv(gym.Env):
                                         shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
                                         # shape=(1, 12296), dtype=np.float32)
                                         # shape=(1, 20488), dtype=np.float32)
-        
+
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
-        
+
         self.episode_measurements["episode_num"] = 0
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_dist'] = -1
@@ -297,7 +309,7 @@ class CarlaEnv(gym.Env):
         self.next_waypoints = None
         self.next_wp_vectors = None
         self.next_wp_angles = None
-        
+
         self.episode_measurements['dist_to_light'] = -1
         self.episode_measurements['nearest_traffic_actor_id'] = -1
         self.episode_measurements['nearest_traffic_actor_state'] = None
@@ -310,7 +322,7 @@ class CarlaEnv(gym.Env):
         self.total_collisions = 0
         self.total_distance = 0
         self.traffic_light_violations = 0
-        
+
         self.target_speeds_array = []
         self.speeds_array = []
         self.throttles_array = []
@@ -385,7 +397,7 @@ class CarlaEnv(gym.Env):
             steer = self.episode_measurements['control_steer']
             obs_bool = self.episode_measurements['obstacle_visible']
             obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([obs_bool])))
-        
+
         elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
 
             speed = self.episode_measurements['speed'] / 10
@@ -542,7 +554,7 @@ class CarlaEnv(gym.Env):
             steer = self.episode_measurements['control_steer']
             ldist = self.dist_to_trajectory
             light = self.episode_measurements['red_light_dist']
-            
+
             # normalization
             if obstacle_dist != -1:
                 obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
@@ -557,12 +569,12 @@ class CarlaEnv(gym.Env):
             if light != -1:
                 light /= self.config['traffic_light_proximity_threshold']
             else:
-                light = self.config['default_obs_traffic_val']                
+                light = self.config['default_obs_traffic_val']
             obs['orientation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
-        
+
         elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
-            
+
             # normalize vectors by 10, assuming max norm of vector would be 10
             wp_vectors_array = wp_vectors_array / 10
             speed = self.episode_measurements['speed'] / 10
@@ -585,12 +597,12 @@ class CarlaEnv(gym.Env):
             if light != -1:
                 light /= self.config['traffic_light_proximity_threshold']
             else:
-                light = self.config['default_obs_traffic_val']                
+                light = self.config['default_obs_traffic_val']
             obs['orientation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
-        
+
         elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
-            
+
             # normalize vectors by 10, assuming max norm of vector would be 10
             wp_vectors_array = wp_vectors_array / 10
             speed = self.episode_measurements['speed'] / 10
@@ -613,7 +625,7 @@ class CarlaEnv(gym.Env):
             if light != -1:
                 light /= self.config['traffic_light_proximity_threshold']
             else:
-                light = self.config['default_obs_traffic_val']                
+                light = self.config['default_obs_traffic_val']
             obs['orientation'] = np.concatenate((np.array([next_orientation]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
     def step(self, action):
@@ -727,7 +739,7 @@ class CarlaEnv(gym.Env):
 
             if not self.unseen:
                 self.total_steps +=1
-        
+
             self.episode_measurements['num_steps'] = self.num_steps
 
             # Set state variables for reward calculation
@@ -762,7 +774,7 @@ class CarlaEnv(gym.Env):
                                 cur_measurement=self.episode_measurements,
                                 config=self.config,
                                 verbose=self.config["verbose"])
-            
+
             obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
 
             if obs_collision and self.episode_measurements["collision_actor_id"] != self.prev_measurement["collision_actor_id"]:
@@ -797,7 +809,7 @@ class CarlaEnv(gym.Env):
 
             if done:
                 break
-        
+
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
@@ -806,7 +818,7 @@ class CarlaEnv(gym.Env):
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
 
-        
+
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
         rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)        
@@ -873,7 +885,7 @@ class CarlaEnv(gym.Env):
         obs['dist_to_target'] = np.array(
             [self.episode_measurements['distance_to_goal']])
 
-        # Update observation input in obs dictionary 
+        # Update observation input in obs dictionary
         self.create_observations(obs)
 
         reward = np.expand_dims(np.array([reward]), axis=0)
@@ -897,7 +909,7 @@ class CarlaEnv(gym.Env):
                     # Logic for combined videos
                     # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper.save_image(temp_image, self.num_steps)
-                    
+
                     if self.config["semantic"]:
                         self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
@@ -938,7 +950,7 @@ class CarlaEnv(gym.Env):
                     else:
                         speed_near_car = -10
                         target_speed_near_car = -10
-            
+
                     self.logger.log_scalar('timesteps/train/near_car_speed', speed_near_car, self.total_steps)
                     self.logger.log_scalar('timesteps/train/near_car_target_speed', target_speed_near_car, self.total_steps)
                     self.logger.log_scalar('timesteps/train/obstacle_dist', self.episode_measurements['obstacle_dist'], self.total_steps)
@@ -947,13 +959,13 @@ class CarlaEnv(gym.Env):
                     #     self.episode_measurements['obstacle_visible'] = True
                     # else:
                     #     self.episode_measurements['obstacle_visible'] = False
-            
+
             if done:
 
                 # Training runs
                 if not self.unseen:
                     self.episode_num += 1
-                    
+
                     # Commenting out plots for all episodes
                     if self.episode_num % 100 == 0:
                         path = self.log_dir + 'train_episode_info_plots/'
@@ -1004,7 +1016,7 @@ class CarlaEnv(gym.Env):
                                             dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
                                             step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
                                             dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
-                
+
                 self.episode_measurements["episode_num"] = self.episode_num
 
                 if self.logger is not None:
@@ -1044,7 +1056,7 @@ class CarlaEnv(gym.Env):
                 # Save videos now only for validation runs
                 if self.config["videos"] and self.unseen:
                     if self.vis_wrapper is not None:
-                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
+                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
                         self.vis_wrapper.remove_images()
                     if self.vis_wrapper_vae is not None:
                         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
@@ -1069,7 +1081,7 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == "wp":
             return obs['observation'], reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
-                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',  
+                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',
                                            'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
                                            'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
@@ -1078,7 +1090,7 @@ class CarlaEnv(gym.Env):
             return observation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
-    
+
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
         assert (object_queue is not None and object_to_add is not None)
@@ -1161,7 +1173,7 @@ class CarlaEnv(gym.Env):
             else:
                 if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
                     continue
-                
+
                 found_obstacle = True
                 self.episode_measurements['obstacle_visible'] = True
                 self.episode_measurements['obstacle_orientation'] = d_angle
@@ -1170,7 +1182,7 @@ class CarlaEnv(gym.Env):
                     self.episode_measurements['obstacle_dist'] = distance
                     self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
                     min_obs_distance = distance
-        
+
         if not found_obstacle:
             self.episode_measurements['obstacle_dist'] = -1
             self.episode_measurements['obstacle_speed'] = -1
@@ -1260,12 +1272,18 @@ class CarlaEnv(gym.Env):
             self.source_transform = self.spawn_points[source_idx]
             self.destination_transform = self.spawn_points[destination_idx]
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "challenge_test_scenario":
+            route = scenarios.get_test_route()
+
+            self.scenario_route = convert_route_from_GPS_world(route, self._map)
+            self.source_transform = self.scenario_route[0]
+            self.destination_transform = self.scenario_route[-1]
         else:
             raise ValueError("Scenarios Config not set!")
 
     def set_vae(self, vae):
         self.vae = vae
-    
+
     def vae_observation(self, observation_image):
         if self.config["train_vae"]:
             self.vae.buffer_append(observation_image)
@@ -1352,7 +1370,7 @@ class CarlaEnv(gym.Env):
             else:
                 throttle = gas
                 brake = 0.0
-        elif self.config["action_type"] == "discrete":            
+        elif self.config["action_type"] == "discrete":
             # Discrete actions
             # No need to clip actions in case of discrete state-space
             # since it is chosen to be in range.
@@ -1370,9 +1388,9 @@ class CarlaEnv(gym.Env):
             target_speed = -1
             self.episode_measurements["target_speed"] = target_speed
             return action
-        
+
         self.episode_measurements["target_speed"] = target_speed
-            
+
         control = carla.VehicleControl(
             throttle=throttle,
             steer=steer,
@@ -1409,7 +1427,7 @@ class CarlaEnv(gym.Env):
         for key, val in self.episode_measurements.items():
             if key in ['termination_state_code', 'termination_state']:
                 continue
-                
+
             self.episode_measurements[key] = 0
 
     def _reset_test_comparison(self, unseen=False, index=0):
@@ -1492,7 +1510,7 @@ class CarlaEnv(gym.Env):
 
         return None
 
-    
+
     # @profile
     def _reset(self, unseen=False, index=0, expert_agent=False):
         self.clear_episode_measurements()
@@ -1537,7 +1555,7 @@ class CarlaEnv(gym.Env):
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
-        
+
         # Spawning vehicle actor with retry logic as it fails to spawn sometimes
         self.vehicle_actor = None
         NUM_RETRIES = 5
@@ -1550,7 +1568,7 @@ class CarlaEnv(gym.Env):
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_all_existing_actors()
                 time.sleep(120)
-        
+
         if self.vehicle_actor is not None:
             self.actor_list.append(self.vehicle_actor)
             self.location = self.vehicle_actor.get_location()
@@ -1603,7 +1621,7 @@ class CarlaEnv(gym.Env):
 
         self.camera_actor = self._world.spawn_actor(camera, bev_camera_transform, attach_to=self.vehicle_actor)
         self.actor_list.append(self.camera_actor)
-        
+
         self.camera_actor.listen(self.camera_queue.put)
 
         # Additional front-view/range-view(rv) camera
@@ -1656,7 +1674,7 @@ class CarlaEnv(gym.Env):
         if self.config["enable_lane_invasion_sensor"]:
             self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
             self.actor_list.append(self.lane_invasion_sensor.sensor)
-            
+
         # Set state variables for reward calculation
         self.episode_measurements['num_collisions'] = self.collision_sensor.num_collisions
         self.episode_measurements['collision_actor_id'] = self.collision_sensor.actor_id
@@ -1671,7 +1689,7 @@ class CarlaEnv(gym.Env):
 
         self.episode_measurements['total_steps'] = self.total_steps
         self.episode_measurements['initial_dist_to_red_light'] = -1
-        
+
         # time.sleep(1)
 
         # TODO: fix bug with no sensor_image. empty image for now
@@ -1692,7 +1710,17 @@ class CarlaEnv(gym.Env):
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
-        self.trace_route  = self.global_planner._trace_route(self._map,
+
+        if self.config["use_route_to_plan"]:
+            self.trace_route = []
+            for idx in range(len(self.scenario_route) - 1):
+                source = self.scenario_route[idx]
+                destination = self.scenario_route[idx+1]
+                trace_route = self.global_planner._trace_route(self._map,
+                                source, destination)
+                self.trace_route.extend(trace_route)
+        else:
+            self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
@@ -1705,12 +1733,12 @@ class CarlaEnv(gym.Env):
             # Agent uses proximity_threshold to detect traffic lights.
             # Hence we use traffic_light_proximity_threshold while creating an Agent.
             self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
-        
+
         if self.config["algo"] == "AE":
             next_orientation, self.dist_to_trajectory = 0, 0
         else:
             next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
-        
+
         self.episode_measurements['next_orientation'] = next_orientation
         self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
         if self.unseen:
@@ -1831,14 +1859,14 @@ class CarlaEnv(gym.Env):
 
         elif self.config["input_type"] == "wp":
             return obs['observation']
-        
+
         elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
-                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',  
+                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',
                                            'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
                                            'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                            'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
-        
+
             observation = np.expand_dims(obs['observation'], axis = 0)
             return observation
         else:
@@ -1861,7 +1889,7 @@ class CarlaEnv(gym.Env):
         elif n == num_wp:
             wp_angles_array = np.array(self.next_wp_angles)
             wp_vectors_array = np.array(self.next_wp_vectors)
-        
+
         elif n < num_wp:
             # Fill using last entry
             last_angle = self.next_wp_angles[-1]
@@ -1877,20 +1905,20 @@ class CarlaEnv(gym.Env):
             print("Taking required number of entries.")
             wp_angles_array = np.array(self.next_wp_angles[:num_wp])
             wp_vectors_array = np.array(self.next_wp_vectors[:num_wp])
-        
+
         wp_vectors_array = wp_vectors_array.reshape(-1)
-        
+
         return wp_angles_array, wp_vectors_array
 
     def try_spawn_random_vehicle_at(self, blueprints, transform):
         # blueprint = random.choice(blueprints)
-        
+
         # To spawn same type of vehicle
         blueprint = blueprints[0]
         if blueprint.has_attribute('color'):
             color = random.choice(blueprint.get_attribute('color').recommended_values)
             blueprint.set_attribute('color', color)
-        
+
         # TODO: uncomment below to enable autopilot
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
@@ -1909,14 +1937,15 @@ class CarlaEnv(gym.Env):
                 print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
             return True
         return False
-    
+
     def spawn_npc(self, number_of_vehicles, unseen):
+
         # TODO: remove hard coded logic
         if self.config["scenarios"] == "straight_dynamic":
             # vehicle spawn_points corresponding to 84, 40
             spawn_points = [Transform(Location(x=-2.4200193881988525, y=187.97000122070312, z=1.32), Rotation(yaw=89.9996109008789)),
                         Transform(Location(x=1.5599803924560547, y=187.9700164794922, z=1.32), Rotation(yaw=-90.00040435791016))]
-            
+
             # vehicle spawn_points corresponding to 96, 140
             # spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
             # Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
@@ -1937,15 +1966,15 @@ class CarlaEnv(gym.Env):
                 else:
                     spawn_points = self.spawn_points
                     random.shuffle(spawn_points)
-        
+
         elif self.config["scenarios"] == "straight_crowded":
             spawn_points = scenarios.get_straight_crowded_npcs(number_of_vehicles)
             print('STRAIGHT CROWDED SPAWNING: ', spawn_points)
         elif self.config["scenarios"] == "town3":
             spawn_points = scenarios.get_curved_town03_npcs(number_of_vehicles)
             print('TOWN 3 SPAWNING: ', spawn_points)
-        
-        else: 
+
+        else:
             # Testing
             if unseen:
                 if self.config["test_fixed_spawn_points"]:
@@ -2080,7 +2109,7 @@ class CarlaEnv(gym.Env):
         else:
             termination_state = 'none'
             termination_state_code = 11
-        
+
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))
 
@@ -2123,11 +2152,11 @@ def plot_episode_info(path,
                 dist_to_trajectory_reward_array,
                 red_light_dist_array,
                 episode_num):
-    
+
     if not os.path.exists(path):
         os.makedirs(path)
     observations = np.arange(len(target_speeds_array))
-    
+
     target_speeds_array = np.array(target_speeds_array)
     speeds_array = np.array(speeds_array)
     throttles_array = np.array(throttles_array)
@@ -2138,7 +2167,7 @@ def plot_episode_info(path,
     obstacle_dist_array = np.array(obstacle_dist_array)
     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
     red_light_dist_array = np.array(red_light_dist_array)
-    
+
     fig, axs = plt.subplots(5, 2, figsize=(12, 12))
     fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
 
@@ -2150,7 +2179,7 @@ def plot_episode_info(path,
     axs[1, 0].set_xlabel('Timesteps')
     axs[1, 0].set_ylabel('Actual Speed - Stochastic')
 
-    
+
     axs[2, 0].plot(observations, throttles_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 0].set_xlabel('Timesteps')
     axs[2, 0].set_ylabel('Throttle')
@@ -2196,7 +2225,7 @@ def plot_episode_info(path,
     axs[3,1].grid(True)
     axs[4,0].grid(True)
     axs[4,1].grid(True)
-    
+
     plt.grid(True)
     plt.savefig(path + '{}.png'.format(episode_num))
     plt.close()
@@ -2214,11 +2243,11 @@ def plot_episode_info(path,
 #                 dist_to_trajectory_reward_array,
 #                 speed_reward_array,
 #                 episode_num):
-    
+
 #     if not os.path.exists(path):
 #         os.makedirs(path)
-    
-    
+
+
 #     target_speeds_array = np.array(target_speeds_array)
 #     speeds_array = np.array(speeds_array)
 #     throttles_array = np.array(throttles_array)
@@ -2229,7 +2258,7 @@ def plot_episode_info(path,
 #     dist_to_target_array = np.array(dist_to_target_array)
 #     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
 #     speed_reward_array = np.array(speed_reward_array)
-    
+
 #     target_speeds_array = target_speeds_array[-50:]
 #     speeds_array = speeds_array[-50:]
 
@@ -2242,9 +2271,9 @@ def plot_episode_info(path,
 #     axs.set_ylabel('Target and Actual Speed')
 
 #     axs.plot(observations, speeds_array, linestyle='-', linewidth=2, markersize=8, label='actual')
-    
+
 #     axs.grid(True)
-    
+
 #     plt.grid(True)
 #     plt.savefig(path + 'episode_info_{}.png'.format(episode_num))
 #     plt.close()
