@@ -137,3 +137,4 @@ misc/logs/*jpeg
 # detection
 configure_env.setup
 AdelaiDet_model/*
+!AdelaiDet_model/README.md
