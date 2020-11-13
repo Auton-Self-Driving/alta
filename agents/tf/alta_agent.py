@@ -73,6 +73,8 @@ class AltaAgent(AutonomousAgent):
         return sensors
 
     def _configure_planner(self, map_string):
+        self._map = carla.Map("map", map_string)
+
         # Instantiate the global planner
         self.planner = GlobalPlanner()
         self.trace_route = []
