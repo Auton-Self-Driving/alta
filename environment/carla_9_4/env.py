@@ -46,8 +46,8 @@ from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
 
-import ipdb
-st = ipdb.set_trace
+# import ipdb
+# st = ipdb.set_trace
 
 try:
     import carla
@@ -161,7 +161,7 @@ class CarlaEnv(gym.Env):
                 self.CarlaServer.close()
                 error = e
                 serverStartRetries += 1
-        time.sleep(120)
+        # time.sleep(120)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -782,18 +782,31 @@ class CarlaEnv(gym.Env):
                 self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
             self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
-            if self.config["algo"] == "AE":
-                next_orientation, self.dist_to_trajectory = 0, 0
-            else:
-                next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+            # if self.config["algo"] == "AE":
+            #     next_orientation, self.dist_to_trajectory = 0, 0
+            # else:
+            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
             self.episode_measurements['next_orientation'] = next_orientation
             self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
+
+            # Read in preprocessed image
+            # sensor_image = self._read_data(self.camera_queue, world_frame)
+            sensor_image = front_image = self._read_data(self.front_camera_queue, world_frame)
+            rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-            self._update_env_obs(front_rgb_image=rgb_image)
-            # self._update_env_obs()
+            # self._update_env_obs(front_rgb_image=rgb_image)
+            obs = {}
+            self._update_env_obs()
+            obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
+            obs['dist_to_light'] = self.episode_measurements['dist_to_light']
+
+            obs['rgb_image'] = rgb_image
+            obs['image'] = obs['semantic_image'] = front_image
+            obs['rv_image'] = rv_sensor_image
+
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -815,6 +828,7 @@ class CarlaEnv(gym.Env):
             elif not obs_collision:
                 self.episode_measurements["collision_actor_id"] = None
 
+            self.episode_measurements['is_collision'] = obs_collision
             if self.episode_measurements['runover_light']:
                 self.traffic_light_violations += 1
 
@@ -831,8 +845,10 @@ class CarlaEnv(gym.Env):
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
+            self.episode_measurements['step_reward'] = 0
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
+            self.episode_measurements['dist_to_trajectory_reward'] = 0
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
 
@@ -843,15 +859,9 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
 
-        obs = {}
         #TODO: Get branch_idx from planner and set accordingly.
         branch_idx = 1
 
-
-        # Read in preprocessed image
-        sensor_image = self._read_data(self.camera_queue, world_frame)
-        front_image = self._read_data(self.front_camera_queue, world_frame)
-        rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
@@ -906,9 +916,6 @@ class CarlaEnv(gym.Env):
             rv_semantic_image = rv_sensor_image[:,:,0]
             obs['semantic_image'] = semantic_image
             obs['rv_semantic_image'] = rv_semantic_image
-
-        obs['image'] = sensor_image
-        obs['rv_image'] = rv_sensor_image
 
         obs['speed'] = np.expand_dims(
             np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
@@ -1832,11 +1839,13 @@ class CarlaEnv(gym.Env):
         for _ in range(15):
             world_frame = self._world.tick()
 
-        image = self._read_data(self.camera_queue, world_frame)
-        rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+        # image = self._read_data(self.camera_queue, world_frame)
+        image = rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         front_image = self._read_data(self.front_camera_queue, world_frame)
 
         # collect data
+        # seg_img = util.convert_to_rgb(front_image)
+        
 
         rv_image = self._read_data(self.rv_camera_queue, world_frame)
 
@@ -1865,10 +1874,10 @@ class CarlaEnv(gym.Env):
             # Hence we use traffic_light_proximity_threshold while creating an Agent.
             self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
 
-        if self.config["algo"] == "AE":
-            next_orientation, self.dist_to_trajectory = 0, 0
-        else:
-            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        # if self.config["algo"] == "AE":
+        #     next_orientation, self.dist_to_trajectory, distance_to_goal_trajec = 0, 0
+        # else:
+        next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
 
         self.episode_measurements['next_orientation'] = next_orientation
         self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
@@ -1877,13 +1886,16 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        self._update_env_obs(front_rgb_image=rgb_image)
-        # self._update_env_obs()
+        # self._update_env_obs(front_rgb_image=rgb_image)
+        self._update_env_obs()
+        obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
+        obs['dist_to_light'] = self.episode_measurements['dist_to_light']
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
 
-        obs['image'] = image
+        obs['image'] = obs['semantic_image'] = front_image
+        obs['rgb_image'] = rgb_image
         obs['rv_image'] = rv_image
 
         visual_observation = None

@@ -139,8 +139,8 @@ DEFAULT_ENV = {
     "updated_scenarios": False,
     "sample_npc": True,
     "use_offline_map": True,
-    "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
-    "use_route_to_plan" : True
+    "map_path" : "/home/zheh/Documents/CARLA/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
+    "use_route_to_plan" : False
 }
 
 episode_measurements = {
