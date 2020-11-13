@@ -3,6 +3,14 @@ import numpy as np
 from leaderboard.autoagents import models, controller
 import carla
 
+
+from environment.carla_9_4.env_util import (
+    get_world_coords_from_latlong,
+    convert_route_from_GPS_world
+)
+
+from environment.carla_9_4.planner import GlobalPlanner
+
 import ipdb
 st = ipdb.set_trace
 
@@ -24,7 +32,7 @@ class AltaAgent(AutonomousAgent):
             'K_P': 0.1,
             'K_D': 0.0005,
             'K_I': 0.4,
-            'dt': 1/10.0}        
+            'dt': 1/10.0}
         self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
 
         image_params = self.sensors()[0]
@@ -40,7 +48,14 @@ class AltaAgent(AutonomousAgent):
             else:
                 self.policy_network.set_random_params()
 
-        #TODO: Include policy networks other 2 modes 
+        # Storing the OpenDRIVE MAP
+        self._map = None
+        self.global_planner = None
+
+        # Initialize previous steer
+        self.previous_steer = 0
+
+
 
     def setup(self, path_to_conf_file):
         self.track = Track.MAP # At a minimum, this method sets the Leaderboard modality. In this case, SENSORS
@@ -57,6 +72,21 @@ class AltaAgent(AutonomousAgent):
            ]
         return sensors
 
+    def _configure_planner(self, map_string):
+        # Instantiate the global planner
+        self.planner = GlobalPlanner()
+        self.trace_route = []
+        for idx in range(len(self.scenario_route) - 1):
+            source = self.scenario_route[idx]
+            destination = self.scenario_route[idx+1]
+            trace_route = self.global_planner._trace_route(self._map,
+                            source, destination)
+            self.trace_route.extend(trace_route)
+
+        self.global_planner.set_global_plan(self.trace_route)
+
+
+
     def _preprocess_image(self, image):
         #array = np.reshape(array, (image.shape[0], image.shape[1], 4))
         image = image[:, :, :3]
@@ -65,18 +95,37 @@ class AltaAgent(AutonomousAgent):
 
     def get_sematic_info(self, image):
         return None
-    
+
     def get_traffic_light_info(self, image):
         return 0
 
-    def get_waypoint_info(self, map):
-        return None
+    # def get_waypoint_info(self, vehicle_transform, map):
+
+
+    def compute_wp_stats(self, vehicle_transform):
+        "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
+        mean_angle, ldist, distance_to_goal_trajec, _, _, _ = self.global_planner.get_next_orientation_new(vehicle_transform)
+
+        return mean_angle, ldist, distance_to_goal_trajec
 
     def get_motion_info(self, imu, speedometer):
         "Return type: list containing [steer, speed]"
         return [0,0]
 
+    def _get_vehicle_transform(self, gnss_reading, imu_reading):
+        # Convert to x,y,z
+        world_coords = get_world_coords_from_latlong(gnss_reading.latitude, gnss_reading.longitude, gnss_reading.altitude)
+
+        x,y,z = world_coords[0][0], world_coords[1][0], world_coords[2][0]
+
+        # Construct transform
+        return carla.Transform(carla.Location(x = x, y = y, z = z), carla.Rotation(yaw = imu_reading.compass))
+
     def preprocess_inputs(self, input_data):
+        # Configure planner when we first receive MAP info
+        if(self.global_planner is None):
+            self._configure_planner(input_data['OpenDRIVE'])
+
         processed_input = {}
 
         rgb_image = self._preprocess_image(input_data['Center'][1])
@@ -90,27 +139,26 @@ class AltaAgent(AutonomousAgent):
         traffic_light = self.get_traffic_light_info(rgb_image)
         processed_input['tlight'] = traffic_light
 
-        # Hitesh and Tanmay
-        #dense_waypoints = self.get_waypoint_info(input_data['OpenDRIVE'][1])
-        processed_input['dense_wp'] = None
+        vehicle_transform = self._get_vehicle_transform(input_data["GPS"], input_data['IMU'])
 
-        # Who?
-        steer_speed = self.get_motion_info(input_data['IMU'][1], input_data['SPEED'][1])
-        processed_input['steer_speed'] = steer_speed
+        processed_input["mean_angle"], processed_input['ldist'], processed_input['distance_to_goal_trajec'] = compute_wp_stats(vehicle_transform)
+
+
+        processed_input['steer'] = self.previous_steer
+        processed_input['speed'] = input_data['SPEED']
 
         return processed_input
 
-    def compute_wp_stats(self, wp):
-        "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
-        return [0,0,0]
-
     def get_action(self, inputs, mode="Imitation"):
-        mean_angle, ldist, distance_to_goal_trajec = self.compute_wp_stats(inputs['dense_wp'])
+        mean_angle = inputs['mean_angle']
+        ldist = inputs['ldist']
+        distance_to_goal_trajec = inputs['distance_to_goal_trajec']
 
         obstacle_dist = 0
         obstacle_speed = 0
-        
-        steer, speed = inputs['steer_speed']
+
+        steer = inputs['steer']
+        speed = inputs['speed']
 
         light = inputs['tlight']
 
@@ -131,15 +179,11 @@ class AltaAgent(AutonomousAgent):
                 img = np.expand_dims(inputs['semantic'], axis = 0)
 
             action = self.policy_network.predict(img, filtered_low_dim_input)
-        #TODO: Include policy networks other 2 modes 
+        #TODO: Include policy networks other 2 modes
 
         return action
 
-    def get_speed_from_velocity(self, velocity):
-        speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
-        return speed
-
-    def get_control(self, action):
+    def get_control(self, action, current_speed):
         """ Get Control object for Carla from action
         Input:
             - action: tuple containing (steer, throttle, brake) in [-1, 1]
@@ -149,10 +193,6 @@ class AltaAgent(AutonomousAgent):
         steer = np.clip(float(action[0]), -1.0, 1.0)
         target_speed = (action[1] * 1.5) + 1
         target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
-
-        # TODO: Need to replace this once we get to know how to extract agent's current velocity from IMU/speedometer sensors
-        #current_speed = self.get_speed_from_velocity(action[1]) * 3.6
-        current_speed = action[1] * 3.6
 
         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=True)
         if gas < 0:
@@ -175,7 +215,10 @@ class AltaAgent(AutonomousAgent):
 
     def run_step(self, input_data, timestamp):
         preprocess_inputs = self.preprocess_inputs(input_data)
+        print(preprocess_inputs)
         action = self.get_action(preprocess_inputs, mode=self.mode)
-        control = self.get_control(action[0])
+
+        control = self.get_control(action[0], preprocess_inputs['speed'])
+        self.previous_steer = control.steer
 
         return control
