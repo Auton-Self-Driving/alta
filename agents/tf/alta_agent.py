@@ -3,6 +3,15 @@ import numpy as np
 from leaderboard.autoagents import models, controller
 import carla
 
+import yaml
+import pickle
+from scipy.interpolate import interp1d
+import torch
+from detectron2.config import CfgNode
+# from detectron2.checkpoint import DetectionCheckpointer
+from detectron2.engine.defaults import DefaultPredictor
+from AdelaiDet.tools.train_net import Trainer
+
 import ipdb
 st = ipdb.set_trace
 
@@ -40,6 +49,20 @@ class AltaAgent(AutonomousAgent):
             else:
                 self.policy_network.set_random_params()
 
+        # Zhe: traffic lights detection model
+        # print(os.getcwd())
+        with open('../../AdelaiDet_model/config.yaml', 'r') as f:
+            cfg = yaml.load(f, Loader=yaml.FullLoader)
+            model = Trainer.build_model(CfgNode(cfg))
+            ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+            # ckpt = DetectionCheckpointer(model)
+            # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
+        with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+            self.dist_interpolator = pickle.load(f)
+        self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
+        # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
+        self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+
         #TODO: Include policy networks other 2 modes 
 
     def setup(self, path_to_conf_file):
@@ -67,7 +90,20 @@ class AltaAgent(AutonomousAgent):
         return None
     
     def get_traffic_light_info(self, image):
-        return 0
+        image = image[:, :, ::-1] # RGB -> BGR
+        res = self.traffic_light_detector(image)
+        if len(res['instances']) == 0: # no lights
+            return None # Green Light, No Distance
+        else:
+            area = res['instances'].pred_boxes[0].area().item()
+            color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
+            score = res['instances'].scores[0].item()
+            num_ins = len(res['instances'])
+            if color == 1 and score > .667:
+                dist_pred = max(0, self.dist_interpolator(area))
+                print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
+                return dist_pred
+        return None
 
     def get_waypoint_info(self, map):
         return None

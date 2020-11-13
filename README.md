@@ -17,6 +17,14 @@ Reproduce thesis results:
 
 ## Setup Instructions
 
+## AdelaiDet  
+**Important** If you want to use the traffic light detector, please build AdlaiDet module before use by:  
+<pre>
+cd AdelaiDet
+python setup.py build develop
+</pre>  
+  
+
 ## Carla 9.6
 Below are the instructions to setup and run the code.
 

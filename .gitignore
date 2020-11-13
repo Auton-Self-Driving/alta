@@ -133,3 +133,8 @@ misc/logs/*jpeg
 
 # don't track .txt files used for printing output
 *.txt
+
+# detection
+configure_env.setup
+AdelaiDet_model/*
+!AdelaiDet_model/README.md
