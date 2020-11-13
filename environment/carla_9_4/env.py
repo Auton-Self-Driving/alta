@@ -847,7 +847,7 @@ class CarlaEnv(gym.Env):
         self.create_observations(obs)
 
         if self.config['verbose']:
-            print('OBS: {}'.format(obs['observation']))
+            print('obs: {}'.format(obs['observation']))
 
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
@@ -1015,13 +1015,13 @@ class CarlaEnv(gym.Env):
                         # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
                 # Save videos now only for validation runs
-                if self.config["videos"]: # and self.unseen:
-                    if self.vis_wrapper is not None:
-                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
-                        self.vis_wrapper.remove_images()
-                    if self.vis_wrapper_vae is not None:
-                        self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                        self.vis_wrapper_vae.remove_images()
+                # if self.config["videos"]: # and self.unseen:
+                #     if self.vis_wrapper is not None:
+                #         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
+                #         self.vis_wrapper.remove_images()
+                #     if self.vis_wrapper_vae is not None:
+                #         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                #         self.vis_wrapper_vae.remove_images()
 
         if self.config["input_type"] == 'vae':
             return visual_observation, reward, done, self.episode_measurements
@@ -1381,6 +1381,13 @@ class CarlaEnv(gym.Env):
                 
             self.episode_measurements[key] = 0
 
+        # also dump videos (?)
+        # if self.config["videos"]:
+        #     if self.vis_wrapper is not None:
+        #         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)        
+        #         self.vis_wrapper.remove_images()
+
+
     def _reset_test_comparison(self, unseen=False, index=0):
         self.clear_episode_measurements()
 
@@ -1473,12 +1480,13 @@ class CarlaEnv(gym.Env):
         self.measurements_file = None
         self.unseen = unseen
 
-        if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
-            # Way to test two scenarios with and without dynamic actors
-            # in training run in long_straight scenario
-            self.index = (self.index + 1) % self.config["num_episodes"]
-        else:
-            self.index = index
+        # if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
+        #     # Way to test two scenarios with and without dynamic actors
+        #     # in training run in long_straight scenario
+        #     self.index = (self.index + 1) % self.config["num_episodes"]
+        # else:
+        #     self.index = index
+        self.index = (self.index+1) % self.config["num_episodes"]
         self.expert_agent = expert_agent
 
         # Destroy
