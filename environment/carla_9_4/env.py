@@ -854,7 +854,7 @@ class CarlaEnv(gym.Env):
 
         if self.config["train_config"] == "PPO":
             # Save videos now only for validation runs
-            if self.config["videos"]: # and self.unseen:
+            if self.config["testing"]: # and self.unseen:
                 if self.vis_wrapper is not None:
                     # TODO: Check and uncomment when running with VAE
                     # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:

@@ -44,6 +44,8 @@ class ExperimentRunner(tune.Trainable):
         environment_params = variant['environment_params']
         environment_params['training']['kwargs']['seed'] = variant['run_params']['seed']
         environment_params['evaluation']['kwargs']['seed'] = variant['run_params']['seed']
+        environment_params['training']['kwargs']['testing'] = False
+        environment_params['evaluation']['kwargs']['testing'] = True
         training_environment = self.training_environment = (
             get_environment_from_params(environment_params['training']))
         evaluation_environment = self.evaluation_environment = (

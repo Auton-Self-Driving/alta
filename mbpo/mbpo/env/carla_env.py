@@ -25,7 +25,7 @@ class CarlaEnvWrapper(CarlaEnv, utils.EzPickle):
 
 		IMAGES_PATH = '{}/test_images/'.format(log_dir)
 		VIDEO_PATH = '{}/test_videos/'.format(log_dir)
-		vis_wrapper = agents.tf.vis_module.vis(IMAGES_PATH, VIDEO_PATH, videos=config['videos'])
+		vis_wrapper = agents.tf.vis_module.vis(IMAGES_PATH, VIDEO_PATH, videos=config['testing'])
 
 		self._gym_disable_underscore_compat = True
 		super(CarlaEnvWrapper, self).__init__(config=config, vis_wrapper=vis_wrapper, log_dir=log_dir)

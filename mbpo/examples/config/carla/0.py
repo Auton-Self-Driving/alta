@@ -5,7 +5,7 @@ params = {
     'task': 'Driving-v0',
 
     'log_dir': '~/ray_mbpo/',
-    'exp_name': 'logtests',
+    'exp_name': 'less-discount',
 
     'kwargs': {
         'epoch_length': 10000,
@@ -16,12 +16,12 @@ params = {
         'eval_deterministic': True,
         'n_initial_exploration_steps': int(5000),
 
-        'discount': 0.95,
+        'discount': 0.99,
         'tau': 5e-3,
         'reward_scale': 1.0,
 
         'model_train_freq': 250,
-        'model_retain_epochs': 5,
+        'model_retain_epochs': 10,
         'rollout_batch_size': 100e3,
         'deterministic': False,
         'num_networks': 7,

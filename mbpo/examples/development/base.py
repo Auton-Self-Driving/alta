@@ -126,7 +126,7 @@ ENVIRONMENT_PARAMS = {
             'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
             'action_type': 'merged_speed_scaled_tanh',
             'scenarios': 'no_crash_dense',
-            'use_scenarios': True,
+            # 'use_scenarios': True,
             'train_fixed_spawn_points': True,
             'test_fixed_spawn_points': True,
             'reward_function': 'simple2',
@@ -144,16 +144,8 @@ ENVIRONMENT_PARAMS = {
             'frame_skip': 2,
             'reward_normalize_factor': 16,
             'verbose': False,
-            'log_dir': '/home/brian/alta-logs/'
-        }
-    }
-}
-
-EVAL_ENVIRONMENT_PARAMS = {
-    'Carla': {
-        'Driving-v0': {
-            'videos': True,
-            'testing': True,
+            'log_dir': '/zfsauton2/home/brianyan/projects/alta-logs/',
+            'carla_gpu': '3',
         }
     }
 }
@@ -172,7 +164,7 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
     )
 
     variant_spec = {
-        'git_sha': get_git_rev(),
+        # 'git_sha': get_git_rev(),
 
         'environment_params': {
             'training': {
@@ -182,13 +174,11 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
                 'kwargs': (
                     ENVIRONMENT_PARAMS.get(domain, {}).get(task, {})),
             },
-            'evaluation': {
-                'domain': domain,
-                'task': task,
-                'universe': universe,
-                'kwargs': (
-                    ENVIRONMENT_PARAMS.get(domain, {}).get(task, {})),
-            },
+            'evaluation': tune.sample_from(lambda spec: (
+                spec.get('config', spec)
+                ['environment_params']
+                ['training']
+            )),
         },
         'policy_params': deep_update(
             POLICY_PARAMS_BASE[policy],
@@ -235,7 +225,7 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
             'checkpoint_replay_pool': False,
         },
     }
-    variant_spec['environment_params']['evaluation']['kwargs'].update(EVAL_ENVIRONMENT_PARAMS.get(domain, {}).get(task, {}))
+    # variant_spec['environment_params']['evaluation']['kwargs'].update(EVAL_ENVIRONMENT_PARAMS.get(domain, {}).get(task, {}))
 
     return variant_spec
 
