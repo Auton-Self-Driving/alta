@@ -1,6 +1,6 @@
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 import numpy as np
-from leaderboard.autoagents import models, controller
+import models, controller
 import carla
 
 import ipdb
