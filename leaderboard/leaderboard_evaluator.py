@@ -36,6 +36,9 @@ from leaderboard.utils.statistics_manager import StatisticsManager
 from leaderboard.utils.route_indexer import RouteIndexer
 
 
+import ipdb
+st = ipdb.set_trace
+
 sensors_to_icons = {
     'sensor.camera.rgb':        'carla_camera',
     'sensor.lidar.ray_cast':    'carla_lidar',
@@ -73,11 +76,13 @@ class LeaderboardEvaluator(object):
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
         # requests in the localhost at port 2000.
+
         self.client = carla.Client(args.host, int(args.port))
         if args.timeout:
             self.client_timeout = float(args.timeout)
         self.client.set_timeout(self.client_timeout)
 
+        
         self.traffic_manager = self.client.get_trafficmanager(int(args.trafficManagerPort))
 
         dist = pkg_resources.get_distribution("carla")
@@ -254,7 +259,6 @@ class LeaderboardEvaluator(object):
 
         # Prepare the statistics of the route
         self.statistics_manager.set_route(config.name, config.index)
-
         # Set up the user's agent, and the timer to avoid freezing the simulation
         try:
             self._agent_watchdog.start()
