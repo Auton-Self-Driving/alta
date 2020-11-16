@@ -28,9 +28,7 @@ python setup.py build develop
 
 Please make sure that the gcc version you are using is >= 5.0.  
 If errors happen and you want to rebuild any of them, please purge the build folder before rebuilding.  
-```
-
-
+  
 ## Carla 9.6
 Below are the instructions to setup and run the code.
 
