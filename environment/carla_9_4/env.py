@@ -93,7 +93,7 @@ class CarlaEnv(gym.Env):
         self.validation_episode_num = 0
         self.total_steps = 0
         self.semantic_image = None
-        self.unseen = False
+        self.unseen = self.config['testing']
         self.index = 0
         self.expert_agent = False
 
@@ -158,7 +158,7 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
-            np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
+            # np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         # TODO: Verify the limits and bounds of observation spaces
@@ -319,6 +319,8 @@ class CarlaEnv(gym.Env):
         self.speed_reward_array = []
         self.dist_to_target_array = []
         self.red_light_dist_array = []
+
+        self._reset()
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -876,7 +878,6 @@ class CarlaEnv(gym.Env):
                     else:
                         self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
-
                     # Logic for combined videos
                     # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
@@ -928,55 +929,55 @@ class CarlaEnv(gym.Env):
                     self.episode_num += 1
                     
                     # Commenting out plots for all episodes
-                    if self.episode_num % 100 == 0:
-                        path = self.log_dir + 'train_episode_info_plots/'
-                        plotname = 'TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps)
-                        plot_episode_info(path,
-                            self.target_speeds_array,
-                            self.speeds_array,
-                            self.throttles_array,
-                            self.steers_array,
-                            # self.brakes_array,
-                            self.wp_orientation_array,
-                            self.obstacle_dist_array,
-                            self.step_reward_array,
-                            self.collision_reward_array,
-                            self.dist_to_trajectory_reward_array,
-                            self.red_light_dist_array,
-                            plotname)
+                    # if self.episode_num % 100 == 0:
+                    #     path = self.log_dir + 'train_episode_info_plots/'
+                    #     plotname = 'TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps)
+                    #     plot_episode_info(path,
+                    #         self.target_speeds_array,
+                    #         self.speeds_array,
+                    #         self.throttles_array,
+                    #         self.steers_array,
+                    #         # self.brakes_array,
+                    #         self.wp_orientation_array,
+                    #         self.obstacle_dist_array,
+                    #         self.step_reward_array,
+                    #         self.collision_reward_array,
+                    #         self.dist_to_trajectory_reward_array,
+                    #         self.red_light_dist_array,
+                    #         plotname)
 
                 # Validation runs
                 else:
                     self.validation_episode_num += 1
                     plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
                     self.episode_measurements['val_ep_idx'] = plotname
-                    if self.config["testing"]:
-                        path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
-                    else:
-                        path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
-                    plot_episode_info(path,
-                        self.target_speeds_array,
-                        self.speeds_array,
-                        self.throttles_array,
-                        self.steers_array,
-                        # self.brakes_array,
-                        self.wp_orientation_array,
-                        self.obstacle_dist_array,
-                        self.step_reward_array,
-                        self.collision_reward_array,
-                        self.dist_to_trajectory_reward_array,
-                        self.red_light_dist_array,
-                        plotname)
+                    # if self.config["testing"]:
+                    #     path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
+                    # else:
+                    #     path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
+                    # plot_episode_info(path,
+                    #     self.target_speeds_array,
+                    #     self.speeds_array,
+                    #     self.throttles_array,
+                    #     self.steers_array,
+                    #     # self.brakes_array,
+                    #     self.wp_orientation_array,
+                    #     self.obstacle_dist_array,
+                    #     self.step_reward_array,
+                    #     self.collision_reward_array,
+                    #     self.dist_to_trajectory_reward_array,
+                    #     self.red_light_dist_array,
+                    #     plotname)
 
-                    if self.config["testing"]:
-                        np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
-                                            target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
-                                            input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
-                                            obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
-                                            wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
-                                            dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
-                                            step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
-                                            dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
+                    # if self.config["testing"]:
+                    #     np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
+                    #                         target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
+                    #                         input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
+                    #                         obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
+                    #                         wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
+                    #                         dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
+                    #                         step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
+                    #                         dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
                 
                 self.episode_measurements["episode_num"] = self.episode_num
 
@@ -1044,9 +1045,9 @@ class CarlaEnv(gym.Env):
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             # observation = np.expand_dims(obs['observation'], axis = 0)
             observation = obs['observation'].copy()
-            return observation, reward, done, {} # self.episode_measurements
+            return observation, reward, done, self.episode_measurements
         else:
-            return obs, reward, done, {} # self.episode_measurements
+            return obs, reward, done, self.episode_measurements
     
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
@@ -1480,13 +1481,13 @@ class CarlaEnv(gym.Env):
         self.measurements_file = None
         self.unseen = unseen
 
-        # if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
-        #     # Way to test two scenarios with and without dynamic actors
-        #     # in training run in long_straight scenario
-        #     self.index = (self.index + 1) % self.config["num_episodes"]
-        # else:
-        #     self.index = index
-        self.index = (self.index+1) % self.config["num_episodes"]
+        if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
+            # Way to test two scenarios with and without dynamic actors
+            # in training run in long_straight scenario
+            self.index = (self.index + 1) % self.config["num_episodes"]
+        else:
+            self.index = index
+        # self.index = (self.index+1) % self.config["num_episodes"]
         self.expert_agent = expert_agent
 
         # Destroy

@@ -39,6 +39,7 @@ DEFAULT_MAX_PATH_LENGTH = 1000
 MAX_PATH_LENGTH_PER_DOMAIN = {
     'Point2DEnv': 50,
     'Pendulum': 200,
+    'Carla': 10000,
 }
 
 ALGORITHM_PARAMS_ADDITIONAL = {
@@ -126,12 +127,12 @@ ENVIRONMENT_PARAMS = {
             'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
             'action_type': 'merged_speed_scaled_tanh',
             'scenarios': 'no_crash_dense',
-            # 'use_scenarios': True,
+            'use_scenarios': True,
             'train_fixed_spawn_points': True,
             'test_fixed_spawn_points': True,
             'reward_function': 'simple2',
             'sample_npc': True,
-            'num_npc': 100,
+            'num_npc': 0,
             'city_name': 'Town01',
             'const_collision_penalty': 250,
             'collision_penalty_speed_coeff': 250,
@@ -144,8 +145,8 @@ ENVIRONMENT_PARAMS = {
             'frame_skip': 2,
             'reward_normalize_factor': 16,
             'verbose': False,
-            'log_dir': '/zfsauton2/home/brianyan/projects/alta-logs/',
-            'carla_gpu': '3',
+            'log_dir': '/home/brian/alta-logs/',
+            # 'carla_gpu': '3',
         }
     }
 }
@@ -222,7 +223,7 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
             'checkpoint_at_end': True,
             'checkpoint_frequency': NUM_EPOCHS_PER_DOMAIN.get(
                 domain, DEFAULT_NUM_EPOCHS) // NUM_CHECKPOINTS,
-            'checkpoint_replay_pool': False,
+            'checkpoint_replay_pool': True,
         },
     }
     # variant_spec['environment_params']['evaluation']['kwargs'].update(EVAL_ENVIRONMENT_PARAMS.get(domain, {}).get(task, {}))

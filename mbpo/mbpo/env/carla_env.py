@@ -18,15 +18,24 @@ class CarlaEnvWrapper(CarlaEnv, utils.EzPickle):
 		for key, value in kwargs.items():
 			config[key] = value
 
-		date = datetime.now().strftime('%Y-%m-%d')
-		log_dir = '{}/{}-seed={}'.format(config['log_dir'], date, config['seed'])
-		if not os.path.isdir(log_dir):
-			os.mkdir(log_dir)
+		config['carla_gpu'] = os.environ.get('CUDA_VISIBLE_DEVICES')
 
-		IMAGES_PATH = '{}/test_images/'.format(log_dir)
-		VIDEO_PATH = '{}/test_videos/'.format(log_dir)
-		vis_wrapper = agents.tf.vis_module.vis(IMAGES_PATH, VIDEO_PATH, videos=config['testing'])
+		# try:
+		# 	date = datetime.now().strftime('%Y-%m-%d')
+		# 	log_dir = '{}/{}-seed={}'.format(config['log_dir'], date, config['seed'])
+		# 	if not os.path.isdir(log_dir):
+		# 		os.mkdir(log_dir)
+
+		# 	IMAGES_PATH = '{}/test_images/'.format(log_dir)
+		# 	VIDEO_PATH = '{}/test_videos/'.format(log_dir)
+		# 	vis_wrapper = agents.tf.vis_module.vis(IMAGES_PATH, VIDEO_PATH, videos=config['testing'])
+		# except:
+		# 	print('Error setting up video logging')
+		# 	vis_wrapper = None
 
 		self._gym_disable_underscore_compat = True
-		super(CarlaEnvWrapper, self).__init__(config=config, vis_wrapper=vis_wrapper, log_dir=log_dir)
+		super(CarlaEnvWrapper, self).__init__(config=config)
 		utils.EzPickle.__init__(self)
+
+	def render(self, mode=''):
+		pass

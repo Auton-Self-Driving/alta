@@ -23,6 +23,8 @@ from mbpo.utils.visualization import visualize_policy
 from mbpo.utils.logging import Progress
 import mbpo.utils.filesystem as filesystem
 
+import agents.tf.vis_module
+
 
 def td_target(reward, discount, next_value):
     return reward + discount * next_value
@@ -165,11 +167,22 @@ class MBPO(RLAlgorithm):
         self._init_actor_update()
         self._init_critic_update()
 
+    def _training_before_hook(self,):
+        video_path = os.path.join(self._log_dir, 'videos')
+        image_path = os.path.join(video_path, 'images')
+        filesystem.mkdir(video_path)
+        filesystem.mkdir(image_path)
+        vis_wrapper = agents.tf.vis_module.vis(image_path, video_path)
+        env = self._evaluation_environment._env.env
+        env.vis_wrapper = vis_wrapper
+
     def _epoch_after_hook(self, *args, **kwargs):
         env = self._evaluation_environment._env.env
         vis_wrapper = env.vis_wrapper
         vis_wrapper.generate_video(self._epoch, 0, 0)
         vis_wrapper.remove_images()
+
+        self._log_policy()
 
     def _train(self):
         

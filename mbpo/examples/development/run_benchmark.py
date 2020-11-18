@@ -50,24 +50,50 @@ def simulate_policy(args):
         with open(pickle_path, 'rb') as f:
             picklable = pickle.load(f)
 
-    evaluation_environment = picklable['training_environment']
+    evaluation_environment = picklable['evaluation_environment']
+    env = evaluation_environment._env.env
+    # env.config['use_scenarios'] = True
 
     policy = (
         get_policy_from_variant(variant, evaluation_environment, Qs=[None]))
     policy.set_weights(picklable['policy_weights'])
 
-    with policy.set_deterministic(args.deterministic):
-        paths = rollouts(args.num_rollouts,
-                         evaluation_environment,
-                         policy,
-                         path_length=args.max_path_length,
-                         render_mode=args.render_mode)
+    rewards = []
+    successes = []
 
-    if args.render_mode != 'human':
-        from pprint import pprint; import pdb; pdb.set_trace()
-        pass
+    with policy.set_deterministic(True):
+        for ep_idx in range(25):
+            total_reward = 0
+            obs = env.reset(index=ep_idx)
+            print('==EPISODE {}'.format(ep_idx+1))
 
-    return paths
+            for i in range(10000):
+                action = policy.actions_np(np.array([obs]))[0]
+                obs, reward, done, _ = env.step(action)
+                total_reward += reward
+                if done:
+                    break
+
+            print('EPISODE {} | REWARD: {} | EP LEN: {}'.format(ep_idx+1, total_reward, i+1) )
+            rewards.append(total_reward)
+            completed = reward > 0.
+            successes.append(completed)
+
+    import ipdb; ipdb.set_trace()
+    pass
+
+    # with policy.set_deterministic(args.deterministic):
+    #     paths = rollouts(args.num_rollouts,
+    #                      evaluation_environment,
+    #                      policy,
+    #                      path_length=args.max_path_length,
+    #                      render_mode=args.render_mode)
+
+    # if args.render_mode != 'human':
+    #     from pprint import pprint; import pdb; pdb.set_trace()
+    #     pass
+
+    # return paths
 
 
 if __name__ == '__main__':

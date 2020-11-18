@@ -42,6 +42,7 @@ class ExperimentRunner(tune.Trainable):
         variant = copy.deepcopy(self._variant)
 
         environment_params = variant['environment_params']
+        environment_params['training'] = copy.deepcopy(environment_params['training'])
         environment_params['training']['kwargs']['seed'] = variant['run_params']['seed']
         environment_params['evaluation']['kwargs']['seed'] = variant['run_params']['seed']
         environment_params['training']['kwargs']['testing'] = False
@@ -169,6 +170,8 @@ class ExperimentRunner(tune.Trainable):
     def _restore(self, checkpoint_dir):
         assert isinstance(checkpoint_dir, str), checkpoint_dir
 
+        variant = copy.deepcopy(self._variant)
+        environment_params = variant['environment_params']
         checkpoint_dir = checkpoint_dir.rstrip('/')
 
         with self._session.as_default():
@@ -196,6 +199,9 @@ class ExperimentRunner(tune.Trainable):
         initial_exploration_policy = self.initial_exploration_policy = (
             get_policy('UniformPolicy', training_environment))
 
+        domain = environment_params['training']['domain']
+        static_fns = mbpo.static[domain.lower()]
+
         self.algorithm = get_algorithm_from_variant(
             variant=self._variant,
             training_environment=training_environment,
@@ -204,6 +210,7 @@ class ExperimentRunner(tune.Trainable):
             initial_exploration_policy=initial_exploration_policy,
             Qs=Qs,
             pool=replay_pool,
+            static_fns=static_fns,
             sampler=sampler,
             session=self._session)
         self.algorithm.__setstate__(picklable['algorithm'].__getstate__())
