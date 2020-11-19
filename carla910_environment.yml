@@ -1,4 +1,4 @@
-name: carla9.10_py37
+name: carla9.10_py37_upd
 channels:
   - pytorch
   - conda-forge

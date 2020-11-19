@@ -1,8 +1,52 @@
 {
     "_checkpoint": {
-        "global_record": {},
+        "global_record": {
+            "index": -1,
+            "infractions": {
+                "collisions_layout": 0.0,
+                "collisions_pedestrian": 0.0,
+                "collisions_vehicle": 36.886163732887795,
+                "outside_route_lanes": 0.0,
+                "red_light": 0.0,
+                "route_dev": 0.0,
+                "route_timeout": 0.0,
+                "stop_infraction": 0.0,
+                "vehicle_blocked": 0.0
+            },
+            "meta": {
+                "exceptions": [
+                    [
+                        "RouteScenario_0",
+                        0,
+                        "Failed"
+                    ],
+                    [
+                        "RouteScenario_1",
+                        1,
+                        "Failed - Agent couldn't be set up"
+                    ],
+                    [
+                        "RouteScenario_2",
+                        2,
+                        "Failed - Agent couldn't be set up"
+                    ],
+                    [
+                        "RouteScenario_3",
+                        3,
+                        "Failed - Agent couldn't be set up"
+                    ]
+                ]
+            },
+            "route_id": -1,
+            "scores": {
+                "score_composed": 0.004764590679151634,
+                "score_penalty": 0.7824,
+                "score_route": 0.03676381696876261
+            },
+            "status": "Failed"
+        },
         "progress": [
-            3,
+            4,
             4
         ],
         "records": [
@@ -13,7 +57,9 @@
                     "collisions_pedestrian": [],
                     "collisions_vehicle": [
                         "Agent collided against object with type=vehicle.nissan.micra and id=290 at (x=335.68, y=230.865, z=0.035)",
-                        "Agent collided against object with type=vehicle.nissan.micra and id=290 at (x=338.741, y=228.329, z=0.035)"
+                        "Agent collided against object with type=vehicle.nissan.micra and id=290 at (x=338.874, y=228.159, z=0.035)",
+                        "Agent collided against object with type=vehicle.mercedes-benz.coupe and id=361 at (x=335.998, y=230.89, z=0.035)",
+                        "Agent collided against object with type=vehicle.mercedes-benz.coupe and id=361 at (x=338.777, y=228.035, z=0.033)"
                     ],
                     "outside_route_lanes": [],
                     "red_light": [],
@@ -23,14 +69,14 @@
                     "vehicle_blocked": []
                 },
                 "meta": {
-                    "duration_game": 21.000000312924385,
-                    "duration_system": 10663.280846357346,
+                    "duration_game": 26.150000389665365,
+                    "duration_system": 13601.675226449966,
                     "route_length": 737.4217028017997
                 },
                 "route_id": "RouteScenario_0",
                 "scores": {
-                    "score_composed": 0.052939896435018154,
-                    "score_penalty": 0.36,
+                    "score_composed": 0.019058362716606537,
+                    "score_penalty": 0.1296,
                     "score_route": 0.14705526787505044
                 },
                 "status": "Failed"
@@ -49,17 +95,17 @@
                     "vehicle_blocked": []
                 },
                 "meta": {
-                    "duration_game": 0.05000000074505806,
-                    "duration_system": 59.011951208114624,
+                    "duration_game": 0.0,
+                    "duration_system": 0.0,
                     "route_length": 1128.3240988201576
                 },
                 "route_id": "RouteScenario_1",
                 "scores": {
                     "score_composed": 0.0,
                     "score_penalty": 1.0,
-                    "score_route": 0
+                    "score_route": 0.0
                 },
-                "status": "Failed"
+                "status": "Failed - Agent couldn't be set up"
             },
             {
                 "index": 2,
@@ -75,17 +121,17 @@
                     "vehicle_blocked": []
                 },
                 "meta": {
-                    "duration_game": 0.05000000074505806,
-                    "duration_system": 59.00750207901001,
+                    "duration_game": 0.0,
+                    "duration_system": 0.0,
                     "route_length": 2628.0801981075497
                 },
                 "route_id": "RouteScenario_2",
                 "scores": {
                     "score_composed": 0.0,
                     "score_penalty": 1.0,
-                    "score_route": 0
+                    "score_route": 0.0
                 },
-                "status": "Failed"
+                "status": "Failed - Agent couldn't be set up"
             },
             {
                 "index": 3,
@@ -111,13 +157,26 @@
                     "score_penalty": 1.0,
                     "score_route": 0.0
                 },
-                "status": "Failed - Simulation crashed"
+                "status": "Failed - Agent couldn't be set up"
             }
         ]
     },
-    "eligible": false,
-    "entry_status": "Crashed",
-    "labels": [],
+    "eligible": true,
+    "entry_status": "Finished with agent errors",
+    "labels": [
+        "Avg. driving score",
+        "Avg. route completion",
+        "Avg. infraction penalty",
+        "Collisions with pedestrians",
+        "Collisions with vehicles",
+        "Collisions with layout",
+        "Red lights infractions",
+        "Stop sign infractions",
+        "Off-road infractions",
+        "Route deviations",
+        "Route timeouts",
+        "Agent blocked"
+    ],
     "sensors": [
         "carla_camera",
         "carla_camera",
@@ -126,5 +185,18 @@
         "carla_opendrive_map",
         "carla_speedometer"
     ],
-    "values": []
+    "values": [
+        "0.005",
+        "0.037",
+        "0.782",
+        "0.000",
+        "36.886",
+        "0.000",
+        "0.000",
+        "0.000",
+        "0.000",
+        "0.000",
+        "0.000",
+        "0.000"
+    ]
 }
