@@ -17,14 +17,18 @@ Reproduce thesis results:
 
 ## Setup Instructions
 
-## AdelaiDet  
-**Important** If you want to use the traffic light detector, please build AdlaiDet module before use by:  
-<pre>
-cd AdelaiDet
+## Traffic Light Detection
+**Important** If you want to use the traffic light detector, please build AdelaiDet & detectron2 module by:  
+```
+cd <whatever-dir>/alta
+python -m pip install -e detectron2
+cd ../AdelaiDet
 python setup.py build develop
-</pre>  
-  
+```  
 
+Please make sure that the gcc version you are using is >= 5.0.  
+If errors happen and you want to rebuild any of them, please purge the build folder before rebuilding.  
+  
 ## Carla 9.6
 Below are the instructions to setup and run the code.
 
@@ -105,7 +109,7 @@ Below are the instructions to setup and run the code.
 cd ~
 ```
 
-* Install CARLA v0.9.6 (https://carla.org/2020/09/25/release-0.9.10/) for which the binaries are available here: (https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz)
+* Install CARLA v0.9.10 (https://carla.org/2020/09/25/release-0.9.10/) for which the binaries are available here: (https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz)
 
 ```
 mkdir $HOME/carla910
@@ -127,18 +131,29 @@ bash Anaconda3*
 ```
 mkdir $HOME/projects
 cd $HOME/projects
-git clone https://github.com/Auton-Self-Driving/alta.git
+git clone https://github.com/Auton-Self-Driving/alta.git --recursive
 cd alta
-git checkout master
+git checkout carla_challenge_2020
 ```
 
-* Install conda environment 'carla9.4_py35' from environment.yml file.
+* Install conda environment 'carla9.4_py37' from environment.yml file.
 
 ```
 cd $HOME/projects/alta
 conda env create -f environment.yml
 conda activate carla9.10_py37
 ```
+  
+* Build detectron2 and AdelaiDet
+
+```
+cd $HOME/projects/alta/
+git submodule init
+git submodule update
+python -m pip install -e detectron2
+cd ../AdelaiDet
+python setup.py build develop
+```  
 
 * Set the following paths in the bashrc file.
 (Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.10 in the latest version.)

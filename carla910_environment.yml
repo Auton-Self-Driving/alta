@@ -249,7 +249,7 @@ dependencies:
     - certifi==2020.11.8
     - cycler==0.10.0
     - cython==0.29.21
-    - detectron2==0.2.1+cu101
+      # - detectron2==0.2.1+cu101
     - ephem==3.7.7.1
     - fvcore==0.1.2.post20201104
     - googleapis-common-protos==1.52.0
