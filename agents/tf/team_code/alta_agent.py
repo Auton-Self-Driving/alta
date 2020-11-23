@@ -26,6 +26,8 @@ import time
 import ipdb
 st = ipdb.set_trace
 
+tf.enable_eager_execution()
+
 def get_entry_point():
     return 'AltaAgent'
 
@@ -99,7 +101,19 @@ class AltaAgent(AutonomousAgent):
         self.vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1, videos=True)
 
         print("#"*100, "Setup finished")
-        
+
+        self.ctr = 0
+    
+    def destroy(self):
+        del self.controller
+        del self.policy_network
+        del self.semantic_network
+        del self.traffic_light_detector
+        del self.dist_interpolator
+        del self.global_planner
+        del self.vis_wrapper
+        del self._map
+
     def get_concat_h(self, im1, im2):
         dst = Image.new('RGB', (im1.width + im2.width, im1.height))
         dst.paste(im1, (0, 0))
@@ -116,8 +130,8 @@ class AltaAgent(AutonomousAgent):
             {'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
             'width': 512, 'height': 512, 'fov': 100, 'id': 'Center_high_res'},
             {'type': 'sensor.other.gnss', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'id': 'GPS'},
-            {'type': 'sensor.other.imu', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'roll': 0.0, 'pitch': 0.0,
-             'yaw': -45.0, 'id': 'IMU'},
+            {'type': 'sensor.other.imu', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0,
+             'yaw': 0.0, 'id': 'IMU'}, 
             {'type': 'sensor.opendrive_map', 'reading_frequency': 1, 'id': 'OpenDRIVE'},
            {'type': 'sensor.speedometer',  'reading_frequency': 20, 'id': 'SPEED'},
            ]
@@ -149,14 +163,14 @@ class AltaAgent(AutonomousAgent):
 
     def get_sematic_info(self, image):
         inp = np.expand_dims(image.astype(np.float32), axis = 0)
-        semantic_image = self.semantic_network(inp)
+        semantic_image = self.semantic_network.predict(inp)
         return semantic_image
     
     def get_traffic_light_info(self, image):
         image = image[:, :, ::-1].copy() # RGB -> BGR
         res = self.traffic_light_detector(image)
         if len(res['instances']) == 0: # no lights
-            return -1 # Green Light, No Distance
+            return 1 # Green Light, No Distance
         else:
             area = res['instances'].pred_boxes[0].area().item()
             color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
@@ -166,7 +180,7 @@ class AltaAgent(AutonomousAgent):
                 dist_pred = max(0, self.dist_interpolator(area))
                 print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
                 return dist_pred
-        return -1
+        return 1
 
     def compute_wp_stats(self, vehicle_transform):
         "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
@@ -203,16 +217,23 @@ class AltaAgent(AutonomousAgent):
         processed_input['semantic'] = semantic_image
 
         # Zhe and Swapnil
+        #print("*"*50, "preprocessing high res rgb")        
         high_res_rgb = self._preprocess_image(input_data['Center_high_res'][1])
         high_res_rgb = high_res_rgb.astype(np.float32)
+
         traffic_light = self.get_traffic_light_info(high_res_rgb)
         #traffic_light = self.get_traffic_light_info(rgb_image)
         processed_input['tlight'] = traffic_light
 
+
         vehicle_transform = self._get_vehicle_transform(input_data["GPS"][1], input_data['IMU'][1])
-
+        '''print("*"*50)
+        print(input_data['IMU'][1][-1])
+        print(vehicle_transform.location.x, vehicle_transform.location.y, vehicle_transform.location.z, vehicle_transform.rotation.yaw)
+        print("*"*50)'''
         processed_input["mean_angle"], processed_input['ldist'], processed_input['distance_to_goal_trajec'] = self.compute_wp_stats(vehicle_transform)
-
+        processed_input['distance_to_goal_trajec'] = processed_input['distance_to_goal_trajec']/500 # to match env.py preproc
+        
         processed_input['steer'] = self.previous_steer
         processed_input['speed'] = input_data['SPEED'][1]['speed']
 
@@ -244,7 +265,8 @@ class AltaAgent(AutonomousAgent):
             if self.image_type=='rgb':
                 img = np.expand_dims(inputs['rgb'], axis = 0)
             else:
-                semantic_image_np = tf.keras.backend.eval(inputs['semantic'])
+                semantic_image_np = inputs['semantic']
+                #semantic_image_np = tf.keras.backend.eval(inputs['semantic'])
 
                 semantic_vis = convert_to_rgb(convert_from_one_hot(semantic_image_np[0]), reduced_classes=True).astype(np.uint8)
                 semantic_vis_pil = Image.fromarray(semantic_vis, 'RGB').convert('RGBA')
@@ -263,7 +285,7 @@ class AltaAgent(AutonomousAgent):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
 
-    def get_control(self, action):
+    def get_control(self, input_data, action):
         """ Get Control object for Carla from action
         Input:
             - action: tuple containing (steer, throttle, brake) in [-1, 1]
@@ -275,8 +297,9 @@ class AltaAgent(AutonomousAgent):
         target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
 
         # TODO: Need to replace this once we get to know how to extract agent's current velocity from IMU/speedometer sensors
-        #current_speed = self.get_speed_from_velocity(action[1]) * 3.6
-        current_speed = action[1] * 3.6
+        #current_speed = self.get_speed_from_velocity(input_data['SPEED'][1]['speed']) * 3.6
+        current_speed = input_data['SPEED'][1]['speed']*3.6
+
 
         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=True)
         if gas < 0:
@@ -285,6 +308,12 @@ class AltaAgent(AutonomousAgent):
         else:
             throttle = gas
             brake = 0.0
+        '''print("#"*50)
+        print(current_speed, target_speed)
+        print(throttle)
+        print(brake)
+        print(steer)
+        print("#"*50)'''
 
         control = carla.VehicleControl(
             throttle=throttle,
@@ -298,8 +327,12 @@ class AltaAgent(AutonomousAgent):
         return control
 
     def run_step(self, input_data, timestamp):
+        self.ctr+=1
         preprocess_inputs = self.preprocess_inputs(input_data)
+        print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'], preprocess_inputs['steer'], preprocess_inputs['speed']])
+        # if(self.ctr%200==0):
+        #     st()
         action = self.get_action(preprocess_inputs, mode=self.mode)
-        control = self.get_control(action[0])
-
+        # print(action[0])
+        control = self.get_control(input_data, action[0])
         return control

@@ -793,7 +793,7 @@ class CarlaEnv(gym.Env):
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
             self._update_env_obs(front_rgb_image=rgb_image)
-            # self._update_env_obs()
+            #self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -1878,7 +1878,7 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         self._update_env_obs(front_rgb_image=rgb_image)
-        # self._update_env_obs()
+        #self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()

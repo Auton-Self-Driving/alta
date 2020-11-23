@@ -66,6 +66,7 @@ def test(model, env, image_size, dump_results=False, path='.', model_step=None, 
             manual_states[:, 1]=0
             #actions = model.predict(obs, deterministic=True)[0]
             if rv:
+                st()
                 rv_img = np.expand_dims(preproc_img(rv_img, image_size), axis = 0)
                 actions = model.predict(rv_img, manual_states)
             else:
@@ -329,7 +330,7 @@ def imitate_ppo(args, prefix, config):
                     print("Testing")
                     Imitator = AuxNetController(z_size = 6, image_size = image_size, buffer_size = 1, gt_size = 2, epoch_per_optimization=50)
                     #Imitator.load('exp1_data2.json')
-                    Imitator.load('front_exp3_combined-data2_pretrained-comb1.json')
+                    Imitator.load('/zfsauton2/home/vkadi/projects/alta/alta-logs/imitate_ppo/front_exp3_combined-data2_pretrained-comb1.json')
                     priv_imitator = Imitator.priv_imitator
                     total_reward, success_episodes, results, data = test(priv_imitator, env, image_size = image_size, rv=True)
                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
@@ -346,7 +347,7 @@ def imitate_ppo(args, prefix, config):
             data3 = pickle.load(open('/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_front_rgb3.p', 'rb'))
             data = list(data1)+list(data2)+list(data3)'''
 
-
+        st()
         Imitator = AuxNetController(z_size = 6, image_size = image_size, frame_stack = 1, buffer_size = len(data), gt_size = 2, epoch_per_optimization=50)
         #Imitator.load('front_exp2_combined-data1.json')
         print("Preprocessing data")
