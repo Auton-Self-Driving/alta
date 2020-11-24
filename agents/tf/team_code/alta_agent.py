@@ -242,6 +242,12 @@ class AltaAgent(AutonomousAgent):
         semantic_image = self.get_sematic_info(rgb_image)
         processed_input['semantic'] = semantic_image
 
+        if self.stacked_observation_queue.empty(): 
+            for _ in range(self.frame_stack): 
+                self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+        else: 
+            self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+
         # Zhe and Swapnil
         #print("*"*50, "preprocessing high res rgb")        
         high_res_rgb = self._preprocess_image(input_data['Center_high_res'][1])
