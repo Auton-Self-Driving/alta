@@ -2,7 +2,7 @@
 
 Webpage: https://sites.google.com/view/rl4ad/
 
-Thesis Documents: 
+Thesis Documents:
 
 * [On-Policy Reinforcement Learning for Learning to Drive in Urban Settings - Tanmay Agarwal, Jeff Schneider](https://www.ri.cmu.edu/publications/on-policy-reinforcement-learning-for-learning-to-drive-in-urban-settings/)
 
@@ -17,6 +17,15 @@ Reproduce thesis results:
 
 ## Setup Instructions
 
+## AdelaiDet  
+**Important** If you want to use the traffic light detector, please build AdlaiDet module before use by:  
+<pre>
+cd AdelaiDet
+python setup.py build develop
+</pre>  
+  
+
+## Carla 9.6
 Below are the instructions to setup and run the code.
 
 * Change to home directory ($HOME).
@@ -42,7 +51,7 @@ wget "https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh"
 bash Anaconda3*
 ```
 
-* Git clone alta repository and switch to 'master' branch. 
+* Git clone alta repository and switch to 'master' branch.
 
 ```
 mkdir $HOME/projects
@@ -74,20 +83,97 @@ export CARLA_9_4_PATH=$HOME/carla96
 conda activate carla9.4_py35
 ```
 
-* Execute bashrc file if not already done or if conda environment 'carla9.4_py35' is not active. 
+* Execute bashrc file if not already done or if conda environment 'carla9.4_py35' is not active.
 
 ```
 source ~/.bashrc
 ```
 
-* Install alta repository as python package. 
+* Install alta repository as python package.
 
 ```
 cd $ALTA
 pip install -e .
 ```
 
-* Test installation on cluster. 
+## Carla 9.10
+Below are the instructions to setup and run the code.
+
+* Change to home directory ($HOME).
+
+```
+cd ~
+```
+
+* Install CARLA v0.9.6 (https://carla.org/2020/09/25/release-0.9.10/) for which the binaries are available here: (https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz)
+
+```
+mkdir $HOME/carla910
+cd $HOME/carla910
+wget "https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz"
+tar xvzf CARLA_0.9.10.1.tar.gz
+```
+
+* Install anaconda to setup CARLA environment.
+
+```
+cd ~
+wget "https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh"
+bash Anaconda3*
+```
+
+* Git clone alta repository and switch to 'master' branch.
+
+```
+mkdir $HOME/projects
+cd $HOME/projects
+git clone https://github.com/Auton-Self-Driving/alta.git
+cd alta
+git checkout master
+```
+
+* Install conda environment 'carla9.4_py35' from environment.yml file.
+
+```
+cd $HOME/projects/alta
+conda env create -f environment.yml
+conda activate carla9.10_py37
+```
+
+* Set the following paths in the bashrc file.
+(Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.10 in the latest version.)
+
+The setup file `configure_env.setup` contains all of the environment variables to necessary to setup the environment. Confim that these variables match your configuration (Specifically confirm `ALTA` and `CARLA_9_4_PATH`)
+
+```
+export ALTA=$HOME/projects/alta
+export LIBS=$ALTA/libs
+export PATH=$LIBS/nasm/bin:$LIBS/libjpeg8/bin:$LIBS/libpng/bin:$LIBS/libjpeg/bin:$LIBS/libjpeglua/bin:$PATH
+export LD_LIBRARY_PATH=$LIBS/libjpeg8/lib:$LIBS/libpng/lib:$LIBS/libjpeg/lib64:$LIBS/libjpeglua/lib:$LD_LIBRARY_PATH
+export C_INCLUDE_PATH=$LIBS/libjpeg8/include:$LIBS/libpng/include:$LIBS/libjpeg/include:$LIBS/libjpeglua/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=$LIBS/libjpeg8/include:$LIBS/libpng/include:$LIBS/libjpeg/include:$LIBS/libjpeglua/include:$CPLUS_INCLUDE_PATH
+export CARLA_9_4_PATH=$HOME/carla910
+export SDL_AUDIODRIVER='dsp'
+conda activate carla9.10_py37
+```
+
+* Execute this file by running
+```
+source configure_env.setup
+```
+
+To match the previous configuration steps, you can also add this the contents of the setup file to your `~/.bashrc` file.
+
+* Install alta repository as python package.
+
+```
+cd $ALTA
+pip install -e .
+```
+
+## For both environments
+
+* Test installation on cluster.
 
 ```
 srun --gres gpu:1 --pty $SHELL (Skip this if not using SLURM)

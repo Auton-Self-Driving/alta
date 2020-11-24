@@ -2082,6 +2082,19 @@ def get_left_turn(unseen = False):
     else:
         return random.choice(paths_left_Town01_train())
 
+from environment.carla_9_4.agents.navigation.local_planner import RoadOption
+
+def get_test_route():
+
+    # Route: 17, 56, 77
+    route =[({'z': 1.3200000524520874, 'lat': -0.00027686085348932465, 'lon': 0.0008274382136853726}, RoadOption.LEFT),
+    ({'z': 1.3200000524520874, 'lat': -1.8146144199704395e-05, 'lon': 0.0015554328596241375}, RoadOption.RIGHT),
+    ({'z': 1.3200000524520874, 'lat': -0.0006185802527767237, 'lon': 0.0035256180065496483  }, RoadOption.STRAIGHT)
+    ]
+
+    source_transform = Transform(Location(x=271.0400085449219, y=129.489990234375, z=1.32), Rotation(yaw=179.999755859375)),
+    return route
+
 '''
 # Deprecated Helper functions
 def get_train_right_turn():
