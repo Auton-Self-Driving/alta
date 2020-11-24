@@ -26,6 +26,13 @@ import time
 import ipdb
 st = ipdb.set_trace
 
+# audrey imports 
+from ae.controller import AEController
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
+from ppo import PPO
+import queue
+import matplotlib.pyplot as plt 
+
 tf.enable_eager_execution()
 
 def get_entry_point():
@@ -37,7 +44,7 @@ class AltaAgent(AutonomousAgent):
         self.track = Track.MAP
 
         # Move this to configuration file later
-        self.mode = "Imitation"
+        self.mode = "Imitation" # or 'RL'
         self.image_type = "semantic"
         self.semantic_classes = 5
         self.pretrained_weights_path = '/zfsauton2/home/vkadi/projects/alta/alta-logs/imitate_ppo/front_exp3_combined-data2_pretrained-comb1.json'
@@ -62,6 +69,16 @@ class AltaAgent(AutonomousAgent):
                 self.policy_network.load_json(self.pretrained_weights_path)
             else:
                 self.policy_network.set_random_params()
+        elif self.mode == 'RL': 
+            self.frame_stack = 3
+            self.agent_model_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/models/ppo2_weights15000000.zip' 
+            self.ae_weights_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/ae_weights/ae_15000000'
+            self.vae = AEController(image_size=(128, 128, 5), frame_stack=self.frame_stack)
+            self.vae.load(self.ae_weights_path)
+            self.policy_network = PPO.load(self.agent_model_path, None)
+
+            self.stacked_observation_queue = queue.Queue(maxsize=self.frame_stack)
+            self.vae_encoding_norm_factor = 10
 
         print("#"*100, "Initializing Sem seg")
         start = time.time()
@@ -202,6 +219,15 @@ class AltaAgent(AutonomousAgent):
         # Construct transform
         return carla.Transform(carla.Location(x = x, y = y, z = z), carla.Rotation(yaw = imu_reading[-1]))
 
+    def _add_to_stacked_queue(self, object_queue, object_to_add):
+
+        assert (object_queue is not None and object_to_add is not None)
+
+        if object_queue.full():
+            # Pop out earlier stacked frame if queue is full
+            object_queue.get()
+        object_queue.put(object_to_add)
+
     def preprocess_inputs(self, input_data):
         # Configure planner when we first receive MAP info
         if(self.global_planner is None):
@@ -278,6 +304,15 @@ class AltaAgent(AutonomousAgent):
             filtered_low_dim_input = np.concatenate([low_dim_input[:1], low_dim_input[2:5], low_dim_input[6:]])[None,:]
             action = self.policy_network.predict(semantic_image_np, filtered_low_dim_input)
         #TODO: Include policy networks other 2 modes 
+
+    elif mode == 'RL': 
+            stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=-1) #np.stack(list(self.stacked_observation_queue.queue), axis=2)
+            visual_observation = self.vae.encode(stacked_observation[0])
+            visual_observation = visual_observation / self.vae_encoding_norm_factor
+
+            filtered_low_dim_input = np.concatenate([low_dim_input[:1], low_dim_input[3:]]).reshape([1, 6])
+            fused_input = np.hstack([visual_observation, filtered_low_dim_input])
+            action = self.policy_network.predict(fused_input, deterministic=True)
 
         return action
 
