@@ -797,9 +797,9 @@ class CarlaEnv(gym.Env):
             rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-            # self._update_env_obs(front_rgb_image=rgb_image)
+            self._update_env_obs(front_rgb_image=rgb_image)
             obs = {}
-            self._update_env_obs()
+            # self._update_env_obs()
             obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
             obs['dist_to_light'] = self.episode_measurements['dist_to_light']
 
@@ -1260,22 +1260,27 @@ class CarlaEnv(gym.Env):
 
 
     def _update_traffic_light_states_nonprivilege(self, front_rgb_image):
-        front_rgb_image = front_rgb_image[:, :, ::-1] # RGB -> GBR
+        front_rgb_image = front_rgb_image[:, :, ::-1].copy() # RGB -> GBR
         res = self.traffic_light_detector(front_rgb_image)
-        # print(res, flush=True)
+        print(res, flush=True)
         traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
 
         if len(res['instances']) == 0: # no lights
             pass
         # elif res['instances'].scores[0].item() > .5:
         else:
-            area = res['instances'].pred_boxes[0].area().item()
-            color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
-            score = res['instances'].scores[0].item()
+            area = res['instances'].pred_boxes.area().tolist()
+            color = res['instances'].pred_classes.tolist() # 0: Green, 1: Red
+            score = res['instances'].scores.tolist()
             num_ins = len(res['instances'])
-            if color == 1 and score > .667:
-                dist_pred = self.dist_interpolator(area)
-                print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
+            print('cls:', color)
+            print('score:', score)
+            for _cls, _score, _area in zip(color, score, area):
+                if _cls == 1:
+            # found_red = color.index(1)
+            # if color == 1: # and score > .667:
+                    dist_pred = self.dist_interpolator(area)
+                    print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, _score, num_ins), flush=True)
 
         if traffic_light_orientation is not None:
             self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
@@ -1845,7 +1850,7 @@ class CarlaEnv(gym.Env):
 
         # collect data
         # seg_img = util.convert_to_rgb(front_image)
-        
+
 
         rv_image = self._read_data(self.rv_camera_queue, world_frame)
 
@@ -1886,8 +1891,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        # self._update_env_obs(front_rgb_image=rgb_image)
-        self._update_env_obs()
+        self._update_env_obs(front_rgb_image=rgb_image)
+        # self._update_env_obs()
         obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
         obs['dist_to_light'] = self.episode_measurements['dist_to_light']
 

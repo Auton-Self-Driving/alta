@@ -100,31 +100,31 @@ def train_vae_ae(args, prefix, config):
 
     for t in range(TOTAL_TIMESTEPS):
 
-        if obs['nearest_traffic_actor_state'] is not None:
+        # if obs['nearest_traffic_actor_state'] is not None:
 
-            save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
+        #     save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
 
-            semantic_image = obs['semantic_image']
-            # semantic_image = util.reduce_classes(semantic_image)
-            # print(semantic_image.shape)
-            # print(semantic_image)
-            semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=False).astype(np.uint8)
-            np.save(SEMANTIC_IMAGES_PATH + save_name, semantic_image)
+        #     semantic_image = obs['semantic_image']
+        #     # semantic_image = util.reduce_classes(semantic_image)
+        #     # print(semantic_image.shape)
+        #     # print(semantic_image)
+        #     semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=False).astype(np.uint8)
+        #     np.save(SEMANTIC_IMAGES_PATH + save_name, semantic_image)
 
-            rgb_image = obs['rgb_image']
-            plt.imsave(RGB_IMAGES_PATH + save_name + '.jpg', rgb_image)
-            # np.save(RGB_IMAGES_PATH + str(t), rgb_image)
-            # vis_wrapper.save_image(rgb_image, t)
+        #     rgb_image = obs['rgb_image']
+        #     plt.imsave(RGB_IMAGES_PATH + save_name + '.jpg', rgb_image)
+        #     # np.save(RGB_IMAGES_PATH + str(t), rgb_image)
+        #     # vis_wrapper.save_image(rgb_image, t)
 
-            # semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
-            # encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
-            plt.imsave(IMAGES_PATH + save_name + '.jpg', semantic_image_rgb)
-            # vis_wrapper.save_image(semantic_image_rgb, t)
+        #     # semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
+        #     # encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
+        #     plt.imsave(IMAGES_PATH + save_name + '.jpg', semantic_image_rgb)
+        #     # vis_wrapper.save_image(semantic_image_rgb, t)
 
-            # decoded_image_onehot = model.decode(encoded_image)[0]
-            # decoded_image = util.convert_from_one_hot(decoded_image_onehot)
-            # decoded_image = util.convert_to_rgb(decoded_image, reduced_classes=True).astype(np.uint8)
-            # vis_wrapper_vae.save_image(decoded_image , t)
+        #     # decoded_image_onehot = model.decode(encoded_image)[0]
+        #     # decoded_image = util.convert_from_one_hot(decoded_image_onehot)
+        #     # decoded_image = util.convert_to_rgb(decoded_image, reduced_classes=True).astype(np.uint8)
+        #     # vis_wrapper_vae.save_image(decoded_image , t)
 
         # Take one step in env
         control = agent.run_step()
