@@ -91,7 +91,7 @@ class AltaAgent(AutonomousAgent):
         print("#"*100, "Initializing Traffic light network")
         with open('../../../AdelaiDet_model/config.yaml', 'r') as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
-            model = Trainer.build_model(CfgNode(cfg))
+            # model = Trainer.build_model(CfgNode(cfg))
             ckpt = torch.load('../../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
             # ckpt = DetectionCheckpointer(model)
             # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
