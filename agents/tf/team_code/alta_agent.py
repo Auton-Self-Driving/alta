@@ -97,11 +97,14 @@ class AltaAgent(AutonomousAgent):
             # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
 
         print("#"*100, "Initializing Interpolator")
-        with open('../../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
-            self.dist_interpolator = pickle.load(f)
+        # with open('../../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+        #     self.dist_interpolator = pickle.load(f)
+        self.dist_interpolator = lambda area: 804 / (area + 1e-6) + 0.378
         self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
         # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
         self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+        self.MAX_DISTANCE = 10 # or any value that matches the need of the agent
+        self.NO_DISTANCE = -1 # or any value that matches the need of the agent
 
         # Storing the OpenDRIVE MAP
         self._map = None
@@ -183,21 +186,56 @@ class AltaAgent(AutonomousAgent):
         semantic_image = self.semantic_network.predict(inp)
         return semantic_image
     
-    def get_traffic_light_info(self, image):
+    # def get_traffic_light_info_depredcated(self, image):
+    #     image = image[:, :, ::-1].copy() # RGB -> BGR
+    #     res = self.traffic_light_detector(image)
+    #     if len(res['instances']) == 0: # no lights
+    #         return 1 # Green Light, No Distance
+    #     else:
+    #         area = res['instances'].pred_boxes[0].area().item()
+    #         color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
+    #         score = res['instances'].scores[0].item()
+    #         num_ins = len(res['instances'])
+    #         if color == 1 and score > .667:
+    #             dist_pred = max(0, self.dist_interpolator(area))
+    #             print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
+    #             return dist_pred
+    #     return 1
+
+def get_traffic_light_info(self, image):
         image = image[:, :, ::-1].copy() # RGB -> BGR
         res = self.traffic_light_detector(image)
         if len(res['instances']) == 0: # no lights
-            return 1 # Green Light, No Distance
+            return self.NO_DISTANCE # Green Light, No Distance
         else:
-            area = res['instances'].pred_boxes[0].area().item()
-            color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
-            score = res['instances'].scores[0].item()
+            area = res['instances'].pred_boxes.area().tolist()
+            cls = res['instances'].pred_classes.tolist() # 0: Green, 1: Red, 2: Sign, 3: Car
+#             print(cls)
+            avg_score = res['instances'].scores.mean().tolist()
+            std_score = res['instances'].scores.std().tolist()
+#             score_thres = avg_score + std_score
+#             score_thres = 0
+            score_thres = avg_score
+            score = res['instances'].scores.tolist()
             num_ins = len(res['instances'])
-            if color == 1 and score > .667:
-                dist_pred = max(0, self.dist_interpolator(area))
-                print('detector Red, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(dist_pred, score, num_ins), flush=True)
-                return dist_pred
-        return 1
+            
+            for _area, _cls, _score in zip(area, cls, score):
+                # note, score has been already sorted from high to low.
+#                 print(_area, _cls, _score)
+                if _score <= score_thres: break # possible backgrounds
+                if _cls == 0: break # if Green comes before Red, pred Green.
+                if _cls == 1:
+                    if _score > score_thres:
+                        # predict Red.
+                        dist_pred = self.dist_interpolator(_area)
+                        # dist_pred > threshold
+                        if dist_pred > self.MAX_DISTANCE: return self.NO_DISTANCE
+                        # output for debug
+                        print('Detected Red Light, dist: {:.4f}, score: {:.4f}, num_ins: {}'.format(
+                            dist_pred, _score, num_ins), flush=True)
+                        return dist_pred / self.MAX_DISTANCE # normalize to (0, 1
+                    
+        return self.NO_DISTANCE
 
     def compute_wp_stats(self, vehicle_transform):
         "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
