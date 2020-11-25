@@ -123,7 +123,7 @@ ALGORITHM_PARAMS_PER_DOMAIN = {
 
 ENVIRONMENT_PARAMS = {
     'Carla': {
-        'Driving-v0': {
+        'StateDriving-v0': {
             'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
             'action_type': 'merged_speed_scaled_tanh',
             'scenarios': 'no_crash_dense',
@@ -131,7 +131,7 @@ ENVIRONMENT_PARAMS = {
             'train_fixed_spawn_points': True,
             'test_fixed_spawn_points': True,
             'reward_function': 'simple2',
-            'sample_npc': True,
+            'sample_npc': False,
             'num_npc': 0,
             'city_name': 'Town01',
             'const_collision_penalty': 250,
@@ -144,9 +144,32 @@ ENVIRONMENT_PARAMS = {
             'testing': False,
             'frame_skip': 2,
             'reward_normalize_factor': 16,
-            'verbose': False,
-            'log_dir': '/home/brian/alta-logs/',
-            # 'carla_gpu': '3',
+            'verbose': False
+        }
+        'ImageDriving-v0': {
+            'input_type': 'wp_vae_speed_steer_ldist_goal_light',
+            'semantic': True,
+            'frame_stack_size': 3,
+            'action_type': 'merged_speed_scaled_tanh',
+            'scenarios': 'dynamic_navigation',
+            'use_scenarios': False,
+            'train_fixed_spawn_points': False,
+            'test_fixed_spawn_points': True,
+            'reward_function': 'simple2',
+            'sample_npc': False,
+            'num_npc': 50,
+            'city_name': 'Town01',
+            'const_collision_penalty': 250,
+            'collision_penalty_speed_coeff': 250,
+            'const_light_penalty': 250,
+            'light_penalty_speed_coeff': 250,
+            'vehicle_proximity_threshold': 10,
+            'traffic_light_proximity_threshold': 10,
+            'videos': False,
+            'testing': False,
+            'frame_skip': 2,
+            'reward_normalize_factor': 16,
+            'verbose': False
         }
     }
 }

@@ -93,7 +93,7 @@ class CarlaEnv(gym.Env):
         self.validation_episode_num = 0
         self.total_steps = 0
         self.semantic_image = None
-        self.unseen = self.config['testing']
+        self.unseen = False
         self.index = 0
         self.expert_agent = False
 
@@ -253,7 +253,7 @@ class CarlaEnv(gym.Env):
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
                                         # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
-                                        shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+                                        shape=(1606,), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
             elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
@@ -320,7 +320,7 @@ class CarlaEnv(gym.Env):
         self.dist_to_target_array = []
         self.red_light_dist_array = []
 
-        self._reset()
+        # self._reset()
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -1028,7 +1028,7 @@ class CarlaEnv(gym.Env):
             return visual_observation, reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
-            fused_input = np.hstack([visual_observation, observation])
+            fused_input = np.hstack([visual_observation, observation]).reshape(-1)
             return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
@@ -1045,7 +1045,7 @@ class CarlaEnv(gym.Env):
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             # observation = np.expand_dims(obs['observation'], axis = 0)
             observation = obs['observation'].copy()
-            return observation, reward, done, self.episode_measurements
+            return observation, reward, done, copy.deepcopy(self.episode_measurements)
         else:
             return obs, reward, done, self.episode_measurements
     
@@ -1479,15 +1479,17 @@ class CarlaEnv(gym.Env):
         self.prev_measurement = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
+        unseen = self.config.get('benchmark', False)
         self.unseen = unseen
 
-        if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
+        if (self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen) or unseen:
             # Way to test two scenarios with and without dynamic actors
             # in training run in long_straight scenario
             self.index = (self.index + 1) % self.config["num_episodes"]
         else:
             self.index = index
         # self.index = (self.index+1) % self.config["num_episodes"]
+        # print('Index: {}'.format(self.index))
         self.expert_agent = expert_agent
 
         # Destroy
@@ -1751,7 +1753,7 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             fused_input = np.hstack([visual_observation, observation])
-            return fused_input
+            return fused_input.flatten()
 
         elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)

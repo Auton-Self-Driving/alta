@@ -2,10 +2,10 @@ params = {
     'type': 'MBPO',
     'universe': 'gym',
     'domain': 'Carla',
-    'task': 'Driving-v0',
+    'task': 'ImageDriving-v0',
 
     'log_dir': '~/ray_mbpo/',
-    'exp_name': 'infos-debugging',
+    'exp_name': 'image-navigation',
 
     'kwargs': {
         'epoch_length': 10000,
@@ -20,7 +20,7 @@ params = {
         'tau': 5e-3,
         'reward_scale': 1.0,
 
-        'model_train_freq': 100,
+        'model_train_freq': 500,
         'model_retain_epochs': 1,
         'rollout_batch_size': 100e3,
         'deterministic': False,

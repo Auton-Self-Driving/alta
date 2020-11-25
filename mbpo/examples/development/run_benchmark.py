@@ -14,9 +14,11 @@ from softlearning.samplers import rollouts
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('checkpoint_path',
+    parser.add_argument('experiment_path',
                         type=str,
-                        help='Path to the checkpoint.')
+                        help='Path to the experiment.')
+    parser.add_argument('policy_id',
+                        type=str)
     parser.add_argument('--max-path-length', '-l', type=int, default=1000)
     parser.add_argument('--num-rollouts', '-n', type=int, default=10)
     parser.add_argument('--render-mode', '-r',
@@ -38,62 +40,52 @@ def parse_args():
 
 def simulate_policy(args):
     session = tf.keras.backend.get_session()
-    checkpoint_path = args.checkpoint_path.rstrip('/')
-    experiment_path = os.path.dirname(checkpoint_path)
+    # checkpoint_path = args.checkpoint_path.rstrip('/')
+    # experiment_path = os.path.dirname(checkpoint_path)
+    experiment_path = args.experiment_path.rstrip('/')
 
     variant_path = os.path.join(experiment_path, 'params.json')
     with open(variant_path, 'r') as f:
         variant = json.load(f)
 
+    # with session.as_default():
+    #     pickle_path = os.path.join(checkpoint_path, 'checkpoint.pkl')
+    #     with open(pickle_path, 'rb') as f:
+    #         picklable = pickle.load(f)
+    # evaluation_environment = picklable['evaluation_environment']
+
     with session.as_default():
-        pickle_path = os.path.join(checkpoint_path, 'checkpoint.pkl')
+        pickle_path = os.path.join(experiment_path, 'models/policy_{}0000.pkl'.format(args.policy_id))
         with open(pickle_path, 'rb') as f:
             picklable = pickle.load(f)
 
-    evaluation_environment = picklable['evaluation_environment']
+    environment_params = variant['environment_params']
+    # environment_params['evaluation']['kwargs']['sample_npc'] = False
+    environment_params['evaluation']['kwargs']['city_name'] = 'Town01'
+    # environment_params['evaluation']['kwargs']['verbose'] = True
+    evaluation_environment = get_environment_from_params(environment_params['evaluation'])
+    
     env = evaluation_environment._env.env
-    # env.config['use_scenarios'] = True
+    print('Scenarios: {}'.format(env.config['scenarios']))
 
     policy = (
         get_policy_from_variant(variant, evaluation_environment, Qs=[None]))
     policy.set_weights(picklable['policy_weights'])
 
-    rewards = []
-    successes = []
-
     with policy.set_deterministic(True):
-        for ep_idx in range(25):
-            total_reward = 0
-            obs = env.reset(index=ep_idx)
-            print('==EPISODE {}'.format(ep_idx+1))
+        paths = rollouts(25,
+                         evaluation_environment,
+                         policy,
+                         path_length=5000)
 
-            for i in range(10000):
-                action = policy.actions_np(np.array([obs]))[0]
-                obs, reward, done, _ = env.step(action)
-                total_reward += reward
-                if done:
-                    break
+    termination_states = []
+    for path in paths:
+        termination_states.append(path['infos'][-1]['termination_state'])
 
-            print('EPISODE {} | REWARD: {} | EP LEN: {}'.format(ep_idx+1, total_reward, i+1) )
-            rewards.append(total_reward)
-            completed = reward > 0.
-            successes.append(completed)
+    print(termination_states)
 
     import ipdb; ipdb.set_trace()
     pass
-
-    # with policy.set_deterministic(args.deterministic):
-    #     paths = rollouts(args.num_rollouts,
-    #                      evaluation_environment,
-    #                      policy,
-    #                      path_length=args.max_path_length,
-    #                      render_mode=args.render_mode)
-
-    # if args.render_mode != 'human':
-    #     from pprint import pprint; import pdb; pdb.set_trace()
-    #     pass
-
-    # return paths
 
 
 if __name__ == '__main__':
