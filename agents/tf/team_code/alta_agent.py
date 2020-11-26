@@ -28,7 +28,7 @@ st = ipdb.set_trace
 
 # audrey imports 
 from ae.controller import AEController
-from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
+from rl_models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 from ppo import PPO
 import queue
 import matplotlib.pyplot as plt 
@@ -117,10 +117,10 @@ class AltaAgent(AutonomousAgent):
 
         #TODO: Include policy networks other 2 modes 
 
-        SCRATCH_DIR = '/home/scratch/vkadi/'
+        '''SCRATCH_DIR = '/home/scratch/vkadi/'
         IMAGES_PATH = SCRATCH_DIR+'test_images/'
         VIDEO_PATH = SCRATCH_DIR+'test_videos/'
-        self.vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1, videos=True)
+        self.vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1, videos=True)'''
 
         print("#"*100, "Setup finished")
 
@@ -204,7 +204,7 @@ class AltaAgent(AutonomousAgent):
     #             return dist_pred
     #     return 1
 
-def get_traffic_light_info(self, image):
+    def get_traffic_light_info(self, image):
         image = image[:, :, ::-1].copy() # RGB -> BGR
         res = self.traffic_light_detector(image)
         if len(res['instances']) == 0: # no lights
@@ -240,13 +240,12 @@ def get_traffic_light_info(self, image):
         return self.NO_DISTANCE
 
     def compute_wp_stats(self, vehicle_transform):
-        "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
+        # "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
         mean_angle, ldist, distance_to_goal_trajec, _, _, _ = self.global_planner.get_next_orientation_new(vehicle_transform)
-
         return mean_angle, ldist, distance_to_goal_trajec
 
     def get_motion_info(self, imu, speedometer):
-        "Return type: list containing [steer, speed]"
+        # "Return type: list containing [steer, speed]"
         return [0,0]
 
     def _get_vehicle_transform(self, gnss_reading, imu_reading):
@@ -286,11 +285,12 @@ def get_traffic_light_info(self, image):
         semantic_image = self.get_sematic_info(rgb_image)
         processed_input['semantic'] = semantic_image
 
-        if self.stacked_observation_queue.empty(): 
-            for _ in range(self.frame_stack): 
+        if self.mode=="RL":
+            if self.stacked_observation_queue.empty(): 
+                for _ in range(self.frame_stack): 
+                    self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+            else: 
                 self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
-        else: 
-            self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
 
         # Zhe and Swapnil
         #print("*"*50, "preprocessing high res rgb")        
@@ -353,13 +353,13 @@ def get_traffic_light_info(self, image):
                 concat_vis = self.get_concat_h(rgb_vis, semantic_vis_pil)
 
                 img = semantic_image_np
-            self.vis_wrapper.save_image(concat_vis, 1)
+            #self.vis_wrapper.save_image(concat_vis, 1)
 
             filtered_low_dim_input = np.concatenate([low_dim_input[:1], low_dim_input[3:5], low_dim_input[6:]])[None,:]
             action = self.policy_network.predict(img, filtered_low_dim_input)
         #TODO: Include policy networks other 2 modes 
 
-    elif mode == 'RL': 
+        elif mode == 'RL': 
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=-1) #np.stack(list(self.stacked_observation_queue.queue), axis=2)
             visual_observation = self.vae.encode(stacked_observation[0])
             visual_observation = visual_observation / self.vae_encoding_norm_factor
