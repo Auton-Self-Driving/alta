@@ -1,202 +1,590 @@
-# Copyright (c) 2018 Roma Sokolkov
-# Copyright (c) 2018 hardmaru
-# MIT License
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-'''
-AE models.
-'''
-
-import time
+import warnings
+from abc import abstractmethod
 import numpy as np
-import os
 import tensorflow as tf
-import json
+import tensorflow.contrib.slim as slim
+from tensorflow.contrib.layers import xavier_initializer
+from stable_baselines.common.policies import BasePolicy, register_policy, mlp_extractor
+from stable_baselines.a2c.utils import conv, linear, conv_to_fc, batch_to_seq, seq_to_batch, lstm
+from stable_baselines.common.distributions import CategoricalProbabilityDistribution, \
+    MultiCategoricalProbabilityDistribution, DiagGaussianProbabilityDistribution, BernoulliProbabilityDistribution
+from stable_baselines.common.input import observation_input
+from distributions import make_proba_dist_type
 
 
-def normalize(data):
-    return data / 255.0
+def CoRLModel(inputs, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        activation = tf.nn.tanh
+        convs1 = [
+            [8, [3, 3], 1],
+            [16, [3, 3], 1],
+        ]
+        pool1 = [
+            [[2,2], 2]
+        ]
+        convs2 = [
+            [16, [3, 3], 1],
+            [8, [3, 3], 1],
+        ]
+        pool2 = [
+            [[2,2], 2]
+        ]
+        hidden = 3528
+        net = inputs
+        out_size, kernel, stride = convs1[0]
+        net = slim.conv2d(net, out_size, kernel, stride, scope="conv1/conv3_1")
+        out_size, kernel, stride = convs1[1]
+        net = slim.conv2d(net, out_size, kernel, stride, scope="conv1/conv3_2")
+        kernel, stride = pool1[0]
+        net = slim.pool(net, kernel, "MAX", stride=stride, scope="pool1")
+        #--------
+        out_size, kernel, stride = convs2[0]
+        net = slim.conv2d(net, out_size, kernel, stride, scope="conv2/conv3_1")
+        out_size, kernel, stride = convs2[1]
+        net = slim.conv2d(net, out_size, kernel, stride, scope="conv2/conv3_2")
+        kernel, stride = pool2[0]
+        net = slim.pool(net, kernel, "MAX", stride=stride, scope="pool2")
+        net = tf.squeeze(net)
+        net = tf.reshape(net, [-1, 21, 21, 8])
+        #Flatten pool layer
+        net = slim.flatten(net, scope="flatten3")
+        #--------
+        net = slim.fully_connected(
+            net,
+            hidden,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=activation,
+            scope="fc4")
+        net = slim.fully_connected(
+            net,
+            num_actions,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=None,
+            scope="y")
+    return net
+
+def MeasurementsModel(inputs, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        activation = tf.nn.relu
+        net = inputs
+        net = slim.fully_connected(
+            net,
+            128,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=activation,
+            scope="fc1")
+        net = slim.fully_connected(
+            net,
+            128,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=activation,
+            scope="fc2")
+        net = slim.fully_connected(
+            net,
+            num_actions,
+            weights_initializer=xavier_initializer(uniform=False),
+            activation_fn=None,
+            scope="y")
+    return net
+
+def nature_cnn(scaled_images, **kwargs):
+    """
+    CNN from Nature paper.
+
+    :param scaled_images: (TensorFlow Tensor) Image input placeholder
+    :param kwargs: (dict) Extra keywords parameters for the convolutional layers of the CNN
+    :return: (TensorFlow Tensor) The CNN output layer
+    """
+    activ = tf.nn.relu
+    layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2), **kwargs))
+    layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+    layer_3 = conv_to_fc(layer_3)
+    return activ(linear(layer_3, 'fc1', n_hidden=64, init_scale=np.sqrt(2)))
 
 
-def denormalize(data):
-    return data * 255.0
+class ActorCriticPolicy(BasePolicy):
+    """
+    Policy object that implements actor critic
 
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param scale: (bool) whether or not to scale the input
+    """
 
-class ConvPrImitator(object):
-    def __init__(self, z_size=512, image_size= (128, 128, 3), gt_size = 2, batch_size=100, learning_rate=0.0001, is_training=True,
-                 reuse=False, frame_stack=1, gpu_mode=True):
-        self.z_size = z_size # Unused
-        self.gt_size = gt_size
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.is_training = is_training
-        self.reuse = reuse
-        self.image_size = image_size
-        self.frame_stack = frame_stack
-        with tf.variable_scope('conv_ae', reuse=self.reuse):
-            if not gpu_mode:
-                with tf.device('/cpu:0'):
-                    tf.logging.info('Model using cpu.')
-                    self._build_graph()
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False):
+        super(ActorCriticPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
+                                                scale=scale)
+        self._pdtype = make_proba_dist_type(ac_space)
+        self._policy = None
+        self._proba_distribution = None
+        self._value_fn = None
+        self._action = None
+        self._deterministic_action = None
+
+    def _setup_init(self):
+        """
+        sets up the distibutions, actions, and value
+        """
+        with tf.variable_scope("output", reuse=True):
+            assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
+            self.logstd = self.proba_distribution.logstd
+            self.mean = self.proba_distribution.mode() 
+            self._action = self.proba_distribution.sample()
+            self._deterministic_action = self.proba_distribution.mode()
+            self._neglogp = self.proba_distribution.neglogp(self.action)
+            if isinstance(self.proba_distribution, CategoricalProbabilityDistribution):
+                self._policy_proba = tf.nn.softmax(self.policy)
+            elif isinstance(self.proba_distribution, DiagGaussianProbabilityDistribution):
+                self._policy_proba = [self.proba_distribution.mean, self.proba_distribution.std]
+            elif isinstance(self.proba_distribution, BernoulliProbabilityDistribution):
+                self._policy_proba = tf.nn.sigmoid(self.policy)
+            elif isinstance(self.proba_distribution, MultiCategoricalProbabilityDistribution):
+                self._policy_proba = [tf.nn.softmax(categorical.flatparam())
+                                     for categorical in self.proba_distribution.categoricals]
             else:
-                tf.logging.info('Model using gpu.')
-                self._build_graph()
-        self._init_session()
+                self._policy_proba = []  # it will return nothing, as it is not implemented
+            self._value_flat = self.value_fn[:, 0]
 
-    def compute_outshape(self, inp_size, kernel_size, padding, stride):
-        return (inp_size-kernel_size+2*padding)//stride+1
+    @property
+    def pdtype(self):
+        """ProbabilityDistributionType: type of the distribution for stochastic actions."""
+        return self._pdtype
 
-    def _build_graph(self):
-        self.g = tf.Graph()
-        with self.g.as_default():
-            h,w,c = self.image_size 
-            out_w = w
-            out_h = h
-            self.x = tf.placeholder(tf.float32, shape=[None, h, w, c* self.frame_stack])
-            self.gt = tf.placeholder(tf.float32, shape=[None, self.gt_size])
+    @property
+    def policy(self):
+        """tf.Tensor: policy output, e.g. logits."""
+        return self._policy
 
-            # Encoder
-            h = tf.layers.conv2d(self.x, 16, 5, strides=2, activation=tf.nn.relu, \
-                                kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
-                                bias_initializer=tf.initializers.zeros(), name="enc_conv1")
-            out_w = self.compute_outshape(out_w, 5, 0, 2)
-            out_h = self.compute_outshape(out_h, 5, 0, 2)
+    @property
+    def proba_distribution(self):
+        """ProbabilityDistribution: distribution of stochastic actions."""
+        return self._proba_distribution
 
-            h = tf.layers.conv2d(h, 32, 5, strides=2, activation=tf.nn.relu, \
-                                kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
-                                bias_initializer=tf.initializers.zeros(), name="enc_conv2")
-            out_w = self.compute_outshape(out_w, 5, 0, 2)
-            out_h = self.compute_outshape(out_h, 5, 0, 2)
+    @property
+    def value_fn(self):
+        """tf.Tensor: value estimate, of shape (self.n_batch, 1)"""
+        return self._value_fn
 
-            h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, \
-                                kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
-                                bias_initializer=tf.initializers.zeros(), name="enc_conv3")
-            out_w = self.compute_outshape(out_w, 5, 0, 2)
-            out_h = self.compute_outshape(out_h, 5, 0, 2)
-            # Model used for Learning to drive using Waypoints (last layer dim = 16)
-            # h = tf.layers.conv2d(h, 16, 5, strides=2, activation=tf.nn.relu, name="enc_conv4")
-            # self.encoded = tf.reshape(h, [-1, 5 * 5 * 16])
+    @property
+    def value_flat(self):
+        """tf.Tensor: value estimate, of shape (self.n_batch, )"""
+        return self._value_flat
 
-            # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
-            h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, \
-                                kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
-                                bias_initializer=tf.initializers.zeros(), name="enc_conv4")
-            out_w = self.compute_outshape(out_w, 5, 0, 2)
-            out_h = self.compute_outshape(out_h, 5, 0, 2)
+    @property
+    def action(self):
+        """tf.Tensor: stochastic action, of shape (self.n_batch, ) + self.ac_space.shape."""
+        return self._action
 
-            self.encoded = tf.reshape(h, [-1, out_h * out_w * 64])
+    @property
+    def deterministic_action(self):
+        """tf.Tensor: deterministic action, of shape (self.n_batch, ) + self.ac_space.shape."""
+        return self._deterministic_action
 
-            self.z = tf.placeholder(tf.float32, shape = [None, self.z_size])
+    @property
+    def neglogp(self):
+        """tf.Tensor: negative log likelihood of the action sampled by self.action."""
+        return self._neglogp
 
-            mod_h = tf.concat([self.encoded, self.z], 1)
-            self.y = tf.layers.dense(mod_h, self.gt_size, activation = tf.nn.tanh)
+    @property
+    def policy_proba(self):
+        """tf.Tensor: parameters of the probability distribution. Depends on pdtype."""
+        return self._policy_proba
 
-            # train ops
-            if self.is_training:
-                self.global_step = tf.Variable(0, name='global_step', trainable=False)
+    @abstractmethod
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        """
+        Returns the policy for a single step
 
-                eps = 1e-6  # avoid taking log of zero
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
+        :param deterministic: (bool) Whether or not to return deterministic actions.
+        :return: ([float], [float], [float], [float]) actions, values, states, neglogp
+        """
+        raise NotImplementedError
 
-                # Commented code for weighting classes
-                # class_weights = tf.constant([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 500.0, 1.0, 1.0]])
-                # weights = tf.reduce_sum(class_weights * labels, axis=1)
-                # weighted_losses = entropy_loss * weights
-                # self.entropy_loss = tf.reduce_mean(weighted_losses)
-                
+    @abstractmethod
+    def value(self, obs, state=None, mask=None):
+        """
+        Returns the value for a single step
 
-                labels = tf.reshape(self.gt, (-1, self.gt_size))
-                preds = tf.reshape(self.y, (-1,self.gt_size))
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
+        :return: ([float]) The associated value of the action
+        """
+        raise NotImplementedError
 
-                regression_loss = tf.nn.l2_loss(labels-preds)
-                self.regression_loss = tf.reduce_mean(regression_loss)
-                self.loss = self.regression_loss
-                
-                self.output_preds = preds
-                
-                # training
-                self.lr = tf.Variable(self.learning_rate, trainable=False)
-                self.optimizer = tf.train.AdamOptimizer(self.lr)
-                grads = self.optimizer.compute_gradients(self.loss)  # can potentially clip gradients here.
 
-                self.train_op = self.optimizer.apply_gradients(
-                    grads, global_step=self.global_step, name='train_step')
+class FeedForwardPolicy(ActorCriticPolicy):
+    """
+    Policy object that implements actor critic, using a feed forward neural network.
 
-            # initialize vars
-            self.init = tf.global_variables_initializer()
-            self.init_l = tf.local_variables_initializer()
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param layers: ([int]) (deprecated, use net_arch instead) The size of the Neural network for the policy
+        (if None, default to [64, 64])
+    :param net_arch: (list) Specification of the actor-critic policy network architecture (see mlp_extractor
+        documentation for details).
+    :param act_fun: (tf.func) the activation function to use in the neural network.
+    :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
+    :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
+    :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
 
-    def _init_session(self):
-        """Launch TensorFlow session and initialize variables"""
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        self.sess = tf.Session(graph=self.g, config=config)
-        self.sess.run(self.init)
-        self.sess.run(self.init_l)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None, net_arch=None,
+                 act_fun=tf.tanh, cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
+                                                scale=(feature_extraction == "cnn"))
 
-    def encode(self, x, z):
-        return self.sess.run(self.encoded, feed_dict={self.x: x, self.z:z})
+        self._kwargs_check(feature_extraction, kwargs)
 
-    def predict(self, x, z):
-        return self.sess.run(self.y, feed_dict={self.x: x, self.z:z})
+        if layers is not None:
+            warnings.warn("Usage of the `layers` parameter is deprecated! Use net_arch instead "
+                          "(it has a different semantics though).", DeprecationWarning)
+            if net_arch is not None:
+                warnings.warn("The new `net_arch` parameter overrides the deprecated `layers` parameter!",
+                              DeprecationWarning)
 
-    def get_model_params(self):
-        # get trainable params.
-        model_names = []
-        model_params = []
-        model_shapes = []
-        with self.g.as_default():
-            t_vars = tf.trainable_variables()
-            for var in t_vars:
-                param_name = var.name
-                p = self.sess.run(var)
-                model_names.append(param_name)
-                params = np.round(p * 10000).astype(np.int).tolist()
-                model_params.append(params)
-                model_shapes.append(p.shape)
-        return model_params, model_shapes, model_names
+        if net_arch is None:
+            if layers is None:
+                layers = [64, 64]
+            net_arch = [dict(vf=layers, pi=layers)]
 
-    def get_random_model_params(self, stdev=0.5):
-        # get random params.
-        _, mshape, _ = self.get_model_params()
-        rparam = []
-        for s in mshape:
-            # rparam.append(np.random.randn(*s)*stdev)
-            rparam.append(np.random.standard_cauchy(s) * stdev)  # spice things up!
-        return rparam
+        with tf.variable_scope("model", reuse=reuse):
+            if feature_extraction == "cnn":
+                activ = tf.nn.tanh
 
-    def set_model_params(self, params):
-        with self.g.as_default():
-            t_vars = tf.trainable_variables()
-            idx = 0
-            print("No of trainable variables: {}".format(len(t_vars)))
-            assign_ops = []
-            for var in t_vars:
-                time_start = time.time()
-                # pshape = self.sess.run(var).shape
-                p = np.array(params[idx])
-                # assert pshape == p.shape, "inconsistent shape"
-                assign_op = var.assign(p.astype(np.float) / 10000.)
-                assign_ops.append(assign_op)
-                idx += 1
-                print("Time to set AE target model param: {}, shape: {}, time: {}".format(idx, p.shape, time.time() - time_start))
-            time_start = time.time()
-            assign_ops = tf.group(*assign_ops)
-            self.sess.run(assign_ops)
-            print("Time to assign AE target model params: {}".format(time.time() - time_start))
+                observation_features = self.processed_obs[:, :, -8:]
+                observation_features_flat = tf.layers.flatten(observation_features)
 
-    def load_json(self, jsonfile='ae.json'):
-        with open(jsonfile, 'r') as f:
-            params = json.load(f)
-        self.set_model_params(params)
+                visual_features = self.processed_obs[:, :, :-8]
+                visual_features = tf.reshape(visual_features, [-1, 128, 128, 15])
 
-    def set_random_params(self, stdev=0.5):
-        rparam = self.get_random_model_params(stdev)
-        self.set_model_params(rparam)
+                vis_pi_latent = vis_vf_latent = cnn_extractor(visual_features, **kwargs)
+                vis_pi_latent = tf.reshape(vis_pi_latent, [-1, 1, 512])
+                vis_vf_latent = tf.reshape(vis_vf_latent, [-1, 1, 512])
 
-    def load_checkpoint(self, checkpoint_path):
-        sess = self.sess
-        with self.g.as_default():
-            saver = tf.train.Saver(tf.global_variables())
-        ckpt = tf.train.get_checkpoint_state(checkpoint_path)
-        print('loading model', ckpt.model_checkpoint_path)
-        tf.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
-        saver.restore(sess, ckpt.model_checkpoint_path)
+                meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 512, init_scale=np.sqrt(2)))
+                meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 512])
+                features = tf.layers.flatten(tf.concat([vis_pi_latent, meas_pi_latent], axis=2))
+                pi_latent = activ(linear(features, "pi_fc", 128, init_scale=np.sqrt(2)))
+
+                meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 512, init_scale=np.sqrt(2)))
+                meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 512])
+                features = tf.layers.flatten(tf.concat([vis_vf_latent, meas_vf_latent], axis=2))
+                vf_latent = activ(linear(features, "vf_fc", 128, init_scale=np.sqrt(2)))
+
+                # observation_features = self.processed_obs[:, :, -8:]
+                # observation_features_flat = tf.layers.flatten(observation_features)
+
+                # visual_features = self.processed_obs[:, :, :-8]
+                # visual_features = tf.reshape(visual_features, [-1, 64, 64, 5])
+
+                # vis_pi_latent = vis_vf_latent = cnn_extractor(visual_features, **kwargs)
+                # vis_pi_latent = tf.reshape(vis_pi_latent, [-1, 1, 64])
+                # vis_vf_latent = tf.reshape(vis_vf_latent, [-1, 1, 64])
+
+                # meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+                # meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+                # features = tf.layers.flatten(tf.concat([vis_pi_latent, meas_pi_latent], axis=2))
+                # pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+                # meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+                # meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+                # features = tf.layers.flatten(tf.concat([vis_vf_latent, meas_vf_latent], axis=2))
+                # vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+
+            else:
+                pi_latent, vf_latent = mlp_extractor(tf.layers.flatten(self.processed_obs), net_arch, act_fun)
+
+            self._value_fn = linear(vf_latent, 'vf', 1)
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._setup_init()
+    
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        else:
+            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+        return action, value, self.initial_state, neglogp
+
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
+
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
+
+
+class Policy_1_layer(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(Policy_1_layer, self).__init__(*args, **kwargs,
+                                           net_arch=[dict(pi=[64],
+                                                          vf=[64])],
+                                           feature_extraction="mlp")
+    
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp, 
+                                                                    self.logstd, self.mean],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+        
+class Policy_2_layer(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(Policy_2_layer, self).__init__(*args, **kwargs,
+                                           net_arch=[dict(pi=[64, 64],
+                                                          vf=[64, 64])],
+                                           feature_extraction="mlp")
+    
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp, 
+                                                                    self.logstd, self.mean],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+
+
+class CustomPolicy(ActorCriticPolicy):
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                  self.logstd, self.mean],
+                                                                 {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean
+
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
+
+    def value(self, obs, state=None, mask=None):
+        return self.sess.run(self.value_flat, {self.obs_ph: obs})
+
+
+class CustomPolicy1(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy1, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+            
+            measurement_features = tf.expand_dims(self.processed_obs[:, :, -1], axis=1)
+            vae_features = self.processed_obs[:, :, :-1]
+            vae_features_flat = tf.layers.flatten(vae_features)
+            
+            pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            pi_latent = tf.reshape(pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([pi_latent, measurement_features], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vf_latent = tf.reshape(vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vf_latent, measurement_features], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+            
+            value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+
+class CustomPolicy2(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy2, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+            
+            # HARD CODED: Taking last 8 observation input
+            observation_features = self.processed_obs[:, :, -6:]
+            observation_features_flat = tf.layers.flatten(observation_features)
+            vae_features = self.processed_obs[:, :, :-6]
+            vae_features_flat = tf.layers.flatten(vae_features)
+
+            vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
+            meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
+            meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+            
+            # value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+
+class CustomPolicy3(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy3, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+
+            # HARD CODED: Taking last 8 observation input
+            observation_features = self.processed_obs[:, :, -1:]
+            observation_features_flat = tf.layers.flatten(observation_features)
+            vae_features = self.processed_obs[:, :, :-1]
+            vae_features_flat = tf.layers.flatten(vae_features)
+
+            vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
+            meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
+            meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+
+            # value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+
+class CustomPolicy4(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomPolicy4, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+
+            # HARD CODED: Taking last 6 observation input
+            observation_features = self.processed_obs[:, :, -6:]
+            observation_features_flat = tf.layers.flatten(observation_features)
+            vae_features = self.processed_obs[:, :, :-6]
+            vae_features_flat = tf.layers.flatten(vae_features)
+
+            vae_pi_h = activ(linear(vae_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_pi_latent = tf.reshape(vae_pi_h, [-1, 1, 64])
+            meas_pi_h = activ(linear(observation_features_flat, "pi_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_pi_latent = tf.reshape(meas_pi_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_pi_latent, meas_pi_latent], axis=2))
+            pi_latent = activ(linear(features, "pi_fc", 64, init_scale=np.sqrt(2)))
+
+
+            vae_vf_h = activ(linear(vae_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vae_vf_latent = tf.reshape(vae_vf_h, [-1, 1, 64])
+            meas_vf_h = activ(linear(observation_features_flat, "vf_meas_fc", 64, init_scale=np.sqrt(2)))
+            meas_vf_latent = tf.reshape(meas_vf_h, [-1, 1, 64])
+            features = tf.layers.flatten(tf.concat([vae_vf_latent, meas_vf_latent], axis=2))
+            vf_latent = activ(linear(features, "vf_fc", 64, init_scale=np.sqrt(2)))
+
+            # value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+            value_fn = tf.layers.dense(vf_latent, 1, name='vf')
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+class CustomWPPolicy(CustomPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
+        super(CustomWPPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=False)
+
+        with tf.variable_scope("model", reuse=reuse):
+            activ = tf.nn.tanh
+            
+            measurement_features = tf.expand_dims(self.processed_obs[:, -1], axis=1)
+            measurement_features_flat = tf.layers.flatten(measurement_features)
+            
+            pi_h = activ(linear(measurement_features_flat, "pi_vae_fc", 64, init_scale=np.sqrt(2)))
+            pi_latent = activ(linear(pi_h, "pi_fc", 64, init_scale=np.sqrt(2)))
+            
+            vf_h = activ(linear(measurement_features_flat, "vf_vae_fc", 64, init_scale=np.sqrt(2)))
+            vf_latent = activ(linear(pi_h, "vf_fc", 64, init_scale=np.sqrt(2)))
+            
+            value_fn = linear(vf_latent, 'vf', 1, init_scale=np.sqrt(2))
+
+            self._proba_distribution, self._policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
+
+        self._value_fn = value_fn
+        self._setup_init()
+
+
+class CnnPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements actor critic, using a CNN (the nature CNN)
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="cnn", **_kwargs)
+
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, None, None
+        else:
+            action, value, neglogp, logstd, mean = self.sess.run([self.action, self.value_flat, self.neglogp,
+                                                                    self.logstd, self.mean],
+                                                   {self.obs_ph: obs})
+            return action, value, self.initial_state, neglogp, logstd, mean

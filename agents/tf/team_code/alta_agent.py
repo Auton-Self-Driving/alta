@@ -1,6 +1,6 @@
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 import numpy as np
-import models, controller
+import imitation_models, controller
 import carla
 
 from env_util import (
@@ -28,7 +28,7 @@ st = ipdb.set_trace
 
 # audrey imports 
 from ae.controller import AEController
-from rl_models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
+from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2
 from ppo import PPO
 import queue
 import matplotlib.pyplot as plt 
@@ -44,7 +44,7 @@ class AltaAgent(AutonomousAgent):
         self.track = Track.MAP
 
         # Move this to configuration file later
-        self.mode = "Imitation"
+        self.mode = "Imitation" #'RL'
         self.image_type = "rgb"
         self.semantic_classes = 5
         #self.pretrained_weights_path = '/zfsauton2/home/vkadi/projects/alta/alta-logs/imitate_ppo/front_exp3_combined-data2_pretrained-comb1.json'
@@ -66,15 +66,17 @@ class AltaAgent(AutonomousAgent):
         print("#"*100, "Initializing policy network")
         if self.mode=="Imitation":
             # z_size if for specifying how many manual states are being used
-            self.policy_network = models.ConvPrImitator(z_size = 5, image_size = self.image_size, is_training=False, gpu_mode=True)
+            self.policy_network = imitation_models.ConvPrImitator(z_size = 5, image_size = self.image_size, is_training=False, gpu_mode=True)
             if self.pretrained_weights_path:
                 self.policy_network.load_json(self.pretrained_weights_path)
             else:
                 self.policy_network.set_random_params()
         elif self.mode == 'RL': 
             self.frame_stack = 3
-            self.agent_model_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/models/ppo2_weights15000000.zip' 
-            self.ae_weights_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/ae_weights/ae_15000000'
+            self.agent_model_path = './initializations/rl_pretrained_weights/weights.zip'
+            self.ae_weights_path = './initializations/rl_pretrained_weights/ae_weights'
+            #self.agent_model_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/models/ppo2_weights15000000.zip' 
+            #self.ae_weights_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/ae_weights/ae_15000000'
             self.vae = AEController(image_size=(128, 128, 5), frame_stack=self.frame_stack)
             self.vae.load(self.ae_weights_path)
             self.policy_network = PPO.load(self.agent_model_path, None)
