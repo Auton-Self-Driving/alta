@@ -339,12 +339,14 @@ def build_resnet(
         x = Dense(classes, name='fc1')(x)
         x = Activation('softmax', name='softmax')(x)
     else:
-        x = GlobalAveragePooling2D(name='pool1')(x)
         manual_states = Input(shape=(5,), name='manual_states_data')
+        x = GlobalAveragePooling2D(name='pool1')(x)
         y = Concatenate()([x,manual_states])
-        y = Dense(256, name='fc_1')(x)
-        y = Activation('relu', name='relu2')(x)
-        y = Dense(2, name='fc_2')(x)
+        y = Dense(128, name='fc_1')(y)
+        y = Activation('relu', name='relu2')(y)
+        y = Dense(64, name='fc_2')(y)
+        y = Activation('relu', name='relu3')(y)
+        y = Dense(2, name='fc_3')(y)
 
     # Ensure that the model takes into account any potential predecessors of `input_tensor`.
     if input_tensor is not None:
@@ -404,3 +406,15 @@ if __name__=="__main__":
     manual_states = tf.convert_to_tensor(manual_states)
     output = model([input_image, manual_states])
     print(output)
+
+    # To freeze model
+    for l in model.layers:
+        if l.name not in ['pool1', 'concatenate_1', 'fc_1', 'fc_2', 'fc_3', 'relu2', 'relu3']:
+            l.trainable = False
+        print(l.name, l.trainable)
+
+    # To unfreeze model
+    #for l in model.layers:
+    #    if l.name not in ['data', 'manual_states_data']:
+    #        l.trainable = True
+    #    print(l.name, l.trainable)
