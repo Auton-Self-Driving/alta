@@ -13,6 +13,7 @@ sns.set_style("white")
 
 import keras
 import keras.backend as K
+K.set_image_data_format('channels_last')
 from keras.layers import Input
 from keras.layers import Conv2D
 from keras.layers import MaxPooling2D
@@ -90,7 +91,7 @@ def load_model_weights(weights_collection, model, dataset, classes, include_top)
                                 cache_subdir='models',
                                 md5_hash=weights['md5'])
 
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
 
     else:
         raise ValueError('There is no weights for such configuration: ' +
@@ -276,7 +277,6 @@ def build_resnet(
      input_shape=None,
      classes=1000,
      block_type='usual'):
-    st()
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
@@ -338,15 +338,23 @@ def build_resnet(
         x = GlobalAveragePooling2D(name='pool1')(x)
         x = Dense(classes, name='fc1')(x)
         x = Activation('softmax', name='softmax')(x)
+    else:
+        x = GlobalAveragePooling2D(name='pool1')(x)
+        manual_states = Input(shape=(5,), name='manual_states_data')
+        y = Concatenate()([x,manual_states])
+        y = Dense(256, name='fc_1')(x)
+        y = Activation('relu', name='relu2')(x)
+        y = Dense(2, name='fc_2')(x)
 
     # Ensure that the model takes into account any potential predecessors of `input_tensor`.
     if input_tensor is not None:
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
-        
+    
+    inputs = [img_input, manual_states]
     # Create model.
-    model = Model(inputs, x)
+    model = Model(inputs, y)
 
     return model
 
@@ -387,5 +395,12 @@ def ResNet34(input_shape, input_tensor=None, weights=None, classes=1000, include
     return model
 
 if __name__=="__main__":
-    model = ResNet34((224,224,3), weights='imagenet')
-    
+    import tensorflow as tf
+    model = ResNet34((224,224,3), weights='imagenet', include_top=False)
+    model.compile(loss='binary_crossentropy', optimizer="adam")
+    input_image = np.random.rand(1,224,224,3).astype(np.float32)
+    manual_states = np.random.rand(1,5).astype(np.float32)
+    input_image = tf.convert_to_tensor(input_image)
+    manual_states = tf.convert_to_tensor(manual_states)
+    output = model([input_image, manual_states])
+    print(output)

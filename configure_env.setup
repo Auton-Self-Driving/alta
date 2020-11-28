@@ -1,4 +1,4 @@
-export ALTA=$HOME/Documents/auton/alta
+export ALTA=$HOME/ResnetWP_alta/alta
 export LIBS=$ALTA/libs
 export PATH=$LIBS/nasm/bin:$LIBS/libjpeg8/bin:$LIBS/libpng/bin:$LIBS/libjpeg/bin:$LIBS/libjpeglua/bin:$PATH
 export LD_LIBRARY_PATH=$LIBS/libjpeg8/lib:$LIBS/libpng/lib:$LIBS/libjpeg/lib64:$LIBS/libjpeglua/lib:$LD_LIBRARY_PATH

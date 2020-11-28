@@ -158,8 +158,8 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        #self.tm = self.client.get_trafficmanager(4050)
-        #self.tm.set_synchronous_mode(True)
+        self.tm = self.client.get_trafficmanager(4057)
+        self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
@@ -1894,12 +1894,12 @@ class CarlaEnv(gym.Env):
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
-        #tm_port = self.tm.get_port()
+        tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
             if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-                vehicle.set_autopilot()
+                vehicle.set_autopilot(True, tm_port)
 
             if self.config['test_comparison']:
                 self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))

@@ -1,8 +1,8 @@
 import argparse
 import sys, os
 
-sys.path.append('./../../')
-sys.path.append("/zfsauton2/home/mayankgu/ResnetWP_alta/alta/")
+sys.path.append('../../../')
+sys.path.append("/home/vkadi/ResnetWP_alta/alta/")
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac

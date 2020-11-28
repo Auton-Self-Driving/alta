@@ -38,6 +38,7 @@ image_size = (128, 128, 3)
 rv_img_sz = list(image_size)
 rv_img_sz[-1] *=1
 rv_img_sz = tuple(rv_img_sz)
+DATA_DIR = '/project_data/schneider/mayank/'
 
 def test(model, env, image_size, dump_results=False, path='.', model_step=None, rv=False):
     dummy_env = DummyVecEnv([lambda: env])
@@ -167,7 +168,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open('imitation_data_front_rgb3.p', 'wb')
+        fl = open(DATA_DIR+'imitation_data_front_rgb3.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -220,7 +221,7 @@ def collect_data_agent(expert_model, agent_model, env, dump_results=False, path=
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open('imitation_agent_collected_iter_'+str(iter)+'.p', 'wb')
+        fl = open(DATA_DIR+'imitation_agent_collected_iter_'+str(iter)+'.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -399,7 +400,7 @@ def imitate_ppo(args, prefix, config):
                 if args.test:
                     print("Testing")
                     Imitator = AuxNetController(z_size = z_dim, image_size = image_size, buffer_size = 1, gt_size = 2, epoch_per_optimization=50)
-                    Imitator.load('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/front_dagger_iter_2.json')
+                    Imitator.load(DATA_DIR+'front_dagger_iter_2.json')
                     priv_imitator = Imitator.priv_imitator
                     total_reward, success_episodes, results, data = test(priv_imitator, env, image_size = image_size, rv=True)
                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
@@ -411,10 +412,6 @@ def imitate_ppo(args, prefix, config):
             env.close()
         else:
             print("Loading data", end='\r')
-            #data = pickle.load(open(args.dataset_path, 'rb'))
-            #data1 = pickle.load(open('/zfsauton/datasets/ArgoRL/sameer/imitation_data2_front_rgb1.p', 'rb'))
-            #data2 = pickle.load(open('/zfsauton/datasets/ArgoRL/sameer/imitation_data2_front_rgb2.p', 'rb'))
-            #data3 = pickle.load(open('/zfsauton/datasets/ArgoRL/sameer/imitation_data2_front_rgb3.p', 'rb'))
             data = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_front_rgb3.p', 'rb'))
             #data2 = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_agent_collected_iter_1.p', 'rb'))
             #data3 = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_agent_collected_iter_0.p', 'rb'))
@@ -440,7 +437,7 @@ def imitate_ppo(args, prefix, config):
                 Imitator.buffer.append(tuple([img, manual_state, gt]))
 
             Imitator.save_every_epoch = True
-            Imitator.model_filepath = 'front_dagger_iter_'+str(iter)+'.json'
+            Imitator.model_filepath = DATA_DIR+'front_dagger_iter_'+str(iter)+'.json'
             print("Training begins")
             train_loss_hist,_ = Imitator.optimize()
             print(train_loss_hist)
