@@ -2,14 +2,12 @@ import argparse
 import sys, os
 
 sys.path.append('../../../')
-sys.path.append("/home/vkadi/ResnetWP_alta/alta/")
+sys.path.append("/zfsauton2/home/mayankgu/ResnetWP_alta/alta/")
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
 from environment.carla_9_4.config import ConfigManager
 from train_measurements_sac_run import run_sac
 from train_measurements_ppo_run import run_ppo
-from imitate_ppo_agent_online import collect_data
-from imitate_ppo_agent_online import imitate_ppo
-#from imitate_ppo_agent import train_visual_encoder
+from imitate_ppo_agent_resnet import imitate_ppo
 from train_vae_ppo_run import run_ppo_vae
 from test_pid import test_pid_method
 from test_with_automatic_control import run_test_comparison

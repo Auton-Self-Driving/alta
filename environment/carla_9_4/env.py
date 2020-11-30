@@ -158,7 +158,7 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(4057)
+        self.tm = self.client.get_trafficmanager(4059)
         self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:

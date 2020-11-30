@@ -13,6 +13,7 @@ sns.set_style("white")
 
 import keras
 import keras.backend as K
+
 K.set_image_data_format('channels_last')
 from keras.layers import Input
 from keras.layers import Conv2D
@@ -276,7 +277,8 @@ def build_resnet(
      input_tensor=None,
      input_shape=None,
      classes=1000,
-     block_type='usual'):
+     block_type='usual',
+     zdim=3):
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
@@ -339,7 +341,7 @@ def build_resnet(
         x = Dense(classes, name='fc1')(x)
         x = Activation('softmax', name='softmax')(x)
     else:
-        manual_states = Input(shape=(5,), name='manual_states_data')
+        manual_states = Input(shape=(zdim,), name='manual_states_data')
         x = GlobalAveragePooling2D(name='pool1')(x)
         y = Concatenate()([x,manual_states])
         y = Dense(128, name='fc_1')(y)
@@ -383,13 +385,14 @@ weights_collection = [
     },
 ]
 
-def ResNet34(input_shape, input_tensor=None, weights=None, classes=1000, include_top=True):
+def ResNet34(input_shape, input_tensor=None, weights=None, classes=1000, include_top=True, zdim=3):
     model = build_resnet(input_tensor=input_tensor,
                          input_shape=input_shape,
                          repetitions=(3, 4, 6, 3),
                          classes=classes,
                          include_top=include_top,
-                         block_type='basic')
+                         block_type='basic',
+                         zdim=zdim)
     model.name = 'resnet34'
 
     if weights:
@@ -401,7 +404,7 @@ if __name__=="__main__":
     model = ResNet34((224,224,3), weights='imagenet', include_top=False)
     model.compile(loss='binary_crossentropy', optimizer="adam")
     input_image = np.random.rand(1,224,224,3).astype(np.float32)
-    manual_states = np.random.rand(1,5).astype(np.float32)
+    manual_states = np.random.rand(1,3).astype(np.float32)
     input_image = tf.convert_to_tensor(input_image)
     manual_states = tf.convert_to_tensor(manual_states)
     output = model([input_image, manual_states])

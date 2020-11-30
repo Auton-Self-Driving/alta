@@ -11,6 +11,7 @@ import numpy as np
 import os
 import tensorflow as tf
 import json
+from resnet import ResNet34
 
 
 def normalize(data):
