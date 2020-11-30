@@ -7,7 +7,8 @@ export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.10-py3.
 export PYTHONPATH=$PYTHONPATH:$LEADERBOARD_ROOT
 export PYTHONPATH=$PYTHONPATH:$ALTA/agents/tf/team_code
 export PYTHONPATH=$PYTHONPATH:$ALTA/agents/tf/scenario_runner
-
+export PYTHONPATH=$PYTHONPATH:$ALTA
+export PYTHONPATH=$PYTHONPATH:$ALTA/AdelaiDet
 
 export SCENARIOS=$LEADERBOARD_ROOT/data/all_towns_traffic_scenarios_public.json
 export ROUTES=$LEADERBOARD_ROOT/data/routes_devtest.xml

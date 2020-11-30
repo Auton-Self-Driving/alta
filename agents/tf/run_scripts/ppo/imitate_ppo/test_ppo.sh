@@ -22,8 +22,8 @@ python ../../../run_code.py \
 --clip 0.1 \
 --run-id 1 \
 --city_name Town02 \
---test
-#--imitate \
+--test \
+--imitate \
 #--dataset-path '/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_combined1.p'
 #--disable-semantic \
 #--test \
