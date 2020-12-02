@@ -213,4 +213,3 @@ def convert_route_from_GPS_world(route, world_map):
         x, y, z = world_coord[0][0], world_coord[1][0], world_coord[2][0]
         mapped_route.append(carla.Transform(carla.Location(x=x, y=y, z=z), carla.Rotation()))
     return mapped_route
-

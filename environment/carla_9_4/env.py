@@ -798,15 +798,7 @@ class CarlaEnv(gym.Env):
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
             self._update_env_obs(front_rgb_image=rgb_image)
-            obs = {}
-            # self._update_env_obs()
-            obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
-            obs['dist_to_light'] = self.episode_measurements['dist_to_light']
-
-            obs['rgb_image'] = rgb_image
-            obs['image'] = obs['semantic_image'] = front_image
-            obs['rv_image'] = rv_sensor_image
-
+            #self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -1892,9 +1884,7 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         self._update_env_obs(front_rgb_image=rgb_image)
-        # self._update_env_obs()
-        obs['nearest_traffic_actor_state'] = self.episode_measurements['nearest_traffic_actor_state']
-        obs['dist_to_light'] = self.episode_measurements['dist_to_light']
+        #self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()

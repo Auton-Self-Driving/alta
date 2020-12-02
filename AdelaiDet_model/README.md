@@ -1,13 +1,20 @@
 ### Get Pretrained Models
-
-Please go to [google drive](https://drive.google.com/drive/folders/1eMP2N930VhLUCvcofk9-UACcZZT7eZmt?usp=sharing) to download all files required for the training.  
-
-1. config.yaml  
-2. state_dict.pth  
-3. interpolator.pkl  
   
+config.yaml and state_dict.pth are required to run the traffic light detector. You can get them on auton cluster at:  
+```
+/zfsauton/datasets/ArgoRL/zheh/AdelaiDet_model
+```  
   
-Once downloaded, by default please put those files in this folder and keep them intact.  
+Or you can go to [google drive](https://drive.google.com/drive/folders/1eMP2N930VhLUCvcofk9-UACcZZT7eZmt?usp=sharing) to download them.  
+  
+Structured them as below:  
+```
+AdelaiDet_model
+├── config.yaml  
+└── state_dict.pth  
+```  
+  
+Then, you are all set!  
 
 
 
