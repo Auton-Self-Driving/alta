@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
@@ -40,6 +41,7 @@ def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
 def train_vae_ae(args, prefix, config):
+    
     # env = CarlaEnv(config.config, log_dir=ALTA_LOGS)
 
     ALTA_LOGS = args.base_log_dir + prefix
@@ -67,12 +69,13 @@ def train_vae_ae(args, prefix, config):
     TRAIN_FREQ = 500 * FRAME_SKIP
     VAL_FREQ = 5000 * FRAME_SKIP
 
+        
     env = CarlaEnv(config.config, log_dir=args.base_log_dir)
 
     TF_MODELS = ALTA_LOGS+'tf-models/checkpoint/'
     if not os.path.exists(TF_MODELS):
         os.makedirs(TF_MODELS)
-
+    
     if not os.path.exists(SEMANTIC_IMAGES_PATH):
         os.makedirs(SEMANTIC_IMAGES_PATH)
 
@@ -81,7 +84,7 @@ def train_vae_ae(args, prefix, config):
 
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
     vis_wrapper_vae = vis_module.vis(IMAGES_PATH_VAE, VIDEO_PATH_VAE, frame_skip=VIDEO_FRAME_SKIP, videos=config.config["videos"])
-
+    
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
     logger = tf_log.Logger(ALTA_LOGS)
 
@@ -98,36 +101,34 @@ def train_vae_ae(args, prefix, config):
 
     for t in range(TOTAL_TIMESTEPS):
 
-        # if obs['nearest_traffic_actor_state'] is not None:
+        if obs['nearest_traffic_actor_state'] is not None:
 
-        #     save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
+            save_name = str(t) + '_' + str(obs['dist_to_light']) + '_' + str(obs['nearest_traffic_actor_state'])
 
-        #     semantic_image = obs['semantic_image']
-        #     # semantic_image = util.reduce_classes(semantic_image)
-        #     # print(semantic_image.shape)
-        #     # print(semantic_image)
-        #     semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=False).astype(np.uint8)
-        #     np.save(SEMANTIC_IMAGES_PATH + save_name, semantic_image)
+            semantic_image = obs['semantic_image']
+            # semantic_image = util.reduce_classes(semantic_image)
+            semantic_image_rgb = util.convert_to_rgb(semantic_image, reduced_classes=False).astype(np.uint8)
+            np.save(SEMANTIC_IMAGES_PATH + save_name, semantic_image)
 
-        #     rgb_image = obs['rgb_image']
-        #     plt.imsave(RGB_IMAGES_PATH + save_name + '.jpg', rgb_image)
-        #     # np.save(RGB_IMAGES_PATH + str(t), rgb_image)
-        #     # vis_wrapper.save_image(rgb_image, t)
+            rgb_image = obs['rgb_image']
+            plt.imsave(RGB_IMAGES_PATH + save_name + '.jpg', rgb_image)
+            # np.save(RGB_IMAGES_PATH + str(t), rgb_image)
+            # vis_wrapper.save_image(rgb_image, t)
 
-        #     # semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
-        #     # encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
-        #     plt.imsave(IMAGES_PATH + save_name + '.jpg', semantic_image_rgb)
-        #     # vis_wrapper.save_image(semantic_image_rgb, t)
+            # semantic_image_onehot = util.convert_to_one_hot(semantic_image, num_classes=13)
+            # encoded_image = get_and_add_vae_observation(model, semantic_image_onehot)
+            plt.imsave(IMAGES_PATH + save_name + '.jpg', semantic_image_rgb)
+            # vis_wrapper.save_image(semantic_image_rgb, t)
 
-        #     # decoded_image_onehot = model.decode(encoded_image)[0]
-        #     # decoded_image = util.convert_from_one_hot(decoded_image_onehot)
-        #     # decoded_image = util.convert_to_rgb(decoded_image, reduced_classes=True).astype(np.uint8)
-        #     # vis_wrapper_vae.save_image(decoded_image , t)
+            # decoded_image_onehot = model.decode(encoded_image)[0]
+            # decoded_image = util.convert_from_one_hot(decoded_image_onehot)
+            # decoded_image = util.convert_to_rgb(decoded_image, reduced_classes=True).astype(np.uint8)
+            # vis_wrapper_vae.save_image(decoded_image , t)
 
         # Take one step in env
         control = agent.run_step()
         new_obs, rew, done, eps_measurements = env.step(control)
-
+        
         done = bool(done[0, 0])
 
         obs = new_obs
@@ -141,6 +142,7 @@ def train_vae_ae(args, prefix, config):
             agent = RoamingAgent(env.vehicle_actor)
 
         # if (t > 1 and t % (TRAIN_FREQ) == 0):
+            
         #     if args.algo == "AE":
         #         train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = model.optimize()
         #     elif args.algo == "VAE":
@@ -148,7 +150,7 @@ def train_vae_ae(args, prefix, config):
 
         #         logger.log_scalar('timesteps/train/entropy_loss', entropy_loss_avg, t)
         #         logger.log_scalar('timesteps/train/kl_loss', kl_loss_avg, t)
-
+            
         #     logger.log_scalar('timesteps/train/train_loss', train_loss_avg, t)
         #     logger.log_scalar('timesteps/train/accuracy_avg', accuracy_avg, t)
         #     logger.log_scalar('timesteps/train/my_accuracy_avg', my_accuracy_avg, t)
@@ -156,7 +158,7 @@ def train_vae_ae(args, prefix, config):
         #     # print("loss and accuracy")
         #     # print(t, train_loss_avg, accuracy_avg, confusion_matrix_final, train_step)
         #     # print(t, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized_final)
-
+            
         #     if plot_param_histogram:
 
         #         if args.algo == "AE":
@@ -168,7 +170,7 @@ def train_vae_ae(args, prefix, config):
         #             model_name = model_names[i]
         #             model_param_all = (np.ravel(np.array(model_param)))
         #             logger.log_histogram('timesteps/train/model_parameters_' + model_name, model_param_all, train_step)
-
+        
         # # Saving model
         # if(t > 1 and t % VAL_FREQ == 0):
         #     model.save(TF_MODELS+'model-'+str(t)+'.json')
@@ -185,7 +187,7 @@ def train_vae_ae(args, prefix, config):
 
     #         obs = env.reset()
     #         agent = RoamingAgent(env.vehicle_actor)
-
+            
     #         confusion_matrix = np.zeros((NUM_CLASSES, NUM_CLASSES))
     #         val_accuracy_array = []
     #         for valT in range(VAL_TIMESTEPS):
@@ -199,21 +201,22 @@ def train_vae_ae(args, prefix, config):
     #                 encoded_image = get_vae_observation(model, semantic_image_onehot)
     #                 decoded_image_onehot = model.decode(encoded_image)[0]
     #                 decoded_image = util.convert_from_one_hot(decoded_image_onehot)
-
+                    
     #                 decoded_image_rgb = util.convert_to_rgb(decoded_image, reduced_classes=True).astype(np.uint8)
-
+                    
     #                 input_labels_flattened, output_labels_flattened = np.reshape(semantic_image, (-1)), np.reshape(decoded_image, (-1))
     #                 my_accuracy = np.mean(np.equal(input_labels_flattened, output_labels_flattened))
-
+                    
     #                 for i in range(np.size(input_labels_flattened)):
     #                     input_label = input_labels_flattened[i]
     #                     output_label = output_labels_flattened[i]
     #                     confusion_matrix[input_label][output_label] += 1
+                    
     #                 val_accuracy_array.append(my_accuracy)
-
+                
     #             control = agent.run_step()
     #             new_obs, rew, done, eps_measurements = env.step(control)
-
+                
     #             done = bool(done[0, 0])
 
     #             obs = new_obs
@@ -228,6 +231,7 @@ def train_vae_ae(args, prefix, config):
     #         eps = 1e-8
     #         normalization = np.sum(confusion_matrix, axis=1).reshape((-1, 1)) + eps
     #         confusion_matrix_normalized =  confusion_matrix / normalization
+            
     #         logger.log_scalar('timesteps/train/town1_accuracy_avg', val_accuracy_avg, t)
 
     #         plot_cm.save_cm(confusion_matrix_normalized, CM_PATH , t)
@@ -249,6 +253,7 @@ def train_vae_ae(args, prefix, config):
     # val_accuracy_total = np.array(val_accuracy_total)
     # best_val_accuracy = np.max(val_accuracy_total)
     # best_val_accuracy_index = np.argmax(val_accuracy_total)
+    
     # print("best_val_accuracy, best_val_accuracy_index")
     # print(best_val_accuracy, best_val_accuracy_index)
     # with open(confusion_matrix_file, 'a') as f:
@@ -256,7 +261,7 @@ def train_vae_ae(args, prefix, config):
     #     f.write(str(best_val_accuracy))
     #     f.write(",")
     #     f.write(str(best_val_accuracy_index))
-
+    
 if __name__ == '__main__':
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -271,7 +276,7 @@ if __name__ == '__main__':
         lr = 5e-4
         vae_zsize = 512
         batch_size = 64
-
+    
     args = Args()
     config = ConfigManager(algo="AE")
 

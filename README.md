@@ -18,6 +18,9 @@ Reproduce thesis results:
 ## Setup Instructions
 
 ## Traffic Light Detection
+
+### Setup  
+
 **Important** If you want to use the traffic light detector, please build AdelaiDet & detectron2 module by:  
 ```
 cd <whatever-dir>/alta
@@ -28,6 +31,49 @@ python setup.py build develop
 
 Please make sure that the gcc version you are using is >= 5.0.  
 If errors happen and you want to rebuild any of them, please purge the build folder before rebuilding.  
+
+### Train Your Own Detector
+
+The basic steps to train your own detector are:  
+1. Create a COCO-formatted detection dataset.  
+2. Start training via AdelaiDet.  
+
+#### Create Your Own Dataset
+
+We are using COCO-formatted dataset here, which is documented at [COCO Official Docs](https://cocodataset.org/#format-data).  
+
+There are many ways to do that, one possible way is using the code that I shared at [AdelaiDet/datasets/create_traffic_light_dataset.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/datasets/create_traffic_light_dataset.py).  
+
+
+
+#### Training via AdelaiDet
+
+To train a model with "tools/train_net.py", first
+setup the corresponding datasets following
+[datasets/README.md](https://github.com/facebookresearch/detectron2/blob/master/datasets/README.md), which has already been done in [train_net.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/tools/train_net.py#L240). You might need to change it based on how you name your dataset though.  
+
+Then run:
+
+```
+cd AdelaiDet
+OMP_NUM_THREADS=1 python tools/train_net.py \
+    --config-file configs/FCOS-Detection/MS_DLA_34_4x_syncbn.yaml \
+    --num-gpus 1 \
+```
+To evaluate the model after training, run:
+
+```
+cd AdelaiDet
+OMP_NUM_THREADS=1 python tools/train_net.py \
+    --config-file configs/FCOS-Detection/MS_DLA_34_4x_syncbn.yaml \
+    --eval-only \
+    --num-gpus 1 \
+    MODEL.WEIGHTS output/fcos/FCOS_RT_MS_DLA_34_4x_traffic/model_final.pth
+```
+Note that:
+- The configs are made for 1 GPU training. To train on another number of GPUs, change the `--num-gpus`.
+- If you want to measure the inference time, please change `--num-gpus` to 1.
+- `OMP_NUM_THREADS=1` is set by default, please change it as needed.  
   
 ## Carla 9.6
 Below are the instructions to setup and run the code.

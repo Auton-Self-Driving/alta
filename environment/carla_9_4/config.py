@@ -31,8 +31,8 @@ DEFAULT_ENV = {
     "y_res": 84,
     "server_fps" : 10,
     "server_port" : None,
-    "server_retries" : 5, 
-    "city_name" : "Town01",
+    "server_retries" : 5,
+    "city_name" : "Town02",
     "frame_skip": 1,
     "enable_planner" : True,
     "reward_function" : 'corl',
@@ -50,7 +50,7 @@ DEFAULT_ENV = {
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
     "disable_two_wheeler" : True,
-    "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
+    "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola',
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
                       'vehicle.tesla.model3', 'vehicle.seat.leon', 'vehicle.lincoln.mkz2017',
@@ -71,7 +71,7 @@ DEFAULT_ENV = {
     "scenarios" : "straight",
     "semantic" : False,
     "client_timeout_seconds" : 600,
-    "enable_lane_invasion_sensor" : True,
+    "enable_lane_invasion_sensor" : False,
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
@@ -92,7 +92,7 @@ DEFAULT_ENV = {
     "terminate_on_light" : True,
     "enable_brake": True,
     "log_freq": 1,
-    "zero_speed_threshold": 0.05, 
+    "zero_speed_threshold": 0.05,
     "videos" : False,
     "obstacle_dist_norm" : 60,
     "spawn_points_fixed_idx" : [ 54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
@@ -115,13 +115,13 @@ DEFAULT_ENV = {
        189, 192, 190, 187, 142, 232,   9, 127, 206, 169,  23, 208,  94,
        218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
        225,  31, 229, 250, 110, 177, 199, 184, 144],
-    "test_fixed_spawn_points" : True,
+    "test_fixed_spawn_points" : False,
     "train_fixed_spawn_points": False,
     "testing" : False,
     "disable_collision" : False,
     "enable_static" : False,
     "use_pid_in_frame_skip" : True,
-    "enable_lane_invasion_collision" : True,
+    "enable_lane_invasion_collision" : False,
     "vehicle_proximity_threshold" : 15,
     "traffic_light_proximity_threshold" : 10,
     "min_dist_from_red_light" : 4,
@@ -138,9 +138,9 @@ DEFAULT_ENV = {
     "test_with_automatic_control": False,
     "updated_scenarios": False,
     "sample_npc": True,
-    "use_offline_map": True,
-    "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
-    "use_route_to_plan" : True
+    "use_offline_map": False,
+    "map_path" : "/home/zheh/Documents/CARLA/alta/environment/carla_9_4/OpenDrive/Town02.xodr",
+    "use_route_to_plan" : False
 }
 
 episode_measurements = {
@@ -262,7 +262,7 @@ def get_discrete_actions():
         for j in range(len(steer)):
             action_space[n] = [target_speed[i], steer[j]]
             n = n+1
-    
+
     action_space[n] = [20, -0.5]
     action_space[n+1] = [20, 0.5]
     return action_space

@@ -40,6 +40,7 @@ def get_scratch_dir(base_log_dir):
     return base_log_dir.split(base_log_dir.split("/home")[0])[1].replace("/home", "/home/scratch")
 
 def train_vae_ae(args, prefix, config):
+
     # env = CarlaEnv(config.config, log_dir=ALTA_LOGS)
 
     ALTA_LOGS = args.base_log_dir + prefix
@@ -66,6 +67,7 @@ def train_vae_ae(args, prefix, config):
     plot_param_histogram = True
     TRAIN_FREQ = 500 * FRAME_SKIP
     VAL_FREQ = 5000 * FRAME_SKIP
+
 
     env = CarlaEnv(config.config, log_dir=args.base_log_dir)
 
@@ -141,6 +143,7 @@ def train_vae_ae(args, prefix, config):
             agent = RoamingAgent(env.vehicle_actor)
 
         # if (t > 1 and t % (TRAIN_FREQ) == 0):
+
         #     if args.algo == "AE":
         #         train_loss_avg, accuracy_avg, confusion_matrix_final, train_step, my_accuracy_avg, my_confusion_matrix_final, my_confusion_matrix_normalized, my_confusion_matrix_normalized_final = model.optimize()
         #     elif args.algo == "VAE":
@@ -209,6 +212,7 @@ def train_vae_ae(args, prefix, config):
     #                     input_label = input_labels_flattened[i]
     #                     output_label = output_labels_flattened[i]
     #                     confusion_matrix[input_label][output_label] += 1
+
     #                 val_accuracy_array.append(my_accuracy)
 
     #             control = agent.run_step()
@@ -228,6 +232,7 @@ def train_vae_ae(args, prefix, config):
     #         eps = 1e-8
     #         normalization = np.sum(confusion_matrix, axis=1).reshape((-1, 1)) + eps
     #         confusion_matrix_normalized =  confusion_matrix / normalization
+
     #         logger.log_scalar('timesteps/train/town1_accuracy_avg', val_accuracy_avg, t)
 
     #         plot_cm.save_cm(confusion_matrix_normalized, CM_PATH , t)
@@ -249,6 +254,7 @@ def train_vae_ae(args, prefix, config):
     # val_accuracy_total = np.array(val_accuracy_total)
     # best_val_accuracy = np.max(val_accuracy_total)
     # best_val_accuracy_index = np.argmax(val_accuracy_total)
+
     # print("best_val_accuracy, best_val_accuracy_index")
     # print(best_val_accuracy, best_val_accuracy_index)
     # with open(confusion_matrix_file, 'a') as f:
