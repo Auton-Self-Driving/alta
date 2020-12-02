@@ -35,15 +35,25 @@ If errors happen and you want to rebuild any of them, please purge the build fol
 ### Train Your Own Detector
 
 The basic steps to train your own detector are:  
-1. Create a COCO-formatted detection dataset.  
-2. Start training via AdelaiDet.  
+1. Collecting semantic and RGB images.  
+2. Create a COCO-formatted detection dataset.  
+3. Start training via AdelaiDet.  
+
+#### Collect Your Own Data
+
+For each frame, we need an RGB image as the input of the detector and a semantic sensor output for annotating the groundtruth bboxes in step 2. There is really no standard way to do this. The general idea is to put a semantic sensor and an RGB sensor with the same resolution at the same spot. Let the vehicle move around and give data readings of those sensors. Then we directly save the sensor outputs to disk. You can do it yourself or use [environment/tools/save_images.py](environment/tools/save_images.py)).  
+
 
 #### Create Your Own Dataset
 
-We are using COCO-formatted dataset here, which is documented at [COCO Official Docs](https://cocodataset.org/#format-data).  
+Now since we have RGB image and semantic data, we need to annotate the training and testing data. Since detectron2 and AdelaiDet supports COCO dataset very well, We want to format our dataset into COCO-format and use their API to do the training. COCO format is documented at [COCO Official Docs](https://cocodataset.org/#format-data).  
 
-There are many ways to do that, one possible way is using the code that I shared at [AdelaiDet/datasets/create_traffic_light_dataset.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/datasets/create_traffic_light_dataset.py).  
-
+There are many ways to do that, one possible way is using the code that is shared at [AdelaiDet/datasets/create_traffic_light_dataset.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/datasets/create_traffic_light_dataset.py). Just properly configure corresponding paths and namings and run  
+```
+cd AdelaiDet/datasets
+python create_traffic_light_dataset.py
+```
+This script will create **one** groundtruth bbox for traffic light per frame, and multiple bboxes for other objects per frame specified in ''OTHER_LABELS`` in the header part of the script. It should work for many situations after properly configured.  
 
 
 #### Training via AdelaiDet
@@ -71,6 +81,7 @@ OMP_NUM_THREADS=1 python tools/train_net.py \
     MODEL.WEIGHTS output/fcos/FCOS_RT_MS_DLA_34_4x_traffic/model_final.pth
 ```
 Note that:
+- **Before training, check the config file to have the proper settings of NUM_CLASSES and learning rate (BASE_LR).** For example, ''MS_DLA_34_4x_syncbn.yaml`` is pre-configured to train on detecting 4 classes and to have an initial learning rate of 0.001
 - The configs are made for 1 GPU training. To train on another number of GPUs, change the `--num-gpus`.
 - If you want to measure the inference time, please change `--num-gpus` to 1.
 - `OMP_NUM_THREADS=1` is set by default, please change it as needed.  
