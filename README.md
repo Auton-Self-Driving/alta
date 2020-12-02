@@ -42,7 +42,7 @@ The basic steps to train your own detector are:
 
 We are using COCO-formatted dataset here, which is documented at [COCO Official Docs](https://cocodataset.org/#format-data).  
 
-There are many ways to do that, one possible way is using the code that I shared at [AdelaiDet/datasets/create_traffic_light_dataset.py](AdelaiDet/datasets/create_traffic_light_dataset.py).  
+There are many ways to do that, one possible way is using the code that I shared at [AdelaiDet/datasets/create_traffic_light_dataset.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/datasets/create_traffic_light_dataset.py).  
 
 
 
@@ -50,7 +50,7 @@ There are many ways to do that, one possible way is using the code that I shared
 
 To train a model with "tools/train_net.py", first
 setup the corresponding datasets following
-[datasets/README.md](https://github.com/facebookresearch/detectron2/blob/master/datasets/README.md), which has already been done in [train_net.py](AdelaiDet/tools/train_net.py#L240). You might need to change it based on how you name your dataset though.  
+[datasets/README.md](https://github.com/facebookresearch/detectron2/blob/master/datasets/README.md), which has already been done in [train_net.py](https://github.com/aim-uofa/AdelaiDet/blob/db238dafcacfb2e4f2bbd227d725e33fb3eb9bad/tools/train_net.py#L240). You might need to change it based on how you name your dataset though.  
 
 Then run:
 
