@@ -7,7 +7,7 @@ config.yaml and state_dict.pth are required to run the traffic light detector. Y
   
 Or you can go to [google drive](https://drive.google.com/drive/folders/1eMP2N930VhLUCvcofk9-UACcZZT7eZmt?usp=sharing) to download them.  
   
-Structured them as below:  
+Structure them as below:  
 ```
 AdelaiDet_model
 ├── config.yaml  
