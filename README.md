@@ -53,7 +53,7 @@ There are many ways to do that, one possible way is using the code that is share
 cd AdelaiDet/datasets
 python create_traffic_light_dataset.py
 ```
-This script will create groundtruth one bbox for traffic light per frame, and multiple bboxes for other objects specified in ''OTHER_LABELS`` in the header part of the script. It should work for many situations after properly configured.  
+This script will create **one** groundtruth bbox for traffic light per frame, and multiple bboxes for other objects per frame specified in ''OTHER_LABELS`` in the header part of the script. It should work for many situations after properly configured.  
 
 
 #### Training via AdelaiDet
