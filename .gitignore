@@ -133,3 +133,6 @@ misc/logs/*jpeg
 
 # don't track .txt files used for printing output
 *.txt
+
+# don't track dumped files during behavior cloning
+agents/tf/run_scripts/ppo/imitate_ppo/*.p

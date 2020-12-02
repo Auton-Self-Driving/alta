@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import sys
-import pyproj
 import glob
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")

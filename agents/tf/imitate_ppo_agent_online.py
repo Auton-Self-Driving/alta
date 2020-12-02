@@ -34,11 +34,11 @@ import random
 st = ipdb.set_trace
 
 z_dim = 3
-image_size = (128, 128, 3)
+image_size = (224, 224, 3)
 rv_img_sz = list(image_size)
 rv_img_sz[-1] *=1
 rv_img_sz = tuple(rv_img_sz)
-DATA_DIR = '/project_data/schneider/mayank/'
+DATA_DIR = './'
 
 def test(model, env, image_size, dump_results=False, path='.', model_step=None, rv=False):
     dummy_env = DummyVecEnv([lambda: env])
@@ -168,7 +168,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open(DATA_DIR+'imitation_data_front_rgb3.p', 'wb')
+        fl = open(DATA_DIR+'imitation_data_front_rgbres224.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -221,7 +221,7 @@ def collect_data_agent(expert_model, agent_model, env, dump_results=False, path=
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open(DATA_DIR+'imitation_agent_collected_iter_'+str(iter)+'.p', 'wb')
+        fl = open(DATA_DIR+'imitation_agent_rgbres224_collected_iter_'+str(iter)+'.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -317,7 +317,8 @@ def preproc_img(im, im_size, to_rgb = False):
         rgb = convert_to_rgb(img, reduced_classes=True)
         rgb_img = Image.fromarray(rgb.astype(np.uint8), 'RGB').convert('RGBA')
         return rgb_img
-    return img/255
+    img = img/255.0
+    return img
 
 def get_env(args, config, ALTA_LOGS, test_idx, SCRATCH_DIR):
     IMAGES_PATH = SCRATCH_DIR+'test_images_' + config.config["city_name"] + config.config['scenarios'] + '_run_' + str(test_idx) + '/'
@@ -400,7 +401,7 @@ def imitate_ppo(args, prefix, config):
                 if args.test:
                     print("Testing")
                     Imitator = AuxNetController(z_size = z_dim, image_size = image_size, buffer_size = 1, gt_size = 2, epoch_per_optimization=50)
-                    Imitator.load(DATA_DIR+'front_dagger_iter_2.json')
+                    #Imitator.load(DATA_DIR+'front_dagger_iter_4.json')
                     priv_imitator = Imitator.priv_imitator
                     total_reward, success_episodes, results, data = test(priv_imitator, env, image_size = image_size, rv=True)
                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
@@ -412,11 +413,10 @@ def imitate_ppo(args, prefix, config):
             env.close()
         else:
             print("Loading data", end='\r')
-            data = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_front_rgb3.p', 'rb'))
-            #data2 = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_agent_collected_iter_1.p', 'rb'))
-            #data3 = pickle.load(open('/zfsauton2/home/mayankgu/ResnetWP_alta/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_agent_collected_iter_0.p', 'rb'))
-            #data = list(data1)+list(data2)+list(data3)
-            
+            data = pickle.load(open(DATA_DIR+'imitation_data_front_rgb.p', 'rb'))
+            '''data2 = pickle.load(open(DATA_DIR+'imitation_data_front_semantic2.p', 'rb'))
+            data = list(data1)+list(data2)'''
+            print(len(data))
 
             print("Data Loaded")
 
@@ -425,10 +425,9 @@ def imitate_ppo(args, prefix, config):
         env.config['input_type'] = 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
         print("env done")
 
-        Imitator = AuxNetController(z_size = z_dim, image_size = image_size, frame_stack = 1, buffer_size = 4*len(data), gt_size = 2, epoch_per_optimization=25)
-        #Imitator.load('front_dagger_iter_1.json')
+        Imitator = AuxNetController(z_size = z_dim, image_size = image_size, frame_stack = 1, buffer_size = 4*len(data), gt_size = 2, epoch_per_optimization=50)
         Imitator.buffer = []
-        for iter in range(5):
+        for iter in range(10):
             print("Preprocessing data")
             for data_idx in range(len(data)):
                 img = preproc_img(data[data_idx][1], rv_img_sz)
@@ -437,7 +436,7 @@ def imitate_ppo(args, prefix, config):
                 Imitator.buffer.append(tuple([img, manual_state, gt]))
 
             Imitator.save_every_epoch = True
-            Imitator.model_filepath = DATA_DIR+'front_dagger_iter_'+str(iter)+'.json'
+            Imitator.model_filepath = DATA_DIR+'front_dagger_rgbres224_iter_'+str(iter)+'.json'
             print("Training begins")
             train_loss_hist,_ = Imitator.optimize()
             print(train_loss_hist)
@@ -447,8 +446,10 @@ def imitate_ppo(args, prefix, config):
 
             model = PPO.load(args.agent_model_path, env=dummy_env)
             new_data = collect_data_agent(model, Imitator, env, num_ep = 10, save=True, iter=iter)
-            
+            env.reset()
+            data = collect_data(model, env, num_ep = 5)
             data = list(data)+list(new_data)
+            Imitator.epoch_per_optimization = 50
             random.shuffle(data)
 
         # Testing

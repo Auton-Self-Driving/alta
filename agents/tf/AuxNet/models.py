@@ -23,7 +23,7 @@ def denormalize(data):
 
 class ConvPrImitator(object):
     def __init__(self, z_size=512, gt_size = None, batch_size=100, learning_rate=0.0001, is_training=True,
-                 reuse=False, num_classes=5, frame_stack=1, gpu_mode=True):
+                 reuse=False, num_classes=5, frame_stack=1, multi_task= None, gpu_mode=True):
         self.z_size = z_size # Unused
         self.gt_size = gt_size
         self.batch_size = batch_size
@@ -32,6 +32,7 @@ class ConvPrImitator(object):
         self.reuse = reuse
         self.num_classes = num_classes
         self.frame_stack = frame_stack
+        self.multi_task = multi_task
         with tf.variable_scope('conv_ae', reuse=self.reuse):
             if not gpu_mode:
                 with tf.device('/cpu:0'):
@@ -42,10 +43,19 @@ class ConvPrImitator(object):
                 self._build_graph()
         self._init_session()
 
+    def get_focal_params(self, y_pred):
+        epsilon = tf.constant(1e-9)
+        gamma = tf.constant(3.)
+        y_pred = y_pred + epsilon
+        pinv = 1./y_pred
+        pos_weight_f = (pinv - 1)**gamma
+        weight_f = y_pred**gamma
+        return pos_weight_f, weight_f
+
     def _build_graph(self):
         self.g = tf.Graph()
         with self.g.as_default():
-            self.x = tf.placeholder(tf.float32, shape=[None, 128, 128, self.num_classes * self.frame_stack])
+            self.x = tf.placeholder(tf.float32, shape=[None, 224, 224, self.num_classes * self.frame_stack])
             self.gt = tf.placeholder(tf.float32, shape=[None, self.gt_size])
 
             # Encoder
@@ -67,12 +77,21 @@ class ConvPrImitator(object):
             h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, \
                                 kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
                                 bias_initializer=tf.initializers.zeros(), name="enc_conv4")
-            self.encoded = tf.reshape(h, [-1, 5 * 5 * 64])
+            #self.encoded = tf.reshape(h, [-1, 5 * 5 * 64])
+            h = tf.layers.conv2d(h, 64, 5, strides=1, activation=tf.nn.relu, \
+                                kernel_initializer=tf.initializers.variance_scaling(scale=1.0, mode='fan_avg', distribution='uniform'), \
+                                bias_initializer=tf.initializers.zeros(), name="enc_conv5")
+
+            self.encoded = tf.reshape(h, [-1, 7 * 7 * 64])
 
             self.z = tf.placeholder(tf.float32, shape = [None, self.z_size])
 
             mod_h = tf.concat([self.encoded, self.z], 1)
             self.y = tf.layers.dense(mod_h, self.gt_size, activation = tf.nn.tanh)
+
+            if self.multi_task=='state_pred':
+                self.state_pred = tf.layers.dense(self.encoded, 2)
+                self.state_gt = tf.placeholder(tf.float32, shape=[None, 2])
 
             # train ops
             if self.is_training:
@@ -91,6 +110,24 @@ class ConvPrImitator(object):
                 preds = tf.reshape(self.y, (-1,self.gt_size))
 
                 regression_loss = tf.nn.l2_loss(labels-preds)
+                if self.multi_task=='state_pred':
+                    state_gt = tf.reshape(self.state_gt, (-1,2))
+                    state_preds = tf.reshape(self.state_pred, (-1,2))
+                    #regression_loss += tf.nn.l2_loss(state_gt[0]-tf.nn.sigmoid(state_preds[0]))
+                    '''regression_loss += tf.nn.sigmoid_cross_entropy_with_logits(labels=state_gt[0], logits=state_preds[0])                    
+                    regression_loss += tf.nn.sigmoid_cross_entropy_with_logits(labels=state_gt[1], logits=state_preds[1])'''
+
+                    state_preds_prob = tf.nn.sigmoid(state_preds)
+                    pos_weight_f, weight_f = self.get_focal_params(state_preds_prob)
+                    alpha = tf.constant(.65)
+                    alpha_ = 1 - alpha
+                    alpha_div = alpha / alpha_
+                    pos_weight = pos_weight_f * alpha_div
+                    weight = weight_f * alpha_
+
+                    regression_loss += weight * tf.nn.weighted_cross_entropy_with_logits(state_gt, state_preds, pos_weight)
+
+
                 self.regression_loss = tf.reduce_mean(regression_loss)
                 self.loss = self.regression_loss
                 
@@ -123,7 +160,9 @@ class ConvPrImitator(object):
     def encode(self, x, z):
         return self.sess.run(self.encoded, feed_dict={self.x: x, self.z:z})
 
-    def predict(self, x, z):
+    def predict(self, x, z, ret_pred_states = False):
+        if ret_pred_states:
+            return self.sess.run([self.y, self.state_pred], feed_dict={self.x: x, self.z:z})
         return self.sess.run(self.y, feed_dict={self.x: x, self.z:z})
 
     def get_model_params(self):

@@ -158,8 +158,8 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(4057)
-        self.tm.set_synchronous_mode(True)
+        #self.tm = self.client.get_trafficmanager(4055)
+        #self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
@@ -615,10 +615,10 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']                
             obs['orientation'] = np.concatenate((np.array([next_orientation]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
-    def step(self, action):
+    def step(self, action, preds=None):
         try:
             if not self.config['test_comparison']:
-                obs = self._step(action)
+                obs = self._step(action, preds)
                 return obs
             else:
                 self._step_test_comparison(action)
@@ -675,7 +675,7 @@ class CarlaEnv(gym.Env):
 
         return None, None, None, self.episode_measurements
 
-    def _step(self, action):
+    def _step(self, action, pred = None):
 
         world_frame = None
         reward = 0
@@ -900,7 +900,9 @@ class CarlaEnv(gym.Env):
                     if self.config["semantic"]:
                         self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                        if pred is not None:
+                            self.episode_measurements['pred'] = pred
+                        self.vis_wrapper.save_pil_image(obs['rv_image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
 
                     # Logic for combined videos
@@ -1150,7 +1152,11 @@ class CarlaEnv(gym.Env):
                 continue
 
             # if the object is not in our lane it's not an obstacle
-            target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
+            try:
+                target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
+            except:
+                print("Actor already destroyed, Skipping...")
+                continue
             d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                         self.vehicle_actor.get_transform(),
                                         self.config['vehicle_proximity_threshold'])
@@ -1894,12 +1900,13 @@ class CarlaEnv(gym.Env):
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
-        tm_port = self.tm.get_port()
+        #tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
             if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-                vehicle.set_autopilot(True, tm_port)
+                #vehicle.set_autopilot(True, tm_port)
+                vehicle.set_autopilot()
 
             if self.config['test_comparison']:
                 self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))

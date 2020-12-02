@@ -18,7 +18,7 @@ class AuxNetController:
                  frame_stack=1,
                  learning_rate=0.001, kl_tolerance=0.5,
                  epoch_per_optimization=10, batch_size=64,
-                 buffer_size=500, gt_size = None, save_every_epoch = False, model_filepath=None):
+                 buffer_size=500, multi_task = None, gt_size = None, save_every_epoch = False, model_filepath=None):
         # AE input and output shapes
         self.z_size = z_size # Unused
         self.frame_stack = frame_stack
@@ -37,7 +37,8 @@ class AuxNetController:
         self.buffer_size = buffer_size
         self.buffer_pos = -1
         self.buffer_full = False
-        self.buffer_reset(gt_size)    
+        self.buffer_reset(gt_size) 
+        self.multi_task = multi_task   
         self.gt_size = gt_size   
 
         self.priv_imitator = ConvPrImitator(z_size=self.z_size,
@@ -48,6 +49,7 @@ class AuxNetController:
                            reuse=False,
                            num_classes=self.num_classes,
                            frame_stack=self.frame_stack,
+                           multi_task = self.multi_task,
                            gpu_mode=True)
         self.save_every_epoch = False
         self.model_filepath = model_filepath
@@ -57,8 +59,9 @@ class AuxNetController:
         assert arr.shape == self.image_size
         self.buffer_pos += 1
         if self.buffer_pos > self.buffer_size - 1:
-            self.buffer_pos = 0
+            #self.buffer_pos = 0
             self.buffer_full = True
+        self.buffer_pos = self.buffer_pos%self.buffer_size
         self.buffer[self.buffer_pos] = arr
 
     def buffer_reset(self, gt_size = None):
@@ -120,7 +123,12 @@ class AuxNetController:
                 manual_state = np.asarray([tup[1] for tup in batch]).astype(np.float)
                 gt = np.asarray([tup[2] for tup in batch]).astype(np.float)
 
-                feed = {self.priv_imitator.x: images, self.priv_imitator.z: manual_state, self.priv_imitator.gt: gt}
+                if self.multi_task=='state_pred':
+                    state_supervision = np.asarray([tup[-1] for tup in batch]).astype(np.float)
+                    feed = {self.priv_imitator.x: images, self.priv_imitator.z: manual_state, self.priv_imitator.gt: gt, self.priv_imitator.state_gt: state_supervision}
+                else:
+                    feed = {self.priv_imitator.x: images, self.priv_imitator.z: manual_state, self.priv_imitator.gt: gt}
+
                 (train_loss, train_step, _) = self.priv_imitator.sess.run([
                     self.priv_imitator.loss,
                     self.priv_imitator.global_step,
