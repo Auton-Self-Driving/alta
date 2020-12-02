@@ -13,8 +13,8 @@ python ../../../../run_code.py \
 --timesteps 8000000 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---base-log-dir '/zfsauton2/home/mayankgu/ResnetWP_alta/alta_logs/Resnet_Imitation' \
---carla-gpu 0 --code-gpu 1 \
+--base-log-dir '/zfsauton2/home/mayankgu/ResnetWP_alta/alta_logs/Resnet_Imitation_2' \
+--carla-gpu 0 --code-gpu 0 \
 --n-steps 10000 \
 --lr 2e-4 \
 --no-epochs 10 \
@@ -22,11 +22,12 @@ python ../../../../run_code.py \
 --clip 0.1 \
 --run-id 1 \
 --disable-semantic \
---city_name Town01 \
+--city_name Town02 \
 --imitate \
---dataset-path '/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_combined1.p' \
-#--test \
+--test \
+--videos
+#--dataset-path '/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_combined1.p'
+
 #--disable-semantic \
 #--test \
 #--dataset-path '/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_combined1.p'
-#

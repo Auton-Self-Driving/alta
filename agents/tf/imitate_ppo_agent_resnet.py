@@ -33,6 +33,7 @@ from models import Policy_1_layer, Policy_2_layer, CustomPolicy1, CustomPolicy2,
 import ipdb
 import random
 import tensorflow as tf
+from time import time
 
 st = ipdb.set_trace
 
@@ -60,12 +61,12 @@ def test(model, env, image_size, dump_results=False, path='.', model_step=None, 
     total_reward = 0
     env.reset()
     for ind in range(env.config["num_episodes"]):
-        sys.stdout.write("Testing - Iter : %d of %d \r"%(ind, env.config["num_episodes"]))
+        sys.stdout.write("\nTesting - Iter : %d of %d \n"%(ind, env.config["num_episodes"]))
         #obs = np.zeros((dummy_env.num_envs,) + dummy_env.observation_space.shape)
         obs, rv_img = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
-        
+        cnt=0
         while not done:
             img = obs[:,:-8]
             rv_img = rv_img.reshape((1, -1))
@@ -74,19 +75,24 @@ def test(model, env, image_size, dump_results=False, path='.', model_step=None, 
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5]])
             elif z_dim == 5:
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5], obs[:,6:]])
-            
             if rv:
                 rv_img = np.expand_dims(preproc_img(rv_img, image_size), axis = 0)
-                actions = model([rv_img, manual_states])
+                with tf.device('gpu:0'):
+                    actions = model.predict([rv_img, manual_states])
             else:
                 img = np.expand_dims(preproc_img(img, image_size), axis = 0)
-                actions = model([img, manual_states])
+                with tf.device('gpu:0'):
+                    actions = model.predict([img, manual_states])
+            manual_states = manual_states[0]
+            cnt+=1
+            sys.stdout.write("Iter %d : Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}\r"%(cnt, manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7]))
+            #sys.stdout.flush()
             info = env.step(actions)
             reward += info[1][0][0]
             done = info[2]
             obs = info[0]
             rv_img = info[-1]
-        
+            
         total_reward += reward
         if info[3]['termination_state'] == 'success':
             success_episodes += 1
@@ -152,7 +158,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
                 manual_states = manual_states.reshape((-1,))
             actions = model.predict(obs, deterministic=True)[0]
                             
-            #sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],0,0,actions[1],actions[0]))
+            sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7],actions[1],actions[0]))
             
             rv_img_ = preproc_img(rv_img, rv_img_sz).astype(np.float32)
             manual_states = manual_states.astype(np.float32)
@@ -171,7 +177,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open(DATA_DIR+'imitation_data_front_rgb3.p', 'wb')
+        fl = open(DATA_DIR+'imitation_data_front_rgb3_val.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -204,18 +210,18 @@ def collect_data_agent(expert_model, imitator, env, dump_results=False, path='.'
             if manual_states.ndim>1:
                 manual_states = manual_states.reshape((-1,))
             expert_actions = expert_model.predict(obs, deterministic=True)[0]
-            sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],0,0,expert_actions[1],expert_actions[0]))
+            sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7],expert_actions[1],expert_actions[0]))
             rv_img_ = preproc_img(rv_img, rv_img_sz).astype(np.float32)
             manual_states = manual_states.astype(np.float32)
             
             processed_img = np.expand_dims(rv_img_, axis = 0)
             processed_manual_states = np.expand_dims(manual_states, 0)
-            actions = imitator.model([K.constant(processed_img), K.constant(processed_manual_states)])
+            with tf.device('gpu:0'):
+                actions = imitator.model.predict([processed_img, processed_manual_states])
 
             to_append = [[rv_img_, manual_states], expert_actions]
             #if prev_manual is None or not np.allclose(prev_manual,manual_states):
             data.append(to_append)
-            actions = actions.eval(session=sess)
             info = env.step(actions)
             reward += info[1][0][0]
             done = info[2]
@@ -326,7 +332,7 @@ def imitate_ppo(args, prefix, config):
                 if args.test:
                     print("Testing")
                     Imitator = ResnetController(zdim=z_dim)
-                    Imitator.load(os.path.join(DATA_DIR,'front_dagger_iter_2.json'))
+                    Imitator.load(os.path.join(DATA_DIR,'DAGGER_iter_2.ckpt'))
                     priv_imitator = Imitator.model
                     total_reward, success_episodes, results, data = test(priv_imitator, env, image_size = image_size, rv=True)
                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
@@ -334,23 +340,42 @@ def imitate_ppo(args, prefix, config):
                     return
                 else:
                     print("Generating data")
-                    data = collect_data(model, env, num_ep = 20, save=True)
+                    data = collect_data(model, env, num_ep = 7, save=True)
+                    return
             env.close()
         else:
             print("Loading data", end='\r')
             data = pickle.load(open(os.path.join(DATA_DIR, 'imitation_data_front_rgb3.p'), 'rb'))
+            data_val = pickle.load(open(os.path.join(DATA_DIR, 'imitation_data_front_rgb3_val.p'), 'rb'))
             print("Data Loaded")
 
+        np.random.shuffle(data)
         print("Starting env")
         env, dummy_env = get_env(args, config, ALTA_LOGS, test_idx, SCRATCH_DIR)
         env.config['input_type'] = 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
         print("env done")
 
-        Imitator = ResnetController(zdim=z_dim)
-        Imitator.buffer = []
-
+        Imitator = ResnetController(zdim=z_dim, val_data=data_val)
         expert_model = PPO.load(args.agent_model_path, env=dummy_env)
 
+        ### DELETE LATER
+        '''
+        Imitator.load(os.path.join(DATA_DIR,'DAGGER_iter_0.ckpt'))
+        env.reset()
+        new_data = collect_data_agent(expert_model, Imitator, env, num_ep = 10, save=True, iter=0)            
+        data = list(data)+list(new_data)
+        random.shuffle(data)
+
+        # Testing
+        env.reset()
+        priv_imitator = Imitator.model
+        total_reward, success_episodes, results, test_data = test(priv_imitator, env, image_size = rv_img_sz, rv=True)
+        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = test_data[3:]
+        ### DELETE LATER - END
+        '''
+        
+        
         for iter in range(5):
             Imitator.buffer = data
             
@@ -365,12 +390,12 @@ def imitate_ppo(args, prefix, config):
             data = list(data)+list(new_data)
             random.shuffle(data)
 
-        # Testing
-        env.reset()
-        priv_imitator = Imitator.model
-        total_reward, success_episodes, results, test_data = test(priv_imitator, env, image_size = rv_img_sz, rv=True)
-        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
-            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = test_data[3:]
+            # Testing
+            env.reset()
+            priv_imitator = Imitator.model
+            total_reward, success_episodes, results, test_data = test(priv_imitator, env, image_size = rv_img_sz, rv=True)
+            collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+                runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = test_data[3:]
 
         
     except Exception as e:

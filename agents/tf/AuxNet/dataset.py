@@ -17,4 +17,5 @@ class CarlaDatasetGenerator(keras.utils.Sequence):
         batch_manual = self.train_manual[idx * self.batch_size : (idx+1) * self.batch_size]
         batch_labels = self.train_labels[idx * self.batch_size : (idx+1) * self.batch_size]
         
-        return [np.array(batch_images), np.array(batch_manual)], np.array(batch_labels)
+        input_data, labels = [np.array(batch_images), np.array(batch_manual)], np.array(batch_labels)
+        return input_data, labels

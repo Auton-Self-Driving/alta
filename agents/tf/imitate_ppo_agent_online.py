@@ -420,9 +420,7 @@ def imitate_ppo(args, prefix, config):
 
             print("Data Loaded")
 
-        print("Starting env")
-        env, dummy_env = get_env(args, config, ALTA_LOGS, test_idx, SCRATCH_DIR)
-        env.config['input_type'] = 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
+        print("Starting env"goal_light'
         print("env done")
 
         Imitator = AuxNetController(z_size = z_dim, image_size = image_size, frame_stack = 1, buffer_size = 4*len(data), gt_size = 2, epoch_per_optimization=25)
