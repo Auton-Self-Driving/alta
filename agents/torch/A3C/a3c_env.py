@@ -577,7 +577,7 @@ class CarlaEnv(gym.Env):
             self._update_traffic_light_states()
 
             if self.config['verbose']:
-                print(self.episode_measurements['dist_to_light'],
+                print('light info:', self.episode_measurements['dist_to_light'],
                     self.episode_measurements['nearest_traffic_actor_id'],
                     self.episode_measurements['nearest_traffic_actor_state'],
                     self.episode_measurements['initial_dist_to_red_light'],
@@ -925,27 +925,11 @@ class CarlaEnv(gym.Env):
         # Hence we use traffic_light_proximity_threshold while creating an Agent.
         self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
 
-        spawn_vehicles = False
-        if self.config["scenarios"] == "long_straight":
-
-            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 1):
-                spawn_vehicles = True
-
-        elif self.config["scenarios"] == "long_straight_junction":
-
-            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 0):
-                spawn_vehicles = True
-
+        if self.config["sample_npc"]:
+            self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
+                high=self.config["num_npc_upper_threshold"]), unseen)
         else:
-            if self.config["num_npc"] > 0:
-                spawn_vehicles = True
-
-        if spawn_vehicles:
-            if self.config["sample_npc"]:
-                self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-                    high=self.config["num_npc_upper_threshold"]), unseen)
-            else:
-                self.spawn_npc(self.config["num_npc"], unseen)
+            self.spawn_npc(self.config["num_npc"], unseen)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -1178,66 +1162,27 @@ class CarlaEnv(gym.Env):
         return False
 
     def spawn_npc(self, number_of_vehicles, unseen):
-
-        # TODO: remove hard coded logic
-        if self.config["scenarios"] == "straight_dynamic":
-            # vehicle spawn_points corresponding to 84, 40
-            spawn_points = [Transform(Location(x=-2.4200193881988525, y=187.97000122070312, z=1.32), Rotation(yaw=89.9996109008789)),
-                        Transform(Location(x=1.5599803924560547, y=187.9700164794922, z=1.32), Rotation(yaw=-90.00040435791016))]
-
-            # vehicle spawn_points corresponding to 96, 140
-            # spawn_points = [Transform(Location(x=88.61997985839844, y=249.42999267578125, z=1.32), Rotation(yaw=90.00004577636719)),
-            # Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))]
-        elif self.config["scenarios"] == "crowded":
-            spawn_points = scenarios.get_crowded_npcs(number_of_vehicles)
-            print('CROWDED SPAWNING: ', spawn_points)
-        elif self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
-            spawn_points_1 = scenarios.get_long_straight_npcs()
-            if unseen:
-                if self.config["test_fixed_spawn_points"]:
-                    spawn_points = self.spawn_points_fixed_order
-                else:
-                    spawn_points = self.spawn_points
-                    random.shuffle(spawn_points)
+        # Testing
+        if unseen:
+            if self.config["test_fixed_spawn_points"]:
+                spawn_points = self.spawn_points_fixed_order
             else:
-                if self.config["train_fixed_spawn_points"]:
-                    spawn_points = self.spawn_points_fixed_order
-                else:
-                    spawn_points = self.spawn_points
-                    random.shuffle(spawn_points)
-
-        elif self.config["scenarios"] == "straight_crowded":
-            spawn_points = scenarios.get_straight_crowded_npcs(number_of_vehicles)
-            print('STRAIGHT CROWDED SPAWNING: ', spawn_points)
-        elif self.config["scenarios"] == "town3":
-            spawn_points = scenarios.get_curved_town03_npcs(number_of_vehicles)
-            print('TOWN 3 SPAWNING: ', spawn_points)
-
+                spawn_points = self.spawn_points
+                random.shuffle(spawn_points)
         else:
-            # Testing
-            if unseen:
-                if self.config["test_fixed_spawn_points"]:
-                    spawn_points = self.spawn_points_fixed_order
-                else:
-                    spawn_points = self.spawn_points
-                    random.shuffle(spawn_points)
+            if self.config["train_fixed_spawn_points"]:
+                spawn_points = self.spawn_points_fixed_order
             else:
-                if self.config["train_fixed_spawn_points"]:
-                    spawn_points = self.spawn_points_fixed_order
-                else:
-                    spawn_points = self.spawn_points
-                    random.shuffle(spawn_points)
-
+                spawn_points = self.spawn_points
+                random.shuffle(spawn_points)
 
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
 
-        if self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
-            for spawn_point in spawn_points_1:
-                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
-
         count = number_of_vehicles
         for spawn_point in spawn_points:
+            if self.config["verbose"]:
+                print('spawn_point:', spawn_point)
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
                 count -= 1
             if count <= 0:

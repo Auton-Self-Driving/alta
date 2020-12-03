@@ -78,7 +78,6 @@ ENV_CONFIG = {
     'enable_planner' : True,
     'reward_function' : 'simple2',
     # Print measurements to screen
-    'print_obs' : True,
     'client' : None,
     ### 'discrete_actions': True,
     # Number of frames stacked together
@@ -119,7 +118,7 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     ### 'input_type': 'wp',
     'use_scenarios': True,
-    'num_npc' : 0,
+    'num_npc' : 60,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
     'binarized_image': False,
