@@ -55,7 +55,8 @@ EPISODE_MEASUREMENTS = {
 
 
 ENV_CONFIG = {
-    'algo': 'DQN',
+    'algo': 'A3C',
+    'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
     'server_process' : None,
@@ -79,10 +80,10 @@ ENV_CONFIG = {
     # Print measurements to screen
     'print_obs' : True,
     'client' : None,
-    'discrete_actions': False,
+    ### 'discrete_actions': True,
     # Number of frames stacked together
     'framestack' : 1,
-    'grayscale' : False,
+    ### 'grayscale' : False,
     'num_pedestrians' : 0,
     'max_steps' : 10000,
     'next_command': None,
@@ -115,12 +116,11 @@ ENV_CONFIG = {
     'render_server': False,
     'steer_penalty_coeff': 0,
     'vae_encoding_norm_factor' : 10,
-    'input_type': 'wp',
+    ### 'input_type': 'wp',
     'use_scenarios': True,
     'num_npc' : 0,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
-    'train_vae' : False,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
@@ -132,7 +132,7 @@ ENV_CONFIG = {
     'enable_brake': True,
     'log_freq': 1,
     'zero_speed_threshold': 0.05,
-    'videos' : False,
+    ### 'videos' : False,
     'obstacle_dist_norm' : 60,
     'spawn_points_fixed_idx' : [ 
         54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
@@ -178,8 +178,6 @@ ENV_CONFIG = {
     'test_with_automatic_control': False,
     'updated_scenarios': False,
     'sample_npc': True,
-    'use_offline_map': False,
-    'map_path' : '/home/zheh/Documents/CARLA/alta/environment/carla_9_4/OpenDrive/Town01.xodr',
     'use_route_to_plan' : False,
     'discrete_actions': DISCRETE_ACTIONS,
     'episode_measurements': EPISODE_MEASUREMENTS,
