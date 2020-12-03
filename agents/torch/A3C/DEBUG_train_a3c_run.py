@@ -1,6 +1,7 @@
 """Reinforcement Learning (A3C) using Pytroch + multiprocessing.
 The most simple implementation for discrete action.
 """
+
 import os
 import math
 import torch
@@ -9,19 +10,12 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 import gym
 
-from utils import SharedAdam, v_wrap, set_init, push_and_pull, record
+from a3c_utils import SharedAdam, v_wrap, set_init, push_and_pull, record
 
-from environment.carla_9_4.env import CarlaEnv
+from a3c_env import CarlaEnv
+from a3c_env_config import ENV_CONFIG
 
-UPDATE_GLOBAL_ITER = 5
-GAMMA = 0.9
-MAX_EP = 3000
-MAX_EP_STEP = 200
-
-env = CarlaEnv(config.config)
-N_S = env.observation_space.shape[0]
-N_A = env.action_space.shape[0]
-
+from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
 class Net(nn.Module):
     def __init__(self, s_dim, a_dim):
@@ -103,25 +97,57 @@ class Worker(mp.Process):
 
 
 if __name__ == "__main__":
-    gnet = Net(N_S, N_A)        # global network
-    gnet.share_memory()         # share the global parameters in multiprocessing
-    opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
-    global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+    # gnet = Net(N_S, N_A)        # global network
+    # gnet.share_memory()         # share the global parameters in multiprocessing
+    # opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
+    # global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
-    # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
-    [w.start() for w in workers]
-    res = []                    # record episode reward to plot
-    while True:
-        r = res_queue.get()
-        if r is not None:
-            res.append(r)
-        else:
-            break
-    [w.join() for w in workers]
+    # # parallel training
+    # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
+    # [w.start() for w in workers]
+    # res = []                    # record episode reward to plot
+    # while True:
+    #     r = res_queue.get()
+    #     if r is not None:
+    #         res.append(r)
+    #     else:
+    #         break
+    # [w.join() for w in workers]
 
-    import matplotlib.pyplot as plt
-    plt.plot(res)
-    plt.ylabel('Moving average ep reward')
-    plt.xlabel('Step')
-    plt.show()
+    UPDATE_GLOBAL_ITER = 5
+    GAMMA = 0.9
+    MAX_EP = 3000
+    MAX_EP_STEP = 200
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+    env = CarlaEnv(ENV_CONFIG)
+    N_S = env.observation_space
+    N_A = env.action_space
+    print(N_S, N_A)
+
+    # from IPython import embed; embed()
+
+    obs = env.reset()
+    agent = RoamingAgent(env.vehicle_actor)
+
+    num_episodes = 0
+    val_accuracy_total = []
+
+    for t in range(MAX_EP_STEP * MAX_EP):
+
+        # Take one step in env
+        control = agent.run_step()
+        new_obs, rew, done, eps_measurements = env.step(control)
+
+        done = bool(done[0, 0])
+
+        obs = new_obs
+        print(obs)
+
+        if done:
+            num_episodes += 1
+            obs = env.reset()
+            agent = RoamingAgent(env.vehicle_actor)
+
+
+

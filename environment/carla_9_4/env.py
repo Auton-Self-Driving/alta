@@ -887,7 +887,6 @@ class CarlaEnv(gym.Env):
                 self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_sensor_image)
 
 
->>>>>>> carla_challenge_2020
             if not self.config['single_channel_image']:
                 stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
                 rv_stacked_observation = np.concatenate(list(self.rv_stacked_observation_queue.queue), axis=2)
