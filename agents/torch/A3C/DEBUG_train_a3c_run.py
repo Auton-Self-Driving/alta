@@ -17,9 +17,9 @@ from a3c_env_config import ENV_CONFIG
 
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-class Net(nn.Module):
+class A3C_Agent(nn.Module):
     def __init__(self, s_dim, a_dim):
-        super(Net, self).__init__()
+        super(A3C_Agent, self).__init__()
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.pi1 = nn.Linear(s_dim, 128)
@@ -39,7 +39,7 @@ class Net(nn.Module):
     def choose_action(self, s):
         self.eval()
         logits, _ = self.forward(s)
-        prob = F.softmax(logits, dim=1).data
+        prob = F.softmax(logits, dim=1).tolist()
         m = self.distribution(prob)
         return m.sample().numpy()[0]
 
@@ -97,10 +97,23 @@ class Worker(mp.Process):
 
 
 if __name__ == "__main__":
-    # gnet = Net(N_S, N_A)        # global network
-    # gnet.share_memory()         # share the global parameters in multiprocessing
-    # opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
-    # global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+    UPDATE_GLOBAL_ITER = 5
+    GAMMA = 0.9
+    MAX_EP = 3000
+    MAX_EP_STEP = 200
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+    env = CarlaEnv(ENV_CONFIG)
+    N_S = env.observation_space.shape[-1]
+    N_A = env.action_space.n
+    print(N_S, N_A)
+
+    # from IPython import embed; embed()
+
+    gnet = A3C_Agent(N_S, N_A)        # global network
+    gnet.share_memory()         # share the global parameters in multiprocessing
+    opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
+    global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # # parallel training
     # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
@@ -114,20 +127,11 @@ if __name__ == "__main__":
     #         break
     # [w.join() for w in workers]
 
-    UPDATE_GLOBAL_ITER = 5
-    GAMMA = 0.9
-    MAX_EP = 3000
-    MAX_EP_STEP = 200
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
-    env = CarlaEnv(ENV_CONFIG)
-    N_S = env.observation_space
-    N_A = env.action_space
-    print(N_S, N_A)
-
     # from IPython import embed; embed()
 
     obs = env.reset()
+    print('type(obs)', type(obs))
+    print(obs.shape)
     agent = RoamingAgent(env.vehicle_actor)
 
     num_episodes = 0

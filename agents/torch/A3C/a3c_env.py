@@ -553,7 +553,7 @@ class CarlaEnv(gym.Env):
                 light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']
-            obs['orientation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+            obs['observation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
         elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
@@ -581,7 +581,7 @@ class CarlaEnv(gym.Env):
                 light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']
-            obs['orientation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+            obs['observation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
         elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
@@ -609,8 +609,9 @@ class CarlaEnv(gym.Env):
                 light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']
-            obs['orientation'] = np.concatenate((np.array([next_orientation]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+            # print('create_observations', obs['observation'].shape)
 
     def step(self, action):
         try:
@@ -814,6 +815,8 @@ class CarlaEnv(gym.Env):
         # Update observation input in obs dictionary
         self.create_observations(obs)
 
+        print("obs['observation'].shape", obs['observation'].shape)
+
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
@@ -844,6 +847,7 @@ class CarlaEnv(gym.Env):
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
+            print('observation', observation)
             return observation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
@@ -1125,7 +1129,7 @@ class CarlaEnv(gym.Env):
             # Discrete actions
             # No need to clip actions in case of discrete state-space
             # since it is chosen to be in range.
-            discrete_actions = DISCRETE_ACTIONS[int(action)]
+            discrete_actions = self.config['discrete_actions'][int(action)]
             target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
