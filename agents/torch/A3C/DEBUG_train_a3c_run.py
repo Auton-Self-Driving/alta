@@ -17,9 +17,9 @@ from a3c_env_config import ENV_CONFIG
 
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-class A3C_Agent(nn.Module):
+class Net(nn.Module):
     def __init__(self, s_dim, a_dim):
-        super(A3C_Agent, self).__init__()
+        super(Net, self).__init__()
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.pi1 = nn.Linear(s_dim, 128)
@@ -39,7 +39,7 @@ class A3C_Agent(nn.Module):
     def choose_action(self, s):
         self.eval()
         logits, _ = self.forward(s)
-        prob = F.softmax(logits, dim=1).tolist()
+        prob = F.softmax(logits, dim=1).detach()
         m = self.distribution(prob)
         return m.sample().numpy()[0]
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     # from IPython import embed; embed()
 
-    gnet = A3C_Agent(N_S, N_A)        # global network
+    gnet = Net(N_S, N_A)        # global network
     gnet.share_memory()         # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
@@ -140,7 +140,16 @@ if __name__ == "__main__":
     for t in range(MAX_EP_STEP * MAX_EP):
 
         # Take one step in env
-        control = agent.run_step()
+        # control = agent.run_step()
+        print('144', obs.dtype)
+        obs = torch.from_numpy(obs).to(torch.float)
+        print('146', obs.dtype)
+        # control = gnet(obs)
+        # print(control)
+        # control = control.cpu().numpy()
+        # print(control.shape)
+        control = gnet.choose_action(obs)
+        print(control)
         new_obs, rew, done, eps_measurements = env.step(control)
 
         done = bool(done[0, 0])
