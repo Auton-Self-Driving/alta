@@ -104,7 +104,6 @@ ENV_CONFIG = {
     'max_offlane_steps' : 20,
     'max_static_steps' : 1000,
     'log_measurements_to_file': False,
-    'train_config': 'PPO',
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
@@ -116,7 +115,7 @@ ENV_CONFIG = {
     'render_server': False,
     'steer_penalty_coeff': 0,
     'vae_encoding_norm_factor' : 10,
-    ### 'input_type': 'wp',
+    'input_type': 'wp',
     'use_scenarios': True,
     'num_npc' : 60,
     'num_npc_lower_threshold' : 70,

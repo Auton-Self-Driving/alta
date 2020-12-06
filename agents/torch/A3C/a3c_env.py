@@ -166,8 +166,116 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         # TODO: Verify the limits and bounds of observation spaces
-        self.action_space = Discrete(len(self.config['discrete_actions']))
-        self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+            if self.config["action_type"] == 'merged_gas':
+                # Streer, Throttle
+                self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+            elif self.config["action_type"] == 'merged_speed':
+                # Steer, Speed
+                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+            elif self.config["action_type"] == 'merged_speed_tanh' or self.config["action_type"] == 'merged_speed_scaled_tanh':
+                # Steer, Speed
+                self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
+            elif self.config["action_type"] == "merged_speed_pid_test":
+                self.action_space = Box(low=np.array([-0.5, -20.0]), high=np.array([0.5, 20.0]), dtype=np.float32)
+            elif self.config["action_type"] == 'steer_only':
+                # Steer only
+                self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+            elif self.config["action_type"] == 'discrete':
+                # Discrete actions
+                self.action_space = Discrete(len(self.config['discrete_actions']))
+            elif self.config["action_type"] == 'control':
+                # Discrete actions
+                self.action_space = Discrete(len(self.config['discrete_actions']))
+
+            if self.config["input_type"] == 'wp':
+                self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+
+            elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
+                self.observation_space = Box(low=np.array([[-4.0, -1.0]]), high=np.array([[4.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_ldist_goal':
+                self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_obs_bool_noise':
+                limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
+                self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_speed':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0]]), high=np.array([[4.0, 12.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_speed_goal':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_speed_steer_goal':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 10.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                                high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                        high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
+                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                        high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
+            elif self.config["input_type"] == 'vae':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 400), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_vae':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 401), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 404), dtype=np.float32)
+
+            elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                        shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+
+            elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                        shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+
+            elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light' or self.config["input_type"] == 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light':
+                if not self.config["single_channel_image"]:
+                    if self.config["binarized_image"]:
+                        dim = 2
+                    else:
+                        dim = 5
+                else:
+                    dim = 1
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
+                                        # shape=(1, 12296), dtype=np.float32)
+                                        # shape=(1, 20488), dtype=np.float32)
 
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -224,8 +332,285 @@ class CarlaEnv(gym.Env):
         client.set_timeout(self.config["client_timeout_seconds"])
         return client
 
+
     def create_observations(self, obs):
         obs['observation'] = np.array([self.episode_measurements['next_orientation']])
+
+        if self.config["input_type"] == 'wp_constant':
+            obs['observation'] = np.array([self.episode_measurements['next_orientation'], 0.0])
+
+        elif self.config["input_type"] == 'wp_noise':
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.random.normal(0.0, 1.0, self.config["noise_dim"])))
+
+        elif self.config["input_type"] == 'wp_obs_dist':
+            obs_dist = self.episode_measurements['obstacle_dist'] / self.config["obstacle_dist_norm"]
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_dist])))
+
+        elif self.config["input_type"] == 'wp_obs_bool':
+            obs_bool = self.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool])))
+
+        elif self.config["input_type"] == 'wp_ldist_goal':
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([ldist]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_obs_bool_noise':
+            obs_bool = self.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.random.normal(0.0, 1.0, self.config["noise_dim"])))
+
+        elif self.config["input_type"] == 'wp_speed':
+            obs_speed = self.episode_measurements['speed'] / 10
+            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed])))
+
+        elif self.config["input_type"] == 'wp_speed_goal':
+            obs_speed = self.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 100
+            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_speed_steer_goal':
+            obs_speed = self.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 100
+            steer = self.episode_measurements['control_steer']
+            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
+            obs_speed = self.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 100
+            steer = self.episode_measurements['control_steer']
+            obs_bool = self.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array(self.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([obs_bool])))
+
+        elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
+
+            speed = self.episode_measurements['speed'] / 10
+            obs_bool = self.episode_measurements['obstacle_visible']
+            steer = self.episode_measurements['control_steer']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obs_bool]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
+
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            speed = self.episode_measurements['speed'] / 10
+            steer = self.episode_measurements['control_steer']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+            speed = self.episode_measurements['speed'] / 10
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] in ['wp_vae_obs_info_speed_steer_ldist_goal_light', 'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = self.episode_measurements['distance_to_goal_trajec'] / 500
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+
+
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+            obs['orientation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+            obs['orientation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
+
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = self.episode_measurements['speed'] / 10
+            obstacle_dist = self.episode_measurements['obstacle_dist']
+            obstacle_speed = self.episode_measurements['obstacle_speed']
+            steer = self.episode_measurements['control_steer']
+            ldist = self.dist_to_trajectory
+            light = self.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+            obs['orientation'] = np.concatenate((np.array([next_orientation]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
 
     def step(self, action):
         try:
@@ -432,95 +817,36 @@ class CarlaEnv(gym.Env):
         reward = np.expand_dims(np.array([reward]), axis=0)
         done = np.expand_dims(np.array([done]), axis=0)
 
-        if self.config["train_config"] == "PPO":
-            if done:
+        if done: self.episode_measurements["episode_num"] = self.episode_num
 
-                # Training runs
-                if not self.unseen:
-                    self.episode_num += 1
-
-                    # Commenting out plots for all episodes
-                    if self.episode_num % 100 == 0:
-                        path = self.log_dir + 'train_episode_info_plots/'
-                        plotname = 'TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps)
-                        plot_episode_info(path,
-                            self.target_speeds_array,
-                            self.speeds_array,
-                            self.throttles_array,
-                            self.steers_array,
-                            # self.brakes_array,
-                            self.wp_orientation_array,
-                            self.obstacle_dist_array,
-                            self.step_reward_array,
-                            self.collision_reward_array,
-                            self.dist_to_trajectory_reward_array,
-                            self.red_light_dist_array,
-                            plotname)
-
-                # Validation runs
-                else:
-                    self.validation_episode_num += 1
-                    plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
-                    self.episode_measurements['val_ep_idx'] = plotname
-                    if self.config["testing"]:
-                        path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
-                    else:
-                        path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
-                    plot_episode_info(path,
-                        self.target_speeds_array,
-                        self.speeds_array,
-                        self.throttles_array,
-                        self.steers_array,
-                        # self.brakes_array,
-                        self.wp_orientation_array,
-                        self.obstacle_dist_array,
-                        self.step_reward_array,
-                        self.collision_reward_array,
-                        self.dist_to_trajectory_reward_array,
-                        self.red_light_dist_array,
-                        plotname)
-
-                    if self.config["testing"]:
-                        np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
-                                            target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
-                                            input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
-                                            obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
-                                            wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
-                                            dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
-                                            step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
-                                            dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
-
-                self.episode_measurements["episode_num"] = self.episode_num
-
-                if self.logger is not None:
-
-                    if not self.unseen and self.episode_num % 100 == 0:
-                        self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
-                        # self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
-                        self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
-                        self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
-                        # self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
-                        self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
-
-                        # Termination logs
-                        self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
-                        if self.config["enable_lane_invasion_sensor"]:
-                            self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                            self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
-                        success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
-                        self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
-                        static = 1 if self.episode_measurements['termination_state'] == 'static' else 0
-                        self.logger.log_scalar('episodes/train/term_static', static, self.episode_num)
-                        max_steps = 1 if self.episode_measurements['termination_state'] == 'max_steps' else 0
-                        self.logger.log_scalar('episodes/train/term_max_steps', max_steps, self.episode_num)
-
-
-                    elif self.unseen:
-                        self.logger.log_scalar('test/dist_to_target_' + str(self.index), self.episode_measurements['distance_to_goal'], self.total_steps)
-                        self.logger.log_scalar('test/reward_' + str(self.index), self.episode_measurements['total_reward'], self.total_steps)
-
-        return obs['observation'], reward, done, self.episode_measurements
+        if self.config["input_type"] == 'vae':
+            return visual_observation, reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, reward, done, self.episode_measurements, rv_visual_observation
+        elif self.config["input_type"] == "wp":
+            return obs['observation'], reward, done, self.episode_measurements
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
+                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',
+                                           'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
+                                           'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
+                                           'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
+                                            'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            return observation, reward, done, self.episode_measurements
+        else:
+            return obs, reward, done, self.episode_measurements
 
 
     def _add_to_stacked_queue(self, object_queue, object_to_add):
@@ -722,15 +1048,84 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
-        print(action)
         if self.config["action_type"] != "control":
             action = action.flatten()
 
-        # Discrete actions
-        # No need to clip actions in case of discrete state-space
-        # since it is chosen to be in range.
-        if self.config["action_type"] == "discrete":
-            discrete_actions = self.config['discrete_actions'][int(action)]
+        if self.config["action_type"] is "sep_gas":
+            steer = float(action[0])
+            throttle = float(action[1])
+            brake = float(action[2])
+        elif self.config["action_type"] is "merged_gas":
+            steer = float(action[0])
+            gas = float(action[1])
+            # gas = gas + 0.25
+            gas = np.clip(gas, 0.0, 0.7)
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "steer_only":
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(20.0)
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "throttle_only":
+            steer = float(0.0)
+            target_speed = float(np.clip(action[0], 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "merged_speed":
+            # steer = float(action[0])
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            throttle = self.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "merged_speed_tanh":
+            # steer = float(action[0])
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "merged_speed_scaled_tanh":
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = (action[1] * 1.5) + 1
+            target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "merged_speed_pid_test":
+            # steer = float(action[0])
+            steer = (float(action[0]))
+            target_speed = float(action[1])
+            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "discrete":
+            # Discrete actions
+            # No need to clip actions in case of discrete state-space
+            # since it is chosen to be in range.
+            discrete_actions = DISCRETE_ACTIONS[int(action)]
             target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
             current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
@@ -757,6 +1152,7 @@ class CarlaEnv(gym.Env):
             gear=0)
 
         return control
+
 
     def reset(self, unseen=False, index=0):
         if not self.config['test_comparison']:
@@ -1092,8 +1488,40 @@ class CarlaEnv(gym.Env):
         self.dist_to_target_array = []
         self.red_light_dist_array = []
 
-        return obs['observation']
+        if self.config["input_type"] == 'vae':
+            return visual_observation
 
+        elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input
+
+        elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input
+
+        elif self.config["input_type"] in ['wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            visual_observation = visual_observation.reshape((1, -1))
+            fused_input = np.hstack([visual_observation, observation])
+            return fused_input, rv_visual_observation
+
+        elif self.config["input_type"] == "wp":
+            return obs['observation']
+
+        elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
+                                           'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',
+                                           'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
+                                           'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
+                                           'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
+                                           'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
+
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            return observation
+        else:
+            return obs
 
     def get_wp_obs_input(self):
         '''
