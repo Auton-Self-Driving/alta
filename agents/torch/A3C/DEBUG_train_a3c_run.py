@@ -3,164 +3,86 @@ The most simple implementation for discrete action.
 """
 
 import os
-import math
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.multiprocessing as mp
-import gym
 
-from a3c_utils import SharedAdam, v_wrap, set_init, push_and_pull, record
-
+from a3c_utils import SharedAdam, v_wrap, push_and_pull, record
+from a3c_network import Basic_Discrete
 from a3c_env import CarlaEnv
 from a3c_env_config import ENV_CONFIG
+from a3c_agent import A3C_MP_Agent
 
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
-class Net(nn.Module):
-    def __init__(self, s_dim, a_dim):
-        super(Net, self).__init__()
-        self.s_dim = s_dim
-        self.a_dim = a_dim
-        self.pi1 = nn.Linear(s_dim, 128)
-        self.pi2 = nn.Linear(128, a_dim)
-        self.v1 = nn.Linear(s_dim, 128)
-        self.v2 = nn.Linear(128, 1)
-        set_init([self.pi1, self.pi2, self.v1, self.v2])
-        self.distribution = torch.distributions.Categorical
 
-    def forward(self, x):
-        pi1 = torch.tanh(self.pi1(x))
-        logits = self.pi2(pi1)
-        v1 = torch.tanh(self.v1(x))
-        values = self.v2(v1)
-        return logits, values
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ["OMP_NUM_THREADS"] = '1'
 
-    def choose_action(self, s):
-        self.eval()
-        logits, _ = self.forward(s)
-        prob = F.softmax(logits, dim=1).detach()
-        m = self.distribution(prob)
-        return m.sample().numpy()[0]
+env = CarlaEnv(ENV_CONFIG)
 
-    def loss_func(self, s, a, v_t):
-        self.train()
-        logits, values = self.forward(s)
-        td = v_t - values
-        c_loss = td.pow(2)
-        
-        probs = F.softmax(logits, dim=1)
-        m = self.distribution(probs)
-        exp_v = m.log_prob(a) * td.detach().squeeze()
-        a_loss = -exp_v
-        total_loss = (c_loss + a_loss).mean()
-        return total_loss
+N_S = env.observation_space.shape[-1]
+N_A = env.action_space.n
+print(N_S, N_A)
+# from IPython import embed; embed()
 
+glb_net = Basic_Discrete(N_S, N_A) # global network
+glb_net.share_memory() # share the global parameters in multiprocessing
+glb_optimizer = SharedAdam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
+glb_num_episodes = mp.Value('i', 0)
+glb_episode_reward = mp.Value('d', 0)
+glb_queue = mp.Queue()
 
-class Worker(mp.Process):
-    def __init__(self, gnet, opt, global_ep, global_ep_r, res_queue, name):
-        super(Worker, self).__init__()
-        self.name = 'w%02i' % name
-        self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
-        self.gnet, self.opt = gnet, opt
-        self.lnet = Net(N_S, N_A)           # local network
-        self.env = gym.make('CartPole-v0').unwrapped
+# parallel training
+workers = [A3C_MP_Agent(env, glb_net, glb_optimizer, glb_num_episodes, 
+    glb_episode_reward, glb_queue, name='FOO') for i in range(1)]
+# [w.start() for w in workers]
+# res = [] # record episode reward to plot
+# while True:
+#     print('122 122 122')
+#     r = glb_queue.get()
+#     if r is not None:
+#         res.append(r)
+#     else:
+#         break
+# [w.join() for w in workers]
 
-    def run(self):
-        total_step = 1
-        while self.g_ep.value < MAX_EP:
-            s = self.env.reset()
-            buffer_s, buffer_a, buffer_r = [], [], []
-            ep_r = 0.
-            while True:
-                if self.name == 'w00':
-                    self.env.render()
-                a = self.lnet.choose_action(v_wrap(s[None, :]))
-                s_, r, done, _ = self.env.step(a)
-                if done: r = -1
-                ep_r += r
-                buffer_a.append(a)
-                buffer_s.append(s)
-                buffer_r.append(r)
+# print('*' * 80)
+# print('FINISHED')
+# print('*' * 80)
 
-                if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
-                    # sync
-                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_a, buffer_r, GAMMA)
-                    buffer_s, buffer_a, buffer_r = [], [], []
+# from IPython import embed; embed()
 
-                    if done:  # done and print information
-                        record(self.g_ep, self.g_ep_r, ep_r, self.res_queue, self.name)
-                        break
-                s = s_
-                total_step += 1
-        self.res_queue.put(None)
+obs = env.reset()
+print('type(obs)', type(obs))
+print(obs.shape)
+agent = RoamingAgent(env.vehicle_actor)
 
+num_episodes = 0
+val_accuracy_total = []
 
-if __name__ == "__main__":
-    UPDATE_GLOBAL_ITER = 5
-    GAMMA = 0.9
-    MAX_EP = 3000
-    MAX_EP_STEP = 200
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+for t in range(123123):
 
-    env = CarlaEnv(ENV_CONFIG)
-    N_S = env.observation_space.shape[-1]
-    N_A = env.action_space.n
-    print(N_S, N_A)
+    # Take one step in env
+    # control = agent.run_step()
+    print('144', obs.dtype)
+    obs = torch.from_numpy(obs).to(torch.float)
+    print('146', obs.dtype)
+    # control = gnet(obs)
+    # print(control)
+    # control = control.cpu().numpy()
+    # print(control.shape)
+    control = glb_net.choose_action(obs)
+    print(control)
+    new_obs, rew, done, eps_measurements = env.step(control)
 
-    # from IPython import embed; embed()
+    done = bool(done[0, 0])
 
-    gnet = Net(N_S, N_A)        # global network
-    gnet.share_memory()         # share the global parameters in multiprocessing
-    opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
-    global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+    obs = new_obs
+    print(obs)
 
-    # # parallel training
-    # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
-    # [w.start() for w in workers]
-    # res = []                    # record episode reward to plot
-    # while True:
-    #     r = res_queue.get()
-    #     if r is not None:
-    #         res.append(r)
-    #     else:
-    #         break
-    # [w.join() for w in workers]
-
-    # from IPython import embed; embed()
-
-    obs = env.reset()
-    print('type(obs)', type(obs))
-    print(obs.shape)
-    agent = RoamingAgent(env.vehicle_actor)
-
-    num_episodes = 0
-    val_accuracy_total = []
-
-    for t in range(MAX_EP_STEP * MAX_EP):
-
-        # Take one step in env
-        # control = agent.run_step()
-        print('144', obs.dtype)
-        obs = torch.from_numpy(obs).to(torch.float)
-        print('146', obs.dtype)
-        # control = gnet(obs)
-        # print(control)
-        # control = control.cpu().numpy()
-        # print(control.shape)
-        control = gnet.choose_action(obs)
-        print(control)
-        new_obs, rew, done, eps_measurements = env.step(control)
-
-        done = bool(done[0, 0])
-
-        obs = new_obs
-        print(obs)
-
-        if done:
-            num_episodes += 1
-            obs = env.reset()
-            agent = RoamingAgent(env.vehicle_actor)
-
+    if done:
+        num_episodes += 1
+        obs = env.reset()
+        agent = RoamingAgent(env.vehicle_actor)
 
 

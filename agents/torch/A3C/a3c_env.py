@@ -155,7 +155,7 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(4050)
+        self.tm = self.client.get_trafficmanager(random.randint(10000, 60000))
         self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
@@ -1160,6 +1160,7 @@ class CarlaEnv(gym.Env):
 
     def reset(self, unseen=False, index=0):
         if not self.config['test_comparison']:
+            print('[env 1163]')
             return self._reset(unseen, index)
         else:
             return self._reset_test_comparison(unseen, index)
@@ -1266,7 +1267,7 @@ class CarlaEnv(gym.Env):
     # @profile
     def _reset(self, unseen=False, index=0):
         self.clear_episode_measurements()
-
+        print('[env 1270]')
         self.num_steps = 0 # Episode level step count
         self.total_reward = 0 # Episode level total reward
         self.prev_measurement = None
@@ -1278,7 +1279,7 @@ class CarlaEnv(gym.Env):
 
         # Destroy
         self.destroy_all_existing_actors()
-
+        print('[env 1282]')
         self.camera_queue.queue.clear()
         self.rgb_camera_queue.queue.clear()
         self.front_camera_queue.queue.clear()
@@ -1290,7 +1291,7 @@ class CarlaEnv(gym.Env):
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
-
+        
         # Set source and destination based on scenario
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
@@ -1301,11 +1302,13 @@ class CarlaEnv(gym.Env):
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
+        print('[env 1305]')
 
         # Spawning vehicle actor with retry logic as it fails to spawn sometimes
         self.vehicle_actor = None
         NUM_RETRIES = 5
-        for _ in range(NUM_RETRIES):
+        for idx in range(NUM_RETRIES):
+            print('[idx {}]'.format(idx))
             self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
             if self.vehicle_actor is not None:
                 break
@@ -1314,6 +1317,8 @@ class CarlaEnv(gym.Env):
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_all_existing_actors()
                 time.sleep(120)
+
+        print('[env 1320]')
 
         if self.vehicle_actor is not None:
             self.actor_list.append(self.vehicle_actor)
@@ -1324,6 +1329,8 @@ class CarlaEnv(gym.Env):
         # Agent uses proximity_threshold to detect traffic lights.
         # Hence we use traffic_light_proximity_threshold while creating an Agent.
         self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
+
+        print('[env 1329]')
 
         if self.config["sample_npc"]:
             self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
@@ -1343,6 +1350,8 @@ class CarlaEnv(gym.Env):
         camera.set_attribute('image_size_y', self.config['sensor_y_res'])
         camera.set_attribute('sensor_tick', self.config['sensor_tick'])
         camera.set_attribute('fov', '90')
+
+        print('[env 1348]')
 
         # Orientation for top-down (BEV) facing camera
         bev_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
@@ -1421,6 +1430,8 @@ class CarlaEnv(gym.Env):
         # Ticking for 15 frames to handle car initialization in air
         for _ in range(15):
             world_frame = self._world.tick()
+
+        print('[env 1428]')
 
         # image = self._read_data(self.camera_queue, world_frame)
         image = rgb_image = self._read_data(self.rgb_camera_queue, world_frame)

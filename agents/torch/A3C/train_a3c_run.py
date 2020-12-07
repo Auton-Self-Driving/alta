@@ -1,6 +1,7 @@
 """Reinforcement Learning (A3C) using Pytroch + multiprocessing.
 The most simple implementation for discrete action.
 """
+
 import os
 import math
 import torch
@@ -9,19 +10,12 @@ import torch.nn.functional as F
 import torch.multiprocessing as mp
 import gym
 
-from utils import SharedAdam, v_wrap, set_init, push_and_pull, record
+from a3c_utils import SharedAdam, v_wrap, set_init, push_and_pull, record
 
-from environment.carla_9_4.env import CarlaEnv
+from a3c_env import CarlaEnv
+from a3c_env_config import ENV_CONFIG
 
-UPDATE_GLOBAL_ITER = 5
-GAMMA = 0.9
-MAX_EP = 3000
-MAX_EP_STEP = 200
-
-env = CarlaEnv(config.config)
-N_S = env.observation_space.shape[0]
-N_A = env.action_space.shape[0]
-
+from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
 class Net(nn.Module):
     def __init__(self, s_dim, a_dim):
@@ -45,7 +39,7 @@ class Net(nn.Module):
     def choose_action(self, s):
         self.eval()
         logits, _ = self.forward(s)
-        prob = F.softmax(logits, dim=1).data
+        prob = F.softmax(logits, dim=1).detach()
         m = self.distribution(prob)
         return m.sample().numpy()[0]
 
@@ -79,8 +73,8 @@ class Worker(mp.Process):
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             while True:
-                if self.name == 'w00':
-                    self.env.render()
+                # if self.name == 'w00':
+                #     self.env.render()
                 a = self.lnet.choose_action(v_wrap(s[None, :]))
                 s_, r, done, _ = self.env.step(a)
                 if done: r = -1
@@ -103,13 +97,26 @@ class Worker(mp.Process):
 
 
 if __name__ == "__main__":
+    UPDATE_GLOBAL_ITER = 5
+    GAMMA = 0.9
+    MAX_EP = 3000
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+    env = CarlaEnv(ENV_CONFIG)
+    N_S = env.observation_space.shape[-1]
+    N_A = env.action_space.n
+    print(N_S, N_A)
+
+    # from IPython import embed; embed()
+
     gnet = Net(N_S, N_A)        # global network
     gnet.share_memory()         # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))      # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
+    # workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(mp.cpu_count())]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, 0)]
     [w.start() for w in workers]
     res = []                    # record episode reward to plot
     while True:
@@ -120,8 +127,40 @@ if __name__ == "__main__":
             break
     [w.join() for w in workers]
 
-    import matplotlib.pyplot as plt
-    plt.plot(res)
-    plt.ylabel('Moving average ep reward')
-    plt.xlabel('Step')
-    plt.show()
+    # from IPython import embed; embed()
+
+    obs = env.reset()
+    print('type(obs)', type(obs))
+    print(obs.shape)
+    agent = RoamingAgent(env.vehicle_actor)
+
+    num_episodes = 0
+    val_accuracy_total = []
+
+    for t in range(MAX_EP):
+
+        # Take one step in env
+        # control = agent.run_step()
+        print('144', obs.dtype)
+        obs = torch.from_numpy(obs).to(torch.float)
+        print('146', obs.dtype)
+        # control = gnet(obs)
+        # print(control)
+        # control = control.cpu().numpy()
+        # print(control.shape)
+        control = gnet.choose_action(obs)
+        print(control)
+        new_obs, rew, done, eps_measurements = env.step(control)
+
+        done = bool(done[0, 0])
+
+        obs = new_obs
+        print(obs)
+
+        if done:
+            num_episodes += 1
+            obs = env.reset()
+            agent = RoamingAgent(env.vehicle_actor)
+
+
+
