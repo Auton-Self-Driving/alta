@@ -3,10 +3,11 @@
 
 import os
 import pickle
+import numpy as np
 import torch
 import torch.multiprocessing as mp
 
-from a3c_utils import SharedAdam, push_and_pull, record
+from a3c_utils import SharedAdam, push_and_pull, record, v_wrap
 from a3c_network import Basic_Discrete
 from a3c_env import CarlaEnv
 from a3c_env_config import ENV_CONFIG
@@ -14,20 +15,156 @@ from a3c_env_config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
+
+
 class _A3C_Individual_Agent(Agent):
-    def __init__(self, vehicle, **kwargs):
+    def __init__(self, vehicle, glb_net=None, rank=None, **kwargs):
         """A local indivial A3C agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
+            glb_net: network shared by all A3C agents, not required for MP
+            rank: an integer for identification of this local agent, 
+                not required for MP
             **kwargs: include proximity_threshold=10.0, 
                 traffic_light_proximity_threshold=10.0, 
                 vehicle_proximity_threshold=15.0
         """
         super().__init__(vehicle, **kwargs)
+        self.glb_net = glb_net
+        if self.glb_net is not None:
+             self.local_net = pickle.loads(pickle.dumps(self.glb_net))
+             self.buffer_s = []
+             self.buffer_a = []
+             self.buffer_r = []
+        self.rank = rank
+        self.episode_reward = 0
+        self.total_step = 0
     
-    def run_step(self):
-        raise NotImplementedError(
-            'Call A3C_MP_Agent.glb_net.choose_action(obs) instead')
+    def run_step(self, obs):
+        if self.glb_net is None: raise NotImplementedError(
+            'Not intended for MP A3C Agent, \
+            Call A3C_MP_Agent.local_net.choose_action(obs) instead')
+        return self.local_net.choose_action(obs)
+
+    def update_local_net(self):
+        if self.glb_net is None: raise NotImplementedError(
+            'Not intended for MP A3C Agent')
+        self.local_net.load_state_dict(self.glb_net.state_dict())
+
+    def update_buffer(self, s, a, r):
+        self.buffer_s.append(s)
+        self.buffer_a.append(a)
+        self.buffer_r.append(r)
+
+    def reset_buffer(self):
+        self.buffer_s = []
+        self.buffer_a = []
+        self.buffer_r = []
+
+
+class A3C_Collective_Agent(object):
+    def __init__(self, glb_env, glb_net, glb_optimizer, num_agents=1, 
+        max_glb_num_episodes=10000, glb_update_freq=5):
+        """An torch.multiprocessing A3C agent.
+        Args:
+            glb_env: the global environment
+            glb_net: network shared by all A3C agents
+            glb_optimizer: optimizer for the global_net
+            num_agents: number of A3C agents
+            max_glb_num_episodes: max number of global episodes
+            glb_update_freq: update frequency of glb_net
+        """
+        super().__init__()
+        self.glb_env = glb_env
+        self.glb_net = glb_net
+        self.glb_optimizer = glb_optimizer
+        self.max_glb_num_episodes = max_glb_num_episodes
+        self.glb_update_freq = glb_update_freq
+        self.num_agents = num_agents
+        self.agent_rank_list = list(range(num_agents))
+        self.res_queue = [[] for _ in self.agent_rank_list ]
+        self.agent_list = None
+
+    def _push_and_pull(self, rank, done, s_, gamma=.9):
+        if self.agent_list is None:
+            raise ValueError('Should run self.learn() first')
+        agent = self.agent_list[rank]
+        bs, ba, br = agent.buffer_s, agent.buffer_b, agent.buffer_r
+
+        v_s_ = 0 if done else agent.local_net.forward(
+            v_wrap(s_[None, :]))[-1].numpy()[0, 0]
+
+        buffer_v_target = []
+        for r in br[::-1]: # reverse buffer r
+            v_s_ = r + gamma * v_s_
+            buffer_v_target.append(v_s_)
+        buffer_v_target.reverse()
+
+        loss = agent.local_net.loss_func(
+            v_wrap(np.vstack(bs)),
+            v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == \
+                np.int64 else v_wrap(np.vstack(ba)),
+            v_wrap(np.array(buffer_v_target)[:, None]))
+
+        # calculate local gradients and push local parameters to global
+        self.glb_optimizer.zero_grad()
+        loss.backward()
+        for lp, gp in zip(agent.local_net.parameters(), 
+            self.glb_net.parameters()):
+            gp._grad = lp.grad
+        self.glb_optimizer.step()
+
+        # pull global parameters
+        agent.update_local_net()
+        # empty buffer
+        agent.reset_buffer()
+
+    def learn(self):
+        glb_num_episodes = 0
+        # initialize
+        obs_list = self.glb_env.reset(agent_list=self.agent_rank_list)
+        self.agent_list = [_A3C_Individual_Agent(self.glb_env.vehicle_actor_list[i],
+            glb_net=self.glb_net, rank=i) for i in self.agent_rank_list]
+        while glb_num_episodes < self.max_glb_num_episodes:
+            # get_control_list
+            control_list = []
+            for rk, agent in enumerate(self.agent_list):
+                obs = torch.from_numpy(obs_list[rk]).to(torch.float)
+                control = agent.local_net.choose_action(obs)
+                control_list.append(control)
+            # step forward
+            new_obs_list, reward_list, done_list, ep_info_list = \
+                self.glb_env.step(control_list)
+            for rk, agent in enumerate(self.agent_list):
+                new_obs, reward = new_obs_list[rk], reward_list[rk]
+                done, ep_info = done_list[rk], ep_info_list[rk]
+                control = control_list[rk]
+                done = bool(done_list[rk][0, 0])
+
+                if done: reward = ep_info[rk]['total_reward']
+                agent.episode_reward += reward
+                agent.update_buffer(obs, control, reward)
+                obs_list[rk] = new_obs
+
+                if agent.total_step % self.glb_update_freq == 0 or done:  
+                    # update global and assign to local net
+                    self._push_and_pull(self.glb_optimizer, rk,
+                        done, new_obs)
+
+                if done:  # done and print information
+                    print('[Agent {}] done, episode reward [{}]'.format(
+                        rk, agent.episode_reward))
+                    _tmp_obs = self.glb_env.list_reset(agent_list=[rk])
+                    self.agent_list[rk] = _A3C_Individual_Agent(
+                        self.glb_env.vehicle_actor_list[rk],
+                        glb_net=self.glb_net, rank=rk)
+                    obs_list[rk] = _tmp_obs[0]
+                    glb_num_episodes += 1
+
+                agent.total_step += 1
+
+    def run(self):
+        raise NotImplementedError('This agent does not use MP')
 
 
 class A3C_MP_Agent(mp.Process):
@@ -121,6 +258,8 @@ if __name__ == "__main__":
     # from IPython import embed; embed()
 
     glb_net = Basic_Discrete(N_S, N_A) # global network
+
+    '''
     glb_net.share_memory() # share the global parameters in multiprocessing
     glb_optimizer = SharedAdam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
     glb_num_episodes = mp.Value('i', 0)
@@ -143,6 +282,7 @@ if __name__ == "__main__":
         else:
             break
     [w.join() for w in workers]
+    '''
 
     print('*' * 80)
     print('FINISHED')
