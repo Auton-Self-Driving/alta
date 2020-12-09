@@ -2,10 +2,10 @@ params = {
     'type': 'MBPO',
     'universe': 'gym',
     'domain': 'Carla',
-    'task': 'ImageDriving-v0',
+    'task': 'StateDriving-v0',
 
     'log_dir': '~/ray_mbpo/',
-    'exp_name': 'image-navigation',
+    'exp_name': 'state-navigation-test',
 
     'kwargs': {
         'epoch_length': 10000,

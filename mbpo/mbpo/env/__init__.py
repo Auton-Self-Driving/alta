@@ -10,7 +10,11 @@ MBPO_ENVIRONMENT_SPECS = (
         'entry_point': (f'mbpo.env.humanoid:HumanoidTruncatedObsEnv'),
     },
     {
-        'id': 'Carla-Driving-v0',
+        'id': 'Carla-ImageDriving-v0',
+        'entry_point': (f'mbpo.env.carla_env:CarlaEnvWrapper'),
+    },
+    {
+        'id': 'Carla-StateDriving-v0',
         'entry_point': (f'mbpo.env.carla_env:CarlaEnvWrapper'),
     },
 )

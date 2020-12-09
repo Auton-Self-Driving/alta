@@ -18,16 +18,16 @@ import collections
 import queue
 import time
 
-import ae.util as util
+# import ae.util as util
 
 import yaml
 import pickle
 from scipy.interpolate import interp1d
-import torch
-from detectron2.config import CfgNode
+# import torch
+# from detectron2.config import CfgNode
 # from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.engine.defaults import DefaultPredictor
-from AdelaiDet.tools.train_net import Trainer
+# from detectron2.engine.defaults import DefaultPredictor
+# from AdelaiDet.tools.train_net import Trainer
 
 
 import environment.carla_9_4.scenarios as scenarios
@@ -45,9 +45,6 @@ from scipy.misc import imsave
 from agents.tf.ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
-
-import ipdb
-st = ipdb.set_trace
 
 try:
     import carla
@@ -137,17 +134,17 @@ class CarlaEnv(gym.Env):
         # traffic lights detection model
         # print(os.getcwd())
 
-        with open('../../AdelaiDet_model/config.yaml', 'r') as f:
-            cfg = yaml.load(f, Loader=yaml.FullLoader)
-            model = Trainer.build_model(CfgNode(cfg))
-            ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
-            # ckpt = DetectionCheckpointer(model)
-            # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
-        with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
-            self.dist_interpolator = pickle.load(f)
-        self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
-        # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
-        self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+        # with open('../../AdelaiDet_model/config.yaml', 'r') as f:
+        #     cfg = yaml.load(f, Loader=yaml.FullLoader)
+        #     model = Trainer.build_model(CfgNode(cfg))
+        #     ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+        #     # ckpt = DetectionCheckpointer(model)
+        #     # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
+        # with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+        #     self.dist_interpolator = pickle.load(f)
+        # self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
+        # # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
+        # self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
 
         # Start Carla Server
         serverStarted = False
@@ -190,12 +187,12 @@ class CarlaEnv(gym.Env):
 
         time.sleep(3)
 
-        if self.config["use_offline_map"]:
-            with open(self.config["map_path"], 'r') as f:
-                map_content = f.read()
-                self._map = carla.Map(self.config["city_name"], map_content)
-        else:
-            self._map = self._world.get_map()
+        # if self.config["use_offline_map"]:
+        #     with open(self.config["map_path"], 'r') as f:
+        #         map_content = f.read()
+        #         self._map = carla.Map(self.config["city_name"], map_content)
+        # else:
+        self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
@@ -203,7 +200,7 @@ class CarlaEnv(gym.Env):
         self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
-            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
+            self.spawn_points_fixed_order =  self.spawn_points[:] # [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
             # np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
@@ -323,8 +320,9 @@ class CarlaEnv(gym.Env):
                                         # shape=(1, 12296), dtype=np.float32)
                                         # shape=(1, 20488), dtype=np.float32)
 
-        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+        self.vehicle_blueprints = self.blueprint_library.filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
+        self.pedestrian_blueprints = self.blueprint_library.filter('walker.*')
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -794,9 +792,9 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
             # Update obstacle distance measurements
-            rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-            self._update_env_obs(front_rgb_image=rgb_image)
-            # self._update_env_obs()
+            # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+            # self._update_env_obs(front_rgb_image=rgb_image)
+            self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -1205,7 +1203,8 @@ class CarlaEnv(gym.Env):
         for target_vehicle in self.actor_list:
             # do not account for the ego vehicle
             if target_vehicle.id == self.vehicle_actor.id or "vehicle" not in target_vehicle.type_id:
-                continue
+                if 'walker' not in target_vehicle.type_id or target_vehicle.type_id == 'controller.ai.walker':
+                    continue
 
             # if the object is not in our lane it's not an obstacle
             target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
@@ -1548,6 +1547,8 @@ class CarlaEnv(gym.Env):
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
+                if isinstance(actor, carla.libcarla.WalkerAIController):
+                    actor.stop()
                 actor.destroy()
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
@@ -1740,9 +1741,9 @@ class CarlaEnv(gym.Env):
         if spawn_vehicles:
             if self.config["sample_npc"]:
                 self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-                    high=self.config["num_npc_upper_threshold"]), unseen)
+                    high=self.config["num_npc_upper_threshold"]), self.config['num_pedestrians'], unseen)
             else:
-                self.spawn_npc(self.config["num_npc"], unseen)
+                self.spawn_npc(self.config["num_npc"], self.config['num_pedestrians'], unseen)
 
         #TODO: Generalize this code to attach 'n' different sensors to the vehicle
         #Attach a sensor to the vehicle
@@ -1864,17 +1865,17 @@ class CarlaEnv(gym.Env):
 
         self.global_planner = planner.GlobalPlanner()
 
-        if self.config["use_route_to_plan"]:
-            self.trace_route = []
-            for idx in range(len(self.scenario_route) - 1):
-                source = self.scenario_route[idx]
-                destination = self.scenario_route[idx+1]
-                trace_route = self.global_planner._trace_route(self._map,
-                                source, destination)
-                self.trace_route.extend(trace_route)
-        else:
-            self.trace_route  = self.global_planner._trace_route(self._map,
-                                self.source_transform, self.destination_transform)
+        # if self.config["use_route_to_plan"]:
+        #     self.trace_route = []
+        #     for idx in range(len(self.scenario_route) - 1):
+        #         source = self.scenario_route[idx]
+        #         destination = self.scenario_route[idx+1]
+        #         trace_route = self.global_planner._trace_route(self._map,
+        #                         source, destination)
+        #         self.trace_route.extend(trace_route)
+        # else:
+        self.trace_route  = self.global_planner._trace_route(self._map,
+                            self.source_transform, self.destination_transform)
         self.global_planner.set_global_plan(self.trace_route)
 
         if self.expert_agent:
@@ -1899,8 +1900,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        self._update_env_obs(front_rgb_image=rgb_image)
-        # self._update_env_obs()
+        # self._update_env_obs(front_rgb_image=rgb_image)
+        self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
@@ -2093,7 +2094,7 @@ class CarlaEnv(gym.Env):
             return True
         return False
 
-    def spawn_npc(self, number_of_vehicles, unseen):
+    def spawn_npc(self, number_of_vehicles, number_of_pedestrians, unseen):
 
         # TODO: remove hard coded logic
         if self.config["scenarios"] == "straight_dynamic":
@@ -2152,12 +2153,65 @@ class CarlaEnv(gym.Env):
             for spawn_point in spawn_points_1:
                 self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
 
-        count = number_of_vehicles
         for spawn_point in spawn_points:
-            if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
-                count -= 1
-            if count <= 0:
+            if number_of_vehicles > 0:
+                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
+                number_of_vehicles -= 1
+            else:
                 break
+
+        self.spawn_pedestrians(number_of_pedestrians)
+
+    def spawn_pedestrians(self, num_pedestrians):
+        spawn_points = []
+        for i in range(num_pedestrians):
+            spawn_pt = carla.Transform()
+            loc = self._world.get_random_location_from_navigation()
+            if loc != None:
+                spawn_pt.location = loc
+                spawn_points.append(spawn_pt)
+
+        spawn_actor = carla.command.SpawnActor
+        batch = []
+        for spawn_pt in spawn_points:
+            bp = self.pedestrian_blueprints[0]
+            if bp.has_attribute('is_invincible'):
+                bp.set_attribute('is_invincible', 'false')
+            if bp.has_attribute('speed'):
+                bp.get_attribute('speed').recommended_values[1]
+            batch.append(spawn_actor(bp, spawn_pt))
+        results = self.client.apply_batch_sync(batch, True)
+
+        walkers_list = []
+        for i, res in enumerate(results):
+            if not res.error:
+                walkers_list.append({'id': results[i].actor_id})
+
+        batch = []
+        controller_bp = self.blueprint_library.find('controller.ai.walker')
+        for i in range(len(walkers_list)):
+            batch.append(spawn_actor(controller_bp, carla.Transform(), walkers_list[i]['id']))
+        results = self.client.apply_batch_sync(batch, True)
+        for i, res in enumerate(results):
+            if not res.error:
+                walkers_list[i]['con'] = res.actor_id
+
+        all_id = []
+        for i in range(len(walkers_list)):
+            all_id.append(walkers_list[i]['con'])
+            all_id.append(walkers_list[i]['id'])
+        all_actors = self._world.get_actors(all_id)
+        self.actor_list.extend(all_actors)
+
+        self._world.tick()
+
+        self._world.set_pedestrians_cross_factor(1.)
+
+        for i in range(0, len(all_id), 2):
+            all_actors[i].start()
+            all_actors[i].go_to_location(self._world.get_random_location_from_navigation())
+            all_actors[i].set_max_speed(2.)
+
 
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)

@@ -132,7 +132,8 @@ ENVIRONMENT_PARAMS = {
             'test_fixed_spawn_points': True,
             'reward_function': 'simple2',
             'sample_npc': False,
-            'num_npc': 0,
+            'num_npc': 50,
+            'num_pedestrians': 100,
             'city_name': 'Town01',
             'const_collision_penalty': 250,
             'collision_penalty_speed_coeff': 250,
@@ -145,7 +146,7 @@ ENVIRONMENT_PARAMS = {
             'frame_skip': 2,
             'reward_normalize_factor': 16,
             'verbose': False
-        }
+        },
         'ImageDriving-v0': {
             'input_type': 'wp_vae_speed_steer_ldist_goal_light',
             'semantic': True,

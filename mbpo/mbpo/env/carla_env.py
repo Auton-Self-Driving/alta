@@ -21,15 +21,15 @@ class CarlaEnvWrapper(CarlaEnv, utils.EzPickle):
 
 		config['carla_gpu'] = os.environ.get('CUDA_VISIBLE_DEVICES')
 
-		if config.get('semantic', False):
-			vae = AEController(image_size=(128, 128, 5), frame_stack=3, learning_rate=1e-3)
-			vae.load('/home/brian/alta/agents/tf/trained_models/ae_16_32_64_64_fs_3')
-
 		self._gym_disable_underscore_compat = True
 		super(CarlaEnvWrapper, self).__init__(config=config)
 		utils.EzPickle.__init__(self)
 
-		self.set_vae(vae)
+		if config.get('semantic', False):
+			vae = AEController(image_size=(128, 128, 5), frame_stack=3, learning_rate=1e-3)
+			vae.load('/home/brian/alta/agents/tf/trained_models/ae_16_32_64_64_fs_3')
+			self.set_vae(vae)
+
 		self.reset()
 
 	def render(self, mode=''):
