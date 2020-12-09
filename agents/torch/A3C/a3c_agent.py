@@ -89,10 +89,10 @@ class A3C_Collective_Agent(object):
         if self.agent_list is None:
             raise ValueError('Should run self.learn() first')
         agent = self.agent_list[rank]
-        bs, ba, br = agent.buffer_s, agent.buffer_b, agent.buffer_r
+        bs, ba, br = agent.buffer_s, agent.buffer_a, agent.buffer_r
 
         v_s_ = 0 if done else agent.local_net.forward(
-            v_wrap(s_[None, :]))[-1].numpy()[0, 0]
+            v_wrap(s_[None, :]))[-1].detach().numpy()[0, 0]
 
         buffer_v_target = []
         for r in br[::-1]: # reverse buffer r
@@ -148,8 +148,7 @@ class A3C_Collective_Agent(object):
 
                 if agent.total_step % self.glb_update_freq == 0 or done:  
                     # update global and assign to local net
-                    self._push_and_pull(self.glb_optimizer, rk,
-                        done, new_obs)
+                    self._push_and_pull(rk, done, new_obs)
 
                 if done:  # done and print information
                     print('[Agent {}] done, episode reward [{}]'.format(
