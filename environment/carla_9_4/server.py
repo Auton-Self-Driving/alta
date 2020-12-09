@@ -18,7 +18,6 @@ class CarlaServer():
             self.server_port = random.randint(10000, 60000)
         else:
             pass
-        print(self.server_binary)
 
         my_env = os.environ.copy()
         if self.carla_gpu is not None:
@@ -33,7 +32,6 @@ class CarlaServer():
                 self.server_binary, "-carla-rpc-port={}".format(self.server_port)
         ]
         
-
         self.server_process = subprocess.Popen(launch_command,
             preexec_fn=os.setsid, env=my_env)
 
