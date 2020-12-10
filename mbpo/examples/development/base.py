@@ -39,7 +39,7 @@ DEFAULT_MAX_PATH_LENGTH = 1000
 MAX_PATH_LENGTH_PER_DOMAIN = {
     'Point2DEnv': 50,
     'Pendulum': 200,
-    'Carla': 10000,
+    'Carla': 1000,
 }
 
 ALGORITHM_PARAMS_ADDITIONAL = {
@@ -133,7 +133,7 @@ ENVIRONMENT_PARAMS = {
             'reward_function': 'simple2',
             'sample_npc': False,
             'num_npc': 50,
-            'num_pedestrians': 100,
+            'num_pedestrians': 50,
             'city_name': 'Town01',
             'const_collision_penalty': 250,
             'collision_penalty_speed_coeff': 250,
