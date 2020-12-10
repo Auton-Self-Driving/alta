@@ -2,6 +2,8 @@
 """
 
 import os
+import queue
+import datetime
 import pickle
 import numpy as np
 import torch
@@ -37,8 +39,32 @@ class _A3C_Individual_Agent(Agent):
              self.buffer_a = []
              self.buffer_r = []
         self.rank = rank
+        self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.episode_reward = 0
+        self.episode_step = 0
+        self.total_reward = 0
         self.total_step = 0
+        self.control = None
+        self.episode_measurements = None
+        self.previous_measurements = None
+        self.actor_list = []
+        self.target_speeds_array = []
+        self.speeds_array = []
+        self.throttles_array = []
+        self.obstacle_speed_array = []
+        self.dist_to_trajectory_array = []
+        self.steers_array = []
+        self.brakes_array = []
+        self.wp_orientation_array = []
+        self.input_steer_array = []
+        self.obstacle_dist_array = []
+        self.step_reward_array = []
+        self.collision_reward_array = []
+        self.dist_to_trajectory_reward_array = []
+        self.speed_reward_array = []
+        self.dist_to_target_array = []
+        self.red_light_dist_array = []
+
     
     def run_step(self, obs):
         if self.glb_net is None: raise NotImplementedError(
@@ -81,8 +107,8 @@ class A3C_Collective_Agent(object):
         self.max_glb_num_episodes = max_glb_num_episodes
         self.glb_update_freq = glb_update_freq
         self.num_agents = num_agents
-        self.agent_rank_list = list(range(num_agents))
-        self.res_queue = [[] for _ in self.agent_rank_list ]
+        self.rank_list = list(range(num_agents))
+        self.res_queue = [[] for _ in self.rank_list ]
         self.agent_list = None
 
     def _push_and_pull(self, rank, done, s_, gamma=.9):
@@ -122,9 +148,9 @@ class A3C_Collective_Agent(object):
     def learn(self):
         glb_num_episodes = 0
         # initialize
-        obs_list = self.glb_env.reset(agent_list=self.agent_rank_list)
+        obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.agent_list = [_A3C_Individual_Agent(self.glb_env.vehicle_actor_list[i],
-            glb_net=self.glb_net, rank=i) for i in self.agent_rank_list]
+            glb_net=self.glb_net, rank=i) for i in self.rank_list]
         while glb_num_episodes < self.max_glb_num_episodes:
             # get_control_list
             control_list = []
@@ -153,7 +179,7 @@ class A3C_Collective_Agent(object):
                 if done:  # done and print information
                     print('[Agent {}] done, episode reward [{}]'.format(
                         rk, agent.episode_reward))
-                    _tmp_obs = self.glb_env.list_reset(agent_list=[rk])
+                    _tmp_obs = self.glb_env.list_reset(rank_list=[rk])
                     self.agent_list[rk] = _A3C_Individual_Agent(
                         self.glb_env.vehicle_actor_list[rk],
                         glb_net=self.glb_net, rank=rk)
