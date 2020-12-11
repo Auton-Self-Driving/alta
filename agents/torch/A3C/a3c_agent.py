@@ -39,6 +39,9 @@ class _A3C_Individual_Agent(Agent):
              self.buffer_a = []
              self.buffer_r = []
         self.rank = rank
+        self.id = vehicle.id
+        self.type_id = vehicle.type_id
+        self.vehicle_actor = vehicle
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.episode_reward = 0
         self.episode_step = 0
@@ -47,23 +50,7 @@ class _A3C_Individual_Agent(Agent):
         self.control = None
         self.episode_measurements = None
         self.previous_measurements = None
-        self.actor_list = []
-        self.target_speeds_array = []
-        self.speeds_array = []
-        self.throttles_array = []
-        self.obstacle_speed_array = []
-        self.dist_to_trajectory_array = []
-        self.steers_array = []
-        self.brakes_array = []
-        self.wp_orientation_array = []
-        self.input_steer_array = []
-        self.obstacle_dist_array = []
-        self.step_reward_array = []
-        self.collision_reward_array = []
-        self.dist_to_trajectory_reward_array = []
-        self.speed_reward_array = []
-        self.dist_to_target_array = []
-        self.red_light_dist_array = []
+
 
     
     def run_step(self, obs):
