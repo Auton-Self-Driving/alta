@@ -1,6 +1,7 @@
 from ray import tune
 import numpy as np
 import pdb
+from copy import deepcopy
 
 from softlearning.misc.utils import get_git_rev, deep_update
 
@@ -133,7 +134,7 @@ ENVIRONMENT_PARAMS = {
             'reward_function': 'simple2',
             'sample_npc': False,
             'num_npc': 50,
-            'num_pedestrians': 50,
+            'num_pedestrians': 25,
             'city_name': 'Town01',
             'const_collision_penalty': 250,
             'collision_penalty_speed_coeff': 250,
@@ -148,13 +149,13 @@ ENVIRONMENT_PARAMS = {
             'verbose': False
         },
         'ImageDriving-v0': {
-            'input_type': 'wp_vae_speed_steer_ldist_goal_light',
+            'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
             'semantic': True,
-            'frame_stack_size': 3,
+            'frame_stack_size': 1,
             'action_type': 'merged_speed_scaled_tanh',
             'scenarios': 'dynamic_navigation',
             'use_scenarios': False,
-            'train_fixed_spawn_points': False,
+            'train_fixed_spawn_points': True,
             'test_fixed_spawn_points': True,
             'reward_function': 'simple2',
             'sample_npc': False,
@@ -170,7 +171,10 @@ ENVIRONMENT_PARAMS = {
             'testing': False,
             'frame_skip': 2,
             'reward_normalize_factor': 16,
-            'verbose': False
+            'verbose': False,
+            'image_shape': (64,64,3),
+            'pixel_wrapper_kwargs': {
+            }
         }
     }
 }
@@ -250,14 +254,53 @@ def get_variant_spec_base(universe, domain, task, policy, algorithm, env_params)
             'checkpoint_replay_pool': True,
         },
     }
-    # variant_spec['environment_params']['evaluation']['kwargs'].update(EVAL_ENVIRONMENT_PARAMS.get(domain, {}).get(task, {}))
+
+    return variant_spec
+
+def is_image_env(universe, domain, task, variant_spec):
+    return 'pixel_wrapper_kwargs' in (
+        variant_spec['environment_params']['training']['kwargs'])
+
+def get_variant_spec_image(universe,
+                           domain,
+                           task,
+                           policy,
+                           algorithm,
+                           *args,
+                           **kwargs):
+    variant_spec = get_variant_spec_base(
+        universe, domain, task, policy, algorithm, *args, **kwargs)
+
+    if is_image_env(universe, domain, task, variant_spec):
+        preprocessor_params = {
+            'type': 'convnet_preprocessor',
+            'kwargs': {
+                'image_shape': (
+                    variant_spec
+                    ['environment_params']
+                    ['training']
+                    ['kwargs']
+                    ['image_shape']),
+                'output_size': M,
+                'conv_filters': (4, 4),
+                'conv_kernel_sizes': ((3, 3), (3, 3)),
+                'pool_type': 'MaxPool2D',
+                'pool_sizes': ((2, 2), (2, 2)),
+                'pool_strides': (2, 2),
+                'dense_hidden_layer_sizes': (),
+            },
+        }
+        variant_spec['policy_params']['kwargs']['preprocessor_params'] = (
+            preprocessor_params.copy())
+        variant_spec['Q_params']['kwargs']['preprocessor_params'] = (
+            preprocessor_params.copy())
 
     return variant_spec
 
 def get_variant_spec(args, env_params):
     universe, domain, task = env_params.universe, env_params.domain, env_params.task
 
-    variant_spec = get_variant_spec_base(
+    variant_spec = get_variant_spec_image(
         universe, domain, task, args.policy, env_params.type, env_params)
 
     if args.checkpoint_replay_pool is not None:

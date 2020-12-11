@@ -196,7 +196,7 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(4050)
+        self.tm = self.client.get_trafficmanager(4052)
         self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
@@ -320,9 +320,9 @@ class CarlaEnv(gym.Env):
                                         # shape=(1, 12296), dtype=np.float32)
                                         # shape=(1, 20488), dtype=np.float32)
 
-        self.vehicle_blueprints = self.blueprint_library.filter('vehicle.*')
+        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
-        self.pedestrian_blueprints = self.blueprint_library.filter('walker.*')
+        self.pedestrian_blueprints = self._world.get_blueprint_library().filter('walker.*')
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -763,6 +763,7 @@ class CarlaEnv(gym.Env):
 
             self.vehicle_actor.apply_control(control)
             world_frame = self._world.tick()
+            # self.world_frame = world_frame
             self.num_steps += 1
 
             if not self.unseen:
@@ -790,6 +791,13 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['next_orientation'] = next_orientation
             self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
             self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
+
+            # Delete destroyed actors (?)
+            num_actors = len(self.actor_list)
+            self.actor_list = [actor for actor in self.actor_list if actor.is_alive]
+            deleted_actors = num_actors - len(self.actor_list)
+            if deleted_actors > 0:
+                print('DELETED ACTORS: ', deleted_actors)
 
             # Update obstacle distance measurements
             # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
@@ -856,6 +864,8 @@ class CarlaEnv(gym.Env):
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
+
+        self.image = sensor_image.copy()
 
         spectator = self._world.get_spectator()
         location = self.vehicle_actor.get_location() + carla.Location(0,0,15.0)
@@ -1202,30 +1212,37 @@ class CarlaEnv(gym.Env):
         found_obstacle = False
         for target_vehicle in self.actor_list:
             # do not account for the ego vehicle
-            if target_vehicle.id == self.vehicle_actor.id or "vehicle" not in target_vehicle.type_id:
-                if 'walker' not in target_vehicle.type_id or target_vehicle.type_id == 'controller.ai.walker':
-                    continue
+            if target_vehicle.id == self.vehicle_actor.id:
+                continue
+            if 'controller.ai.walker' in target_vehicle.type_id:
+                continue
+            if ('vehicle' not in target_vehicle.type_id) and ('walker.pedestrian' not in target_vehicle.type_id):
+                continue
 
             # if the object is not in our lane it's not an obstacle
-            target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-            d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
-                                        self.vehicle_actor.get_transform(),
-                                        self.config['vehicle_proximity_threshold'])
+            try:
+                target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
+                d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
+                                            self.vehicle_actor.get_transform(),
+                                            self.config['vehicle_proximity_threshold'])
 
-            if not d_bool:
-                continue
-            else:
-                if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
+                if not d_bool:
                     continue
+                else:
+                    if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
+                        continue
 
-                found_obstacle = True
-                self.episode_measurements['obstacle_visible'] = True
-                self.episode_measurements['obstacle_orientation'] = d_angle
+                    found_obstacle = True
+                    self.episode_measurements['obstacle_visible'] = True
+                    self.episode_measurements['obstacle_orientation'] = d_angle
 
-                if distance < min_obs_distance:
-                    self.episode_measurements['obstacle_dist'] = distance
-                    self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
-                    min_obs_distance = distance
+                    if distance < min_obs_distance:
+                        self.episode_measurements['obstacle_dist'] = distance
+                        self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
+                        min_obs_distance = distance
+            except:
+                import ipdb; ipdb.set_trace()
+                print('exception while fetching {}'.format(target_vehicle.type_id))
 
         if not found_obstacle:
             self.episode_measurements['obstacle_dist'] = -1
@@ -1855,9 +1872,13 @@ class CarlaEnv(gym.Env):
         for _ in range(15):
             world_frame = self._world.tick()
 
+        # self.world_frame = world_frame
+
         image = self._read_data(self.camera_queue, world_frame)
         rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         front_image = self._read_data(self.front_camera_queue, world_frame)
+
+        self.image = image.copy()
 
         # collect data
 
@@ -2155,8 +2176,8 @@ class CarlaEnv(gym.Env):
 
         for spawn_point in spawn_points:
             if number_of_vehicles > 0:
-                self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
-                number_of_vehicles -= 1
+                if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
+                    number_of_vehicles -= 1
             else:
                 break
 
@@ -2177,8 +2198,8 @@ class CarlaEnv(gym.Env):
             bp = self.pedestrian_blueprints[0]
             if bp.has_attribute('is_invincible'):
                 bp.set_attribute('is_invincible', 'false')
-            if bp.has_attribute('speed'):
-                bp.get_attribute('speed').recommended_values[1]
+            # if bp.has_attribute('speed'):
+            #     bp.get_attribute('speed').recommended_values[1]
             batch.append(spawn_actor(bp, spawn_pt))
         results = self.client.apply_batch_sync(batch, True)
 
