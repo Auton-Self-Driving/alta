@@ -43,10 +43,7 @@ class _A3C_Individual_Agent(Agent):
         self.type_id = vehicle.type_id
         self.vehicle_actor = vehicle
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
-        self.episode_reward = 0
-        self.episode_step = 0
-        self.total_reward = 0
-        self.total_step = 0
+        self.num_total_steps = 0
         self.control = None
         self.episode_measurements = None
         self.previous_measurements = None
@@ -97,6 +94,7 @@ class A3C_Collective_Agent(object):
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list ]
         self.agent_list = None
+        self.done = False
 
     def _push_and_pull(self, rank, done, s_, gamma=.9):
         if self.agent_list is None:
@@ -135,9 +133,13 @@ class A3C_Collective_Agent(object):
     def learn(self):
         glb_num_episodes = 0
         # initialize
-        obs_list = self.glb_env.reset(rank_list=self.rank_list)
-        self.agent_list = [_A3C_Individual_Agent(self.glb_env.vehicle_actor_list[i],
+        # obs_list = self.glb_env.reset(rank_list=self.rank_list)
+        self.glb_env.reset(rank_list=self.rank_list)
+        self.agent_list = [_A3C_Individual_Agent(
+            self.glb_env.vehicle_actor_list[i],
             glb_net=self.glb_net, rank=i) for i in self.rank_list]
+        self.glb_env.reset_vehicle_agent(self.agent_list)
+        obs_list = self.glb_env.get_obs_after_reset()
         while glb_num_episodes < self.max_glb_num_episodes:
             # get_control_list
             control_list = []
@@ -173,7 +175,22 @@ class A3C_Collective_Agent(object):
                     obs_list[rk] = _tmp_obs[0]
                     glb_num_episodes += 1
 
-                agent.total_step += 1
+                agent.num_total_steps += 1
+            # respawn agent
+            respawn_rank_list = []
+            for rk, agent in enumerate(self.agent_list):
+                if agent.done: respawn_rank_list.append(rk)
+            if len(respawn_rank_list) > 0:
+                self.glb_env.reset(rank_list=respawn_rank_list)
+                # update agent list
+                respawn_agent_list = []
+                for rk in respawn_rank_list:
+                    self.agent_list[rk] = _A3C_Individual_Agent(
+                        self.glb_env.vehicle_actor_list[rk],
+                        glb_net=self.glb_net, rank=rk)
+                    respawn_agent_list.append(self.agent_list[rk])
+                self.glb_env.reset_vehicle_agent(respawn_agent_list)
+                obs_list = self.glb_env.get_obs_after_reset()
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')
