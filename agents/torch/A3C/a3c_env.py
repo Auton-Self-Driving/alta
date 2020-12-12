@@ -573,13 +573,9 @@ class CarlaEnv(gym.Env):
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
-            # self.reset()
 
     def get_action_for_test_comparison(self):
-        for ind, agent in enumerate(self.vehicle_agent_list):
-            control = agent.run_step()
-            self.control_list[ind] = control
-        self.step(None)
+        pass
 
     def list_step(self, action_list):
         # action_list here should be a list of action
@@ -712,7 +708,6 @@ class CarlaEnv(gym.Env):
                 ret_list[idx] = (obs, reward, done, agent.episode_measurements)
         
         return ret_list
-
 
     def _step_test_comparison(self, action):
         pass
@@ -1094,7 +1089,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['red_light_dist'] = -1
             agent.episode_measurements['traffic_light_orientation'] = -1
             agent.episode_measurements["runover_light"] = False
-            
+
             agent.unseen = self.unseen
             agent.rv_camera_queue = queue.Queue()
 
@@ -1267,6 +1262,7 @@ class CarlaEnv(gym.Env):
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
         for rk in rank_list:
+            print('########## rank {} ##########'.format(rk))
             prev_agent = self.ego_agent_list[rk]
             self.ego_agent_list[rk] = None
             if prev_agent is not None: self.curr_num_agents -= 1

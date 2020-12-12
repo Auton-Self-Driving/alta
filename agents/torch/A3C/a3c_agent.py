@@ -163,11 +163,6 @@ class A3C_Collective_Agent(object):
                 if done:  # done and print information
                     print('[Agent {}] done, episode reward [{}]'.format(
                         rk, agent.episode_reward))
-                    _tmp_obs = self.glb_env.list_reset(rank_list=[rk])
-                    self.agent_list[rk] = _A3C_Individual_Agent(
-                        self.glb_env.ego_vehicle_list[rk],
-                        glb_net=self.glb_net, rank=rk)
-                    obs_list[rk] = _tmp_obs[0]
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
@@ -185,7 +180,7 @@ class A3C_Collective_Agent(object):
                         glb_net=self.glb_net, rank=rk)
                     respawn_agent_list.append(self.agent_list[rk])
                 self.glb_env.reset_vehicle_agent(respawn_agent_list)
-                obs_list = self.glb_env.get_obs_after_reset()
+                # obs_list = self.glb_env.get_obs_after_reset()
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

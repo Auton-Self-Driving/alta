@@ -56,7 +56,7 @@ EPISODE_MEASUREMENTS = {
 
 ENV_CONFIG = {
     'algo': 'A3C',
-    'num_agents': 1,
+    'num_agents': 2,
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',

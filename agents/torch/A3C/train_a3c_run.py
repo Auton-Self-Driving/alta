@@ -25,7 +25,7 @@ N_A = env.action_space.n
 glb_net = Basic_Discrete(N_S, N_A) # global network
 glb_optimizer = SharedAdam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
 
-a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer)
+a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer, num_agents=ENV_CONFIG['num_agents'])
 
 a3c_agent.learn()
 
