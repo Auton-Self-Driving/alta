@@ -1188,37 +1188,37 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['obstacle_visible'] = False
         self.episode_measurements['obstacle_orientation'] = -1
 
-        # min_obs_distance = 100000000
-        # found_obstacle = False
-        # for target_vehicle in self.actor_list:
-        #     # do not account for the ego vehicle
-        #     if target_vehicle.id == self.vehicle_actor.id or "vehicle" not in target_vehicle.type_id:
-        #         continue
+        min_obs_distance = 100000000
+        found_obstacle = False
+        for target_vehicle in self.actor_list:
+            # do not account for the ego vehicle
+            if target_vehicle.id == self.vehicle_actor.id or "vehicle" not in target_vehicle.type_id:
+                continue
 
-        #     # if the object is not in our lane it's not an obstacle
-        #     target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-        #     d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
-        #                                 self.vehicle_actor.get_transform(),
-        #                                 self.config['vehicle_proximity_threshold'])
+            # if the object is not in our lane it's not an obstacle
+            target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
+            d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
+                                        self.vehicle_actor.get_transform(),
+                                        self.config['vehicle_proximity_threshold'])
 
-        #     if not d_bool:
-        #         continue
-        #     else:
-        #         if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
-        #             continue
+            if not d_bool:
+                continue
+            else:
+                if not check_if_vehicle_in_same_lane(self.vehicle_actor, target_vehicle, self.next_waypoints, self._map):
+                    continue
 
-        #         found_obstacle = True
-        #         self.episode_measurements['obstacle_visible'] = True
-        #         self.episode_measurements['obstacle_orientation'] = d_angle
+                found_obstacle = True
+                self.episode_measurements['obstacle_visible'] = True
+                self.episode_measurements['obstacle_orientation'] = d_angle
 
-        #         if distance < min_obs_distance:
-        #             self.episode_measurements['obstacle_dist'] = distance
-        #             self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
-        #             min_obs_distance = distance
+                if distance < min_obs_distance:
+                    self.episode_measurements['obstacle_dist'] = distance
+                    self.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
+                    min_obs_distance = distance
 
-        # if not found_obstacle:
-        #     self.episode_measurements['obstacle_dist'] = -1
-        #     self.episode_measurements['obstacle_speed'] = -1
+        if not found_obstacle:
+            self.episode_measurements['obstacle_dist'] = -1
+            self.episode_measurements['obstacle_speed'] = -1
 
     def _update_traffic_light_states(self):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.

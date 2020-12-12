@@ -39,16 +39,12 @@ class _A3C_Individual_Agent(Agent):
              self.buffer_a = []
              self.buffer_r = []
         self.rank = rank
+        self.done = False
         self.id = vehicle.id
         self.type_id = vehicle.type_id
         self.vehicle_actor = vehicle
-        self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.num_total_steps = 0
-        self.control = None
-        self.episode_measurements = None
-        self.previous_measurements = None
-
-
+        self.episode_reward = 0
     
     def run_step(self, obs):
         if self.glb_net is None: raise NotImplementedError(
@@ -136,7 +132,7 @@ class A3C_Collective_Agent(object):
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
         self.agent_list = [_A3C_Individual_Agent(
-            self.glb_env.vehicle_actor_list[i],
+            self.glb_env.ego_vehicle_list[i],
             glb_net=self.glb_net, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
         obs_list = self.glb_env.get_obs_after_reset()
@@ -148,20 +144,19 @@ class A3C_Collective_Agent(object):
                 control = agent.local_net.choose_action(obs)
                 control_list.append(control)
             # step forward
-            new_obs_list, reward_list, done_list, ep_info_list = \
-                self.glb_env.step(control_list)
+            print('action chosen:', control_list)
+            obs_list = self.glb_env.step(control_list)
             for rk, agent in enumerate(self.agent_list):
-                new_obs, reward = new_obs_list[rk], reward_list[rk]
-                done, ep_info = done_list[rk], ep_info_list[rk]
+                new_obs, reward, done, ep_info = obs_list[rk]
                 control = control_list[rk]
-                done = bool(done_list[rk][0, 0])
+                done = bool(done[0, 0])
 
                 if done: reward = ep_info[rk]['total_reward']
                 agent.episode_reward += reward
                 agent.update_buffer(obs, control, reward)
                 obs_list[rk] = new_obs
 
-                if agent.total_step % self.glb_update_freq == 0 or done:  
+                if agent.num_total_steps % self.glb_update_freq == 0 or done:  
                     # update global and assign to local net
                     self._push_and_pull(rk, done, new_obs)
 
@@ -170,7 +165,7 @@ class A3C_Collective_Agent(object):
                         rk, agent.episode_reward))
                     _tmp_obs = self.glb_env.list_reset(rank_list=[rk])
                     self.agent_list[rk] = _A3C_Individual_Agent(
-                        self.glb_env.vehicle_actor_list[rk],
+                        self.glb_env.ego_vehicle_list[rk],
                         glb_net=self.glb_net, rank=rk)
                     obs_list[rk] = _tmp_obs[0]
                     glb_num_episodes += 1

@@ -19,7 +19,7 @@ env = CarlaEnv(ENV_CONFIG)
 
 N_S = env.observation_space.shape[-1]
 N_A = env.action_space.n
-print(N_S, N_A)
+# print(N_S, N_A)
 # from IPython import embed; embed()
 
 glb_net = Basic_Discrete(N_S, N_A) # global network
