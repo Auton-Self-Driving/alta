@@ -152,115 +152,115 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         # TODO: Verify the limits and bounds of observation spaces
-            if self.config["action_type"] == 'merged_gas':
-                # Streer, Throttle
-                self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
-            elif self.config["action_type"] == 'merged_speed':
-                # Steer, Speed
-                self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
-            elif self.config["action_type"] == 'merged_speed_tanh' or self.config["action_type"] == 'merged_speed_scaled_tanh':
-                # Steer, Speed
-                self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
-            elif self.config["action_type"] == "merged_speed_pid_test":
-                self.action_space = Box(low=np.array([-0.5, -20.0]), high=np.array([0.5, 20.0]), dtype=np.float32)
-            elif self.config["action_type"] == 'steer_only':
-                # Steer only
-                self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
-            elif self.config["action_type"] == 'discrete':
-                # Discrete actions
-                self.action_space = Discrete(len(self.config['discrete_actions']))
-            elif self.config["action_type"] == 'control':
-                # Discrete actions
-                self.action_space = Discrete(len(self.config['discrete_actions']))
+        if self.config["action_type"] == 'merged_gas':
+            # Streer, Throttle
+            self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+        elif self.config["action_type"] == 'merged_speed':
+            # Steer, Speed
+            self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+        elif self.config["action_type"] == 'merged_speed_tanh' or self.config["action_type"] == 'merged_speed_scaled_tanh':
+            # Steer, Speed
+            self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
+        elif self.config["action_type"] == "merged_speed_pid_test":
+            self.action_space = Box(low=np.array([-0.5, -20.0]), high=np.array([0.5, 20.0]), dtype=np.float32)
+        elif self.config["action_type"] == 'steer_only':
+            # Steer only
+            self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+        elif self.config["action_type"] == 'discrete':
+            # Discrete actions
+            self.action_space = Discrete(len(self.config['discrete_actions']))
+        elif self.config["action_type"] == 'control':
+            # Discrete actions
+            self.action_space = Discrete(len(self.config['discrete_actions']))
 
-            if self.config["input_type"] == 'wp':
-                self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+        if self.config["input_type"] == 'wp':
+            self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
-            elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
-                self.observation_space = Box(low=np.array([[-4.0, -1.0]]), high=np.array([[4.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
+            self.observation_space = Box(low=np.array([[-4.0, -1.0]]), high=np.array([[4.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_ldist_goal':
-                self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_ldist_goal':
+            self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_obs_bool_noise':
-                limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
-                self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_bool_noise':
+            limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
+            self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_speed':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0]]), high=np.array([[4.0, 12.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0]]), high=np.array([[4.0, 12.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_speed_goal':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_speed_steer_goal':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_steer_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 10.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 10.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
-                self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
-                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
-                                                high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                            high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
-                self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
-                                        high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                    high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
-                self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
-                                        high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                    high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
-            elif self.config["input_type"] == 'vae':
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        shape=(1, 400), dtype=np.float32)
+        elif self.config["input_type"] == 'vae':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 400), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_vae':
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        shape=(1, 401), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 401), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        shape=(1, 404), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 404), dtype=np.float32)
 
-            elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
-                                        shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+        elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                    shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
-            elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
-                                        shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)steer_ldist_goal_light':
-            elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light' or self.config["input_type"] == 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light':
-                if not self.config["single_channel_image"]:
-                    if self.config["binarized_image"]:
-                        dim = 2
-                    else:
-                        dim = 5
+        elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                    shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)steer_ldist_goal_light':
+        elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light' or self.config["input_type"] == 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light':
+            if not self.config["single_channel_image"]:
+                if self.config["binarized_image"]:
+                    dim = 2
                 else:
-                    dim = 1
-                self.observation_space = Box(low=np.finfo(np.float32).min,
-                                        high=np.finfo(np.float32).max,
-                                        shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
-                                        # shape=(1, 12296), dtype=np.float32)
-                                        # shape=(1, 20488), dtype=np.float32)
+                    dim = 5
+            else:
+                dim = 1
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
+                                    # shape=(1, 12296), dtype=np.float32)
+                                    # shape=(1, 20488), dtype=np.float32)
 
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -624,7 +624,7 @@ class CarlaEnv(gym.Env):
             self.world_frame = self._world.tick()
             ########################################################################################
 
-            for idx, agent in zip(range(self.config['num_agents']) ,self.ego_agent_list):
+            for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
@@ -771,9 +771,11 @@ class CarlaEnv(gym.Env):
 
         min_obs_distance = 100000000
         found_obstacle = False
-        for target_vehicle in self.actor_list:
+        for target_vehicle in self.actor_list + self.ego_vehicle_list:
             # do not account for the ego vehicle
-            if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
+            if target_vehicle is None or \
+                target_vehicle.id == agent.id or \
+                'vehicle' not in target_vehicle.type_id:
                 continue
 
             # if the object is not in our lane it's not an obstacle
@@ -1018,28 +1020,38 @@ class CarlaEnv(gym.Env):
         else:
             return self._reset(unseen, index)
 
-    def destroy_all_existing_actors(self):
+    def destroy_all_existing_npc_actors(self):
         # Delete all existing actors
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
                 actor.destroy()
             except Exception as e:
-                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id, traceback.format_exc()))
+
+    def destroy_an_existing_ego_agent(self, agent):
+        if agent is None: return
+        for _ in range(len(agent.actor_list)):
+            try:
+                actor = agent.actor_list.pop()
+                actor.destroy()
+            except Exception as e:
+                print("Error during destroying sensor actor {0}:{1}: {2}".format(actor.type_id, actor.id, traceback.format_exc()))
+        try:
+            actor = agent.vehicle_actor
+            actor.destroy()
+        except Exception as e:
+            print("Error during destroying ego vehicle actor {0}:{1}: {2}".format(actor.type_id, actor.id, traceback.format_exc()))
+        try:
+            del agent
+        except Exception as e:
+            print("Error during destroying ego agent {0}:{1}: {2}".format(agent, e, traceback.format_exc()))
 
     def destroy_all_existing_ego_agents(self):
-        for _ in range(len(self.ego_agent_list)):
-            try:
-                agent = self.ego_agent_list.pop()
-                if agent is None or agent.vehicle_actor is None: continue 
-                actor = agent.vehicle_actor
-                actor.destroy()
-                del agent
-            except Exception as e:
-                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+        for agent in self.ego_agent_list:
+            self.destroy_an_existing_ego_agent(agent)        
 
     def clear_episode_measurements(self):
-
         # Below logic is to avoid clearing of following measurements,
         # when env reset is called automatically in DummyVec env.
         # These are used in testing logic, hence their values are required.
@@ -1254,10 +1266,9 @@ class CarlaEnv(gym.Env):
             self.ego_agent_list[rk] = None
             if prev_agent is not None: self.curr_num_agents -= 1
             try:
-                prev_agent.vehicle_actor.destroy()
-                del prev_agent
+                self.destroy_an_existing_ego_agent(prev_agent)
             except:
-                print('Error when deleting prev_agent [rank {}]'.format(rk))
+                print('>>> Error when deleting prev_agent [rank {}]'.format(rk))
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
@@ -1277,11 +1288,11 @@ class CarlaEnv(gym.Env):
                 if self.vehicle_actor is not None:
                     break
                 else:
-                    print("[Trial {}] Unable to spawn vehicle actor at {0}, {1}.".format(
-                        idx, self.source_transform.location.x, self.source_transform.location.y))
-                    print("Number of existing actors, {0}".format(len(self.actor_list)))
-                    print("Number of existing ego agents, {0}".format(self.curr_num_agents))
-                    time.sleep(5)
+                    print("[Trial {}] Unable to spawn ego vehicle [rank {}] at {}, {}.".format(
+                        idx, rk, self.source_transform.location.x, self.source_transform.location.y))
+                    print("Number of existing actors, {}".format(len(self.actor_list)))
+                    print("Number of existing ego agents, {}".format(self.curr_num_agents))
+                    time.sleep(1)
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)
@@ -1295,7 +1306,7 @@ class CarlaEnv(gym.Env):
                 raise Exception("Failed in spawning vehicle actor.")
 
     def spawn_npc_vehicles(self):
-        self.destroy_all_existing_actors()
+        self.destroy_all_existing_npc_actors()
         if self.config["sample_npc"]:
             self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
                 high=self.config["num_npc_upper_threshold"]), self.unseen)
@@ -1437,7 +1448,6 @@ class CarlaEnv(gym.Env):
 
         # Episode termination conditions
         success = agent.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
-        offlane = agent.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"] # Unused
         static = agent.episode_measurements["static_steps"] > self.config["max_static_steps"]
         collision = agent.episode_measurements["is_collision"] = False
         runover_light = agent.episode_measurements["runover_light"]
@@ -1514,7 +1524,7 @@ class CarlaEnv(gym.Env):
     def close(self):
 
         try:
-            self.destroy_all_existing_actors()
+            self.destroy_all_existing_npc_actors()
             self.destroy_all_existing_ego_agents()
 
             if not self.CarlaServer is None:

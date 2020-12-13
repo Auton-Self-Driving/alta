@@ -137,17 +137,17 @@ class CarlaEnv(gym.Env):
         # traffic lights detection model
         # print(os.getcwd())
 
-        with open('../../AdelaiDet_model/config.yaml', 'r') as f:
-            cfg = yaml.load(f, Loader=yaml.FullLoader)
-            model = Trainer.build_model(CfgNode(cfg))
-            ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
-            # ckpt = DetectionCheckpointer(model)
-            # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
-        with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
-            self.dist_interpolator = pickle.load(f)
-        self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
+        # with open('../../AdelaiDet_model/config.yaml', 'r') as f:
+        #     cfg = yaml.load(f, Loader=yaml.FullLoader)
+        #     model = Trainer.build_model(CfgNode(cfg))
+        #     ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+        #     # ckpt = DetectionCheckpointer(model)
+        #     # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
+        # with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+        #     self.dist_interpolator = pickle.load(f)
+        # self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
         # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
-        self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+        # self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
 
         # Start Carla Server
         serverStarted = False
@@ -797,8 +797,11 @@ class CarlaEnv(gym.Env):
             rv_sensor_image = self._read_data(self.rv_camera_queue, world_frame)
             # Update obstacle distance measurements
             rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-            self._update_env_obs(front_rgb_image=rgb_image)
-            #self._update_env_obs()
+            # self._update_env_obs(front_rgb_image=rgb_image)
+
+            obs = {}
+
+            self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -837,10 +840,8 @@ class CarlaEnv(gym.Env):
             self.throttles_array.append(control.throttle)
             self.steers_array.append(control.steer)
             self.brakes_array.append(control.brake)
-            self.episode_measurements['step_reward'] = 0
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
-            self.episode_measurements['dist_to_trajectory_reward'] = 0
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
             self.speed_reward_array.append(self.episode_measurements['speed_reward'])
 
@@ -1846,8 +1847,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        self._update_env_obs(front_rgb_image=rgb_image)
-        #self._update_env_obs()
+        # self._update_env_obs(front_rgb_image=rgb_image)
+        self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()

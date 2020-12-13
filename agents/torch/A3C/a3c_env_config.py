@@ -56,7 +56,7 @@ EPISODE_MEASUREMENTS = {
 
 ENV_CONFIG = {
     'algo': 'A3C',
-    'num_agents': 2,
+    'num_agents': 8,
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -87,7 +87,7 @@ ENV_CONFIG = {
     'num_pedestrians' : 0,
     'max_steps' : 10000,
     'next_command': None,
-    'verbose': True,
+    'verbose': False,
     'vehicle_type': 'vehicle.toyota.prius',
     'disable_two_wheeler' : True,
     'vehicle_types': ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola',
@@ -111,7 +111,7 @@ ENV_CONFIG = {
     'scenarios' : 'navigation',
     'semantic' : False,
     'client_timeout_seconds' : 600,
-    'enable_lane_invasion_sensor' : False,
+    'enable_lane_invasion_sensor' : True,
     'carla_gpu': '0',
     'render_server': False,
     'steer_penalty_coeff': 0,

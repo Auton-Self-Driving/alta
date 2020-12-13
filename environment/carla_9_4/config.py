@@ -47,7 +47,7 @@ DEFAULT_ENV = {
     "num_pedestrians" : 0,
     "max_steps" : 10000,
     "next_command": None,
-    "verbose": False,
+    "verbose": True,
     "vehicle_type": 'vehicle.toyota.prius',
     "disable_two_wheeler" : True,
     "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola',
@@ -314,7 +314,7 @@ class ConfigManager(object):
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
-            self.config["verbose"] = False
+            self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
