@@ -558,7 +558,7 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
-    def step(self, action):
+    def step(self, action=None):
         try:
             if self.config['test_comparison']:
                 self._step_test_comparison(action)
@@ -566,7 +566,7 @@ class CarlaEnv(gym.Env):
             elif self.config['algo'] == 'A3C':
                 # new_obs, reward, done, ep_info = self._step(action[0])
                 # return [new_obs], [reward], [done], [ep_info]
-                obs = self.list_step(action) # action here will be an action list
+                obs = self.list_step() # action here will be an action list
             else:
                 obs = self._step(action)
             return obs
@@ -577,35 +577,31 @@ class CarlaEnv(gym.Env):
     def get_action_for_test_comparison(self):
         pass
 
-    def list_step(self, action_list):
+    def _update_control(self, agent):
+        control = self.get_control(agent, agent.action)
+        #Store control for this step
+        agent.episode_measurements['control_steer'] = control.steer
+        agent.episode_measurements['control_throttle'] = control.throttle
+        agent.episode_measurements['control_brake'] = control.brake
+        agent.episode_measurements['control_reverse'] = control.reverse
+        agent.episode_measurements['control_hand_brake'] = control.hand_brake
+        return control
+
+    def list_step(self):
         # action_list here should be a list of action
         self.world_frame = None
-        for agent, action in zip(self.ego_agent_list, action_list):
+
+        for rk, agent in enumerate(self.ego_agent_list):
+            if agent.action is None: continue
             agent.curr_reward = 0
-            if not self.config["use_pid_in_frame_skip"]:    
-                # compute control using PID for each timestep
-                control = self.get_control(agent, action)
+            if not self.config["use_pid_in_frame_skip"]:
+                control = self._update_control(agent)
 
-                #Store control for this step
-                agent.episode_measurements['control_steer'] = control.steer
-                agent.episode_measurements['control_throttle'] = control.throttle
-                agent.episode_measurements['control_brake'] = control.brake
-                agent.episode_measurements['control_reverse'] = control.reverse
-                agent.episode_measurements['control_hand_brake'] = control.hand_brake
-
-        ret_list = [(None,) * 4] * self.config['num_agents']
         for _ in range(self.config["frame_skip"]):
-            for agent, action in zip(self.ego_agent_list, action_list):
-                if agent.done: continue
+            for rk, agent in enumerate(self.ego_agent_list):
+                if agent.done or agent.action is None: continue
                 if self.config["use_pid_in_frame_skip"]:
-                    control = self.get_control(agent, action)
-                    #Store control for this step
-                    agent.episode_measurements['control_steer'] = control.steer
-                    agent.episode_measurements['control_throttle'] = control.throttle
-                    agent.episode_measurements['control_brake'] = control.brake
-                    agent.episode_measurements['control_reverse'] = control.reverse
-                    agent.episode_measurements['control_hand_brake'] = control.hand_brake
-                    #Print actions
+                    control = self._update_control(agent)
                     if self.config['verbose']:
                         print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
                     "reverse", control.reverse)
@@ -628,8 +624,8 @@ class CarlaEnv(gym.Env):
             self.world_frame = self._world.tick()
             ########################################################################################
 
-            for idx, agent, action in zip(range(self.config['num_agents']) ,self.ego_agent_list, action_list):
-                if agent.done: continue
+            for idx, agent in zip(range(self.config['num_agents']) ,self.ego_agent_list):
+                if agent.done or agent.action is None: continue
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
@@ -652,7 +648,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
                 agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
 
-                obs = self._get_ego_input(agent)
+                self._get_ego_input(agent)
 
                 agent.curr_reward += compute_reward(name=self.config['reward_function'],
                                     prev_measurement=agent.prev_measurement,
@@ -689,10 +685,8 @@ class CarlaEnv(gym.Env):
                 agent.throttles_array.append(control.throttle)
                 agent.steers_array.append(control.steer)
                 agent.brakes_array.append(control.brake)
-                agent.episode_measurements['step_reward'] = 0
                 agent.step_reward_array.append(agent.episode_measurements['step_reward'])
                 agent.collision_reward_array.append(agent.episode_measurements['collision_reward'])
-                agent.episode_measurements['dist_to_trajectory_reward'] = 0
                 agent.dist_to_trajectory_reward_array.append(agent.episode_measurements['dist_to_trajectory_reward'])
                 agent.speed_reward_array.append(agent.episode_measurements['speed_reward'])
 
@@ -700,14 +694,9 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['reward'] = agent.curr_reward
                 agent.episode_measurements['total_reward'] = agent.episode_reward
 
-                reward = np.expand_dims(np.array([agent.curr_reward]), axis=0)
-                done = np.expand_dims(np.array([done]), axis=0)
-
-                if done: agent.episode_measurements["episode_num"] = agent.episode_num
-
-                ret_list[idx] = (obs, reward, done, agent.episode_measurements)
-        
-        return ret_list
+        for rk, agent in enumerate(self.ego_agent_list):
+            if agent.action is None:
+                self._get_ego_input(agent)
 
     def _step_test_comparison(self, action):
         pass
@@ -1038,6 +1027,17 @@ class CarlaEnv(gym.Env):
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
+    def destroy_all_existing_ego_agents(self):
+        for _ in range(len(self.ego_agent_list)):
+            try:
+                agent = self.ego_agent_list.pop()
+                if agent is None or agent.vehicle_actor is None: continue 
+                actor = agent.vehicle_actor
+                actor.destroy()
+                del agent
+            except Exception as e:
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+
     def clear_episode_measurements(self):
 
         # Below logic is to avoid clearing of following measurements,
@@ -1048,7 +1048,6 @@ class CarlaEnv(gym.Env):
                 continue
 
             self.episode_measurements[key] = 0
-
 
     def reset_vehicle_agent(self, agent_list):
         # bind new agent
@@ -1068,7 +1067,7 @@ class CarlaEnv(gym.Env):
             agent.index = 0
             agent.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
             agent.curr_ep_num_steps = 0
-            # agent.episode_reward = 0
+
             agent.episode_measurements = self.config['episode_measurements']
             agent.previous_measurements = None
 
@@ -1159,13 +1158,6 @@ class CarlaEnv(gym.Env):
             self.world_frame = self._world.tick()
 
 
-    def get_obs_after_reset(self):
-        obs_list = []
-        for agent in self.ego_agent_list: 
-            obs_list.append(self._get_ego_input(agent))
-        # print(obs_list)
-        return obs_list
-
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
 
@@ -1206,8 +1198,6 @@ class CarlaEnv(gym.Env):
 
         obs['rv_image'] = rv_image
 
-        visual_observation = None
-
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([agent.episode_measurements['distance_to_goal']])
 
@@ -1216,29 +1206,25 @@ class CarlaEnv(gym.Env):
 
         agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
+        visual_observation = None
         if self.config["input_type"] == 'vae':
-            return visual_observation
-
+            agent.observation = visual_observation
         elif self.config["input_type"] in ['wp_vae', 'wp_vae_speed_steer_goal', 'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             fused_input = np.hstack([visual_observation, observation])
-            return fused_input
-
+            agent.observation = fused_input
         elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
-            return fused_input
-
+            agent.observation = fused_input
         elif self.config["input_type"] in ['wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
-            return fused_input, visual_observation
-
+            agent.observation = fused_input, visual_observation
         elif self.config["input_type"] == "wp":
-            return obs['observation']
-
+            agent.observation = obs['observation']
         elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
                                         'wp_speed', 'wp_speed_goal','wp_speed_steer_goal', 'wp_speed_steer_goal_obs_bool',
                                         'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
@@ -1246,10 +1232,11 @@ class CarlaEnv(gym.Env):
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
-            return observation 
+            agent.observation = observation 
         else:
-            return obs
+            agent.observation = obs
 
+        return agent.observation
 
     def list_reset(self, unseen=False, index=0, expert_agent=False, rank_list=None):
         self.unseen = unseen
@@ -1267,14 +1254,15 @@ class CarlaEnv(gym.Env):
             self.ego_agent_list[rk] = None
             if prev_agent is not None: self.curr_num_agents -= 1
             try:
+                prev_agent.vehicle_actor.destroy()
                 del prev_agent
             except:
-                print('CANNOT DELETE prev_agent')
+                print('Error when deleting prev_agent [rank {}]'.format(rk))
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
             NUM_RETRIES = 5
-            for _ in range(NUM_RETRIES):
+            for idx in range(NUM_RETRIES):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
                 if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
@@ -1289,11 +1277,11 @@ class CarlaEnv(gym.Env):
                 if self.vehicle_actor is not None:
                     break
                 else:
-                    print("Unable to spawn vehicle actor at {0}, {1}.".format(self.source_transform.location.x, self.source_transform.location.y))
-                    # print("Number of existing actors, {0}".format(len(self.actor_list)))
-                    print("Number of existing agetns, {0}".format(self.curr_num_agents))
-                    # self.destroy_all_existing_actors()
-                    time.sleep(120)
+                    print("[Trial {}] Unable to spawn vehicle actor at {0}, {1}.".format(
+                        idx, self.source_transform.location.x, self.source_transform.location.y))
+                    print("Number of existing actors, {0}".format(len(self.actor_list)))
+                    print("Number of existing ego agents, {0}".format(self.curr_num_agents))
+                    time.sleep(5)
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)
@@ -1306,25 +1294,13 @@ class CarlaEnv(gym.Env):
             else:
                 raise Exception("Failed in spawning vehicle actor.")
 
-        spawn_vehicles = False
-        if self.config["scenarios"] == "long_straight":
-            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 1):
-                spawn_vehicles = True
-        elif self.config["scenarios"] == "long_straight_junction":
-            if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 0):
-                spawn_vehicles = True
+    def spawn_npc_vehicles(self):
+        self.destroy_all_existing_actors()
+        if self.config["sample_npc"]:
+            self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
+                high=self.config["num_npc_upper_threshold"]), self.unseen)
         else:
-            if self.config["num_npc"] > 0:
-                spawn_vehicles = True
-
-        # print('[1589]', len(rank_list), self.curr_num_agents, spawn_vehicles, len(rank_list) == self.curr_num_agents)
-        if spawn_vehicles and len(rank_list) == self.curr_num_agents: # reset NPC when reset all agents
-            self.destroy_all_existing_actors()
-            if self.config["sample_npc"]:
-                self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-                    high=self.config["num_npc_upper_threshold"]), unseen)
-            else:
-                self.spawn_npc(self.config["num_npc"], unseen)
+            self.spawn_npc(self.config["num_npc"], self.unseen)
 
 
     def _reset_test_comparison(self, unseen=False, index=0):
@@ -1539,6 +1515,7 @@ class CarlaEnv(gym.Env):
 
         try:
             self.destroy_all_existing_actors()
+            self.destroy_all_existing_ego_agents()
 
             if not self.CarlaServer is None:
                 self.CarlaServer.close()

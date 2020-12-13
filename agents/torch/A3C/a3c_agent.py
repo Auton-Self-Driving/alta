@@ -40,11 +40,14 @@ class _A3C_Individual_Agent(Agent):
              self.buffer_r = []
         self.rank = rank
         self.done = False
+        self.action = None
         self.id = vehicle.id
         self.type_id = vehicle.type_id
         self.vehicle_actor = vehicle
         self.num_total_steps = 0
         self.episode_reward = 0
+        self.curr_reward = 0
+        self.observation = None
     
     def run_step(self, obs):
         if self.glb_net is None: raise NotImplementedError(
@@ -90,7 +93,6 @@ class A3C_Collective_Agent(object):
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list ]
         self.agent_list = None
-        self.done = False
 
     def _push_and_pull(self, rank, done, s_, gamma=.9):
         if self.agent_list is None:
@@ -131,36 +133,30 @@ class A3C_Collective_Agent(object):
         # initialize
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
+        self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_A3C_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
             glb_net=self.glb_net, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
-        obs_list = self.glb_env.get_obs_after_reset()
+        self.glb_env.step()
         while glb_num_episodes < self.max_glb_num_episodes:
-            # get_control_list
-            control_list = []
             for rk, agent in enumerate(self.agent_list):
-                obs = torch.from_numpy(obs_list[rk]).to(torch.float)
-                control = agent.local_net.choose_action(obs)
-                control_list.append(control)
+                prev_obs = torch.from_numpy(agent.observation).to(torch.float)
+                action = agent.local_net.choose_action(prev_obs)
+                agent.action = action
             # step forward
-            print('action chosen:', control_list)
-            obs_list = self.glb_env.step(control_list)
+            print('action chosen:', [agt.action for agt in self.agent_list])
+            self.glb_env.step()
+
             for rk, agent in enumerate(self.agent_list):
-                new_obs, reward, done, ep_info = obs_list[rk]
-                control = control_list[rk]
-                done = bool(done[0, 0])
+                agent.update_buffer(prev_obs, agent.action, agent.curr_reward)
 
-                if done: reward = ep_info[rk]['total_reward']
-                agent.episode_reward += reward
-                agent.update_buffer(obs, control, reward)
-                obs_list[rk] = new_obs
-
-                if agent.num_total_steps % self.glb_update_freq == 0 or done:  
+                if agent.num_total_steps % self.glb_update_freq == 0 or \
+                    agent.done:  
                     # update global and assign to local net
-                    self._push_and_pull(rk, done, new_obs)
+                    self._push_and_pull(rk, agent.done, agent.observation)
 
-                if done:  # done and print information
+                if agent.done:  # done and print information
                     print('[Agent {}] done, episode reward [{}]'.format(
                         rk, agent.episode_reward))
                     glb_num_episodes += 1
@@ -170,17 +166,16 @@ class A3C_Collective_Agent(object):
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
                 if agent.done: respawn_rank_list.append(rk)
-            if len(respawn_rank_list) > 0:
+            if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.glb_env.reset(rank_list=respawn_rank_list)
                 # update agent list
-                respawn_agent_list = []
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _A3C_Individual_Agent(
-                        self.glb_env.vehicle_actor_list[rk],
+                        self.glb_env.ego_vehicle_list[rk],
                         glb_net=self.glb_net, rank=rk)
-                    respawn_agent_list.append(self.agent_list[rk])
-                self.glb_env.reset_vehicle_agent(respawn_agent_list)
-                # obs_list = self.glb_env.get_obs_after_reset()
+                self.glb_env.reset_vehicle_agent(
+                    [self.agent_list[rk] for rk in respawn_rank_list])
+                self.glb_env.step()
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')
@@ -229,15 +224,15 @@ class A3C_MP_Agent(mp.Process):
             while True:
                 # print('[72]', flush=True)
                 obs = torch.from_numpy(obs).to(torch.float)
-                control = self.local_net.choose_action(obs)
-                new_obs, reward, done, ep_info = self.glb_env.step(control)
+                action = self.local_net.choose_action(obs)
+                new_obs, reward, done, ep_info = self.glb_env.step(action)
                 done = bool(done[0, 0])
 
                 if done: reward = ep_info['total_reward']
                 ep_r += reward
 
                 buffer_s.append(obs)
-                buffer_a.append(control)
+                buffer_a.append(action)
                 buffer_r.append(reward)
 
                 obs = new_obs

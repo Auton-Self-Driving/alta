@@ -161,7 +161,7 @@ ENV_CONFIG = {
     'disable_collision' : False,
     'enable_static' : False,
     'use_pid_in_frame_skip' : True,
-    'enable_lane_invasion_collision' : False,
+    'enable_lane_invasion_collision' : True,
     'vehicle_proximity_threshold' : 15,
     'traffic_light_proximity_threshold' : 10,
     'min_dist_from_red_light' : 4,
