@@ -55,7 +55,7 @@ DEFAULT_ENV = {
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
                       'vehicle.tesla.model3', 'vehicle.seat.leon', 'vehicle.lincoln.mkz2017',
                       'vehicle.volkswagen.t2', 'vehicle.nissan.micra', 'vehicle.chevrolet.impala', 'vehicle.mini.cooperst',
-                      'vehicle.jeep.wrangler_rubicon'],
+                      'vehicle.jeep.wrangler_rubicon', 'vehicle.bh.crossbike'],
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
     "action_type": "merged_gas",
@@ -140,7 +140,8 @@ DEFAULT_ENV = {
     "sample_npc": True,
     "use_offline_map": True,
     "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
-    "use_route_to_plan" : True
+    "use_route_to_plan" : True,
+    'log_images': False
 }
 
 episode_measurements = {

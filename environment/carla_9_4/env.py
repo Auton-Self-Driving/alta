@@ -865,7 +865,12 @@ class CarlaEnv(gym.Env):
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
 
+        rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
+
         self.image = sensor_image.copy()
+        if self.config['log_images']:
+            self.episode_measurements['image'] = sensor_image.copy()
+            self.episode_measurements['rgb'] = rv_sensor_image.copy()
 
         spectator = self._world.get_spectator()
         location = self.vehicle_actor.get_location() + carla.Location(0,0,15.0)
@@ -1878,11 +1883,14 @@ class CarlaEnv(gym.Env):
         rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         front_image = self._read_data(self.front_camera_queue, world_frame)
 
+        rv_image = self._read_data(self.rv_camera_queue, world_frame)
+
         self.image = image.copy()
+        if self.config['log_images']:
+            self.episode_measurements['image'] = image.copy()
+            self.episode_measurements['rgb'] = rv_image.copy()
 
         # collect data
-
-        rv_image = self._read_data(self.rv_camera_queue, world_frame)
 
         self.global_planner = planner.GlobalPlanner()
 

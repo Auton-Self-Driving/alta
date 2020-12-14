@@ -11,7 +11,7 @@ MBPO_ENVIRONMENT_SPECS = (
     },
     {
         'id': 'Carla-ImageDriving-v0',
-        'entry_point': (f'mbpo.env.carla_env:CarlaEnvWrapper'),
+        'entry_point': (f'mbpo.env.carla_env:CarlaImageEnvWrapper'),
     },
     {
         'id': 'Carla-StateDriving-v0',

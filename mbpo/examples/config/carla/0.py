@@ -5,7 +5,7 @@ params = {
     'task': 'StateDriving-v0',
 
     'log_dir': '~/ray_mbpo/',
-    'exp_name': 'state-navigation-test',
+    'exp_name': 'state-navigation-pedestrians',
 
     'kwargs': {
         'epoch_length': 10000,
