@@ -20,13 +20,15 @@ from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 
 
 class _A3C_Individual_Agent(Agent):
-    def __init__(self, vehicle, glb_net=None, rank=None, **kwargs):
+    def __init__(self, vehicle, glb_net=None, rank=None,
+        device='cuda:0', **kwargs):
         """A local indivial A3C agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
             glb_net: network shared by all A3C agents, not required for MP
             rank: an integer for identification of this local agent, 
                 not required for MP
+            device: the device for local and global net
             **kwargs: include proximity_threshold=10.0, 
                 traffic_light_proximity_threshold=10.0, 
                 vehicle_proximity_threshold=15.0
@@ -35,10 +37,12 @@ class _A3C_Individual_Agent(Agent):
         self.glb_net = glb_net
         if self.glb_net is not None:
              self.local_net = pickle.loads(pickle.dumps(self.glb_net))
+             self.local_net = self.local_net.to(device)
              self.buffer_s = []
              self.buffer_a = []
              self.buffer_r = []
         self.rank = rank
+        self.device = device
         self.done = False
         self.action = None
         self.id = vehicle.id
@@ -73,7 +77,7 @@ class _A3C_Individual_Agent(Agent):
 
 class A3C_Collective_Agent(object):
     def __init__(self, glb_env, glb_net, glb_optimizer, num_agents=1, 
-        max_glb_num_episodes=10000, glb_update_freq=5):
+        max_glb_num_episodes=10000, glb_update_freq=5, device='cpu'):
         """An torch.multiprocessing A3C agent.
         Args:
             glb_env: the global environment
@@ -93,6 +97,12 @@ class A3C_Collective_Agent(object):
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list ]
         self.agent_list = None
+        self.device = device
+
+    def to_tensor(self, np_array, dtype=np.float32):
+        if np_array.dtype != dtype:
+            np_array = np_array.astype(dtype)
+        return torch.from_numpy(np_array).to(self.device)
 
     def _push_and_pull(self, rank, done, s_, gamma=.9):
         if self.agent_list is None:
@@ -101,7 +111,7 @@ class A3C_Collective_Agent(object):
         bs, ba, br = agent.buffer_s, agent.buffer_a, agent.buffer_r
 
         v_s_ = 0 if done else agent.local_net.forward(
-            v_wrap(s_[None, :]))[-1].detach().numpy()[0, 0]
+            self.to_tensor(s_[None, :]))[-1].detach().cpu().numpy()[0, 0]
 
         buffer_v_target = []
         for r in br[::-1]: # reverse buffer r
@@ -110,10 +120,10 @@ class A3C_Collective_Agent(object):
         buffer_v_target.reverse()
 
         loss = agent.local_net.loss_func(
-            v_wrap(np.vstack(bs)),
-            v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == \
-                np.int64 else v_wrap(np.vstack(ba)),
-            v_wrap(np.array(buffer_v_target)[:, None]))
+            self.to_tensor(np.vstack(bs)),
+            self.to_tensor(np.array(ba), dtype=np.int64) if ba[0].dtype == \
+                np.int64 else self.to_tensor(np.vstack(ba)),
+            self.to_tensor(np.array(buffer_v_target)[:, None]))
 
         # calculate local gradients and push local parameters to global
         self.glb_optimizer.zero_grad()
@@ -142,7 +152,8 @@ class A3C_Collective_Agent(object):
         while glb_num_episodes < self.max_glb_num_episodes:
             for rk, agent in enumerate(self.agent_list):
                 prev_obs = torch.from_numpy(agent.observation).to(torch.float)
-                action = agent.local_net.choose_action(prev_obs)
+                action = agent.local_net.choose_action(
+                    prev_obs.to(self.device))
                 agent.action = action
             # step forward
             print('action chosen:', [agt.action for agt in self.agent_list])

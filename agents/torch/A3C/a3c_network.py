@@ -31,7 +31,7 @@ class Basic_Discrete(nn.Module):
         logits, _ = self.forward(s)
         prob = F.softmax(logits, dim=1).detach()
         m = self.distribution(prob)
-        return m.sample().numpy()[0]
+        return m.sample().cpu().numpy()[0]
 
     def loss_func(self, s, a, v_t):
         self.train()

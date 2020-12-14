@@ -5,7 +5,6 @@ The most simple implementation for discrete action.
 import os
 import torch
 
-from a3c_utils import SharedAdam
 from a3c_network import Basic_Discrete
 from a3c_env import CarlaEnv
 from a3c_env_config import ENV_CONFIG
@@ -22,10 +21,11 @@ N_A = env.action_space.n
 # print(N_S, N_A)
 # from IPython import embed; embed()
 
-glb_net = Basic_Discrete(N_S, N_A) # global network
-glb_optimizer = SharedAdam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
+glb_net = Basic_Discrete(N_S, N_A).to(ENV_CONFIG['device']) # global network
+glb_optimizer = torch.optim.Adam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
 
-a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer, num_agents=ENV_CONFIG['num_agents'])
+a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer, 
+    num_agents=ENV_CONFIG['num_agents'], device=ENV_CONFIG['device'])
 
 a3c_agent.learn()
 
