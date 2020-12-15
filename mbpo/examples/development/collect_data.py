@@ -37,8 +37,8 @@ def collect_trajectories(policy, environment, num_samples=500, save_offset=0, im
             sem, rgb = path['infos'][i]['image'].copy(), path['infos'][i]['rgb'].copy()
             del path['infos'][i]['image']
             del path['infos'][i]['rgb']
-            sem_path = os.path.join(image_save_dir, 'sem', str(i+sample_counter+save_offset)+'.png')
-            rgb_path = os.path.join(image_save_dir, 'rgb', str(i+sample_counter+save_offset)+'.png')
+            sem_path = os.path.join(image_save_dir, 'topdown', str(i+sample_counter+save_offset)+'.png')
+            rgb_path = os.path.join(image_save_dir, 'front', str(i+sample_counter+save_offset)+'.png')
             Image.fromarray(sem).save(sem_path)
             Image.fromarray(rgb).save(rgb_path)
 
@@ -59,7 +59,9 @@ def collect_trajectories(policy, environment, num_samples=500, save_offset=0, im
 
 
 def simulate_policy(args):
-    session = tf.keras.backend.get_session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.Session(config=config)
     experiment_path = args.experiment_path.rstrip('/')
 
     variant_path = os.path.join(experiment_path, 'params.json')
@@ -71,8 +73,13 @@ def simulate_policy(args):
         with open(pickle_path, 'rb') as f:
             picklable = pickle.load(f)
 
+    if not os.path.isdir(args.save_path):
+        os.mkdir(args.save_path)
+        os.mkdir(args.save_path + '/topdown')
+        os.mkdir(args.save_path + '/front')
+
     environment_params = variant['environment_params']
-    environment_params['evaluation']['kwargs']['pedestrians'] = 150
+    environment_params['evaluation']['kwargs']['pedestrians'] = 100
     environment_params['evaluation']['kwargs']['log_images'] = True
     environment_params['evaluation']['kwargs']['semantic'] = True
     evaluation_environment = get_environment_from_params(environment_params['evaluation'])
@@ -82,10 +89,11 @@ def simulate_policy(args):
     policy.set_weights(picklable['policy_weights'])
 
     with policy.set_deterministic(True):
-        expert_trajectories = collect_trajectories(policy, evaluation_environment, num_samples=500000, save_offset=0, image_save_dir=args.save_path)
+        expert_trajectories = collect_trajectories(policy, evaluation_environment, num_samples=5000, save_offset=0, image_save_dir=args.save_path)
 
     policy = get_uniform_policy(evaluation_environment)
-    random_trajectories = collect_trajectories(policy, evaluation_environment, num_samples=500000, save_offset=500000, image_save_dir=args.save_path)
+    offset = expert_trajectories[0].shape[0]
+    random_trajectories = collect_trajectories(policy, evaluation_environment, num_samples=1000, save_offset=offset, image_save_dir=args.save_path)
 
     obs = np.concatenate([expert_trajectories[0], random_trajectories[0]], axis=0)
     next_obs = np.concatenate([expert_trajectories[1], random_trajectories[1]], axis=0)
@@ -93,17 +101,6 @@ def simulate_policy(args):
     rewards = np.concatenate([expert_trajectories[3], random_trajectories[3]], axis=0)
     terminals = np.concatenate([expert_trajectories[4], random_trajectories[4]], axis=0)
     infos = np.concatenate([expert_trajectories[5], random_trajectories[5]], axis=0)
-
-    # num_samples = infos.shape[0]
-    # for i in range(num_samples):
-    #     semantic = infos[i]['image']
-    #     rgb = infos[i]['rgb']
-
-    #     semantic_path = os.path.join(args.save_path, 'semantic', str(i) + '.png')
-    #     rgb_path = os.path.join(args.save_path, 'rgb', str(i) + '.png')
-
-    #     Image.fromarray(semantic).save(semantic_path)
-    #     Image.fromarray(rgb).save(rgb_path)
 
     data_dict = {
         'obs': obs,
@@ -114,13 +111,7 @@ def simulate_policy(args):
         'infos': infos
     }
 
-    dd.io.save('mixed_data.h5', data_dict)
-
-    # np.save('{}/obs'.format(args.save_path), obs)
-    # np.save('{}/actions'.format(args.save_path), actions)
-    # np.save('{}/next_obs'.format(args.save_path), next_obs)
-    # np.save('{}/rewards'.format(args.save_path), rewards)
-
+    dd.io.save(args.save_path + '/dataset.h5', data_dict)
     print('Done')
 
 
