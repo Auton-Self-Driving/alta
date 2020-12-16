@@ -33,9 +33,9 @@ DEFAULT_ENV = {
     "server_port" : None,
     "server_retries" : 5, 
     "city_name" : "Town01",
-    "frame_skip": 1,
+    "frame_skip": 2,
     "enable_planner" : True,
-    "reward_function" : 'corl',
+    "reward_function" : 'simple2',
     # Print measurements to screen
     "print_obs" : True,
     "client" : None,
@@ -44,7 +44,7 @@ DEFAULT_ENV = {
     # Number of frames stacked together
     "framestack" : 1,
     "grayscale" : False,
-    "num_pedestrians" : 0,
+    "num_pedestrians" : 50,
     "max_steps" : 10000,
     "next_command": None,
     "verbose": False,
@@ -58,7 +58,7 @@ DEFAULT_ENV = {
                       'vehicle.jeep.wrangler_rubicon', 'vehicle.bh.crossbike'],
     "target_speed": 20,
     "sensors": ["sensor.camera.rgb", "sensor.camera.semantic_segmentation"],
-    "action_type": "merged_gas",
+    "action_type": "merged_speed_scaled_tanh",
     "sensor_tick": '0.0',
     "dist_for_success" : 10.0,
     "max_offlane_steps" : 20,
@@ -69,26 +69,26 @@ DEFAULT_ENV = {
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
     "scenarios" : "straight",
-    "semantic" : False,
+    "semantic" : True,
     "client_timeout_seconds" : 600,
     "enable_lane_invasion_sensor" : True,
     "carla_gpu": "0",
     "render_server": False,
     "steer_penalty_coeff": 0,
     "vae_encoding_norm_factor" : 10,
-    "input_type": None,
+    "input_type": 'wp_obs_info_speed_steer_ldist_goal_light',
     "use_scenarios": True,
-    "num_npc" : 0,
+    "num_npc" : 50,
     "num_npc_lower_threshold" : 70,
     "num_npc_upper_threshold" : 150,
     "train_vae" : False,
     "binarized_image": False,
     "single_channel_image": False,
     "noise_dim" : 1,
-    "const_collision_penalty": 0,
-    "collision_penalty_speed_coeff": 0,
-    "const_light_penalty": 0,
-    "light_penalty_speed_coeff": 0,
+    "const_collision_penalty": 250,
+    "collision_penalty_speed_coeff": 250,
+    "const_light_penalty": 250,
+    "light_penalty_speed_coeff": 250,
     "terminate_on_light" : True,
     "enable_brake": True,
     "log_freq": 1,
@@ -116,18 +116,18 @@ DEFAULT_ENV = {
        218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
        225,  31, 229, 250, 110, 177, 199, 184, 144],
     "test_fixed_spawn_points" : True,
-    "train_fixed_spawn_points": False,
+    "train_fixed_spawn_points": True,
     "testing" : False,
     "disable_collision" : False,
     "enable_static" : False,
     "use_pid_in_frame_skip" : True,
     "enable_lane_invasion_collision" : True,
-    "vehicle_proximity_threshold" : 15,
+    "vehicle_proximity_threshold" : 10,
     "traffic_light_proximity_threshold" : 10,
     "min_dist_from_red_light" : 4,
     "clip_reward" : False,
     "default_obs_traffic_val": 1,
-    "reward_normalize_factor": 1,
+    "reward_normalize_factor": 16,
     "success_reward": 0,
     "constant_positive_reward": 0,
     "frame_stack_size" : 1,
@@ -137,11 +137,14 @@ DEFAULT_ENV = {
     "test_comparison": False,
     "test_with_automatic_control": False,
     "updated_scenarios": False,
-    "sample_npc": True,
+    "sample_npc": False,
     "use_offline_map": True,
     "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
     "use_route_to_plan" : True,
-    'log_images': False
+    'log_images': False,
+    'algo': 'MBPO',
+    'train_config': 'PPO',
+    'scenarios': 'no_crash_dense',
 }
 
 episode_measurements = {
@@ -271,7 +274,7 @@ def get_discrete_actions():
 DISCRETE_ACTIONS = get_discrete_actions()
 
 class ConfigManager(object):
-    def __init__(self, algo='DDPG'):
+    def __init__(self, algo='PPO'):
         self.config = {}
 
         self._initialize_config(algo)
