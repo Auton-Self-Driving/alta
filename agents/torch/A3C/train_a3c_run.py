@@ -4,6 +4,7 @@ The most simple implementation for discrete action.
 
 import os
 import torch
+import matplotlib.pyplot as plt
 
 from a3c_network import Basic_Discrete
 from a3c_env import CarlaEnv
@@ -25,7 +26,25 @@ glb_net = Basic_Discrete(N_S, N_A).to(ENV_CONFIG['device']) # global network
 glb_optimizer = torch.optim.Adam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
 
 a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer, 
-    num_agents=ENV_CONFIG['num_agents'], verbose=ENV_CONFIG['verbose'])
+    num_agents=ENV_CONFIG['num_agents'], 
+    max_glb_num_episodes = ENV_CONFIG['max_num_episodes'],
+    verbose=ENV_CONFIG['verbose'])
 
 a3c_agent.learn()
+env.close()
 
+avg_reward = []
+prev_reward = 0
+for ep_idx, rw in enumerate(a3c_agent.glb_ep_reward_list):
+    prev_reward += rw
+    avg_reward.append(prev_reward / (ep_idx + 1))
+
+plt.plot(range(1, len(avg_reward) + 1), avg_reward, label='global')
+# for rk in range(len(a3c_agent.agent_reward_list)):
+#     plt.plot(range(1, len(a3c_agent.agent_reward_list[rk]) + 1), a3c_agent.agent_reward_list[rk], label='rank_{}'.format(rk))
+plt.legend()
+plt.xlabel('episode number')
+plt.ylabel('reward')
+plt.tight_layout()
+plt.rcParams['savefig.dpi'] = 500
+plt.show()

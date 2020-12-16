@@ -56,7 +56,8 @@ EPISODE_MEASUREMENTS = {
 
 ENV_CONFIG = {
     'algo': 'A3C',
-    'num_agents': 8,
+    'num_agents': 4,
+    'max_num_episodes': 200,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
@@ -86,7 +87,7 @@ ENV_CONFIG = {
     'framestack' : 1,
     ### 'grayscale' : False,
     'num_pedestrians' : 0,
-    'max_steps' : 10000,
+    'max_steps' : 1000,
     'next_command': None,
     'verbose': False,
     'vehicle_type': 'vehicle.toyota.prius',

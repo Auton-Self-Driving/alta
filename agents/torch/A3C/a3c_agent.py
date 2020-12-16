@@ -101,6 +101,8 @@ class A3C_Collective_Agent(object):
         self.agent_list = None
         self.device = next(glb_net.parameters()).device
         self.verbose = verbose
+        self.glb_ep_reward_list = []
+        self.agent_reward_list = [[] for _ in self.rank_list]
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -145,7 +147,7 @@ class A3C_Collective_Agent(object):
         agent.reset_buffer()
 
     def learn(self):
-        glb_num_episodes = 0
+        glb_num_episodes = 1
         # initialize
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
@@ -158,7 +160,7 @@ class A3C_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_episodes < self.max_glb_num_episodes:
+        while glb_num_episodes < self.max_glb_num_episodes + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -188,8 +190,10 @@ class A3C_Collective_Agent(object):
                     self._push_and_pull(rk, agent.done, agent.observation)
 
                 if agent.done:  # done and print information
-                    print('[Agent {}] done, episode reward [{}]'.format(
-                        rk, agent.episode_reward))
+                    print('[glb ep {}][agent {}] done, ep reward [{}]'.format(
+                        glb_num_episodes, rk, agent.episode_reward))
+                    self.agent_reward_list[rk].append(agent.episode_reward)
+                    self.glb_ep_reward_list.append(agent.episode_reward)
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
@@ -207,6 +211,7 @@ class A3C_Collective_Agent(object):
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
+                
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

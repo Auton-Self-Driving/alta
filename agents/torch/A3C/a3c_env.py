@@ -5,19 +5,14 @@ from gym.spaces import Box, Discrete, Tuple
 
 from datetime import datetime
 import os
-import glob
-import sys
 import traceback
 import random
-import json
 import numpy as np
 import math
 import copy
-import cv2
 import queue
 import time
-
-from collections import deque
+import matplotlib.pyplot as plt
 
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
@@ -25,11 +20,8 @@ import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
-from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
-from environment.carla_9_4.agents.navigation.agent import Agent
-from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from agents.torch.A3C.a3c_env_config import ENV_CONFIG
-# from agents.tf.ae.util import *
+
 
 # import ipdb
 # st = ipdb.set_trace
@@ -1064,6 +1056,15 @@ class CarlaEnv(gym.Env):
 
             self.episode_measurements[key] = 0
 
+    def save_rgb_image(self, agent, rgb_image, save_folder='../../../../alta-logs/a3c/'):
+        _folder = '{}/{}/{}'.format(os.path.expanduser(save_folder), agent.rank, agent.episode_id)
+        if not os.path.exists(_folder):
+            print('creating [{}] to save image'.format(_folder))
+            os.makedirs(_folder)
+        _filename = '{}/{:08d}.jpg'.format(_folder, agent.num_total_steps)
+        plt.imsave(_filename, rgb_image)
+        
+
     def reset_vehicle_agent(self, agent_list):
         # bind new agent
         for agent in agent_list:
@@ -1211,6 +1212,7 @@ class CarlaEnv(gym.Env):
             self._update_straight_dynamic_obs(agent)
 
         obs['rv_image'] = rv_image
+        # self.save_rgb_image(agent, rv_image)
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([agent.episode_measurements['distance_to_goal']])
@@ -1289,10 +1291,10 @@ class CarlaEnv(gym.Env):
                 if self.vehicle_actor is not None:
                     break
                 else:
-                    print("[rank {}] Unable to spawn ego vehicle [trial {}] at {}, {}.".format(
+                    print("[rank {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
                         rk, idx, self.source_transform.location.x, self.source_transform.location.y))
-                    print("Number of existing actors, {}".format(len(self.actor_list)))
-                    print("Number of existing ego agents, {}".format(self.curr_num_agents))
+                    # print("Number of existing actors, {}".format(len(self.actor_list)))
+                    # print("Number of existing ego agents, {}".format(self.curr_num_agents))
                     time.sleep(.04)
 
             if self.vehicle_actor is not None:
