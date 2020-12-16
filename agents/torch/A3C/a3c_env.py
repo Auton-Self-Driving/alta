@@ -773,31 +773,34 @@ class CarlaEnv(gym.Env):
         found_obstacle = False
         for target_vehicle in self.actor_list + self.ego_vehicle_list:
             # do not account for the ego vehicle
-            if target_vehicle is None or \
-                target_vehicle.id == agent.id or \
-                'vehicle' not in target_vehicle.type_id:
-                continue
-
-            # if the object is not in our lane it's not an obstacle
-            target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
-            d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
-                                        agent.vehicle_actor.get_transform(),
-                                        self.config['vehicle_proximity_threshold'])
-
-            if not d_bool:
-                continue
-            else:
-                if not check_if_vehicle_in_same_lane(agent.vehicle_actor, target_vehicle, agent.next_waypoints, self._map):
+            try:
+                if target_vehicle is None or \
+                    target_vehicle.id == agent.id or \
+                    'vehicle' not in target_vehicle.type_id:
                     continue
 
-                found_obstacle = True
-                agent.episode_measurements['obstacle_visible'] = True
-                agent.episode_measurements['obstacle_orientation'] = d_angle
+                # if the object is not in our lane it's not an obstacle
+                target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
+                d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
+                                            agent.vehicle_actor.get_transform(),
+                                            self.config['vehicle_proximity_threshold'])
 
-                if distance < min_obs_distance:
-                    agent.episode_measurements['obstacle_dist'] = distance
-                    agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
-                    min_obs_distance = distance
+                if not d_bool:
+                    continue
+                else:
+                    if not check_if_vehicle_in_same_lane(agent.vehicle_actor, target_vehicle, agent.next_waypoints, self._map):
+                        continue
+
+                    found_obstacle = True
+                    agent.episode_measurements['obstacle_visible'] = True
+                    agent.episode_measurements['obstacle_orientation'] = d_angle
+
+                    if distance < min_obs_distance:
+                        agent.episode_measurements['obstacle_dist'] = distance
+                        agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
+                        min_obs_distance = distance
+            except Exception as e:
+                print('>>> skip this vehicle due to [{}]'.format(e))
 
         if not found_obstacle:
             agent.episode_measurements['obstacle_dist'] = -1
@@ -1165,9 +1168,10 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['initial_dist_to_red_light'] = -1
 
         # Ticking for 15 frames to handle car initialization in air
-        for _ in range(15):
-            # print(self.world_frame)
-            self.world_frame = self._world.tick()
+        time.sleep(1)
+        # for _ in range(15):
+        #     # print(self.world_frame)
+        #     self.world_frame = self._world.tick()
 
 
     def _get_ego_input(self, agent):
@@ -1193,8 +1197,6 @@ class CarlaEnv(gym.Env):
             agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
 
         agent.episode_measurements['next_orientation'] = next_orientation
-        # print('self.config["algo"]', self.config["algo"], flush=True)
-        # distance_to_goal_trajec = 0
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
         if agent.unseen:
             self.total_distance += distance_to_goal_trajec
@@ -1261,7 +1263,6 @@ class CarlaEnv(gym.Env):
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
         for rk in rank_list:
-            print('########## rank {} ##########'.format(rk))
             prev_agent = self.ego_agent_list[rk]
             self.ego_agent_list[rk] = None
             if prev_agent is not None: self.curr_num_agents -= 1
@@ -1272,7 +1273,7 @@ class CarlaEnv(gym.Env):
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
-            NUM_RETRIES = 5
+            NUM_RETRIES = 10
             for idx in range(NUM_RETRIES):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
@@ -1288,19 +1289,21 @@ class CarlaEnv(gym.Env):
                 if self.vehicle_actor is not None:
                     break
                 else:
-                    print("[Trial {}] Unable to spawn ego vehicle [rank {}] at {}, {}.".format(
-                        idx, rk, self.source_transform.location.x, self.source_transform.location.y))
+                    print("[rank {}] Unable to spawn ego vehicle [trial {}] at {}, {}.".format(
+                        rk, idx, self.source_transform.location.x, self.source_transform.location.y))
                     print("Number of existing actors, {}".format(len(self.actor_list)))
                     print("Number of existing ego agents, {}".format(self.curr_num_agents))
-                    time.sleep(1)
+                    time.sleep(.04)
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)
                 self.ego_vehicle_list[rk] = self.vehicle_actor
                 self.vehicle_actor.source_transform = self.source_transform
                 self.vehicle_actor.destination_transform = self.destination_transform
-                print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
-                print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
+                if self.config['verbose']:
+                    print('########## rank {} ##########'.format(rk))
+                    print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
+                    print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
                 self.curr_num_agents += 1
             else:
                 raise Exception("Failed in spawning vehicle actor.")

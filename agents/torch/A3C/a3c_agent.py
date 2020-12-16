@@ -4,6 +4,7 @@
 import os
 import queue
 import datetime
+import time
 import pickle
 import numpy as np
 import torch
@@ -77,7 +78,7 @@ class _A3C_Individual_Agent(Agent):
 
 class A3C_Collective_Agent(object):
     def __init__(self, glb_env, glb_net, glb_optimizer, num_agents=1, 
-        max_glb_num_episodes=10000, glb_update_freq=5, device='cpu'):
+        max_glb_num_episodes=10000, glb_update_freq=5, verbose=False):
         """An torch.multiprocessing A3C agent.
         Args:
             glb_env: the global environment
@@ -86,6 +87,7 @@ class A3C_Collective_Agent(object):
             num_agents: number of A3C agents
             max_glb_num_episodes: max number of global episodes
             glb_update_freq: update frequency of glb_net
+            verbose: if print some debug information
         """
         super().__init__()
         self.glb_env = glb_env
@@ -97,7 +99,11 @@ class A3C_Collective_Agent(object):
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list ]
         self.agent_list = None
-        self.device = device
+        self.device = next(glb_net.parameters()).device
+        self.verbose = verbose
+
+    def vprint(self, *args, **kwargs):
+        if self.verbose: print(*args, **kwargs)
 
     def to_tensor(self, np_array, dtype=np.float32):
         if np_array.dtype != dtype:
@@ -149,16 +155,30 @@ class A3C_Collective_Agent(object):
             glb_net=self.glb_net, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
         self.glb_env.step()
+
+        avg_t_action, avg_t_step  = [], []
+
         while glb_num_episodes < self.max_glb_num_episodes:
+            # take action
+            ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 prev_obs = torch.from_numpy(agent.observation).to(torch.float)
                 action = agent.local_net.choose_action(
                     prev_obs.to(self.device))
                 agent.action = action
-            # step forward
-            print('action chosen:', [agt.action for agt in self.agent_list])
+            te_action = time.time()
+            self.vprint('action chosen:', [a.action for a in self.agent_list])
+            # get new observation
+            ts_step = time.time()
             self.glb_env.step()
-
+            te_step = time.time()
+            avg_t_action.append(te_action - ts_action)
+            avg_t_step.append(te_step - ts_step)
+            self.vprint('[num_agent {}][action time {:.4f}, avg {:.4f}]'
+                '[step time {:.4f}, avg {:.4f}]'.format(self.num_agents, 
+                avg_t_action[-1], np.mean(avg_t_action), avg_t_step[-1], 
+                np.mean(avg_t_step)))
+            # do the learning
             for rk, agent in enumerate(self.agent_list):
                 agent.update_buffer(prev_obs, agent.action, agent.curr_reward)
 
@@ -173,7 +193,7 @@ class A3C_Collective_Agent(object):
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
-            # respawn agent
+            # respawn dead agents
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
                 if agent.done: respawn_rank_list.append(rk)

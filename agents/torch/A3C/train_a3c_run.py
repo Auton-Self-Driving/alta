@@ -25,7 +25,7 @@ glb_net = Basic_Discrete(N_S, N_A).to(ENV_CONFIG['device']) # global network
 glb_optimizer = torch.optim.Adam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.999))
 
 a3c_agent = A3C_Collective_Agent(env, glb_net, glb_optimizer, 
-    num_agents=ENV_CONFIG['num_agents'], device=ENV_CONFIG['device'])
+    num_agents=ENV_CONFIG['num_agents'], verbose=ENV_CONFIG['verbose'])
 
 a3c_agent.learn()
 

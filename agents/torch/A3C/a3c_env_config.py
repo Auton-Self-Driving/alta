@@ -66,8 +66,8 @@ ENV_CONFIG = {
     'render_res_x' : 800,
     # Y Rendering Resolution
     'render_res_y' : 800,
-    'sensor_x_res' : '512',
-    'sensor_y_res' : '512',
+    'sensor_x_res' : '80',
+    'sensor_y_res' : '160',
     # Input X Res (Default set to Atari)
     'x_res': 84,
     # Input Y Res (Default set to Atari)
