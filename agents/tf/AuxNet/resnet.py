@@ -278,7 +278,8 @@ def build_resnet(
      input_shape=None,
      classes=1000,
      block_type='usual',
-     zdim=3):
+     zdim=3,
+     return_feat = False):
     # Determine proper input shape
     input_shape = _obtain_input_shape(input_shape,
                                       default_size=224,
@@ -334,31 +335,41 @@ def build_resnet(
                 
     x = BatchNormalization(name='bn1', **bn_params)(x)
     x = Activation('relu', name='relu1')(x)
-
-    # resnet top
-    if include_top:
-        x = GlobalAveragePooling2D(name='pool1')(x)
-        x = Dense(classes, name='fc1')(x)
-        x = Activation('softmax', name='softmax')(x)
-    else:
-        manual_states = Input(shape=(zdim,), name='manual_states_data')
-        x = GlobalAveragePooling2D(name='pool1')(x)
-        y = Concatenate()([x,manual_states])
-        y = Dense(128, name='fc_1')(y)
-        y = Activation('relu', name='relu2')(y)
-        y = Dense(64, name='fc_2')(y)
-        y = Activation('relu', name='relu3')(y)
-        y = Dense(2, name='fc_3')(y)
+    x = GlobalAveragePooling2D(name='pool1')(x)
 
     # Ensure that the model takes into account any potential predecessors of `input_tensor`.
     if input_tensor is not None:
         inputs = get_source_inputs(input_tensor)
     else:
         inputs = img_input
-    
+
+    manual_states = Input(shape=(zdim,), name='manual_states_data')        
     inputs = [img_input, manual_states]
+
+    if return_feat:
+        feature_encoding_model = Model([inputs[0]], x)
+
+    # resnet top
+    if include_top:        
+        x = Dense(classes, name='fc1')(x)
+        x = Activation('softmax', name='softmax')(x)
+    else:
+        y = Concatenate()([x,manual_states])
+        y = Dense(128, name='fc_1')(y)
+        y = Activation('relu', name='relu2')(y)
+        y = Dense(64, name='fc_2')(y)
+        y = Activation('relu', name='relu3')(y)
+        y1 = Dense(2, name='fc_3')(y)
+        y1 = Activation('tanh', name='tanh1')(y1)
+        y2 = Dense(2, name='fc_4')(y)
+        y2 = Activation('sigmoid', name='sigmoid1')(y2)
+
+    
     # Create model.
-    model = Model(inputs, y)
+    model = Model(inputs, [y1, y2])
+
+    if return_feat:
+        return model, feature_encoding_model
 
     return model
 
@@ -385,18 +396,31 @@ weights_collection = [
     },
 ]
 
-def ResNet34(input_shape, input_tensor=None, weights=None, classes=1000, include_top=True, zdim=3):
-    model = build_resnet(input_tensor=input_tensor,
-                         input_shape=input_shape,
-                         repetitions=(3, 4, 6, 3),
-                         classes=classes,
-                         include_top=include_top,
-                         block_type='basic',
-                         zdim=zdim)
+def ResNet34(input_shape, input_tensor=None, weights=None, classes=1000, include_top=True, zdim=3, return_feat = False):
+    if return_feat:
+        model, feat_model = build_resnet(input_tensor=input_tensor,
+                            input_shape=input_shape,
+                            repetitions=(3, 4, 6, 3),
+                            classes=classes,
+                            include_top=include_top,
+                            block_type='basic',
+                            zdim=zdim,
+                            return_feat = True)
+    else:
+        model = build_resnet(input_tensor=input_tensor,
+                            input_shape=input_shape,
+                            repetitions=(3, 4, 6, 3),
+                            classes=classes,
+                            include_top=include_top,
+                            block_type='basic',
+                            zdim=zdim)
     model.name = 'resnet34'
 
     if weights:
         load_model_weights(weights_collection, model, weights, classes, include_top)
+
+    if return_feat:
+        return model, feat_model
     return model
 
 if __name__=="__main__":

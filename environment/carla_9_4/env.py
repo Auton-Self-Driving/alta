@@ -17,6 +17,7 @@ import cv2
 import collections
 import queue
 import time
+import tensorflow as tf
 
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
@@ -113,7 +114,7 @@ class CarlaEnv(gym.Env):
             self.im_channels = 3
         
         self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
-
+        self.expert = None
         # Start Carla Server
         serverStarted = False
         serverStartRetries = 0
@@ -158,8 +159,8 @@ class CarlaEnv(gym.Env):
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(4041)
-        self.tm.set_synchronous_mode(True)
+        #self.tm = self.client.get_trafficmanager(4041)
+        #self.tm.set_synchronous_mode(True)
 
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
@@ -281,6 +282,10 @@ class CarlaEnv(gym.Env):
                                         shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
                                         # shape=(1, 12296), dtype=np.float32)
                                         # shape=(1, 20488), dtype=np.float32)
+            elif self.config["input_type"] == 'wp_resnet_speed_steer':
+                self.observation_space = Box(low=np.finfo(np.float32).min,
+                                        high=np.finfo(np.float32).max,
+                                        shape=(1, 515), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -531,7 +536,14 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
+        elif self.config["input_type"] in ['wp_resnet_speed_steer']:
+            speed = self.episode_measurements['speed'] / 10
+            steer = self.episode_measurements['control_steer']
+            ldist = self.episode_measurements['dist_to_trajectory']
 
+            # normalization
+            #obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist])))
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer])))
 
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()
@@ -815,7 +827,7 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
-                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light', 'wp_resnet_speed_steer']:
 
             if self.config["semantic"]:
                 semantic_image = sensor_image[:,:,0]
@@ -854,6 +866,10 @@ class CarlaEnv(gym.Env):
                 rv_visual_observation = self.vae_observation(rv_stacked_observation)                
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
                 rv_visual_observation = rv_visual_observation / self.config["vae_encoding_norm_factor"]
+            elif 'resnet' in self.config["input_type"]:
+                self.create_observations(obs)        
+                visual_observation = self.resnet_observation(stacked_observation, obs['observation'])
+                rv_visual_observation = self.resnet_observation(rv_stacked_observation, obs['observation'])
             else:
                 visual_observation = stacked_observation
                 rv_visual_observation = rv_stacked_observation
@@ -900,7 +916,7 @@ class CarlaEnv(gym.Env):
                     if self.config["semantic"]:
                         self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
                     else:
-                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+                        self.vis_wrapper.save_pil_image(obs['rv_image'], self.num_steps, self.episode_measurements)
                 if self.vis_wrapper_vae is not None:
 
                     # Logic for combined videos
@@ -1065,6 +1081,11 @@ class CarlaEnv(gym.Env):
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
             return fused_input, reward, done, self.episode_measurements, rv_visual_observation
+        elif self.config["input_type"] == "wp_resnet_speed_steer":
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([rv_visual_observation, observation])
+            self.recent_image_obs = rv_stacked_observation
+            return fused_input, reward, done, self.episode_measurements
         elif self.config["input_type"] == "wp":
             return obs['observation'], reward, done, self.episode_measurements
         elif self.config["input_type"] in ['wp_noise', 'wp_constant', 'wp_obs_dist', 'wp_obs_bool', 'wp_obs_bool_noise', 'wp_ldist_goal',
@@ -1264,12 +1285,31 @@ class CarlaEnv(gym.Env):
 
     def set_vae(self, vae):
         self.vae = vae
-    
+
+    def set_expert(self, expert):
+        self.expert = expert
+
+    def set_pretrained_resnet(self, pretrained_resnet):
+        self.pretrained_resnet = pretrained_resnet
+
+    def preproc_img(self, im, im_size=(224, 224, 3)):
+        img = im.reshape(im_size)
+        return img/255.0
+        
     def vae_observation(self, observation_image):
         if self.config["train_vae"]:
             self.vae.buffer_append(observation_image)
         ob = self.vae.encode(observation_image)
         return ob
+    
+    def resnet_observation(self, observation_image, manual_states):
+        #manual_states = np.expand_dims(manual_states, axis = 0)
+        observation_image = observation_image.reshape((1, -1))
+        observation_image = self.preproc_img(observation_image).astype(np.float32)
+        observation_image = np.expand_dims(observation_image, axis = 0)
+        with tf.device('gpu:0'):
+            feat = self.pretrained_resnet.predict([observation_image])
+        return feat
 
     def get_control(self, action):
         """ Get Control object for Carla from action
@@ -1728,7 +1768,7 @@ class CarlaEnv(gym.Env):
         visual_observation = None
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
-                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+                                         'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light', 'wp_resnet_speed_steer']:
 
             if self.config["semantic"]:
                 semantic_image = image[:,:,0]
@@ -1772,6 +1812,10 @@ class CarlaEnv(gym.Env):
                 rv_visual_observation = self.vae_observation(rv_stacked_observation)                
                 visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
                 rv_visual_observation = rv_visual_observation / self.config["vae_encoding_norm_factor"]                
+            elif 'resnet' in self.config["input_type"]:
+                self.create_observations(obs)
+                visual_observation = self.resnet_observation(stacked_observation, obs['observation']*0)
+                rv_visual_observation = self.resnet_observation(rv_stacked_observation, obs['observation']*0)                
             else:
                 visual_observation = stacked_observation
                 rv_visual_observation = rv_stacked_observation
@@ -1827,6 +1871,12 @@ class CarlaEnv(gym.Env):
             visual_observation = visual_observation.reshape((1, -1))
             fused_input = np.hstack([visual_observation, observation])
             return fused_input, rv_visual_observation
+
+        elif self.config["input_type"] == "wp_resnet_speed_steer":
+            observation = np.expand_dims(obs['observation'], axis = 0)
+            fused_input = np.hstack([rv_visual_observation, observation])
+            self.recent_image_obs = rv_stacked_observation
+            return fused_input
 
         elif self.config["input_type"] == "wp":
             return obs['observation']
@@ -1894,12 +1944,13 @@ class CarlaEnv(gym.Env):
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
-        tm_port = self.tm.get_port()
+        #tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
             # TODO: uncomment below to enable autopilot
             if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-                vehicle.set_autopilot(True, tm_port)
+                #vehicle.set_autopilot(True, tm_port)
+                vehicle.set_autopilot()
 
             if self.config['test_comparison']:
                 self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))

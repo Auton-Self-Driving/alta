@@ -23,9 +23,9 @@ class ResnetController:
                 epoch_per_optimization=30,
                 batch_size=300,
                 frozen=False,
-                checkpoint_path='/home/scratch/mayankgu/model_weights.ckpt',
-                val_data=None
-                ):
+                checkpoint_path='/home/scratch/vkadi/model_weights.ckpt',
+                val_data=None,
+                return_feat = False):
         self.epoch_per_optimization = epoch_per_optimization
         self.batch_size = batch_size
         self.checkpoint_path = checkpoint_path
@@ -34,10 +34,14 @@ class ResnetController:
         self.buffer = []
         self.val_data=val_data
 
-        self.model = ResNet34((224,224,3), weights='imagenet', include_top=False, zdim=zdim)
-        self.model.compile(loss='mean_squared_error', optimizer="adam")
+        self.feat_model = None
+        if return_feat:
+            self.model, self.feat_model = ResNet34((224,224,3), weights='imagenet', include_top=False, zdim=zdim, return_feat = True)            
+        else:
+            self.model = ResNet34((224,224,3), weights='imagenet', include_top=False, zdim=zdim)
+        self.model.compile(loss=['mean_squared_error', 'binary_crossentropy'], optimizer="adam")
         
-        self.checkpoint_path="/home/scratch/mayankgu/cp.ckpt"
+        self.checkpoint_path="/home/scratch/vkadi/cp.ckpt"
 
         if frozen:        
             for l in self.model.layers:
@@ -51,7 +55,7 @@ class ResnetController:
 
     def optimize(self, iter, epochs=None, patience=6):
         self.iter=iter
-        self.checkpoint_path="/home/scratch/mayankgu/DAGGER_iter_"+str(iter)+".ckpt"
+        self.checkpoint_path="/home/scratch/vkadi/resnet_DAGGER_iter_"+str(iter)+".ckpt"
         cp_callback = ModelCheckpoint(filepath=self.checkpoint_path,
                                                  save_weights_only=True,
                                                  save_best_only=True,
@@ -61,12 +65,14 @@ class ResnetController:
         train_images = np.stack([i[0][0] for i in self.buffer])
         train_manual = np.stack([i[0][1] for i in self.buffer])
         train_labels = np.stack([i[1] for i in self.buffer])
+        train_helper_states = np.stack([i[2] for i in self.buffer])
         
         val_images = np.stack([i[0][0] for i in self.val_data])
         val_manual = np.stack([i[0][1] for i in self.val_data])
         val_labels = np.stack([i[1] for i in self.val_data])
+        val_helper_states = np.stack([i[2] for i in self.val_data])
         
-        carla_gen = CarlaDatasetGenerator(train_images, train_manual, train_labels, self.batch_size)
+        carla_gen = CarlaDatasetGenerator(train_images, train_manual, train_labels, train_helper_states, self.batch_size)
         if epochs is None:
             max_ep = self.epoch_per_optimization
         else:
@@ -74,7 +80,7 @@ class ResnetController:
         early_stopping_callback = EarlyStopping(monitor='val_loss', patience=patience)
         history = self.model.fit_generator(generator=carla_gen,
           steps_per_epoch=len(carla_gen),
-          validation_data=([val_images, val_manual], val_labels),
+          validation_data=([val_images, val_manual], [val_labels, val_helper_states]),
           epochs=max_ep,
           callbacks=[early_stopping_callback, cp_callback])
     

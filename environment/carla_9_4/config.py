@@ -323,19 +323,23 @@ class ConfigManager(object):
             self.config["reward_function"] = "simple2"
             self.config["discrete_actions"] = False
             self.config["train_config"] = "PPO"
-            self.config["action_type"] = "merged_speed"
+            self.config["action_type"] = "merged_speed_scaled_tanh"
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
             self.config["semantic"] = True
-            self.config["scenarios"] = "straight"
-            self.config["videos"] = True
+            self.config["scenarios"] = "navigation"
+            self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
             self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = True
             self.config["carla_gpu"] = "1"
+            self.config["disable_two_wheeler"] = True
+            self.config["enable_lane_invasion_sensor"] = True
+            self.config["sample_npc"] = True   
+            self.config["learning_starts"] = 100000                     
         elif algo == 'AE':
             self.config["algo"] = "AE"
             self.config["action_type"] = "control"

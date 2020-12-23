@@ -50,7 +50,7 @@ class vis():
 
     def save_pil_image(self, image, step_number, step_info):
         image = self.convert_image(image)
-        image = self.modify_image(image, step_info)
+        #image = self.modify_image(image, step_info)
         if(step_number % self.frame_skip == 0):
             self.image_idx += 1
             img_id = "{:08d}".format(self.image_idx)

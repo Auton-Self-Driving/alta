@@ -1,6 +1,5 @@
 import sys, os, glob
 sys.path.append(os.path.abspath(os.path.join('../../', 'config')))
-
 from environment.carla_9_4.env import CarlaEnv
 from environment.carla_9_4.config import ConfigManager
 
@@ -11,7 +10,7 @@ import vis_module
 import traceback
 import csv
 import multiprocessing as mp
-import keras.backend as K
+#import keras.backend as K
 import matplotlib.pyplot as plt
 import pickle
 
@@ -42,7 +41,7 @@ image_size = (224, 224, 3)
 rv_img_sz = list(image_size)
 rv_img_sz[-1] *=1
 rv_img_sz = tuple(rv_img_sz)
-DATA_DIR = '/home/scratch/mayankgu/'
+DATA_DIR = '/home/scratch/vkadi/'
 
 def test(model, env, image_size, dump_results=False, path='.', model_step=None, rv=False):
     dummy_env = DummyVecEnv([lambda: env])
@@ -78,11 +77,11 @@ def test(model, env, image_size, dump_results=False, path='.', model_step=None, 
             if rv:
                 rv_img = np.expand_dims(preproc_img(rv_img, image_size), axis = 0)
                 with tf.device('gpu:0'):
-                    actions = model.predict([rv_img, manual_states])
+                    actions = model.predict([rv_img, manual_states])[0]
             else:
                 img = np.expand_dims(preproc_img(img, image_size), axis = 0)
                 with tf.device('gpu:0'):
-                    actions = model.predict([img, manual_states])
+                    actions = model.predict([img, manual_states])[0]
             manual_states = manual_states[0]
             cnt+=1
             sys.stdout.write("Iter %d : Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}\r"%(cnt, manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7]))
@@ -152,10 +151,13 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
             obs = obs[:,-8:]
             if z_dim == 3:
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5]])
+                helper_states = preproc_helper_states(np.hstack([obs[:, 1], obs[:,-1]]))
             elif z_dim == 5:
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5], obs[:,6:]])
+                helper_states = preproc_helper_states(np.hstack([obs[:, 1], obs[:,-1]]))
             if manual_states.ndim>1:
                 manual_states = manual_states.reshape((-1,))
+                helper_states = helper_states.reshape((-1,))                
             actions = model.predict(obs, deterministic=True)[0]
                             
             sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7],actions[1],actions[0]))
@@ -163,7 +165,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
             rv_img_ = preproc_img(rv_img, rv_img_sz).astype(np.float32)
             manual_states = manual_states.astype(np.float32)
             
-            to_append = [[rv_img_, manual_states], actions]
+            to_append = [[rv_img_, manual_states], actions, helper_states]
             
             #if prev_manual is None or not (prev_manual-manual_states).all():
             data.append(to_append)
@@ -177,7 +179,7 @@ def collect_data(model, env, dump_results=False, path='.', num_ep=10, model_step
     env.reset()
     data = np.asarray(data)
     if save:
-        fl = open(DATA_DIR+'imitation_data_front_rgb3_val.p', 'wb')
+        fl = open(DATA_DIR+'imitation_data_front_rgb3.p', 'wb')
         pickle.dump(data, fl)
         fl.close()
     return data
@@ -187,7 +189,7 @@ def collect_data_agent(expert_model, imitator, env, dump_results=False, path='.'
     env.reset()
     data = []
     
-    sess = K.get_session()
+    #sess = K.get_session()
 
     for ind in range(num_ep):
         print("\n\n########################")
@@ -205,10 +207,13 @@ def collect_data_agent(expert_model, imitator, env, dump_results=False, path='.'
             obs = obs[:,-8:]
             if z_dim == 3:
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5]])
+                helper_states = preproc_helper_states(np.hstack([obs[:, 1], obs[:,-1]]))
             elif z_dim == 5:
                 manual_states = np.hstack([obs[:, :1], obs[:,3:5], obs[:,6:]])
+                helper_states = preproc_helper_states(np.hstack([obs[:, 1], obs[:,-1]]))
             if manual_states.ndim>1:
                 manual_states = manual_states.reshape((-1,))
+                helper_states = helper_states.reshape((-1,))                
             expert_actions = expert_model.predict(obs, deterministic=True)[0]
             sys.stdout.write("Waypoint: {%.5f}, Speed: {%.5f}, Steer: {%.5f}, GoalDist: {%.5f}, Light: {%.5f}, Expert Speed: {%.5f}, Expert Steer: {%.5f}\r"%(manual_states[0],manual_states[1],manual_states[2],obs[:,6],obs[:,7],expert_actions[1],expert_actions[0]))
             rv_img_ = preproc_img(rv_img, rv_img_sz).astype(np.float32)
@@ -217,9 +222,9 @@ def collect_data_agent(expert_model, imitator, env, dump_results=False, path='.'
             processed_img = np.expand_dims(rv_img_, axis = 0)
             processed_manual_states = np.expand_dims(manual_states, 0)
             with tf.device('gpu:0'):
-                actions = imitator.model.predict([processed_img, processed_manual_states])
+                actions = imitator.model.predict([processed_img, processed_manual_states])[0]
 
-            to_append = [[rv_img_, manual_states], expert_actions]
+            to_append = [[rv_img_, manual_states], expert_actions, helper_states]
             #if prev_manual is None or not np.allclose(prev_manual,manual_states):
             data.append(to_append)
             info = env.step(actions)
@@ -259,6 +264,12 @@ def launch_server(config, vis_wrapper, ALTA_LOGS, logger=None):
                 serverStartRetries += 1
                 time.sleep(20)
     return env
+
+def preproc_helper_states(helper_states):
+    helper_states = 1.0-helper_states
+    helper_states[0] = (helper_states[0]>0.4)*1
+    helper_states[-1] = (helper_states[-1]>0.2)*1
+    return helper_states
 
 def preproc_img(im, im_size, to_rgb = False):
     img = im.reshape(im_size)
@@ -325,14 +336,15 @@ def imitate_ppo(args, prefix, config):
         test_idx = 0
         if args.dataset_path is None:
             env, dummy_env = get_env(args, config, ALTA_LOGS, test_idx, SCRATCH_DIR)
-            model = PPO.load(args.agent_model_path, env=dummy_env)
+            #model = PPO.load(args.agent_model_path, env=dummy_env)
 
             env.config['input_type'] = 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
             with open(ALTA_LOGS + 'test_results_' + config.config["city_name"] +  config.config['scenarios'] +  '_run_' + str(test_idx) + ".txt", "a") as f:
                 if args.test:
                     print("Testing")
-                    Imitator = ResnetController(zdim=z_dim)
-                    Imitator.load(os.path.join(DATA_DIR,'DAGGER_iter_2.ckpt'))
+                    Imitator = ResnetController(zdim=z_dim, return_feat = True)
+                    Imitator.load(os.path.join('/zfsauton/datasets/ArgoRL/sameer/','resnet_DAGGER_iter_2.ckpt'))
+                    #Imitator.feat_model.load_weights(os.path.join('/zfsauton/datasets/ArgoRL/sameer/','resnet_DAGGER_iter_2.ckpt'), by_name = True)
                     priv_imitator = Imitator.model
                     total_reward, success_episodes, results, data = test(priv_imitator, env, image_size = image_size, rv=True)
                     collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
@@ -340,13 +352,13 @@ def imitate_ppo(args, prefix, config):
                     return
                 else:
                     print("Generating data")
-                    data = collect_data(model, env, num_ep = 7, save=True)
+                    data = collect_data(model, env, num_ep = 20, save=True)
                     return
             env.close()
         else:
             print("Loading data", end='\r')
-            data = pickle.load(open(os.path.join(DATA_DIR, 'imitation_data_front_rgb3.p'), 'rb'))
-            data_val = pickle.load(open(os.path.join(DATA_DIR, 'imitation_data_front_rgb3_val.p'), 'rb'))
+            data = pickle.load(open(os.path.join('/zfsauton/datasets/ArgoRL/sameer/', 'imitation_data_front_rgb3.p'), 'rb'))
+            data_val = pickle.load(open(os.path.join('/zfsauton/datasets/ArgoRL/sameer/', 'imitation_data_front_rgb3_val.p'), 'rb'))
             print("Data Loaded")
 
         np.random.shuffle(data)
@@ -385,17 +397,17 @@ def imitate_ppo(args, prefix, config):
             env.reset()
 
             # DAGGER
-            new_data = collect_data_agent(expert_model, Imitator, env, num_ep = 10, save=True, iter=iter)
-            
+            new_data = collect_data_agent(expert_model, Imitator, env, num_ep = 10, save=False, iter=iter)
+            data = collect_data(expert_model, env, num_ep = 5, save=False)
             data = list(data)+list(new_data)
             random.shuffle(data)
 
-            # Testing
-            env.reset()
-            priv_imitator = Imitator.model
-            total_reward, success_episodes, results, test_data = test(priv_imitator, env, image_size = rv_img_sz, rv=True)
-            collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
-                runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = test_data[3:]
+        # Testing
+        env.reset()
+        priv_imitator = Imitator.model
+        total_reward, success_episodes, results, test_data = test(priv_imitator, env, image_size = rv_img_sz, rv=True)
+        collision_obs_episodes, collision_lane_change_episodes, collision_out_of_road_episodes, collision_unexpected_episodes, \
+            runover_light_episodes, max_steps_episodes, max_steps_obs_episodes, max_steps_light_episodes, static_episodes, unknown_episodes = test_data[3:]
 
         
     except Exception as e:

@@ -1,4 +1,4 @@
-python ../../../../run_code.py \
+python ../../../run_code.py \
 --algo PPO \
 --disable-lane-invasion-termination \
 --test-trails 1 \
@@ -13,8 +13,8 @@ python ../../../../run_code.py \
 --timesteps 8000000 \
 --const-collision-penalty 250 --collision-penalty-speed-coeff 250 \
 --const-light-penalty 250 --light-penalty-speed-coeff 250 \
---base-log-dir '/zfsauton2/home/mayankgu/ResnetWP_alta/alta_logs/Resnet_Imitation_2' \
---carla-gpu 0 --code-gpu 0 \
+--base-log-dir '/zfsauton2/home/vkadi/projects/alta-logs/new_env/ppo_runs/dynamic_navigation/updated_light/wp_obs_info_speed_steer_ldist_goal_light' \
+--carla-gpu 2 --code-gpu 1 \
 --n-steps 10000 \
 --lr 2e-4 \
 --no-epochs 10 \
@@ -25,7 +25,7 @@ python ../../../../run_code.py \
 --city_name Town02 \
 --imitate \
 --test \
---videos
+#--videos \
 #--dataset-path '/zfsauton2/home/vkadi/projects/alta/agents/tf/run_scripts/ppo/imitate_ppo/imitation_data_combined1.p'
 
 #--disable-semantic \
