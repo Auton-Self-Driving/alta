@@ -1,11 +1,11 @@
-"""A3C network for discrete_actions
+"""A2C network for discrete_actions
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from a3c_utils import set_init
+from a2c_utils import set_init
 
 class Basic_Discrete(nn.Module):
     def __init__(self, s_dim, a_dim):
@@ -38,7 +38,7 @@ class Basic_Discrete(nn.Module):
         logits, values = self.forward(s)
         td = v_t - values
         c_loss = td.pow(2)
-        
+
         probs = F.softmax(logits, dim=1)
         m = self.distribution(probs)
         exp_v = m.log_prob(a) * td.detach().squeeze()

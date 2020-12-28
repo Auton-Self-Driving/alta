@@ -20,7 +20,7 @@ import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
-from agents.torch.A3C.a3c_env_config import ENV_CONFIG
+from agents.torch.multi_agent.config import ENV_CONFIG
 
 
 # import ipdb
@@ -58,7 +58,7 @@ class CarlaEnv(gym.Env):
         self.prev_measurement = None
         self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
-        if 'num_agents' in self.config and self.config['algo'] == 'A3C':
+        if 'num_agents' in self.config and self.config['algo'] == 'A2C':
             if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
             self.ego_vehicle_list = [None] * self.config['num_agents']
             self.ego_agent_list = [None] * self.config['num_agents']
@@ -87,9 +87,9 @@ class CarlaEnv(gym.Env):
 
         self.logger = logger
         self.controller = controller.PIDLongitudinalController(
-            K_P=self.args_longitudinal_dict['K_P'], 
-            K_D=self.args_longitudinal_dict['K_D'], 
-            K_I=self.args_longitudinal_dict['K_I'], 
+            K_P=self.args_longitudinal_dict['K_P'],
+            K_D=self.args_longitudinal_dict['K_D'],
+            K_I=self.args_longitudinal_dict['K_I'],
             dt=self.args_longitudinal_dict['dt'])
 
         # Start Carla Server
@@ -555,7 +555,7 @@ class CarlaEnv(gym.Env):
             if self.config['test_comparison']:
                 self._step_test_comparison(action)
                 return None
-            elif self.config['algo'] == 'A3C':
+            elif self.config['algo'] == 'A2C':
                 # new_obs, reward, done, ep_info = self._step(action[0])
                 # return [new_obs], [reward], [done], [ep_info]
                 obs = self.list_step() # action here will be an action list
@@ -598,7 +598,7 @@ class CarlaEnv(gym.Env):
                         print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
                     "reverse", control.reverse)
                         print("steps", agent.curr_ep_num_steps)
-        
+
                 agent.obstacle_dist_array.append(agent.episode_measurements['obstacle_dist'])
                 agent.obstacle_speed_array.append(agent.episode_measurements['obstacle_speed'])
                 agent.wp_orientation_array.append(agent.episode_measurements['next_orientation'])
@@ -635,7 +635,7 @@ class CarlaEnv(gym.Env):
                 next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
                     agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
                     agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
-                
+
                 agent.episode_measurements['next_orientation'] = next_orientation
                 agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
                 agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
@@ -750,12 +750,12 @@ class CarlaEnv(gym.Env):
             self._update_traffic_light_states(agent)
 
             if self.config['verbose']:
-                print('[agent {}] light info:'.format(agent.rank), 
+                print('[agent {}] light info:'.format(agent.rank),
                     agent.episode_measurements['dist_to_light'],
                     agent.episode_measurements['nearest_traffic_actor_id'],
                     agent.episode_measurements['nearest_traffic_actor_state'],
                     agent.episode_measurements['initial_dist_to_red_light'],
-                    agent.episode_measurements['red_light_dist'])   
+                    agent.episode_measurements['red_light_dist'])
 
     def _update_obs_detector(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
@@ -904,11 +904,11 @@ class CarlaEnv(gym.Env):
         if self.config["action_type"] != "control":
             action = action.flatten()
 
-        if self.config["action_type"] is "sep_gas":
+        if self.config["action_type"] == "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
             brake = float(action[2])
-        elif self.config["action_type"] is "merged_gas":
+        elif self.config["action_type"] == "merged_gas":
             steer = float(action[0])
             gas = float(action[1])
             # gas = gas + 0.25
@@ -1010,7 +1010,7 @@ class CarlaEnv(gym.Env):
     def reset(self, unseen=False, index=0, rank_list=None):
         if self.config['test_comparison']:
             return self._reset_test_comparison(unseen, index)
-        elif self.config['algo'] == 'A3C':
+        elif self.config['algo'] == 'A2C':
             return self.list_reset(unseen, index, rank_list=rank_list)
         else:
             return self._reset(unseen, index)
@@ -1044,7 +1044,7 @@ class CarlaEnv(gym.Env):
 
     def destroy_all_existing_ego_agents(self):
         for agent in self.ego_agent_list:
-            self.destroy_an_existing_ego_agent(agent)        
+            self.destroy_an_existing_ego_agent(agent)
 
     def clear_episode_measurements(self):
         # Below logic is to avoid clearing of following measurements,
@@ -1063,7 +1063,7 @@ class CarlaEnv(gym.Env):
             os.makedirs(_folder)
         _filename = '{}/{:08d}.jpg'.format(_folder, agent.num_total_steps)
         plt.imsave(_filename, rgb_image)
-        
+
 
     def reset_vehicle_agent(self, agent_list):
         # bind new agent
@@ -1248,7 +1248,7 @@ class CarlaEnv(gym.Env):
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
-            agent.observation = observation 
+            agent.observation = observation
         else:
             agent.observation = obs
 

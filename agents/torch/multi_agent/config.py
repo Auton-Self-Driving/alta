@@ -55,7 +55,7 @@ EPISODE_MEASUREMENTS = {
 
 
 ENV_CONFIG = {
-    'algo': 'A3C',
+    'algo': 'A2C',
     'num_agents': 4,
     'max_num_episodes': 200,
     'device': 'cuda:0',
@@ -136,7 +136,7 @@ ENV_CONFIG = {
     'zero_speed_threshold': 0.05,
     ### 'videos' : False,
     'obstacle_dist_norm' : 60,
-    'spawn_points_fixed_idx' : [ 
+    'spawn_points_fixed_idx' : [
         54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
        246, 128, 106, 143,  39,  72, 176, 140, 138,  91,  88, 241,  29,
         28, 238, 119, 221, 163,  81,  47, 255, 235,  64, 216, 151, 145,
