@@ -6,7 +6,7 @@ import os
 import torch
 import matplotlib.pyplot as plt
 
-from a2c_network import Basic_Discrete
+from network import Basic_Discrete
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
 from a2c_agent import A2C_Collective_Agent

@@ -11,9 +11,9 @@ import torch
 import torch.multiprocessing as mp
 
 from a2c_utils import SharedAdam, push_and_pull, record, v_wrap
-from a2c_network import Basic_Discrete
+from network import Basic_Discrete
 from carla_env import CarlaEnv
-from a2c_env_config import ENV_CONFIG
+from config import ENV_CONFIG
 
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
