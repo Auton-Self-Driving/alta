@@ -139,7 +139,8 @@ def create_sac_prefix(args):
         + enable_static_str \
         + '_cp-'+str(args.const_collision_penalty)+'-'+str(args.collision_penalty_speed_coeff)\
         + '_lp-'+str(args.const_light_penalty)+'-'+str(args.light_penalty_speed_coeff)\
-        + '_corr_pretrain_hard-reward1'
+        + '_corr_pretrain'
+        # + '_corr_pretrain_offline_100k'
     
     prefix = base + '_runid_' + args.run_id + '/'
     base_prefix = base + '/'

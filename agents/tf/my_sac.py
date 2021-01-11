@@ -209,7 +209,7 @@ def get_save_best_model(total_rewards, total_successes, model_file_names, path):
     return best_model
 
 class MY_SAC(SAC):
-    def __init__(self, config = None, **kwargs):
+    '''def __init__(self, config = None, **kwargs):
         if config is None:
             print("Using config from env")
             config = kwargs.get('env').config
@@ -222,7 +222,17 @@ class MY_SAC(SAC):
         self.gradient_steps = config["gradient_steps_per_iteration"]
         self.target_update_interval = config["target_update_interval"]
         #self.ent_coef = config["ent_coef"]
+        self.st = time.time()'''
+
+    def __init__(self, config = None, **kwargs):
+        super(MY_SAC, self).__init__(ent_coef = 5e-2, train_freq = 512, \
+                                        learning_starts = 100000, **kwargs)
+        self.n_steps = 25
+        self.gradient_steps = 100
+        self.target_update_interval = 100
+        #self.ent_coef = config["ent_coef"]
         self.st = time.time()
+    
 
     def learn(self, env, total_timesteps, trained_timesteps, callback=None, seed=None,
               log_interval=100, tb_log_name="SAC", reset_num_timesteps=True, custom_logger = None, save_file="sac_weights"):
@@ -270,9 +280,9 @@ class MY_SAC(SAC):
                     self.save(save_file + str(step))
                     st1 = time.time()
                     plot_policy_and_value_fns(self, step, save_file.split('sac_me')[0] + 'policy_plots/', self.config["input_type"])
-                    total_reward, success_episodes,_ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=step)
+                    '''total_reward, success_episodes,_ = test(self, env, dump_results=True, path=save_file.split('models')[0], model_step=step)
                     total_rewards.append(total_reward)
-                    total_successes.append(success_episodes)
+                    total_successes.append(success_episodes)'''
                     model_file_names.append(save_file + str(step))
                     print('*'*100, time.time()-st1)
                     print('*'*100, time.time()-self.st)
@@ -351,9 +361,10 @@ class MY_SAC(SAC):
                     if(interrupt):
                         gamma_bs = 1.0
 
-                    if self.num_timesteps < self.learning_starts:
-                        mc_reward=1.0
+                    '''if self.num_timesteps < self.learning_starts:
+                        mc_reward=5.0'''
 
+                    # if self.num_timesteps < self.learning_starts:
                     if(mini_ep_info[0][-1]):					# We are looking at terminal state
                         self.replay_buffer.add(mini_ep_info[0][0], mini_ep_info[0][1], mini_ep_info[0][2], mini_ep_info[0][3],1.0)
                     else:

@@ -51,6 +51,14 @@ import psutil
 
 from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
 
+from keras.backend.tensorflow_backend import set_session
+import tensorflow as tf
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+config.log_device_placement = True  # to log device placement (on which device the operation ran)
+sess = tf.Session(config=config)
+set_session(sess)
+
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
         self.config = DEFAULT_ENV
@@ -285,7 +293,7 @@ class CarlaEnv(gym.Env):
             elif self.config["input_type"] == 'wp_resnet_speed_steer':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
-                                        shape=(1, 515), dtype=np.float32)
+                                        shape=(1, 516), dtype=np.float32)
         
         self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
         self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
@@ -542,8 +550,8 @@ class CarlaEnv(gym.Env):
             ldist = self.episode_measurements['dist_to_trajectory']
 
             # normalization
-            #obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist])))
-            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer])))
+            obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist])))
+            # obs['observation'] = np.concatenate((np.array([self.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer])))
 
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input()

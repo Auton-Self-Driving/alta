@@ -72,19 +72,20 @@ def test(model, expert, env, dump_results=False, path='.', model_step=None):
         reward = 0
         cnt=0
         while not done:
-            rv_img = env.recent_image_obs
+            '''rv_img = env.recent_image_obs
             rv_img = np.expand_dims(preproc_img(rv_img, (224, 224, 3)), axis = 0)
             with tf.device('gpu:3'):
-                expert_actions = expert.predict([rv_img, obs[0,0,-3:][None,:]])[0]
-            # actions = model.predict(obs, deterministic=True)[0]
-            # actions[0] = actions[0]*2.0
-            info = env.step(expert_actions)
+                expert_actions = expert.predict([rv_img, obs[0,0,-3:][None,:]])[0]'''
+            actions = model.predict(obs, deterministic=True)[0]
+            #actions[0] = actions[0]*2.0
+            actions[0][0] = np.clip(actions[0][0]*2.0, -0.5, 0.5)
+            info = env.step(actions)
             reward += info[1][0][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
             ep_meas = info[3]
             cnt+=1
-            sys.stdout.write("Iter %d : GoalDist: {%.5f} \r"%(cnt, ep_meas['distance_to_goal_trajec']))
+            sys.stdout.write("Iter %d : GoalDist: {%.5f}, Steer: {%.5f}, Speed: {%.5f} \r"%(cnt, ep_meas['distance_to_goal_trajec'], actions[0][0], actions[0][1]))
         '''while not done:
             img = obs[:,:-8]
             rv_img = rv_img.reshape((1, -1))
@@ -112,10 +113,13 @@ def test(model, expert, env, dump_results=False, path='.', model_step=None):
             results[ind] = 0
             if info[3]['obs_collision']:
                 collision_obs_episodes += 1
+                info[3]['termination_state'] = "obs_collision"
             elif info[3]['lane_change']:
                 collision_lane_change_episodes += 1
+                info[3]['termination_state'] = "lane_change"
             elif info[3]['out_of_road']:
                 collision_out_of_road_episodes += 1
+                info[3]['termination_state'] = "out_of_road"
             elif info[3]['termination_state'] == 'runover_light':
                 runover_light_episodes += 1
             elif info[3]['termination_state'] == 'static':
@@ -123,6 +127,7 @@ def test(model, expert, env, dump_results=False, path='.', model_step=None):
             elif info[3]['termination_state'] == 'max_steps':
                 max_steps_episodes += 1
         #env.client.stop_recorder()
+        print("\n Success=", success_episodes, "/", ind+1, info[3]['termination_state'])
 
     env.reset()
     print("Results of train scenarios")
@@ -274,20 +279,21 @@ def run_sac(args, prefix, base_prefix, config):
 
 if __name__ == '__main__':
     run_ids = np.arange(5)+1
-    run_ids = [2]
+    run_ids = [2,3]
     base_log_dir = '/zfsauton2/home/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep_envSem3/'
+    # base_log_dir = '/home/scratch/vkadi/projects/alta/alta-logs/sac_vs_ppo_dynamic-navigation_corrNstep_envSem3/'
 
     config = ConfigManager(algo="SAC")
     config.config["videos"] = False
-    config.config["carla_gpu"] = '0'
-    config.config["code_gpu"]  = '0'
+    config.config["carla_gpu"] = '1'
+    config.config["code_gpu"]  = '1'
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=str(config.config["code_gpu"])
     config.config["testing"] = True
     config.config["test_fixed_spawn_points"] = True
     config.config["city_name"] = "Town02"
     config.config["input_type"] = "wp_resnet_speed_steer"
-    config.config["num_npc"] = 15
+    config.config["num_npc"] = 70
     #config.config['spawn_points_fixed_idx'] = np.load(base_log_dir+'spawn_pt_order_2.npy')
     config.config["ent_coef"] = -1
     config.config["n_steps"] = 1
@@ -302,7 +308,7 @@ if __name__ == '__main__':
     config.config["terminate_on_light"] = False                     # PPO evaluation setting by Tanmay and NoCrash benchmark
     config.config["disable_traffic_light"]= False
     config.config["test_comparison"] = False
-    config.config["scenarios"] = "no_crash_regular"
+    config.config["scenarios"] = "no_crash_dense"
     config.config["sample_npc"] = False
 
     config.config["semantic"] = False
@@ -314,10 +320,12 @@ if __name__ == '__main__':
     tot_rewards = []
 
     #env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir = base_log_dir, base_prefix = base_prefix, prefix = prefix)
-    #set_global_seeds(5)
+    # set_global_seeds(5)
     base_prefix = 'algo_SAC_task_self-driving_input_resnet_4dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_corr_pretrain_hard-reward1/'
+    #base_prefix = 'algo_SAC_task_self-driving_input_resnet_4dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.0005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_corr_pretrain_hard-reward5/'
     for run_id in run_ids:
         prefix = 'algo_SAC_task_self-driving_input_resnet_4dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.05_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_corr_pretrain_hard-reward1_runid_run'+str(run_id)+'/'
+        #prefix = 'algo_SAC_task_self-driving_input_resnet_4dim_network_2_layer_lr_0.0004_buffer_1000000_batchsz_512_nSteps_25_trainFreq_512_gdUpdFreq_100_tgtUpdInt_1_ent_0.0005_dynamic_navigation_npc_70_cp-250.0-250.0_lp-250.0-250.0_corr_pretrain_hard-reward5_runid_run'+str(run_id)+'/'
     
         ALTA_LOGS = base_log_dir + base_prefix + prefix
 
@@ -337,19 +345,22 @@ if __name__ == '__main__':
         Imitator.feat_model.load_weights(os.path.join('/zfsauton/datasets/ArgoRL/sameer/','resnet_DAGGER_iter_4.ckpt'), by_name = True)
         env.set_pretrained_resnet(Imitator.feat_model)
 
-        dummy_env = DummyVecEnv([lambda: env])
-        MODEL_PATH = ALTA_LOGS+'sac_weights975000.pkl'
 
-        #model = MY_SAC.load(MODEL_PATH, env)
+        dummy_env = DummyVecEnv([lambda: env])
+        # MODEL_PATH = ALTA_LOGS+'sac_weights975000.pkl'         # capstone results
+        MODEL_PATH = ALTA_LOGS+'sac_weights4575000.pkl'
+
+        model = MY_SAC.load(MODEL_PATH)
         # model = MY_SAC(config=config.config, policy=My_MlpPolicy_2layer, env=dummy_env, learning_rate=4e-4,buffer_size=10000000,batch_size=512,
         #         tensorboard_log=None, full_tensorboard_log=False, verbose=1)
         print('Starting evaluation on run id : '+str(run_id))
-        tot_reward, success_episodes, _ = test(Imitator.model, Imitator.model, env, False, path = ALTA_LOGS, model_step=0)
-        print(success_episodes)
-        print(tot_reward)
+        tot_reward, success_episodes, _ = test(model, model, env, False, path = ALTA_LOGS, model_step=0)
         num_successes.append(success_episodes)
         tot_rewards.append(tot_reward)
-
+        print(MODEL_PATH)
+        print(num_successes)
+        print(tot_reward)
     env.close()
+    print(MODEL_PATH)
     print(num_successes)
     print(tot_rewards)
