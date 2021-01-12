@@ -138,9 +138,9 @@ DEFAULT_ENV = {
     "test_with_automatic_control": False,
     "updated_scenarios": False,
     "sample_npc": True,
-    "use_offline_map": True,
+    "use_offline_map": False,
     "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
-    "use_route_to_plan" : True
+    "use_route_to_plan" : False
 }
 
 episode_measurements = {
