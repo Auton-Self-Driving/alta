@@ -20,8 +20,6 @@ class VehicleManager910():
         # Get blueprints
         self.vehicle_blueprints = self.world.get_blueprint_library().filter('vehicle.*')
 
-        # Get traffic lights
-        self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
