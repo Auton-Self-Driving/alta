@@ -901,6 +901,7 @@ class CarlaEnv(gym.Env):
         Output:
             - control: Control object for Carla
         """
+
         if self.config["action_type"] != "control":
             action = action.flatten()
 

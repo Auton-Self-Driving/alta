@@ -18,7 +18,7 @@ os.environ["OMP_NUM_THREADS"] = '1'
 env = CarlaEnv(ENV_CONFIG)
 
 N_S = env.observation_space.shape[-1]
-N_A = env.action_space.n
+N_A = env.action_space.shape[-1]
 # print(N_S, N_A)
 # from IPython import embed; embed()
 

@@ -1,3 +1,5 @@
+import os
+import time
 import pickle
 import torch
 import torch.nn as nn
@@ -12,26 +14,28 @@ from config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
 
 class _PPO_Individual_Agent(Agent):
-    def __init__(self, vehicle, glb_policy, rank=None,
-        device='cuda:0', **kwargs):
+    def __init__(self, vehicle, glb_policy, rank=None, memory=None, **kwargs):
         """A local indivial A3C agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
             glb_net: network shared by all A3C agents, not required for MP
             rank: an integer for identification of this local agent,
                 not required for MP
-            device: the device for local and global net
+            memory: PPO memory
             **kwargs: include proximity_threshold=10.0,
                 traffic_light_proximity_threshold=10.0,
                 vehicle_proximity_threshold=15.0
         """
         super().__init__(vehicle, **kwargs)
+        self.device = next(glb_policy.parameters()).device
         self.glb_policy = glb_policy
         self.local_policy = pickle.loads(pickle.dumps(self.glb_policy))
-        self.local_policy = self.local_policy.to(device)
-        self.reset_memory()
+        self.local_policy = self.local_policy.to(self.device)
+        if memory is not None:
+            self.memory = memory
+        else:
+            self.reset_memory()
         self.rank = rank
-        self.device = device
         self.done = False
         self.action = None
         self.id = vehicle.id
@@ -44,16 +48,16 @@ class _PPO_Individual_Agent(Agent):
 
     def select_action(self):
         prev_state = self.observation
-        state_tensor = torch.from_numpy(prev_state).to(torch.float)
+        state_tensor = torch.from_numpy(prev_state).to(torch.float).to(self.device)
         action, logprob = self.local_policy.act(state_tensor)
         # update partial memory
-        self.memory['state'].append(prev_state)
-        self.memory['action'].append(action)
-        self.memory['logprob'].append(logprob)
+        self.memory['state'].append(prev_state.tolist())
+        self.memory['action'].append(action.tolist())
+        self.memory['logprob'].append(logprob.tolist())
         return action
 
     def update_local_policy(self):
-        self.local_policy.load_state_dict(self.global_policy.state_dict())
+        self.local_policy.load_state_dict(self.glb_policy.state_dict())
 
     def reset_memory(self):
         self.memory = {
@@ -87,6 +91,7 @@ class PPO_Collective_Agent(object):
         self.glb_optimizer = glb_optimizer
         self.max_glb_num_episodes = max_glb_num_episodes
         self.gamma = gamma
+        self.eps_clip = eps_clip
         self.glb_update_freq = glb_update_freq
         self.optim_epochs = optim_epochs
         self.num_agents = num_agents
@@ -120,29 +125,33 @@ class PPO_Collective_Agent(object):
                     discounted_reward = 0
                 discounted_reward = reward + (self.gamma * discounted_reward)
                 rewards.appendleft(discounted_reward)
-            old_states.append(mem['state'])
-            old_actions.append(mem['action'])
-            old_logprobs.append(mem['logprobs'])
+            old_states.extend(mem['state'])
+            old_actions.extend(mem['action'])
+            old_logprobs.extend(mem['logprob'])
 
         # Normalizing the rewards:
         # rewards = torch.tensor(rewards).to(device)
         rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
         rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
 
         # convert list to tensor
-        old_states = torch.stack(old_states).to(self.device).squeeze(1).detach()
-        old_actions = torch.stack(old_actions).to(self.device).squeeze(1).detach()
-        old_logprobs = torch.stack(old_logprobs).to(self.device).squeeze(1).detach()
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32, device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32, device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32, device=self.device).squeeze().detach()
 
         # Optimize policy for K epochs:
         for _ in range(self.optim_epochs):
-            # Evaluating old actions and values :
+            # Evaluating old actions and values:
+            # print(old_states.shape)
             logprobs, state_values, dist_entropy = self.glb_policy.evaluate(old_states, old_actions)
 
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
-
             # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
             advantages = rewards - state_values.detach()
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
@@ -161,6 +170,7 @@ class PPO_Collective_Agent(object):
 
     def learn(self):
         glb_num_episodes = 1
+        num_steps_since_update = 0
         # initialize
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -177,8 +187,7 @@ class PPO_Collective_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 prev_obs = torch.from_numpy(agent.observation).to(torch.float)
-                action = agent.local_net.choose_action(
-                    prev_obs.to(self.device))
+                action = agent.select_action()
                 agent.action = action
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list])
@@ -192,14 +201,10 @@ class PPO_Collective_Agent(object):
                 '[step time {:.4f}, avg {:.4f}]'.format(self.num_agents,
                 avg_t_action[-1], np.mean(avg_t_action), avg_t_step[-1],
                 np.mean(avg_t_step)))
-            # do the learning
-            for rk, agent in enumerate(self.agent_list):
-                agent.update_buffer(prev_obs, agent.action, agent.curr_reward)
 
-                if agent.num_total_steps % self.glb_update_freq == 0 or \
-                    agent.done:
-                    # update global and assign to local net
-                    self._update()
+            for rk, agent in enumerate(self.agent_list):
+                agent.memory['reward'].append(agent.curr_reward)
+                agent.memory['done'].append(agent.done)
 
                 if agent.done:  # done and print information
                     print('[glb ep {}][agent {}] done, ep reward [{}]'.format(
@@ -209,6 +214,14 @@ class PPO_Collective_Agent(object):
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
+                num_steps_since_update += 1
+
+            if num_steps_since_update >= self.glb_update_freq:
+                # do the learning
+                # print('updating policy...')
+                self._update()
+                num_steps_since_update = 0
+
             # respawn dead agents
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
@@ -219,7 +232,8 @@ class PPO_Collective_Agent(object):
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _PPO_Individual_Agent(
                         self.glb_env.ego_vehicle_list[rk],
-                        glb_policy=self.glb_policy, rank=rk)
+                        glb_policy=self.glb_policy, rank=rk,
+                        memory=self.agent_list[rk].memory)
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
@@ -228,3 +242,20 @@ class PPO_Collective_Agent(object):
     def run(self):
         raise NotImplementedError('This agent does not use MP')
 
+
+if __name__ == '__main__':
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ["OMP_NUM_THREADS"] = '1'
+
+    env = CarlaEnv(ENV_CONFIG)
+
+    N_S = env.observation_space.shape[-1]
+    N_A = env.action_space.shape[-1]
+    print(N_S, N_A)
+    # from IPython import embed; embed()
+
+    glb_policy = PPOActorCritic_Continuous(N_S, N_A) # global network
+
+    print('*' * 80)
+    print('FINISHED')
+    print('*' * 80)

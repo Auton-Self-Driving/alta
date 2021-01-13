@@ -49,7 +49,7 @@ class Basic_Discrete(nn.Module):
 
 
 class PPOActorCritic_Continuous(nn.Module):
-    def __init__(self, state_dim, action_dim, action_std=.5, device='cpu'):
+    def __init__(self, state_dim, action_dim, action_std=.5):
         super(PPOActorCritic_Continuous, self).__init__()
         # action mean range -1 to 1
         self.actor =  nn.Sequential(
@@ -59,7 +59,7 @@ class PPOActorCritic_Continuous(nn.Module):
                 nn.Tanh(),
                 nn.Linear(32, action_dim),
                 nn.Tanh()
-            ).to(device)
+            )
         # critic
         self.critic = nn.Sequential(
                 nn.Linear(state_dim, 64),
@@ -67,17 +67,17 @@ class PPOActorCritic_Continuous(nn.Module):
                 nn.Linear(64, 32),
                 nn.Tanh(),
                 nn.Linear(32, 1)
-            ).to(device)
+            )
         self.action_var = torch.full(
-            (action_dim,) , action_std * action_std).to(device)
-        self.device = device
+            (action_dim,) , action_std * action_std)
 
     def forward(self):
         raise NotImplementedError('please use act and eval instead')
 
     def act(self, state):
-        action_mean = self.actor(state)
-        cov_mat = torch.diag(self.action_var).to(self.device )
+        device = next(self.actor.parameters()).device
+        action_mean = self.actor(state.to(device))
+        cov_mat = torch.diag(self.action_var).to(device)
 
         dist = MultivariateNormal(action_mean, cov_mat)
         action = dist.sample()
@@ -89,10 +89,10 @@ class PPOActorCritic_Continuous(nn.Module):
         return action, action_logprob
 
     def evaluate(self, state, action):
-        action_mean = self.actor(state)
-
+        device = next(self.actor.parameters()).device
+        action_mean = self.actor(state.to(device))
         action_var = self.action_var.expand_as(action_mean)
-        cov_mat = torch.diag_embed(action_var).to(self.device )
+        cov_mat = torch.diag_embed(action_var).to(device)
 
         dist = MultivariateNormal(action_mean, cov_mat)
 
@@ -103,9 +103,10 @@ class PPOActorCritic_Continuous(nn.Module):
         return action_logprobs, torch.squeeze(state_value), dist_entropy
 
     def __str__(self):
+        device = next(self.actor.parameters()).device
         return 'PPOActorCritic_Continuous:\n ' + \
-            'device: {}\n actor: {}\n critic: {}\n'.format(
-            self.device, self.actor, self.critic)
+            'device: {}\n actor: {}\n critic: {}\n'.format(device, 
+            self.actor, self.critic)
 
 
 if __name__ == '__main__':
