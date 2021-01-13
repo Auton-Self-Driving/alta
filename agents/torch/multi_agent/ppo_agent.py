@@ -1,15 +1,18 @@
+import pickle
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import gym
 import numpy as np
 
+from collections import deque
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
 
 class _PPO_Individual_Agent(Agent):
-    def __init__(self, vehicle, local_policy, glb_policy, rank=None,
+    def __init__(self, vehicle, glb_policy, rank=None,
         device='cuda:0', **kwargs):
         """A local indivial A3C agent.
         Args:
@@ -23,8 +26,9 @@ class _PPO_Individual_Agent(Agent):
                 vehicle_proximity_threshold=15.0
         """
         super().__init__(vehicle, **kwargs)
-        self.local_policy = local_policy
         self.glb_policy = glb_policy
+        self.local_policy = pickle.loads(pickle.dumps(self.glb_policy))
+        self.local_policy = self.local_policy.to(device)
         self.reset_memory()
         self.rank = rank
         self.device = device
@@ -61,16 +65,20 @@ class _PPO_Individual_Agent(Agent):
 
 
 class PPO_Collective_Agent(object):
-    def __init__(self, glb_env, glb_policy, glb_optimizer, num_agents=1,
-        max_glb_num_episodes=10000, glb_update_freq=5, verbose=False):
+    def __init__(self, glb_env, glb_policy, glb_optimizer,
+        num_agents=1, max_glb_num_episodes=10000, gamma=.99, eps_clip=.2,
+        glb_update_freq=4000, optim_epochs=80, verbose=False):
         """An torch.multiprocessing PPO agent.
         Args:
             glb_env: the global environment
-            glb_policy: network shared by all A3C agents
-            glb_optimizer: optimizer for the global_net
+            glb_policy: network shared by all PPO agents
+            glb_optimizer: optimizer for the glb_policy
             num_agents: number of A3C agents
             max_glb_num_episodes: max number of global episodes
+            gamma: reward discount factor
+            eps_clip: clip parameter for PPO
             glb_update_freq: update frequency of glb_policy
+            optim_epochs: update policy for how many epochs
             verbose: if print some debug information
         """
         super().__init__()
@@ -78,7 +86,9 @@ class PPO_Collective_Agent(object):
         self.glb_policy = glb_policy
         self.glb_optimizer = glb_optimizer
         self.max_glb_num_episodes = max_glb_num_episodes
+        self.gamma = gamma
         self.glb_update_freq = glb_update_freq
+        self.optim_epochs = optim_epochs
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
@@ -96,44 +106,62 @@ class PPO_Collective_Agent(object):
             np_array = np_array.astype(dtype)
         return torch.from_numpy(np_array).to(self.device)
 
-    def _push_and_pull(self, rank, done, s_, gamma=.9):
-        if self.agent_list is None:
-            raise ValueError('Should run self.learn() first')
-        agent = self.agent_list[rank]
-        bs, ba, br = agent.buffer_s, agent.buffer_a, agent.buffer_r
+    def _update(self):
+        rewards = deque()
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        for agent in self.agent_list:
+            # Monte Carlo estimate of rewards:
+            mem = agent.memory
+            discounted_reward = 0
+            for reward, is_terminal in zip(reversed(mem['reward']), reversed(mem['done'])):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                rewards.appendleft(discounted_reward)
+            old_states.append(mem['state'])
+            old_actions.append(mem['action'])
+            old_logprobs.append(mem['logprobs'])
 
-        v_s_ = 0 if done else agent.local_net.forward(
-            self.to_tensor(s_[None, :]))[-1].detach().cpu().numpy()[0, 0]
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
 
-        buffer_v_target = []
-        for r in br[::-1]: # reverse buffer r
-            v_s_ = r + gamma * v_s_
-            buffer_v_target.append(v_s_)
-        buffer_v_target.reverse()
+        # convert list to tensor
+        old_states = torch.stack(old_states).to(self.device).squeeze(1).detach()
+        old_actions = torch.stack(old_actions).to(self.device).squeeze(1).detach()
+        old_logprobs = torch.stack(old_logprobs).to(self.device).squeeze(1).detach()
 
-        loss = agent.local_net.loss_func(
-            self.to_tensor(np.vstack(bs)),
-            self.to_tensor(np.array(ba), dtype=np.int64) if ba[0].dtype == \
-                np.int64 else self.to_tensor(np.vstack(ba)),
-            self.to_tensor(np.array(buffer_v_target)[:, None]))
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values :
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(old_states, old_actions)
 
-        # calculate local gradients and push local parameters to global
-        self.glb_optimizer.zero_grad()
-        loss.backward()
-        for lp, gp in zip(agent.local_net.parameters(),
-            self.glb_policy.parameters()):
-            gp._grad = lp.grad
-        self.glb_optimizer.step()
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
 
-        # pull global parameters
-        agent.update_local_net()
-        # empty buffer
-        agent.reset_buffer()
+            # Finding Surrogate Loss:
+            advantages = rewards - state_values.detach()
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values, rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            self.glb_optimizer.step()
+
+        for agent in self.agent_list:
+            if agent.done: continue # no need to update for a done agent
+            agent.update_local_policy()
+            agent.reset_memory()
 
     def learn(self):
         glb_num_episodes = 1
         # initialize
-        # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_PPO_Individual_Agent(
@@ -171,7 +199,7 @@ class PPO_Collective_Agent(object):
                 if agent.num_total_steps % self.glb_update_freq == 0 or \
                     agent.done:
                     # update global and assign to local net
-                    self._push_and_pull(rk, agent.done, agent.observation)
+                    self._update()
 
                 if agent.done:  # done and print information
                     print('[glb ep {}][agent {}] done, ep reward [{}]'.format(
