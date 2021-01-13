@@ -1,8 +1,9 @@
 """ Environment file wrapper for CARLA """
-
+# Gym imports
 import gym
 from gym.spaces import Box, Discrete, Tuple
 
+# General imports
 from datetime import datetime
 import os
 import glob
@@ -17,8 +18,16 @@ import cv2
 import collections
 import queue
 import time
+import scipy.misc
+from scipy.misc import imsave
+import matplotlib
+import matplotlib.pyplot as plt
+import ipdb
+st = ipdb.set_trace
 
+# ALTA imports
 import ae.util as util
+from agents.tf.ae.util import *
 
 import yaml
 import pickle
@@ -29,9 +38,9 @@ from detectron2.config import CfgNode
 from detectron2.engine.defaults import DefaultPredictor
 from AdelaiDet.tools.train_net import Trainer
 
-
+# Carla imports
 import environment.carla_9_4.scenarios as scenarios
-import environment.carla_9_4.server as server
+from environment.carla_9_4.carla import CarlaServer
 import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
@@ -40,14 +49,6 @@ from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
-import scipy.misc
-from scipy.misc import imsave
-from agents.tf.ae.util import *
-import matplotlib
-import matplotlib.pyplot as plt
-
-import ipdb
-st = ipdb.set_trace
 
 try:
     import carla
@@ -179,19 +180,8 @@ class CarlaEnv(gym.Env):
         ################################################
         # Starting the Server
         ################################################
-        self.CarlaServer = None
-        serverStarted = False
-        serverStartRetries = 0
-        while ((not serverStarted) and serverStartRetries < self.config['server_retries']):
-            try:
-                self.CarlaServer = server.CarlaServer(config=self.config)
-                serverStarted = True
-            except Exception as e:
-                print("Error in starting carla server : {}".format(traceback.format_exc()))
-                self.CarlaServer.close()
-                error = e
-                serverStartRetries += 1
-        time.sleep(120)
+        self.carla_server = CarlaServer(self.config)
+        self.carla_server.start()
 
         ################################################
         # Starting the Client
@@ -229,7 +219,7 @@ class CarlaEnv(gym.Env):
                 self._map = carla.Map(self.config["city_name"], map_content)
         else:
             self._map = self._world.get_map()
-        
+
         self.blueprint_library = self._world.get_blueprint_library()
         self.spawn_points = self._world.get_map().get_spawn_points()
 
@@ -1673,17 +1663,17 @@ class CarlaEnv(gym.Env):
         # Elements connected to car
         ################################################
         self.vehicle_actor = None
-        
+
         self.camera_queue.queue.clear()
         self.rgb_camera_queue.queue.clear()
         self.front_camera_queue.queue.clear()
         self.rv_camera_queue.queue.clear()
         self.stacked_observation_queue.queue.clear()
 
-        
+
         ################################################
         # Elements outside of car
-        ################################################  
+        ################################################
         # Currently scenarios are defined only for Town01
         if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
             if self.config["updated_scenarios"]:
@@ -1698,7 +1688,7 @@ class CarlaEnv(gym.Env):
         # Episode information and initialization
         ################################################
         self.prev_measurement = None
-        self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")        
+        self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.num_steps = 0 # Episode level step count
         self.total_reward = 0 # Episode level total reward
         self.unseen = unseen
