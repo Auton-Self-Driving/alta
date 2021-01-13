@@ -45,6 +45,7 @@ class _PPO_Individual_Agent(Agent):
         self.episode_reward = 0
         self.curr_reward = 0
         self.observation = None
+        self.termination_state = None
 
     def select_action(self):
         prev_state = self.observation
@@ -170,7 +171,7 @@ class PPO_Collective_Agent(object):
 
     def learn(self):
         glb_num_episodes = 1
-        num_steps_since_update = 0
+        num_steps_since_update = glb_num_steps = 0
         # initialize
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -207,14 +208,17 @@ class PPO_Collective_Agent(object):
                 agent.memory['done'].append(agent.done)
 
                 if agent.done:  # done and print information
-                    print('[glb ep {}][agent {}] done, ep reward [{}]'.format(
-                        glb_num_episodes, rk, agent.episode_reward))
+                    print('[glb ep {}][glb step {}][agent {}] done({})'
+                        ', ep reward [{}]'.format(
+                        glb_num_episodes, glb_num_steps, rk, 
+                        agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
                 num_steps_since_update += 1
+                glb_num_steps += 1
 
             if num_steps_since_update >= self.glb_update_freq:
                 # do the learning

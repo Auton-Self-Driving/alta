@@ -56,7 +56,7 @@ EPISODE_MEASUREMENTS = {
 
 ENV_CONFIG = {
     'algo': 'A2C',
-    'num_agents': 4,
+    'num_agents': 1,
     'max_num_episodes': 2000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',

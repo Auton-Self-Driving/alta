@@ -1170,10 +1170,10 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['initial_dist_to_red_light'] = -1
 
         # Ticking for 15 frames to handle car initialization in air
-        time.sleep(1)
-        # for _ in range(15):
-        #     # print(self.world_frame)
-        #     self.world_frame = self._world.tick()
+        # time.sleep(1)
+        for _ in range(15):
+            # print(self.world_frame)
+            self.world_frame = self._world.tick()
 
 
     def _get_ego_input(self, agent):
@@ -1516,6 +1516,8 @@ class CarlaEnv(gym.Env):
 
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))
+            
+        agent.termination_state = termination_state
 
         agent.episode_measurements['termination_state'] = termination_state
         agent.episode_measurements['termination_state_code'] = termination_state_code
