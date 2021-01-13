@@ -178,39 +178,6 @@ class CarlaEnv(gym.Env):
         #******************************************************************************************************************
 
         ################################################
-        # Starting the Server
-        ################################################
-        self.carla_server = CarlaServer(self.config)
-        self.carla_server.start()
-
-        ################################################
-        # Starting the Client
-        ################################################
-        self.client =  self._spawn_client()
-        print("server_version", self.client.get_server_version())
-
-
-        ################################################
-        # Applying required CARLA settings
-        ################################################
-        self._world = self.client.get_world()
-
-        settings = self._world.get_settings()
-        if(self.config['sync_mode']):
-            settings.synchronous_mode = True
-
-        if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
-            settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
-
-        # We want to enable rendering
-        settings.no_rendering_mode = False
-
-        self._world.apply_settings(settings)
-
-        time.sleep(20)
-
-
-        ################################################
         # Collecting blueprints & setting spawn points
         ################################################
         if self.config["use_offline_map"]:
@@ -220,25 +187,6 @@ class CarlaEnv(gym.Env):
         else:
             self._map = self._world.get_map()
 
-        self.blueprint_library = self._world.get_blueprint_library()
-        self.spawn_points = self._world.get_map().get_spawn_points()
-
-        # tm is valid for carla0.9.10. If using carla0.9.6, this has to be commented out
-        self.tm = self.client.get_trafficmanager(4050)
-        self.tm.set_synchronous_mode(True)
-
-        if self.config["testing"]:
-            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
-        else:
-            spawn_pt_idx = np.random.permutation(len(self.spawn_points))
-            np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
-            self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
-
-        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
-        self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
-
-        if self.config["disable_two_wheeler"]:
-            self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
 
         ################################################
         # Creating Action and State spaces
@@ -393,12 +341,6 @@ class CarlaEnv(gym.Env):
     def _update_config(self, config):
         for key, val in config.items():
             self.config[key] = val
-
-    def _spawn_client(self, hostname='localhost', port_number=None):
-        port_number = self.CarlaServer.server_port
-        client = carla.Client(hostname, port_number)
-        client.set_timeout(self.config["client_timeout_seconds"])
-        return client
 
     def create_observations(self, obs):
         obs['observation'] = np.array([self.episode_measurements['next_orientation']])

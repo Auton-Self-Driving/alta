@@ -1,5 +1,7 @@
-from environment.carla_9_4.carla import CarlaServer
+from environment.carla_9_4.carla.server import CarlaServer
+from environment.carla_9_4.carla.vehicle_manager import VehicleManager
 from abc import ABC
+import time
 
 
 # TODO make sure carla import works
@@ -36,10 +38,23 @@ class Carla910Interface:
         # Enable rendering
         settings.no_rendering_mode = False
 
-        self._world.apply_settings(settings)
+        self.world.apply_settings(settings)
 
         # Sleep to allow for settings to update
         time.sleep(20)
+
+        # Retrieve map
+        self.map = self.world.get_map()
+
+        # Get blueprints
+        self.blueprint_library = self.world.get_blueprint_library()
+        self.spawn_points = self.world.get_map().get_spawn_points()
+
+        # Instantiate a vehicle manager to handle other actors
+        self.vehicle_manager = VehicleManager(self.config, self.world)
+
+        # Get traffic lights
+        self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
 
         print("server_version", self.client.get_server_version())
 
