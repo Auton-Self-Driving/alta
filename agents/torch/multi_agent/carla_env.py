@@ -611,11 +611,9 @@ class CarlaEnv(gym.Env):
                 agent.curr_ep_num_steps += 1
                 # if not agent.unseen:
                 #     agent.total_num_steps +=1
-
             ########################################################################################
             self.world_frame = self._world.tick()
             ########################################################################################
-
             for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
@@ -662,6 +660,7 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements["collision_actor_id"] = None
 
                 agent.episode_measurements['is_collision'] = obs_collision
+
                 if agent.episode_measurements['runover_light']:
                     self.traffic_light_violations += 1
 
@@ -670,7 +669,7 @@ class CarlaEnv(gym.Env):
                     print("Traffic Light Violations: {}".format(self.traffic_light_violations))
 
                 done = self._compute_done_condition(agent)
-
+                # print('[agent {}] 677'.format(agent.rank), agent.episode_measurements['initial_dist_to_red_light'])
                 agent.episode_measurements['done'] = done
                 agent.done = bool(done)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
@@ -839,24 +838,32 @@ class CarlaEnv(gym.Env):
         if traffic_actor is not None:
             if traffic_actor.state == carla.TrafficLightState.Red:
                 agent.episode_measurements['red_light_dist'] = dist
-
-                if agent.episode_measurements['initial_dist_to_red_light'] == -1 \
-                    or (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
+                # print('[agent {} init {}] traffic light info'.format(
+                #         agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
+                if agent.episode_measurements['initial_dist_to_red_light'] == -1 or \
+                    (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     agent.episode_measurements['initial_dist_to_red_light'] = dist
-
+                    # print('[agent {} init {}] traffic light info'.format(
+                    #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
             else:
                 agent.episode_measurements['red_light_dist'] = -1
                 agent.episode_measurements['initial_dist_to_red_light'] = -1
 
             agent.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
             agent.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
+            # print('[agent {} init {}] traffic light info'.format(
+            #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
         else:
             agent.episode_measurements['red_light_dist'] = -1
             agent.episode_measurements['initial_dist_to_red_light'] = -1
             agent.episode_measurements['nearest_traffic_actor_id'] = -1
             agent.episode_measurements['nearest_traffic_actor_state'] = None
+            # print('[agent {} init {}] traffic light info'.format(
+            #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
         agent.episode_measurements['dist_to_light'] = dist
+        # print('[agent {} init {}] traffic light info'.format(
+        #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
 
     def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
@@ -1024,7 +1031,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements["target_speed"] = target_speed
             return action
 
-        self.episode_measurements["target_speed"] = target_speed
+        agent.episode_measurements["target_speed"] = target_speed
 
         control = carla.VehicleControl(
             throttle=throttle,
@@ -1115,7 +1122,7 @@ class CarlaEnv(gym.Env):
             agent.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
             agent.curr_ep_num_steps = 0
 
-            agent.episode_measurements = self.config['episode_measurements']
+            agent.episode_measurements = copy.deepcopy(self.config['episode_measurements'])
             agent.previous_measurements = None
 
             agent.dist_to_trajectory = None
@@ -1201,7 +1208,6 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
             agent.episode_measurements['total_steps'] = agent.num_total_steps
-            agent.episode_measurements['initial_dist_to_red_light'] = -1
 
         # Ticking for 15 frames to handle car initialization in air
         time.sleep(.04)
@@ -1244,7 +1250,9 @@ class CarlaEnv(gym.Env):
         self._update_env_obs(agent)
 
         # if static (stuck by obstacle)
-        if agent.episode_measurements['speed'] < 1e-2 and agent.episode_measurements['obstacle_dist'] == -1 and agent.episode_measurements['red_light_dist'] != -1:
+        if agent.episode_measurements['speed'] < self.config['zero_speed_threshold'] and \
+            agent.episode_measurements['obstacle_dist'] == -1 and \
+            agent.episode_measurements['red_light_dist'] != -1:
             agent.episode_measurements['static_steps'] += 1
         else:
             agent.episode_measurements['static_steps'] = 0

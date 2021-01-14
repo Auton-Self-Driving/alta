@@ -56,7 +56,7 @@ EPISODE_MEASUREMENTS = {
 
 ENV_CONFIG = {
     'algo': 'A2C',
-    'num_agents': 4,
+    'num_agents':10,
     'max_num_episodes': 20000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -104,8 +104,8 @@ ENV_CONFIG = {
     'action_type': 'merged_speed',
     'sensor_tick': '0.0',
     'dist_for_success' : 10.0,
-    'max_offlane_steps' : 20,
-    'max_static_steps' : 20,
+    'max_offlane_steps' : 100,
+    'max_static_steps' : 100,
     'log_measurements_to_file': False,
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
@@ -120,7 +120,7 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 10,
+    'num_npc' : 20,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
     'binarized_image': False,
@@ -180,7 +180,7 @@ ENV_CONFIG = {
     'test_comparison': False,
     'test_with_automatic_control': False,
     'updated_scenarios': False,
-    'sample_npc': True,
+    'sample_npc': False,
     'use_route_to_plan' : False,
     'discrete_actions': DISCRETE_ACTIONS,
     'episode_measurements': EPISODE_MEASUREMENTS,

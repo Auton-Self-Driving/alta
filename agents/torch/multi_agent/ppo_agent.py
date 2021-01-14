@@ -72,7 +72,7 @@ class _PPO_Individual_Agent(Agent):
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_episodes=10000, gamma=.99, eps_clip=.2,
-        glb_update_freq=500, optim_epochs=10, verbose=False):
+        glb_update_freq=2000, optim_epochs=100, verbose=False):
         """An torch.multiprocessing PPO agent.
         Args:
             glb_env: the global environment
@@ -113,11 +113,12 @@ class PPO_Collective_Agent(object):
         return torch.from_numpy(np_array).to(self.device)
 
     def _update(self):
-        rewards = deque()
+        rewards = []
         old_states = []
         old_actions = []
         old_logprobs = []
         for agent in self.agent_list:
+            agent_rewards = deque()
             # Monte Carlo estimate of rewards:
             mem = agent.memory
             discounted_reward = 0
@@ -125,7 +126,8 @@ class PPO_Collective_Agent(object):
                 if is_terminal:
                     discounted_reward = 0
                 discounted_reward = reward + (self.gamma * discounted_reward)
-                rewards.appendleft(discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            rewards.extend(list(agent_rewards))
             old_states.extend(mem['state'])
             old_actions.extend(mem['action'])
             old_logprobs.extend(mem['logprob'])
