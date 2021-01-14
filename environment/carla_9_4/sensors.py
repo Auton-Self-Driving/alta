@@ -70,6 +70,7 @@ class CollisionSensor(object):
             self.actor_id = event.other_actor.id
             self.actor_type = actor_type
             self.num_collisions += 1
+            # print('collision', event.actor.id, 'hit', event.other_actor.id)
         # print("actor type:{}".format(actor_type))
         #print('Collision with %r, id = %d' % (actor_type, event.other_actor.id))
         #impulse = event.normal_impulse
@@ -107,10 +108,41 @@ class LaneInvasionSensor(object):
         self.num_laneintersections += 1
         
         lane_types = set(x.type for x in event.crossed_lane_markings)
+        # print(lane_types)
         if carla.libcarla.LaneMarkingType.NONE in lane_types:
             self.out_of_road = True
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
+        
+
+# ==============================================================================
+# -- ObstacleSensor --------------------------------------------------------
+# ==============================================================================
+
+
+class ObstacleSensor(object):
+    def __init__(self, parent_actor):
+        self.sensor = None
+        self._parent = parent_actor
+        self.distance = -1
+        self.out_of_road = False
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.obstacle')
+        bp.set_attribute('only_dynamics', 'True')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: ObstacleSensor._on_obstacle(weak_self, event))
+
+    @staticmethod
+    def _on_obstacle(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+        # TODO : Handle case of lane invasion for dashed vs solid lane markings
+        self.distance = event.distance
+        self.obstacle_actor = event.other_actor
 
 # ==============================================================================
 # -- GnssSensor --------------------------------------------------------

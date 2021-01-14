@@ -72,7 +72,7 @@ class _PPO_Individual_Agent(Agent):
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_episodes=10000, gamma=.99, eps_clip=.2,
-        glb_update_freq=4000, optim_epochs=80, verbose=False):
+        glb_update_freq=500, optim_epochs=10, verbose=False):
         """An torch.multiprocessing PPO agent.
         Args:
             glb_env: the global environment
@@ -222,7 +222,7 @@ class PPO_Collective_Agent(object):
 
             if num_steps_since_update >= self.glb_update_freq:
                 # do the learning
-                # print('updating policy...')
+                print('updating policy...')
                 self._update()
                 num_steps_since_update = 0
 

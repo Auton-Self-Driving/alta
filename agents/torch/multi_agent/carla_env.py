@@ -625,7 +625,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
                 if self.config["enable_lane_invasion_sensor"]:
                     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
-                    agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road)
+                    agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 if agent.episode_measurements['min_distance_to_goal'] >= agent.location.distance(agent.destination_transform.location):
@@ -649,8 +649,10 @@ class CarlaEnv(gym.Env):
                                     verbose=self.config["verbose"])
 
                 obs_collision = agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions'] > 0
+                # print('obs_collision', obs_collision, agent.episode_measurements['num_collisions'], agent.prev_measurement['num_collisions'])
 
                 if obs_collision and agent.episode_measurements["collision_actor_id"] != agent.prev_measurement["collision_actor_id"]:
+                    # print("agent.episode_measurements['is_collision'] =", obs_collision, agent.episode_measurements["collision_actor_id"])
                     self.total_collisions += 1
                     if 'vehicle' in agent.episode_measurements['collision_actor_type']:
                         self.vehicle_collisions += 1
@@ -689,6 +691,7 @@ class CarlaEnv(gym.Env):
         for rk, agent in enumerate(self.ego_agent_list):
             if agent.action is None:
                 self._get_ego_input(agent)
+                agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
     def _step_test_comparison(self, action):
         pass
@@ -744,7 +747,10 @@ class CarlaEnv(gym.Env):
 
     def _update_env_obs(self, agent):
         if not self.config['disable_obstacle_info']:
-            self._update_obs_detector(agent)
+            if self.config['enable_obstacle_sensor']:
+                self._update_obs_detector_via_sensor(agent)
+            else:
+                self._update_obs_detector_via_privilege(agent)
 
         if not self.config['disable_traffic_light']:
             self._update_traffic_light_states(agent)
@@ -756,8 +762,9 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['nearest_traffic_actor_state'],
                     agent.episode_measurements['initial_dist_to_red_light'],
                     agent.episode_measurements['red_light_dist'])
+        
 
-    def _update_obs_detector(self, agent):
+    def _update_obs_detector_via_privilege(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
 
@@ -766,6 +773,7 @@ class CarlaEnv(gym.Env):
         for target_vehicle in self.actor_list + self.ego_vehicle_list:
             # do not account for the ego vehicle
             try:
+                if hasattr(target_vehicle, 'done') and target_vehicle.done: continue
                 if target_vehicle is None or \
                     target_vehicle.id == agent.id or \
                     'vehicle' not in target_vehicle.type_id:
@@ -792,11 +800,33 @@ class CarlaEnv(gym.Env):
                         agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
                         min_obs_distance = distance
             except Exception as e:
-                print('>>> skip this vehicle due to [{}]'.format(e))
+                print('>>> skip this vehicle {} due to [{}]'.format(target_vehicle, e))
+                self.spawn_npc_vehicles()
+                time.sleep(4)
+                return
 
         if not found_obstacle:
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
+        # else:
+        #     print('obstacle actor {}, dist: {}'.format(target_vehicle, distance))
+
+    def _update_obs_detector_via_sensor(self, agent):
+        agent.episode_measurements['obstacle_visible'] = False
+        agent.episode_measurements['obstacle_orientation'] = -1
+
+        found_obstacle = False
+        if agent.obstacle_sensor.distance != -1:
+            found_obstacle = True
+            obstacle_actor = agent.obstacle_sensor.obstacle_actor
+            agent.episode_measurements['obstacle_visible'] = True
+            agent.episode_measurements['obstacle_dist'] = agent.obstacle_sensor.distance
+            if 'vehicle' in obstacle_actor.type_id:
+                agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
+            else:
+                agent.episode_measurements['obstacle_speed'] = -1
+            # print('obstacle actor {}, dist: {}'.format(obstacle_actor, agent.obstacle_sensor.distance))
+
 
     def _update_traffic_light_states(self, agent):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
@@ -1154,6 +1184,10 @@ class CarlaEnv(gym.Env):
                 agent.lane_invasion_sensor = sensors.LaneInvasionSensor(agent.vehicle_actor)
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
+            if self.config["enable_obstacle_sensor"]:
+                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor)
+                agent.actor_list.append(agent.obstacle_sensor.sensor)
+
             # Set state variables for reward calculation
             agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
             agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
@@ -1170,10 +1204,10 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['initial_dist_to_red_light'] = -1
 
         # Ticking for 15 frames to handle car initialization in air
-        # time.sleep(1)
-        for _ in range(15):
-            # print(self.world_frame)
-            self.world_frame = self._world.tick()
+        time.sleep(.04)
+        # for _ in range(3):
+        #     # print(self.world_frame)
+        #     self.world_frame = self._world.tick()
 
 
     def _get_ego_input(self, agent):
@@ -1209,6 +1243,12 @@ class CarlaEnv(gym.Env):
         # self._update_env_obs(front_rgb_image=rgb_image)
         self._update_env_obs(agent)
 
+        # if static (stuck by obstacle)
+        if agent.episode_measurements['speed'] < 1e-2 and agent.episode_measurements['obstacle_dist'] == -1 and agent.episode_measurements['red_light_dist'] != -1:
+            agent.episode_measurements['static_steps'] += 1
+        else:
+            agent.episode_measurements['static_steps'] = 0
+
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs(agent)
 
@@ -1220,8 +1260,7 @@ class CarlaEnv(gym.Env):
 
         # Update observation input in obs dictionary
         self.create_observations(agent, obs)
-
-        agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
+        # agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
         visual_observation = None
         if self.config["input_type"] == 'vae':
@@ -1455,7 +1494,8 @@ class CarlaEnv(gym.Env):
         # Episode termination conditions
         success = agent.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         static = agent.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        collision = agent.episode_measurements["is_collision"] = False
+        # static = agent.episode_measurements['obstacle_dist'] == -1 and self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) < 1e-2
+        collision = agent.episode_measurements["is_collision"]
         runover_light = agent.episode_measurements["runover_light"]
         maxStepsTaken = agent.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
@@ -1482,15 +1522,15 @@ class CarlaEnv(gym.Env):
             if 'obs_collision' in agent.episode_measurements and agent.episode_measurements['obs_collision']:
                 termination_state = 'obs_collision'
                 termination_state_code = 1
-            elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements["out_of_road"]:
-                termination_state = 'out_of_road'
-                termination_state_code = 2
-            elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change']:
-                termination_state = 'lane_invasion'
-                termination_state_code = 3
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements["out_of_road"]:
+            termination_state = 'out_of_road'
+            termination_state_code = 2
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change']:
+            termination_state = 'lane_invasion'
+            termination_state_code = 3
         elif runover_light:
             termination_state = 'runover_light'
             termination_state_code = 5
@@ -1516,7 +1556,7 @@ class CarlaEnv(gym.Env):
 
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))
-            
+
         agent.termination_state = termination_state
 
         agent.episode_measurements['termination_state'] = termination_state
@@ -1525,9 +1565,9 @@ class CarlaEnv(gym.Env):
         done = success or collision or runover_light or offlane or static or maxStepsTaken
         return done
 
-    def printInfo(self):
-        print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
-        print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+    def printInfo(self, agent):
+        print("Vehicle transform:{0}".format(agent.vehicle_actor.get_transform()))
+        print("Vehicle velocity:{0}".format(agent.vehicle_actor.get_velocity()))
 
     def close(self):
 
