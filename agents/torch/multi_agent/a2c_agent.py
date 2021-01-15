@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 
-from a2c_utils import SharedAdam, push_and_pull, record, v_wrap
+from a3c_utils import SharedAdam, push_and_pull
 from network import Basic_Discrete
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
@@ -150,7 +150,7 @@ class A2C_Collective_Agent(object):
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
-        self.agent_list = [_A3C_Individual_Agent(
+        self.agent_list = [_A2C_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
             glb_net=self.glb_net, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
@@ -203,7 +203,7 @@ class A2C_Collective_Agent(object):
                 self.glb_env.reset(rank_list=respawn_rank_list)
                 # update agent list
                 for rk in respawn_rank_list:
-                    self.agent_list[rk] = _A3C_Individual_Agent(
+                    self.agent_list[rk] = _A2C_Individual_Agent(
                         self.glb_env.ego_vehicle_list[rk],
                         glb_net=self.glb_net, rank=rk)
                 self.glb_env.reset_vehicle_agent(
@@ -251,7 +251,7 @@ class A3C_MP_Agent(mp.Process):
             print('[64]', flush=True)
             obs = self.glb_env.reset()
             print('[66]', flush=True)
-            _ = _A3C_Individual_Agent(self.glb_env.vehicle_actor)
+            _ = _A2C_Individual_Agent(self.glb_env.vehicle_actor)
             print('[67]', flush=True)
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0
@@ -282,7 +282,7 @@ class A3C_MP_Agent(mp.Process):
                         # record(self.glb_num_episodes, self.glb_episode_reward,
                             # ep_r, self.glb_queue, self.name)
                         obs = self.glb_env.reset()
-                        _ = _A3C_Individual_Agent(self.glb_env.vehicle_actor)
+                        _ = _A2C_Individual_Agent(self.glb_env.vehicle_actor)
                         break
 
                 total_step += 1
