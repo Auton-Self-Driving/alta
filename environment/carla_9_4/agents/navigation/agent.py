@@ -172,13 +172,7 @@ class Agent(object):
 
         # New traffic light waypoint computation logic
         return self._find_nearest_traffic_light(lights_list)
-
-        # Old traffic light waypoint computation logic
-        # if self._map.name == 'Town01' or self._map.name == 'Town02':
-        #     return self._find_nearest_traffic_light_europe_style(lights_list)
-        # else:
-        #     return self._find_nearest_traffic_light_us_style(lights_list, waypoint)
-    
+        
     def _find_nearest_traffic_light_europe_style(self, lights_list):
         """
         This method is specialized to check European style traffic lights.
