@@ -110,7 +110,8 @@ class ActorManager910():
             print("Not spwaning sensors as the parent actor is not initialized properly")
             return None
         sensor_manager = sensors.SensorManager(self.config, self.ego_vehicle)
-        for k,v in self.sensor_manager.sensors.items():
+        sensor_manager.spawn()
+        for k,v in sensor_manager.sensors.items():
             self.actor_list.append(v)
         return sensor_manager
 
