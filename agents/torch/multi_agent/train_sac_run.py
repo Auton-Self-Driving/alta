@@ -32,8 +32,8 @@ q2_optimizer = torch.optim.Adam(glb_q2.parameters(), lr=1e-4, betas=(0.92, 0.999
 
 replay_buffer = VanillaReplayBuffer(maxlen=1000000)
 
-log_alpha = torch.log(torch.tensor(0.2, dtype=torch.float, 
-    device=ENV_CONFIG['device'], require_grad=True))
+log_alpha = torch.log(torch.tensor(0.2, dtype=torch.float, device=ENV_CONFIG['device']))
+log_alpha.requires_grad = True
 alpha_optimizer = torch.optim.Adam((log_alpha,), lr=1e-4, betas=(0.92, 0.999))
 target_entropy = -1.
 

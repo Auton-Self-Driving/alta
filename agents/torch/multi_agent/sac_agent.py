@@ -36,11 +36,11 @@ class VanillaReplayBuffer(object):
         batch = random.sample(self.buffer, batch_size)
         for exp in batch:
             state, action, reward, next_state, done = exp
-            state_batch.append(state)
-            action_batch.append(action)
-            reward_batch.append(reward)
-            next_state_batch.append(next_state)
-            done_batch.append(done)
+            state_batch.append(torch.tensor(state, dtype=torch.float).squeeze())
+            action_batch.append(torch.tensor(action, dtype=torch.float).squeeze())
+            reward_batch.append(torch.tensor(reward, dtype=torch.float).squeeze())
+            next_state_batch.append(torch.tensor(next_state, dtype=torch.float).squeeze())
+            done_batch.append(torch.tensor(done, dtype=torch.float).squeeze())
 
         return (state_batch, action_batch, \
             reward_batch, next_state_batch, done_batch)
@@ -90,8 +90,8 @@ class SAC_Collective_Agent(object):
     def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer, 
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512, 
-        max_glb_num_episodes=10000, gamma=.99, q_update_freq=1,
-        target_update_freq=20, verbose=False):
+        max_glb_num_episodes=10000, gamma=.99, q_update_freq=25,
+        target_update_freq=2, verbose=False):
         """An synchronous SAC agent.
         Args:
             glb_env: the global environment
@@ -135,6 +135,7 @@ class SAC_Collective_Agent(object):
         self.max_glb_num_episodes = max_glb_num_episodes
         self.gamma = gamma
         self.tau = tau
+        self.q_update_freq = q_update_freq
         self.target_update_freq = target_update_freq
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
@@ -156,14 +157,14 @@ class SAC_Collective_Agent(object):
 
     def _update(self):
         states, actions, rewards, next_states, dones = self.buffer.sample(self.batch_size)
-        states = torch.tensor(states, dtype=torch.float, device=self.device)
-        actions = torch.tensor(actions, dtype=torch.float, device=self.device)
-        rewards = torch.tensor(rewards, dtype=torch.float, device=self.device)
-        next_states = torch.tensor(next_states, dtype=torch.float, device=self.device)
-        dones = torch.tensor(dones, dtype=torch.float, device=self.device)
-        dones = dones.view(dones.shape[0], -1)
-        
+        states = torch.stack(states).to(self.device)
+        actions = torch.stack(actions).to(self.device)
+        rewards = torch.stack(rewards).view(-1, 1).to(self.device)
+        next_states = torch.stack(next_states).to(self.device)
+        dones = torch.stack(dones).view(-1, 1).to(self.device)
+        # print('171', states.shape, actions.shape, rewards.shape, next_states.shape, dones.shape)
         next_actions, next_log_pi = self.glb_policy.sample(next_states)
+        # print('173', next_actions.shape, next_log_pi.shape)
         next_q1 = self.target_q1(next_states, next_actions)
         next_q2 = self.target_q2(next_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.log_alpha * next_log_pi
@@ -204,10 +205,9 @@ class SAC_Collective_Agent(object):
             
         # update alpha temperature
         alpha_loss = (self.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
-        self.alpha_optim.zero_grad()
+        self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
-        self.alpha_optim.step()
-        self.alpha = self.log_alpha.exp()
+        self.alpha_optimizer.step()
 
     def learn(self):
         glb_num_episodes = 1
@@ -228,7 +228,7 @@ class SAC_Collective_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 action = agent.select_action()
-                prev_state = action.observation
+                agent.prev_state = agent.observation
                 agent.action = action
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list])
@@ -243,29 +243,30 @@ class SAC_Collective_Agent(object):
                 avg_t_action[-1], np.mean(avg_t_action), avg_t_step[-1],
                 np.mean(avg_t_step)))
 
-            # push into the buffer
-            self.buffer.append(prev_state, action, action.curr_reward,
-                action.observation, int(agent.done))
+            for rk, agent in enumerate(self.agent_list):
+                # push into the buffer
+                self.buffer.append(agent.prev_state, agent.action, agent.curr_reward,
+                    agent.observation, int(agent.done))
 
-            if agent.done:  # done and print information
-                print('[glb ep {}][glb step {}][agent {}] done({})'
-                    ', ep reward [{}]'.format(
-                    glb_num_episodes, glb_num_steps, rk, 
-                    agent.termination_state, agent.episode_reward))
-                self.agent_reward_list[rk].append(agent.episode_reward)
-                self.glb_ep_reward_list.append(agent.episode_reward)
-                glb_num_episodes += 1
+                if agent.done:  # done and print information
+                    print('[glb ep {}][glb step {}][agent {}] done({})'
+                        ', ep reward [{}]'.format(
+                        glb_num_episodes, glb_num_steps, rk, 
+                        agent.termination_state, agent.episode_reward))
+                    self.agent_reward_list[rk].append(agent.episode_reward)
+                    self.glb_ep_reward_list.append(agent.episode_reward)
+                    glb_num_episodes += 1
 
-            agent.num_total_steps += 1
-            num_steps_since_update += 1
-            glb_num_steps += 1
+                agent.num_total_steps += 1
+                num_steps_since_update += 1
+                glb_num_steps += 1
 
-            if num_steps_since_update >= self.q_update_freq and \
-                len(self.buffer > self.batch_size):
-                # do the learning
-                print('updating policy...')
-                self._update()
-                num_steps_since_update = 0
+                if num_steps_since_update >= self.q_update_freq and \
+                    len(self.buffer) > self.batch_size:
+                    # do the learning
+                    # print('updating policy...')
+                    self._update()
+                    num_steps_since_update = 0
 
             # respawn dead agents
             respawn_rank_list = []

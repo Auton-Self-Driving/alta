@@ -120,7 +120,7 @@ class SoftQNetwork(nn.Module):
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, state, action):
-        x = torch.cat([state, action], 1)
+        x = torch.cat((state, action), 1)
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
         x = self.linear3(x)
@@ -134,7 +134,7 @@ class PolicyNetwork(nn.Module):
         super(PolicyNetwork, self).__init__()
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
-        self.action_range = action_range
+        # self.action_range = action_range
 
         self.linear1 = nn.Linear(num_inputs, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
