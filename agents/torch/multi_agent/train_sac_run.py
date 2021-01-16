@@ -22,20 +22,20 @@ N_A = env.action_space.shape[-1]
 # from IPython import embed; embed()
 
 glb_policy = PolicyNetwork(N_S, N_A).to(ENV_CONFIG['device']) # policy network
-policy_optimizer = torch.optim.Adam(glb_policy.parameters(), lr=1e-4, betas=(0.92, 0.999))
+policy_optimizer = torch.optim.Adam(glb_policy.parameters(), lr=1e-3, betas=(0.92, 0.999))
 
 glb_q1 = SoftQNetwork(N_S, N_A).to(ENV_CONFIG['device']) # q network
-q1_optimizer = torch.optim.Adam(glb_q1.parameters(), lr=1e-4, betas=(0.92, 0.999))
+q1_optimizer = torch.optim.Adam(glb_q1.parameters(), lr=1e-3, betas=(0.92, 0.999))
 
 glb_q2 = SoftQNetwork(N_S, N_A).to(ENV_CONFIG['device']) # q network
-q2_optimizer = torch.optim.Adam(glb_q2.parameters(), lr=1e-4, betas=(0.92, 0.999))
+q2_optimizer = torch.optim.Adam(glb_q2.parameters(), lr=1e-3, betas=(0.92, 0.999))
 
 replay_buffer = VanillaReplayBuffer(maxlen=1000000)
 
-log_alpha = torch.log(torch.tensor(0.2, dtype=torch.float, device=ENV_CONFIG['device']))
+log_alpha = torch.log(torch.tensor(1., dtype=torch.float, device=ENV_CONFIG['device']))
 log_alpha.requires_grad = True
 alpha_optimizer = torch.optim.Adam((log_alpha,), lr=1e-4, betas=(0.92, 0.999))
-target_entropy = -1.
+target_entropy = -2.
 
 sac_agent = SAC_Collective_Agent(
     env, 

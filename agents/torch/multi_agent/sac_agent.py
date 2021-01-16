@@ -69,6 +69,7 @@ class _SAC_Individual_Agent(Agent):
         self.num_total_steps = 0
         self.episode_reward = 0
         self.curr_reward = 0
+        self.step_reward = 0
         self.observation = None
         self.termination_state = None
 
@@ -90,8 +91,8 @@ class SAC_Collective_Agent(object):
     def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer, 
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512, 
-        max_glb_num_episodes=10000, gamma=.99, q_update_freq=25,
-        target_update_freq=2, verbose=False):
+        max_glb_num_episodes=10000, gamma=.99, q_update_freq=1,
+        target_update_freq=1, verbose=False):
         """An synchronous SAC agent.
         Args:
             glb_env: the global environment
@@ -208,6 +209,7 @@ class SAC_Collective_Agent(object):
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.alpha_optimizer.step()
+        # print('self.log_alpha:', self.log_alpha)
 
     def learn(self):
         glb_num_episodes = 1
@@ -245,7 +247,7 @@ class SAC_Collective_Agent(object):
 
             for rk, agent in enumerate(self.agent_list):
                 # push into the buffer
-                self.buffer.append(agent.prev_state, agent.action, agent.curr_reward,
+                self.buffer.append(agent.prev_state, agent.action, agent.step_reward,
                     agent.observation, int(agent.done))
 
                 if agent.done:  # done and print information

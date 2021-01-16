@@ -640,11 +640,12 @@ class CarlaEnv(gym.Env):
 
                 self._get_ego_input(agent)
 
-                agent.curr_reward += compute_reward(name=self.config['reward_function'],
+                agent.step_reward = compute_reward(name=self.config['reward_function'],
                                     prev_measurement=agent.prev_measurement,
                                     cur_measurement=agent.episode_measurements,
                                     config=self.config,
                                     verbose=self.config["verbose"])
+                agent.curr_reward += agent.step_reward
 
                 obs_collision = agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions'] > 0
                 # print('obs_collision', obs_collision, agent.episode_measurements['num_collisions'], agent.prev_measurement['num_collisions'])
