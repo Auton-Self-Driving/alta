@@ -1,10 +1,10 @@
-"""A2C network for discrete_actions
+"""pytorch networks for multi-agent RL algo
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal, Categorical
+from torch.distributions import MultivariateNormal, Categorical, Normal
 
 from a3c_utils import set_init
 
@@ -109,8 +109,77 @@ class PPOActorCritic_Continuous(nn.Module):
             self.actor, self.critic)
 
 
+class SoftQNetwork(nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_size=256, init_w=3e-3):
+        super(SoftQNetwork, self).__init__()
+        self.linear1 = nn.Linear(num_inputs + num_actions, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        self.linear3 = nn.Linear(hidden_size, 1)
+
+        self.linear3.weight.data.uniform_(-init_w, init_w)
+        self.linear3.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, state, action):
+        x = torch.cat([state, action], 1)
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        x = self.linear3(x)
+        return x
+
+
+class PolicyNetwork(nn.Module):
+    # def __init__(self, num_inputs, num_actions, action_range,
+    def __init__(self, num_inputs, num_actions,
+        hidden_size=256, init_w=3e-3, log_std_min=-20, log_std_max=2):
+        super(PolicyNetwork, self).__init__()
+        self.log_std_min = log_std_min
+        self.log_std_max = log_std_max
+        self.action_range = action_range
+
+        self.linear1 = nn.Linear(num_inputs, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+
+        self.mean_linear = nn.Linear(hidden_size, num_actions)
+        self.mean_linear.weight.data.uniform_(-init_w, init_w)
+        self.mean_linear.bias.data.uniform_(-init_w, init_w)
+
+        self.log_std_linear = nn.Linear(hidden_size, num_actions)
+        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
+        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, state):
+        x = F.relu(self.linear1(state))
+        x = F.relu(self.linear2(x))
+
+        mean = self.mean_linear(x)
+        log_std = self.log_std_linear(x)
+        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        return mean, log_std
+
+    def sample(self, state, epsilon=1e-6):
+        mean, log_std = self.forward(state)
+        std = log_std.exp()
+
+        normal = Normal(mean, std)
+        z = normal.rsample()
+        action = torch.tanh(z)
+
+        log_pi = normal.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
+        log_pi = log_pi.sum(1, keepdim=True)
+        return action, log_pi
+
+    # def rescale_action(self, action):
+    #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\
+    #         (self.action_range[1] + self.action_range[0]) / 2
+
+
+
 if __name__ == '__main__':
     glb_net = Basic_Discrete(12, 24).to('cpu')
     print(glb_net)
     policy = PPOActorCritic_Continuous(12, 24)
     print(policy)
+    q_net = SoftQNetwork(12, 24)
+    # p_net = PolicyNetwork(12, 24, (-1, 1))
+    p_net = PolicyNetwork(12, 24)
+    print(q_net, '\n', p_net)

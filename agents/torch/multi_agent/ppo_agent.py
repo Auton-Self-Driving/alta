@@ -2,9 +2,7 @@ import os
 import time
 import pickle
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import gym
 import numpy as np
 
 from collections import deque
@@ -15,13 +13,12 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 
 class _PPO_Individual_Agent(Agent):
     def __init__(self, vehicle, glb_policy, rank=None, memory=None, **kwargs):
-        """A local indivial A3C agent.
+        """A local individual PPO agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
-            glb_net: network shared by all A3C agents, not required for MP
-            rank: an integer for identification of this local agent,
-                not required for MP
-            memory: PPO memory
+            glb_policy: network shared by all PPO agents
+            rank: an integer for identification of this local agent
+            memory: PPO buffer
             **kwargs: include proximity_threshold=10.0,
                 traffic_light_proximity_threshold=10.0,
                 vehicle_proximity_threshold=15.0
@@ -73,12 +70,12 @@ class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_episodes=10000, gamma=.99, eps_clip=.2,
         glb_update_freq=2000, optim_epochs=100, verbose=False):
-        """An torch.multiprocessing PPO agent.
+        """An synchronous PPO agent.
         Args:
             glb_env: the global environment
             glb_policy: network shared by all PPO agents
             glb_optimizer: optimizer for the glb_policy
-            num_agents: number of A3C agents
+            num_agents: number of PPO agents
             max_glb_num_episodes: max number of global episodes
             gamma: reward discount factor
             eps_clip: clip parameter for PPO

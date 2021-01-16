@@ -1,4 +1,4 @@
-"""Config for launching A3C Carla Server
+"""Config for launching Multi-agent Carla Server
 """
 
 import os

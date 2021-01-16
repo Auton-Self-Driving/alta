@@ -1,5 +1,4 @@
-"""Reinforcement Learning (A3C) using Pytroch + multiprocessing.
-The most simple implementation for discrete action.
+"""Training multi-agent PPO algo
 """
 
 import os
