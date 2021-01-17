@@ -1325,7 +1325,7 @@ class CarlaEnv(gym.Env):
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
             NUM_RETRIES = 10
-            for idx in range(NUM_RETRIES):
+            for idx in range(1, NUM_RETRIES + 1):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
                 if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):

@@ -27,7 +27,7 @@ glb_optimizer = torch.optim.Adam(glb_net.parameters(), lr=1e-4, betas=(0.92, 0.9
 
 a2c_agent = A2C_Collective_Agent(env, glb_net, glb_optimizer,
     num_agents=ENV_CONFIG['num_agents'],
-    max_glb_num_episodes = ENV_CONFIG['max_num_episodes'],
+    max_glb_num_steps = ENV_CONFIG['max_num_steps'],
     verbose=ENV_CONFIG['verbose'])
 
 a2c_agent.learn()

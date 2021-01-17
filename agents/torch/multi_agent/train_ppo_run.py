@@ -26,7 +26,7 @@ glb_optimizer = torch.optim.Adam(glb_policy.parameters(), lr=1e-4, betas=(0.92, 
 
 ppo_agent = PPO_Collective_Agent(env, glb_policy, glb_optimizer,
     num_agents=ENV_CONFIG['num_agents'],
-    max_glb_num_episodes = ENV_CONFIG['max_num_episodes'],
+    max_glb_num_steps=ENV_CONFIG['max_num_steps'],
     verbose=ENV_CONFIG['verbose'])
 
 ppo_agent.learn()

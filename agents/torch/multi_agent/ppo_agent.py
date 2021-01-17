@@ -68,15 +68,15 @@ class _PPO_Individual_Agent(Agent):
 
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
-        num_agents=1, max_glb_num_episodes=10000, gamma=.99, eps_clip=.2,
-        glb_update_freq=2000, optim_epochs=100, verbose=False):
+        num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
+        glb_update_freq=1000, optim_epochs=100, verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
             glb_policy: network shared by all PPO agents
             glb_optimizer: optimizer for the glb_policy
             num_agents: number of PPO agents
-            max_glb_num_episodes: max number of global episodes
+            max_glb_num_steps: max number of global steps
             gamma: reward discount factor
             eps_clip: clip parameter for PPO
             glb_update_freq: update frequency of glb_policy
@@ -87,7 +87,7 @@ class PPO_Collective_Agent(object):
         self.glb_env = glb_env
         self.glb_policy = glb_policy
         self.glb_optimizer = glb_optimizer
-        self.max_glb_num_episodes = max_glb_num_episodes
+        self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
         self.eps_clip = eps_clip
         self.glb_update_freq = glb_update_freq
@@ -100,6 +100,7 @@ class PPO_Collective_Agent(object):
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -182,7 +183,7 @@ class PPO_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_episodes < self.max_glb_num_episodes + 1:
+        while glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -207,8 +208,9 @@ class PPO_Collective_Agent(object):
                 agent.memory['done'].append(agent.done)
 
                 if agent.done:  # done and print information
-                    print('[glb ep {}][glb step {}][agent {}] done({})'
-                        ', ep reward [{}]'.format(
+                    print('[{}]'.format(self.time()) + \
+                        '[glb ep {}][glb step {}][agent {}] done({})'
+                        ', ep reward [{:.4f}]'.format(
                         glb_num_episodes, glb_num_steps, rk, 
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
@@ -221,7 +223,7 @@ class PPO_Collective_Agent(object):
 
             if num_steps_since_update >= self.glb_update_freq:
                 # do the learning
-                print('updating policy...')
+                # print('updating policy...')
                 self._update()
                 num_steps_since_update = 0
 
@@ -241,6 +243,11 @@ class PPO_Collective_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
+    def save(self):
+        pass
+
+    def load(self, checkpoint):
+        pass
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

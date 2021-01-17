@@ -30,7 +30,7 @@ q1_optimizer = torch.optim.Adam(glb_q1.parameters(), lr=1e-3, betas=(0.92, 0.999
 glb_q2 = SoftQNetwork(N_S, N_A).to(ENV_CONFIG['device']) # q network
 q2_optimizer = torch.optim.Adam(glb_q2.parameters(), lr=1e-3, betas=(0.92, 0.999))
 
-replay_buffer = VanillaReplayBuffer(maxlen=1000000)
+replay_buffer = VanillaReplayBuffer(maxlen=100000)
 
 log_alpha = torch.log(torch.tensor(1., dtype=torch.float, device=ENV_CONFIG['device']))
 log_alpha.requires_grad = True
@@ -50,7 +50,7 @@ sac_agent = SAC_Collective_Agent(
     target_entropy=target_entropy,
     buffer=replay_buffer,
     num_agents=ENV_CONFIG['num_agents'],
-    max_glb_num_episodes = ENV_CONFIG['max_num_episodes'],
+    max_glb_num_steps=ENV_CONFIG['max_num_steps'],
     verbose=ENV_CONFIG['verbose'])
 
 sac_agent.learn()

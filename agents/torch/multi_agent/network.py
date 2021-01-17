@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal, Categorical, Normal
 
-from a3c_utils import set_init
+from agent_utils import set_init
 
 class Basic_Discrete(nn.Module):
     def __init__(self, s_dim, a_dim):

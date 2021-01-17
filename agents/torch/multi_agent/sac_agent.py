@@ -91,7 +91,7 @@ class SAC_Collective_Agent(object):
     def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer, 
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512, 
-        max_glb_num_episodes=10000, gamma=.99, q_update_freq=1,
+        max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
         target_update_freq=1, verbose=False):
         """An synchronous SAC agent.
         Args:
@@ -109,7 +109,7 @@ class SAC_Collective_Agent(object):
             num_agents: number of SAC agents
             tau:
             batch_size:
-            max_glb_num_episodes: max number of global episodes
+            max_glb_num_steps: max number of global steps
             gamma: reward discount factor
             q_update_freq: update frequency of q networks 
                 (update q networks every N steps)
@@ -133,7 +133,7 @@ class SAC_Collective_Agent(object):
         self.alpha_optimizer = alpha_optimizer
         self.target_entropy = target_entropy
         self.batch_size = batch_size
-        self.max_glb_num_episodes = max_glb_num_episodes
+        self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
         self.tau = tau
         self.q_update_freq = q_update_freq
@@ -146,6 +146,7 @@ class SAC_Collective_Agent(object):
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.num_q_updates_since_target_update = 0
 
     def vprint(self, *args, **kwargs):
@@ -225,7 +226,7 @@ class SAC_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_episodes < self.max_glb_num_episodes + 1:
+        while glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -251,8 +252,9 @@ class SAC_Collective_Agent(object):
                     agent.observation, int(agent.done))
 
                 if agent.done:  # done and print information
-                    print('[glb ep {}][glb step {}][agent {}] done({})'
-                        ', ep reward [{}]'.format(
+                    print('[{}]'.format(self.time()) + \
+                        '[glb ep {}][glb step {}][agent {}] done({})'
+                        ', ep reward [{:.4f}]'.format(
                         glb_num_episodes, glb_num_steps, rk, 
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
@@ -290,6 +292,12 @@ class SAC_Collective_Agent(object):
             target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
         for target_param, param in zip(self.target_q2.parameters(), self.glb_q2.parameters()):
             target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
+
+    def save(self):
+        pass
+
+    def load(self, checkpoint):
+        pass
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

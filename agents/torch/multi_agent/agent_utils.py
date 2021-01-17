@@ -1,9 +1,22 @@
-"""A3C utils
+"""multi-agent general utils
 """
 
 from torch import nn
 import torch
 import numpy as np
+
+
+class _Collective_Agent(object):
+    def __init__(self):
+        pass
+    def learn(self):
+        raise NotImplementedError()
+    def save(self, *args, **kwargs):
+        raise NotImplementedError()
+    def load(self, *args, **kwargs):
+        raise NotImplementedError()
+    def run(self):
+        raise NotImplementedError()
 
 
 class SharedAdam(torch.optim.Adam):

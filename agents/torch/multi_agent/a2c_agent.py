@@ -8,14 +8,13 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 
-from a3c_utils import SharedAdam, push_and_pull
+from agent_utils import SharedAdam, push_and_pull
 from network import Basic_Discrete
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
 
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
-
 
 
 class _A2C_Individual_Agent(Agent):
@@ -76,14 +75,14 @@ class _A2C_Individual_Agent(Agent):
 
 class A2C_Collective_Agent(object):
     def __init__(self, glb_env, glb_net, glb_optimizer, num_agents=1,
-        max_glb_num_episodes=10000, glb_update_freq=5, verbose=False):
+        max_glb_num_steps=1000000, glb_update_freq=5, verbose=False):
         """An torch.multiprocessing A3C agent.
         Args:
             glb_env: the global environment
             glb_net: network shared by all A3C agents
             glb_optimizer: optimizer for the global_net
             num_agents: number of A3C agents
-            max_glb_num_episodes: max number of global episodes
+            max_glb_num_steps: max number of global steps
             glb_update_freq: update frequency of glb_net
             verbose: if print some debug information
         """
@@ -91,7 +90,7 @@ class A2C_Collective_Agent(object):
         self.glb_env = glb_env
         self.glb_net = glb_net
         self.glb_optimizer = glb_optimizer
-        self.max_glb_num_episodes = max_glb_num_episodes
+        self.max_glb_num_steps = max_glb_num_steps
         self.glb_update_freq = glb_update_freq
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
@@ -101,6 +100,7 @@ class A2C_Collective_Agent(object):
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -146,6 +146,7 @@ class A2C_Collective_Agent(object):
 
     def learn(self):
         glb_num_episodes = 1
+        glb_num_steps = 0
         # initialize
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
@@ -158,7 +159,7 @@ class A2C_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_episodes < self.max_glb_num_episodes + 1:
+        while glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -188,13 +189,17 @@ class A2C_Collective_Agent(object):
                     self._push_and_pull(rk, agent.done, agent.observation)
 
                 if agent.done:  # done and print information
-                    print('[glb ep {}][agent {}] done, ep reward [{}]'.format(
-                        glb_num_episodes, rk, agent.episode_reward))
+                    print('[{}]'.format(self.time()) + \
+                        '[glb ep {}][glb step {}][agent {}] done({})'
+                        ', ep reward [{:.4f}]'.format(
+                        glb_num_episodes, glb_num_steps, rk, 
+                        agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
+                glb_num_steps += 1
             # respawn dead agents
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
@@ -209,7 +214,6 @@ class A2C_Collective_Agent(object):
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
-
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')
