@@ -92,7 +92,7 @@ class SAC_Collective_Agent(object):
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512, 
         max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
-        target_update_freq=1, verbose=False):
+        target_update_freq=1, save_freq=100000, verbose=False):
         """An synchronous SAC agent.
         Args:
             glb_env: the global environment
@@ -115,7 +115,8 @@ class SAC_Collective_Agent(object):
                 (update q networks every N steps)
             target_update_freq: update frequency of target q networks 
                 (update target and policy every N q-updates)
-            optim_epochs: update policy for how many epochs
+            save_freq: checkpoint saving frequency 
+                (save the agent every N global steps)
             verbose: if print some debug information
         """
         super().__init__()
@@ -138,6 +139,7 @@ class SAC_Collective_Agent(object):
         self.tau = tau
         self.q_update_freq = q_update_freq
         self.target_update_freq = target_update_freq
+        self.save_freq = save_freq
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
@@ -147,7 +149,10 @@ class SAC_Collective_Agent(object):
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
-        self.num_q_updates_since_target_update = 0
+        self.num_q_upd_since_target_upd = 0
+        self.glb_num_episodes = 1
+        self.num_steps_since_update = 0
+        self.glb_num_steps = 0
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -187,12 +192,12 @@ class SAC_Collective_Agent(object):
         q2_loss.backward()
         self.q2_optimizer.step()
         
-        self.num_q_updates_since_target_update += 1
+        self.num_q_upd_since_target_upd += 1
 
         # delayed update for policy network and target q networks
         new_actions, log_pi = self.glb_policy.sample(states)
 
-        if self.num_q_updates_since_target_update % self.target_update_freq == 0:
+        if self.num_q_upd_since_target_upd % self.target_update_freq == 0:
             min_q = torch.min(
                 self.glb_q1.forward(states, new_actions),
                 self.glb_q2.forward(states, new_actions)
@@ -206,15 +211,14 @@ class SAC_Collective_Agent(object):
             self.update_target_q()
             
         # update alpha temperature
-        alpha_loss = (self.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
+        alpha_loss = (self.log_alpha * (-log_pi - \
+            self.target_entropy).detach()).mean()
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.alpha_optimizer.step()
         # print('self.log_alpha:', self.log_alpha)
 
     def learn(self):
-        glb_num_episodes = 1
-        num_steps_since_update = glb_num_steps = 0
         # initialize
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -226,7 +230,7 @@ class SAC_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_steps < self.max_glb_num_steps + 1:
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -248,29 +252,32 @@ class SAC_Collective_Agent(object):
 
             for rk, agent in enumerate(self.agent_list):
                 # push into the buffer
-                self.buffer.append(agent.prev_state, agent.action, agent.step_reward,
-                    agent.observation, int(agent.done))
+                self.buffer.append(agent.prev_state, agent.action, 
+                    agent.step_reward, agent.observation, int(agent.done))
 
                 if agent.done:  # done and print information
                     print('[{}]'.format(self.time()) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        glb_num_episodes, glb_num_steps, rk, 
+                        self.glb_num_episodes, self.glb_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
-                    glb_num_episodes += 1
+                    self.glb_num_episodes += 1
 
                 agent.num_total_steps += 1
-                num_steps_since_update += 1
-                glb_num_steps += 1
+                self.num_steps_since_update += 1
+                self.glb_num_steps += 1
+                # save checkpoint
+                if self.glb_num_steps % self.save_freq == 0:
+                    self.save()
 
-                if num_steps_since_update >= self.q_update_freq and \
+                if self.num_steps_since_update >= self.q_update_freq and \
                     len(self.buffer) > self.batch_size:
                     # do the learning
                     # print('updating policy...')
                     self._update()
-                    num_steps_since_update = 0
+                    self.num_steps_since_update = 0
 
             # respawn dead agents
             respawn_rank_list = []
@@ -293,11 +300,64 @@ class SAC_Collective_Agent(object):
         for target_param, param in zip(self.target_q2.parameters(), self.glb_q2.parameters()):
             target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
 
-    def save(self):
-        pass
+    def save(self, filename=None):
+        if filename is None: filename = './ckptSACx{}_{}_{}.pth'.format(
+            self.num_agents, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
+        _ckpt = {
+            'glb_q1': self.glb_q1.state_dict(),
+            'q1_optimizer': self.q1_optimizer.state_dict(),
+            'glb_q2': self.glb_q2.state_dict(),
+            'q2_optimizer': self.q2_optimizer.state_dict(),
+            'glb_policy': self.glb_policy.state_dict(),
+            'policy_optimizer': self.policy_optimizer.state_dict(),
+            'log_alpha': self.log_alpha,
+            'alpha_optimizer': self.alpha_optimizer.state_dict(),
+            'target_entropy': self.target_entropy,
+            'num_agents': self.num_agents,
+            'tau': self.tau,
+            'batch_size': self.batch_size,
+            'max_glb_num_steps': self.max_glb_num_steps,
+            'gamma': self.gamma,
+            'q_update_freq': self.q_update_freq,
+            'target_update_freq': self.target_update_freq,
+            'save_freq': self.save_freq,
+            'verbose': self.verbose,
+            'glb_num_steps': self.glb_num_steps,
+            'num_steps_since_update': self.num_steps_since_update,
+            'glb_num_episodes': self.glb_num_episodes,
+            'num_q_upd_since_target_upd': self.num_q_upd_since_target_upd,
+        }
+        torch.save(_ckpt, filename)
+        print('checkpoint saved at [{}]'.format(filename))
 
     def load(self, checkpoint):
-        pass
+        self.glb_q1.load_state_dict(checkpoint['glb_q1'])
+        self.q1_optimizer.load_state_dict(checkpoint['q1_optimizer'])
+        self.glb_q2.load_state_dict(checkpoint['glb_q2'])
+        self.q2_optimizer.load_state_dict(checkpoint['q2_optimizer'])
+        self.glb_policy.load_state_dict(checkpoint['glb_policy'])
+        self.policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
+        self.log_alpha.copy_(checkpoint['log_alpha'])
+        self.alpha_optimizer.load_state_dict(checkpoint['alpha_optimizer'])
+
+    def resume(self, checkpoint):
+        assert self.num_agents == checkpoint['num_agents'], '{} != {}'.format(
+            self.num_agents, checkpoint['num_agents'])
+        self.load(checkpoint)
+        self.target_entropy = checkpoint['target_entropy']
+        self.tau = checkpoint['tau']
+        self.batch_size = checkpoint['batch_size']
+        self.max_glb_num_steps = checkpoint['max_glb_num_steps']
+        self.gamma = checkpoint['gamma']
+        self.q_update_freq = checkpoint['q_update_freq']
+        self.target_update_freq = checkpoint['target_update_freq']
+        self.save_freq = checkpoint['save_freq']
+        self.verbose = checkpoint['verbose']
+        self.glb_num_steps = checkpoint['glb_num_steps']
+        self.num_steps_since_update = checkpoint['num_steps_since_update']
+        self.glb_num_episodes = checkpoint['glb_num_episodes']
+        self.num_q_upd_since_target_upd = \
+            checkpoint['num_q_upd_since_target_upd']
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

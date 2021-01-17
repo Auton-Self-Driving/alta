@@ -15,6 +15,8 @@ class _Collective_Agent(object):
         raise NotImplementedError()
     def load(self, *args, **kwargs):
         raise NotImplementedError()
+    def resume(self, *args, **kwargs):
+        raise NotImplementedError()
     def run(self):
         raise NotImplementedError()
 

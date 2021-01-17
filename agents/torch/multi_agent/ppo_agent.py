@@ -69,7 +69,8 @@ class _PPO_Individual_Agent(Agent):
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
-        glb_update_freq=1000, optim_epochs=100, verbose=False):
+        glb_update_freq=1000, optim_epochs=100, save_freq=100000,
+        verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
@@ -81,6 +82,8 @@ class PPO_Collective_Agent(object):
             eps_clip: clip parameter for PPO
             glb_update_freq: update frequency of glb_policy
             optim_epochs: update policy for how many epochs
+            save_freq: checkpoint saving frequency 
+                (save the agent every N global steps)
             verbose: if print some debug information
         """
         super().__init__()
@@ -97,10 +100,14 @@ class PPO_Collective_Agent(object):
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
         self.device = next(glb_policy.parameters()).device
+        self.save_freq = save_freq
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.glb_num_episodes = 1
+        self.glb_num_steps = 0
+        self.num_steps_since_update = 0
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -170,8 +177,6 @@ class PPO_Collective_Agent(object):
             agent.reset_memory()
 
     def learn(self):
-        glb_num_episodes = 1
-        num_steps_since_update = glb_num_steps = 0
         # initialize
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -183,11 +188,11 @@ class PPO_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_steps < self.max_glb_num_steps + 1:
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
-                prev_obs = torch.from_numpy(agent.observation).to(torch.float)
+                # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
                 action = agent.select_action()
                 agent.action = action
             te_action = time.time()
@@ -211,21 +216,24 @@ class PPO_Collective_Agent(object):
                     print('[{}]'.format(self.time()) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        glb_num_episodes, glb_num_steps, rk, 
+                        self.glb_num_episodes, self.glb_num_steps, rk, 
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     glb_num_episodes += 1
 
                 agent.num_total_steps += 1
-                num_steps_since_update += 1
-                glb_num_steps += 1
+                self.num_steps_since_update += 1
+                self.glb_num_steps += 1
+                # save checkpoint
+                if self.glb_num_steps % self.save_freq == 0:
+                    self.save()
 
-            if num_steps_since_update >= self.glb_update_freq:
+            if self.num_steps_since_update >= self.glb_update_freq:
                 # do the learning
                 # print('updating policy...')
                 self._update()
-                num_steps_since_update = 0
+                self.num_steps_since_update = 0
 
             # respawn dead agents
             respawn_rank_list = []
@@ -243,11 +251,45 @@ class PPO_Collective_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
-    def save(self):
-        pass
+    def save(self, filename=None):
+        if filename is None: filename = './ckptPPOx{}_{}_{}.pth'.format(
+            self.num_agents, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
+        _ckpt = {
+            'glb_policy': self.glb_policy.state_dict(),
+            'glb_optimizer': self.glb_optimizer.state_dict(),
+            'num_agents': self.num_agents,
+            'max_glb_num_steps': self.max_glb_num_steps,
+            'gamma': self.gamma,
+            'eps_clip': self.eps_clip,
+            'glb_update_freq': self.glb_update_freq,
+            'optim_epochs': self.optim_epochs,
+            'save_freq': self.save_freq,
+            'verbose': self.verbose,
+            'glb_num_steps': self.glb_num_steps,
+            'num_steps_since_update': self.num_steps_since_update,
+            'glb_num_episodes': self.glb_num_episodes,
+        }
+        torch.save(_ckpt, filename)
+        print('checkpoint saved at [{}]'.format(filename))
 
     def load(self, checkpoint):
-        pass
+        self.glb_policy.load_state_dict(checkpoint['glb_policy'])
+        self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
+
+    def resume(self, checkpoint):
+        assert self.num_agents == checkpoint['num_agents'], '{} != {}'.format(
+            self.num_agents, checkpoint['num_agents'])
+        self.load(checkpoint)
+        self.eps_clip = checkpoint['eps_clip']
+        self.max_glb_num_steps = checkpoint['max_glb_num_steps']
+        self.gamma = checkpoint['gamma']
+        self.glb_update_freq = checkpoint['glb_update_freq']
+        self.optim_epochs = checkpoint['optim_epochs']
+        self.save_freq = checkpoint['save_freq']
+        self.verbose = checkpoint['verbose']
+        self.glb_num_steps = checkpoint['glb_num_steps']
+        self.num_steps_since_update = checkpoint['num_steps_since_update']
+        self.glb_num_episodes = checkpoint['glb_num_episodes']
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')
