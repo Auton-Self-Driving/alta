@@ -82,7 +82,7 @@ class PPO_Collective_Agent(object):
             eps_clip: clip parameter for PPO
             glb_update_freq: update frequency of glb_policy
             optim_epochs: update policy for how many epochs
-            save_freq: checkpoint saving frequency 
+            save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             verbose: if print some debug information
         """
@@ -216,11 +216,11 @@ class PPO_Collective_Agent(object):
                     print('[{}]'.format(self.time()) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        self.glb_num_episodes, self.glb_num_steps, rk, 
+                        self.glb_num_episodes, self.glb_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
-                    glb_num_episodes += 1
+                    self.glb_num_episodes += 1
 
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
