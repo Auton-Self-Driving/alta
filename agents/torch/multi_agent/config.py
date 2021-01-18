@@ -39,7 +39,6 @@ def get_discrete_actions():
 
 DISCRETE_ACTIONS = get_discrete_actions()
 
-
 EPISODE_MEASUREMENTS = {
     'episode_id': None,
     'num_steps': None,
@@ -53,9 +52,27 @@ EPISODE_MEASUREMENTS = {
     'control_steer': 0
 }
 
+SAC_CONFIG = {
+    'policy_lr': 1e-3,
+    'q_lr': 1e-3,
+    'alpha_lr': 1e-4,
+    'buffer_len': 100000,
+    'target_entropy': -2.,
+    'tau': .01,
+    'batch_size': 512,
+    'q_update_freq': 1,
+    'target_update_freq': 1,
+}
+
+PPO_CONFIG = {
+    'policy_lr': 1e-4,
+    'eps_clip': .2,
+    'glb_update_freq': 1000,
+    'optim_epochs': 100,
+}
 
 ENV_CONFIG = {
-    'algo': 'A2C',
+    # 'algo': 'Multi-Agent',
     'num_agents': 8,
     'max_num_steps': 10000000,
     'device': 'cuda:0',
@@ -114,25 +131,26 @@ ENV_CONFIG = {
     'semantic' : False,
     'client_timeout_seconds' : 600,
     'enable_lane_invasion_sensor' : True,
-    'carla_gpu': '0',
+    # 'carla_gpu': '0',
     'render_server': False,
     'steer_penalty_coeff': 0,
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
     'num_npc' : 20,
+    'sample_npc': False,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
-    'const_collision_penalty': 0,
-    'collision_penalty_speed_coeff': 0,
-    'const_light_penalty': 0,
-    'light_penalty_speed_coeff': 0,
+    'const_collision_penalty': 250,
+    'collision_penalty_speed_coeff': 250,
+    'const_light_penalty': 250,
+    'light_penalty_speed_coeff': 250,
     'terminate_on_light' : True,
     'enable_brake': True,
-    'log_freq': 1,
+    # 'log_freq': 1,
     'zero_speed_threshold': 0.05,
     ### 'videos' : False,
     'obstacle_dist_norm' : 60,
@@ -180,10 +198,10 @@ ENV_CONFIG = {
     'test_comparison': False,
     'test_with_automatic_control': False,
     'updated_scenarios': False,
-    'sample_npc': False,
     'use_route_to_plan' : False,
     'discrete_actions': DISCRETE_ACTIONS,
     'episode_measurements': EPISODE_MEASUREMENTS,
 }
 
-
+ENV_CONFIG.update(SAC_CONFIG)
+ENV_CONFIG.update(PPO_CONFIG)

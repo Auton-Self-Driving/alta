@@ -58,12 +58,12 @@ class CarlaEnv(gym.Env):
         self.prev_measurement = None
         self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
-        if 'num_agents' in self.config and self.config['algo'] == 'A2C':
-            if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
-            self.ego_vehicle_list = [None] * self.config['num_agents']
-            self.ego_agent_list = [None] * self.config['num_agents']
-        else:
-            self.config['num_agents'] = 1
+        # if 'num_agents' in self.config and self.config['algo'] == 'A2C':
+        if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
+        self.ego_vehicle_list = [None] * self.config['num_agents']
+        self.ego_agent_list = [None] * self.config['num_agents']
+        # else:
+        #     self.config['num_agents'] = 1
         self.curr_num_agents = 0
         self.world_frame = 0
         ################################################################################
@@ -552,16 +552,16 @@ class CarlaEnv(gym.Env):
 
     def step(self, action=None):
         try:
-            if self.config['test_comparison']:
-                self._step_test_comparison(action)
-                return None
-            elif self.config['algo'] == 'A2C':
+            # if self.config['test_comparison']:
+            #     self._step_test_comparison(action)
+            #     return None
+            # elif self.config['algo'] == 'A2C':
                 # new_obs, reward, done, ep_info = self._step(action[0])
                 # return [new_obs], [reward], [done], [ep_info]
-                obs = self.list_step() # action here will be an action list
-            else:
-                obs = self._step(action)
-            return obs
+            self.list_step() # action here will be an action list
+            # else:
+            #     obs = self._step(action)
+            # return obs
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
@@ -1047,12 +1047,12 @@ class CarlaEnv(gym.Env):
 
 
     def reset(self, unseen=False, index=0, rank_list=None):
-        if self.config['test_comparison']:
-            return self._reset_test_comparison(unseen, index)
-        elif self.config['algo'] == 'A2C':
-            return self.list_reset(unseen, index, rank_list=rank_list)
-        else:
-            return self._reset(unseen, index)
+        # if self.config['test_comparison']:
+        #     return self._reset_test_comparison(unseen, index)
+        # elif self.config['algo'] == 'A2C':
+        return self.list_reset(unseen, index, rank_list=rank_list)
+        # else:
+        #     return self._reset(unseen, index)
 
     def destroy_all_existing_npc_actors(self):
         # Delete all existing actors
