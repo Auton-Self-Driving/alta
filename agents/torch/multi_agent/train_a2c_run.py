@@ -33,8 +33,8 @@ a2c_agent = A2C_Collective_Agent(env, glb_net, glb_optimizer,
     verbose=ENV_CONFIG['verbose'],
 )
 
-if A2C_CONFIG['resume']:
-    ckpt = torch.load(A2C_CONFIG['resume'], map_location='cpu')
+if A2C_CONFIG['checkpoint']:
+    ckpt = torch.load(A2C_CONFIG['checkpoint'], map_location='cpu')
     a2c_agent.resume(ckpt)
 
 a2c_agent.learn()

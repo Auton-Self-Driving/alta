@@ -84,6 +84,7 @@ class PPO_Collective_Agent(object):
             optim_epochs: update policy for how many epochs
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
+            deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
         """
         super().__init__()

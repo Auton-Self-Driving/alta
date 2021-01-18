@@ -117,6 +117,7 @@ class SAC_Collective_Agent(object):
                 (update target and policy every N q-updates)
             save_freq: checkpoint saving frequency 
                 (save the agent every N global steps)
+            deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
         """
         super().__init__()

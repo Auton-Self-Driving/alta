@@ -27,11 +27,13 @@ class Basic_Discrete(nn.Module):
         values = self.v2(v1)
         return logits, values
 
-    def choose_action(self, s):
+    def choose_action(self, s, deterministic=False):
         self.eval()
         logits, _ = self.forward(s)
         prob = F.softmax(logits, dim=1).detach()
         m = self.distribution(prob)
+        if deterministic:
+            return m.mean.cpu().numpy()[0]
         return m.sample().cpu().numpy()[0]
 
     def loss_func(self, s, a, v_t):
@@ -74,13 +76,13 @@ class PPOActorCritic_Continuous(nn.Module):
     def forward(self):
         raise NotImplementedError('please use act and eval instead')
 
-    def act(self, state):
+    def act(self, state, deterministic=False):
         device = next(self.actor.parameters()).device
         action_mean = self.actor(state.to(device))
         cov_mat = torch.diag(self.action_var).to(device)
 
         dist = MultivariateNormal(action_mean, cov_mat)
-        action = dist.sample()
+        action = dist.mean if deterministic else dist.sample()
         action_logprob = dist.log_prob(action)
 
         action = action.detach().cpu().numpy()
@@ -156,15 +158,15 @@ class PolicyNetwork(nn.Module):
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
         return mean, log_std
 
-    def sample(self, state, epsilon=1e-6):
+    def sample(self, state, epsilon=1e-6, deterministic=False):
         mean, log_std = self.forward(state)
         std = log_std.exp()
 
-        normal = Normal(mean, std)
-        z = normal.rsample()
+        dist = Normal(mean, std)
+        z = dist.mean if deterministic else dist.rsample()
         action = torch.tanh(z)
 
-        log_pi = normal.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
+        log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
         log_pi = log_pi.sum(1, keepdim=True)
         return action, log_pi
 

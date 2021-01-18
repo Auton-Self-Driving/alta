@@ -85,6 +85,7 @@ class A2C_Collective_Agent(object):
             num_agents: number of A3C agents
             max_glb_num_steps: max number of global steps
             glb_update_freq: update frequency of glb_net
+            deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
         """
         super().__init__()

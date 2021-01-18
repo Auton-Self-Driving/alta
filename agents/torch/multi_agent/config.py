@@ -53,13 +53,13 @@ EPISODE_MEASUREMENTS = {
 }
 
 A2C_CONFIG = {
-    'resume': None,
+    'checkpoint': None,
     'policy_lr': 1e-3,
     'glb_update_freq': 5,
 }
 
 SAC_CONFIG = {
-    'resume': None,
+    'checkpoint': None,
     'policy_lr': 1e-3,
     'q_lr': 1e-3,
     'alpha_lr': 1e-4,
@@ -72,7 +72,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'resume': None,
+    'checkpoint': None,
     'policy_lr': 1e-4,
     'eps_clip': .2,
     'glb_update_freq': 1000,
