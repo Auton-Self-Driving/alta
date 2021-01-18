@@ -62,6 +62,11 @@ sac_agent = SAC_Collective_Agent(
     max_glb_num_steps=ENV_CONFIG['max_num_steps'],
     verbose=ENV_CONFIG['verbose'])
 
+# resume if necessary
+if SAC_CONFIG['resume']:
+    ckpt = torch.load(SAC_CONFIG['resume'], map_location='cpu')
+    sac_agent.resume(ckpt)
+
 sac_agent.learn()
 env.close()
 

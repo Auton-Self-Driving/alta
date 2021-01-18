@@ -34,6 +34,11 @@ ppo_agent = PPO_Collective_Agent(env, glb_policy, glb_optimizer,
     verbose=ENV_CONFIG['verbose'],
 )
 
+# resume if necessary
+if PPO_CONFIG['resume']:
+    ckpt = torch.load(PPO_CONFIG['resume'], map_location='cpu')
+    ppo_agent.resume(ckpt)
+
 ppo_agent.learn()
 env.close()
 

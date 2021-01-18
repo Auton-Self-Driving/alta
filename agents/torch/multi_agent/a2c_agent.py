@@ -75,7 +75,8 @@ class _A2C_Individual_Agent(Agent):
 
 class A2C_Collective_Agent(object):
     def __init__(self, glb_env, glb_net, glb_optimizer, num_agents=1,
-        max_glb_num_steps=1000000, glb_update_freq=5, verbose=False):
+        max_glb_num_steps=1000000, glb_update_freq=5, save_freq=100000,
+        verbose=False):
         """An torch.multiprocessing A3C agent.
         Args:
             glb_env: the global environment
@@ -98,9 +99,12 @@ class A2C_Collective_Agent(object):
         self.agent_list = None
         self.device = next(glb_net.parameters()).device
         self.verbose = verbose
+        self.save_freq = save_freq
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.glb_num_episodes = 1
+        self.glb_num_steps = 0
 
     def vprint(self, *args, **kwargs):
         if self.verbose: print(*args, **kwargs)
@@ -145,8 +149,6 @@ class A2C_Collective_Agent(object):
         agent.reset_buffer()
 
     def learn(self):
-        glb_num_episodes = 1
-        glb_num_steps = 0
         # initialize
         # obs_list = self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.reset(rank_list=self.rank_list)
@@ -159,7 +161,7 @@ class A2C_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while glb_num_steps < self.max_glb_num_steps + 1:
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
@@ -192,14 +194,14 @@ class A2C_Collective_Agent(object):
                     print('[{}]'.format(self.time()) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        glb_num_episodes, glb_num_steps, rk, 
+                        self.glb_num_episodes, self.glb_num_steps, rk, 
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
-                    glb_num_episodes += 1
+                    self.glb_num_episodes += 1
 
                 agent.num_total_steps += 1
-                glb_num_steps += 1
+                self.glb_num_steps += 1
             # respawn dead agents
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
@@ -215,10 +217,44 @@ class A2C_Collective_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
+    def save(self, filename=None):
+        if filename is None: filename = './ckptA2Cx{}_{}_{}.pth'.format(
+            self.num_agents, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
+        _ckpt = {
+            'glb_net': self.glb_net.state_dict(),
+            'glb_optimizer': self.glb_optimizer.state_dict(),
+            'num_agents': self.num_agents,
+            'max_glb_num_steps': self.max_glb_num_steps,
+            'glb_update_freq': self.glb_update_freq,
+            'save_freq': self.save_freq,
+            'verbose': self.verbose,
+            'glb_num_steps': self.glb_num_steps,
+            'glb_num_episodes': self.glb_num_episodes,
+        }
+        torch.save(_ckpt, filename)
+        print('checkpoint saved at [{}]'.format(filename))
+
+    def load(self, checkpoint):
+        self.glb_net.load_state_dict(checkpoint['glb_net'])
+        self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
+
+    def resume(self, checkpoint):
+        assert self.num_agents == checkpoint['num_agents'], '{} != {}'.format(
+            self.num_agents, checkpoint['num_agents'])
+        self.load(checkpoint)
+        self.max_glb_num_steps = checkpoint['max_glb_num_steps']
+        self.glb_update_freq = checkpoint['glb_update_freq']
+        self.save_freq = checkpoint['save_freq']
+        self.verbose = checkpoint['verbose']
+        self.glb_num_steps = checkpoint['glb_num_steps']
+        self.glb_num_episodes = checkpoint['glb_num_episodes']
+
     def run(self):
         raise NotImplementedError('This agent does not use MP')
 
 
+""" Deprecated
+"""
 class A3C_MP_Agent(mp.Process):
     def __init__(self, glb_env, glb_net, glb_optimizer,
         glb_num_episodes, glb_episode_reward, glb_queue,
