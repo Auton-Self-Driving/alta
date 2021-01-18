@@ -81,7 +81,7 @@ PPO_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 8,
+    'num_agents': 1,
     'max_num_steps': 10000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -112,7 +112,7 @@ ENV_CONFIG = {
     'framestack' : 1,
     ### 'grayscale' : False,
     'num_pedestrians' : 0,
-    'max_steps' : 100000,
+    'max_steps' : 5000,
     'next_command': None,
     'verbose': False,
     'vehicle_type': 'vehicle.toyota.prius',

@@ -88,9 +88,9 @@ class _SAC_Individual_Agent(Agent):
 
 
 class SAC_Collective_Agent(object):
-    def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer, 
+    def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer,
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
-        target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512, 
+        target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512,
         max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
         target_update_freq=1, save_freq=100000, verbose=False):
         """An synchronous SAC agent.
@@ -111,11 +111,11 @@ class SAC_Collective_Agent(object):
             batch_size:
             max_glb_num_steps: max number of global steps
             gamma: reward discount factor
-            q_update_freq: update frequency of q networks 
+            q_update_freq: update frequency of q networks
                 (update q networks every N steps)
-            target_update_freq: update frequency of target q networks 
+            target_update_freq: update frequency of target q networks
                 (update target and policy every N q-updates)
-            save_freq: checkpoint saving frequency 
+            save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
@@ -180,19 +180,19 @@ class SAC_Collective_Agent(object):
 
         # q loss
         curr_q1 = self.glb_q1.forward(states, actions)
-        curr_q2 = self.glb_q2.forward(states, actions)        
+        curr_q2 = self.glb_q2.forward(states, actions)
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
 
-        # update q networks        
+        # update q networks
         self.q1_optimizer.zero_grad()
         q1_loss.backward()
         self.q1_optimizer.step()
-        
+
         self.q2_optimizer.zero_grad()
         q2_loss.backward()
         self.q2_optimizer.step()
-        
+
         self.num_q_upd_since_target_upd += 1
 
         # delayed update for policy network and target q networks
@@ -210,7 +210,7 @@ class SAC_Collective_Agent(object):
             self.policy_optimizer.step()
             # update target networks
             self.update_target_q()
-            
+
         # update alpha temperature
         alpha_loss = (self.log_alpha * (-log_pi - \
             self.target_entropy).detach()).mean()
@@ -253,7 +253,7 @@ class SAC_Collective_Agent(object):
 
             for rk, agent in enumerate(self.agent_list):
                 # push into the buffer
-                self.buffer.append(agent.prev_state, agent.action, 
+                self.buffer.append(agent.prev_state, agent.action,
                     agent.step_reward, agent.observation, int(agent.done))
 
                 if agent.done:  # done and print information
@@ -338,7 +338,7 @@ class SAC_Collective_Agent(object):
         self.q2_optimizer.load_state_dict(checkpoint['q2_optimizer'])
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
         self.policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
-        self.log_alpha.copy_(checkpoint['log_alpha'])
+        self.log_alpha.data.copy_(checkpoint['log_alpha'])
         self.alpha_optimizer.load_state_dict(checkpoint['alpha_optimizer'])
 
     def resume(self, checkpoint):
