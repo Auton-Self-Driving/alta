@@ -81,7 +81,8 @@ PPO_CONFIG = {
 
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
-    'ckeckpoint': None,
+    # 'checkpoint': './ckptSACx8_1000000_Jan190101AM49.pth',
+    'checkpoint': './ckptPPOx8_1400000_Jan191253AM17.pth',
     'num_agents': 1,
     'num_npc' : 15,
     'sample_npc': False,
