@@ -299,7 +299,7 @@ class SAC_Collective_Agent(object):
         # initialize
         idx_list = list(range(self.num_agents))
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
-        self.glb_env.reset(rank_list=self.rank_list, use_idx=True, 
+        self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
             idx_list=idx_list)
         self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_SAC_Individual_Agent(
@@ -309,7 +309,7 @@ class SAC_Collective_Agent(object):
         self.glb_env.step()
 
         self.num_successes = 0
-        while self.glb_num_episodes < self.glb_num_test_episodes:
+        while self.glb_num_episodes < self.glb_num_test_episodes + 1:
             # take action
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
@@ -341,11 +341,11 @@ class SAC_Collective_Agent(object):
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
                 if agent.done and self.num_agents + \
-                    idx_list[rk] < self.glb_num_test_episodes: 
+                    idx_list[rk] < self.glb_num_test_episodes:
                     respawn_rank_list.append(rk)
                     idx_list[rk] += self.num_agents
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
-                self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True, 
+                self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
                     idx_list=idx_list)
                 # update agent list
                 for rk in respawn_rank_list:
