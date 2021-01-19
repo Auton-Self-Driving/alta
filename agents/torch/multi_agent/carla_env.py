@@ -826,6 +826,9 @@ class CarlaEnv(gym.Env):
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
             # print('obstacle actor {}, dist: {}'.format(obstacle_actor, agent.obstacle_sensor.distance))
+        if not found_obstacle:
+            agent.episode_measurements['obstacle_dist'] = -1
+            agent.episode_measurements['obstacle_speed'] = -1
 
 
     def _update_traffic_light_states(self, agent):
@@ -1046,11 +1049,11 @@ class CarlaEnv(gym.Env):
         return control
 
 
-    def reset(self, unseen=False, index=0, rank_list=None):
+    def reset(self, use_idx=False, index=None, rank_list=None):
         # if self.config['test_comparison']:
         #     return self._reset_test_comparison(unseen, index)
         # elif self.config['algo'] == 'A2C':
-        return self.list_reset(unseen, index, rank_list=rank_list)
+        return self.list_reset(use_idx, index, rank_list=rank_list)
         # else:
         #     return self._reset(unseen, index)
 
@@ -1144,7 +1147,6 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['traffic_light_orientation'] = -1
             agent.episode_measurements["runover_light"] = False
 
-            agent.unseen = self.unseen
             agent.rv_camera_queue = queue.Queue()
 
             agent.actor_list = []
@@ -1303,10 +1305,9 @@ class CarlaEnv(gym.Env):
 
         return agent.observation
 
-    def list_reset(self, unseen=False, index=0, expert_agent=False, rank_list=None):
-        self.unseen = unseen
-        self.index = index
-        self.expert_agent = expert_agent
+    def list_reset(self, use_idx=False, idx_list=None, rank_list=None):
+        if not idx_list: idx_list = [0] * len(rank_list)
+
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
@@ -1330,9 +1331,9 @@ class CarlaEnv(gym.Env):
                 # Currently scenarios are defined only for Town01
                 if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
                     if self.config["updated_scenarios"]:
-                        self._set_updated_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+                        self._set_updated_scenario(unseen=use_idx, index=idx_list[rk], town=self.config["city_name"])
                     else:
-                        self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
+                        self._set_scenario(unseen=use_idx, index=idx_list[rk], town=self.config["city_name"])
                 else:
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -1363,9 +1364,9 @@ class CarlaEnv(gym.Env):
         self.destroy_all_existing_npc_actors()
         if self.config["sample_npc"]:
             self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-                high=self.config["num_npc_upper_threshold"]), self.unseen)
+                high=self.config["num_npc_upper_threshold"]))
         else:
-            self.spawn_npc(self.config["num_npc"], self.unseen)
+            self.spawn_npc(self.config["num_npc"])
 
 
     def _reset_test_comparison(self, unseen=False, index=0):
@@ -1439,20 +1440,13 @@ class CarlaEnv(gym.Env):
             return True
         return False
 
-    def spawn_npc(self, number_of_vehicles, unseen):
+    def spawn_npc(self, number_of_vehicles):
         # Testing
-        if unseen:
-            if self.config["test_fixed_spawn_points"]:
-                spawn_points = self.spawn_points_fixed_order
-            else:
-                spawn_points = self.spawn_points
-                random.shuffle(spawn_points)
+        if self.config["test_fixed_spawn_points"]:
+            spawn_points = self.spawn_points_fixed_order
         else:
-            if self.config["train_fixed_spawn_points"]:
-                spawn_points = self.spawn_points_fixed_order
-            else:
-                spawn_points = self.spawn_points
-                random.shuffle(spawn_points)
+            spawn_points = self.spawn_points
+            random.shuffle(spawn_points)
 
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))

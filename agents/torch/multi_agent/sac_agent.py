@@ -73,14 +73,14 @@ class _SAC_Individual_Agent(Agent):
         self.observation = None
         self.termination_state = None
 
-    def select_action(self):
+    def select_action(self, deterministic=False):
         prev_state = self.observation
         state_tensor = torch.from_numpy(prev_state).to(torch.float).to(self.device)
         mean, log_std = self.glb_policy(state_tensor)
         std = log_std.exp()
 
         normal = Normal(mean, std)
-        z = normal.sample()
+        z = normal.mean if deterministic else normal.sample()
         action = torch.tanh(z)
         action = action.cpu().detach().squeeze(0).numpy()
         # return self.glb_policy.rescale_action(action)
@@ -286,6 +286,67 @@ class SAC_Collective_Agent(object):
                 if agent.done: respawn_rank_list.append(rk)
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.glb_env.reset(rank_list=respawn_rank_list)
+                # update agent list
+                for rk in respawn_rank_list:
+                    self.agent_list[rk] = _SAC_Individual_Agent(
+                        self.glb_env.ego_vehicle_list[rk],
+                        glb_policy=self.glb_policy, rank=rk)
+                self.glb_env.reset_vehicle_agent(
+                    [self.agent_list[rk] for rk in respawn_rank_list])
+                self.glb_env.step()
+
+    def test(self):
+        # initialize
+        idx_list = list(range(self.num_agents))
+        self.glb_num_test_episodes = self.glb_env.config['num_episodes']
+        self.glb_env.reset(rank_list=self.rank_list, use_idx=True, 
+            idx_list=idx_list)
+        self.glb_env.spawn_npc_vehicles()
+        self.agent_list = [_SAC_Individual_Agent(
+            self.glb_env.ego_vehicle_list[i],
+            glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
+        self.glb_env.reset_vehicle_agent(self.agent_list)
+        self.glb_env.step()
+
+        self.num_successes = 0
+        while self.glb_num_episodes < self.glb_num_test_episodes:
+            # take action
+            for rk, agent in enumerate(self.agent_list):
+                # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
+                action = agent.select_action(deterministic=True)
+                agent.action = action
+            self.vprint('action chosen:', [a.action for a in self.agent_list])
+            # get new observation
+            self.glb_env.step()
+
+            for rk, agent in enumerate(self.agent_list):
+                if agent.done:  # done and print information
+                    if agent.termination_state == 'success':
+                        self.num_successes += 1
+                    print('[glb ep {}/{}]'.format(self.glb_num_episodes,
+                        self.glb_num_test_episodes) + \
+                        '[score {:.4%}][glb step {}][agent {}] done({})'
+                        ', ep reward [{:.4f}]'.format(
+                        self.num_successes / self.glb_num_test_episodes,
+                        self.glb_num_steps, rk,
+                        agent.termination_state, agent.episode_reward))
+                    self.agent_reward_list[rk].append(agent.episode_reward)
+                    self.glb_ep_reward_list.append(agent.episode_reward)
+                    self.glb_num_episodes += 1
+
+                agent.num_total_steps += 1
+                self.glb_num_steps += 1
+
+            # respawn dead agents
+            respawn_rank_list = []
+            for rk, agent in enumerate(self.agent_list):
+                if agent.done and self.num_agents + \
+                    idx_list[rk] < self.glb_num_test_episodes: 
+                    respawn_rank_list.append(rk)
+                    idx_list[rk] += self.num_agents
+            if len(respawn_rank_list) > 0: # there're dead agents to respawn
+                self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True, 
+                    idx_list=idx_list)
                 # update agent list
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _SAC_Individual_Agent(

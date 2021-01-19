@@ -79,6 +79,23 @@ PPO_CONFIG = {
     'optim_epochs': 100,
 }
 
+TEST_CONFIG = {
+    'PPO': True, # else SAC, currently only support those two
+    'ckeckpoint': None,
+    'num_agents': 1,
+    'num_npc' : 15,
+    'sample_npc': False,
+    'scenarios' : 'navigation',
+    'use_scenarios': True,
+    'city_name' : 'Town02',
+    'testing' : True,
+    'enable_static' : False,
+    'enable_obstacle_sensor': False,
+    'terminate_on_light' : False,
+    'enable_obstacle_sensor': False,
+    'enable_lane_invasion_collision' : False,
+}
+
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
@@ -210,6 +227,3 @@ ENV_CONFIG = {
     'discrete_actions': DISCRETE_ACTIONS,
     'episode_measurements': EPISODE_MEASUREMENTS,
 }
-
-ENV_CONFIG.update(SAC_CONFIG)
-ENV_CONFIG.update(PPO_CONFIG)
