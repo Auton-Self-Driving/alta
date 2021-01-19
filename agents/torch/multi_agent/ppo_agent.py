@@ -47,7 +47,7 @@ class _PPO_Individual_Agent(Agent):
     def select_action(self, deterministic=False):
         prev_state = self.observation
         state_tensor = torch.from_numpy(prev_state).to(torch.float).to(self.device)
-        action, logprob = self.local_policy.act(state_tensor, 
+        action, logprob = self.local_policy.act(state_tensor,
             deterministic=deterministic)
         # update partial memory
         self.memory['state'].append(prev_state.tolist())
@@ -258,7 +258,8 @@ class PPO_Collective_Agent(object):
         # initialize
         idx_list = list(range(self.num_agents))
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
-        self.glb_env.reset(rank_list=self.rank_list, use_idx=True, 
+        # print(self.glb_num_test_episodes)
+        self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
             idx_list=idx_list)
         self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_PPO_Individual_Agent(
@@ -268,7 +269,7 @@ class PPO_Collective_Agent(object):
         self.glb_env.step()
 
         self.num_successes = 0
-        while self.glb_num_episodes < self.glb_num_test_episodes:
+        while self.glb_num_episodes < self.glb_num_test_episodes + 1:
             # take action
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
@@ -284,7 +285,7 @@ class PPO_Collective_Agent(object):
                         self.num_successes += 1
                     print('[glb ep {}/{}]'.format(self.glb_num_episodes,
                         self.glb_num_test_episodes) + \
-                        '[score {:.4%}][glb step {}][agent {}] done({})'
+                        '[score {:.2%}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
                         self.num_successes / self.glb_num_test_episodes,
                         self.glb_num_steps, rk,
@@ -300,11 +301,11 @@ class PPO_Collective_Agent(object):
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):
                 if agent.done and self.num_agents + \
-                    idx_list[rk] < self.glb_num_test_episodes: 
+                    idx_list[rk] < self.glb_num_test_episodes:
                     respawn_rank_list.append(rk)
                     idx_list[rk] += self.num_agents
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
-                self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True, 
+                self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
                     idx_list=idx_list)
                 # update agent list
                 for rk in respawn_rank_list:

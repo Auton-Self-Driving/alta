@@ -195,7 +195,7 @@ class A2C_Collective_Agent(object):
                     print('[{}]'.format(self.time()) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        self.glb_num_episodes, self.glb_num_steps, rk, 
+                        self.glb_num_episodes, self.glb_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
@@ -203,6 +203,10 @@ class A2C_Collective_Agent(object):
 
                 agent.num_total_steps += 1
                 self.glb_num_steps += 1
+                # save the progress
+                if self.glb_num_steps % self.save_freq == 0:
+                    self.save()
+
             # respawn dead agents
             respawn_rank_list = []
             for rk, agent in enumerate(self.agent_list):

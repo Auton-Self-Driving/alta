@@ -20,7 +20,6 @@ import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
-from agents.torch.multi_agent.config import ENV_CONFIG
 
 
 # import ipdb
@@ -46,8 +45,8 @@ from environment.carla_9_4.env_util import (
 
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=ENV_CONFIG, logger=None):
-        self.config = ENV_CONFIG
+    def __init__(self, config, logger=None):
+        self.config = config
         # self._update_config(config)
         self.CarlaServer = None
         self.episode_measurements = self.config['episode_measurements']
@@ -111,7 +110,9 @@ class CarlaEnv(gym.Env):
 
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
-        self._world = self.client.load_world(self.config['city_name'])
+        # print(self.client.get_available_maps())
+        self._world = self.client.load_world('/Game/Carla/Maps/' + self.config['city_name'])
+        
         # time.sleep(600)
         self._world = self.client.get_world()
 
@@ -762,7 +763,7 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['nearest_traffic_actor_state'],
                     agent.episode_measurements['initial_dist_to_red_light'],
                     agent.episode_measurements['red_light_dist'])
-        
+
 
     def _update_obs_detector_via_privilege(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
@@ -1049,11 +1050,11 @@ class CarlaEnv(gym.Env):
         return control
 
 
-    def reset(self, use_idx=False, index=None, rank_list=None):
+    def reset(self, use_idx=False, idx_list=None, rank_list=None):
         # if self.config['test_comparison']:
         #     return self._reset_test_comparison(unseen, index)
         # elif self.config['algo'] == 'A2C':
-        return self.list_reset(use_idx, index, rank_list=rank_list)
+        return self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list)
         # else:
         #     return self._reset(unseen, index)
 
@@ -1243,8 +1244,8 @@ class CarlaEnv(gym.Env):
 
         agent.episode_measurements['next_orientation'] = next_orientation
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
-        if agent.unseen:
-            self.total_distance += distance_to_goal_trajec
+        # if agent.unseen:
+        #     self.total_distance += distance_to_goal_trajec
         agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
 
         # Update obstacle distance measurements
@@ -1307,7 +1308,6 @@ class CarlaEnv(gym.Env):
 
     def list_reset(self, use_idx=False, idx_list=None, rank_list=None):
         if not idx_list: idx_list = [0] * len(rank_list)
-
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))

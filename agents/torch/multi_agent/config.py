@@ -49,7 +49,7 @@ EPISODE_MEASUREMENTS = {
     'num_laneintersections': 0,
     'static_steps': 0,
     'offlane_steps': 0,
-    'control_steer': 0
+    'control_steer': 0,
 }
 
 A2C_CONFIG = {
@@ -88,12 +88,14 @@ TEST_CONFIG = {
     'scenarios' : 'navigation',
     'use_scenarios': True,
     'city_name' : 'Town02',
-    'testing' : True,
+    'num_episodes' : 25,
+    'testing' : False, # spawn point pending bugs in env line#142
     'enable_static' : False,
     'enable_obstacle_sensor': False,
     'terminate_on_light' : False,
     'enable_obstacle_sensor': False,
     'enable_lane_invasion_collision' : False,
+    # 'verbose': True,
 }
 
 ENV_CONFIG = {

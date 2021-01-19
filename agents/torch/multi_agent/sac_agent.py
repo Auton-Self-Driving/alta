@@ -325,7 +325,7 @@ class SAC_Collective_Agent(object):
                         self.num_successes += 1
                     print('[glb ep {}/{}]'.format(self.glb_num_episodes,
                         self.glb_num_test_episodes) + \
-                        '[score {:.4%}][glb step {}][agent {}] done({})'
+                        '[score {:.2%}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
                         self.num_successes / self.glb_num_test_episodes,
                         self.glb_num_steps, rk,
