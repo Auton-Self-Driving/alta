@@ -82,7 +82,11 @@ PPO_CONFIG = {
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
     # 'checkpoint': './ckptSACx8_1000000_Jan190101AM49.pth',
-    'checkpoint': './ckptPPOx8_1400000_Jan191253AM17.pth',
+    # 'checkpoint': './ckptSACx1_600000_Jan190204AM42.pth',
+    # 'checkpoint': './ckptSACx8_500000_Jan180156AM16.pth',
+    # 'checkpoint': './ckptPPOx8_1400000_Jan191253AM17.pth',
+    # 'checkpoint': './ckptPPOx1_600000_Jan180546PM46.pth',
+    'checkpoint': './ckptPPOx8_600000_Jan171100PM37.pth',
     'num_agents': 1,
     'num_npc' : 15,
     'sample_npc': False,
@@ -101,7 +105,7 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 1,
+    'num_agents': 4,
     'max_num_steps': 10000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -165,7 +169,7 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 20,
+    'num_npc' : 110,
     'sample_npc': False,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,

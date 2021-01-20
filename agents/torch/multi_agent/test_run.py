@@ -14,6 +14,7 @@ from ppo_agent import PPO_Collective_Agent
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ["OMP_NUM_THREADS"] = '1'
+print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 # override config for testing
 ENV_CONFIG.update(TEST_CONFIG)
@@ -22,6 +23,8 @@ env = CarlaEnv(ENV_CONFIG)
 N_S = env.observation_space.shape[-1]
 N_A = env.action_space.shape[-1]
 
+# print('testing checkpoint [{}]...'.format(TEST_CONFIG['checkpoint']))
+print('testing config:\n{}'.format(TEST_CONFIG))
 if TEST_CONFIG['PPO']:
     glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),

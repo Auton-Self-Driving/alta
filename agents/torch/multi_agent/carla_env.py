@@ -112,7 +112,7 @@ class CarlaEnv(gym.Env):
         # since sometimes, it causes timeout issues in the beginning
         # print(self.client.get_available_maps())
         self._world = self.client.load_world('/Game/Carla/Maps/' + self.config['city_name'])
-        
+
         # time.sleep(600)
         self._world = self.client.get_world()
 
@@ -1307,7 +1307,7 @@ class CarlaEnv(gym.Env):
         return agent.observation
 
     def list_reset(self, use_idx=False, idx_list=None, rank_list=None):
-        if not idx_list: idx_list = [0] * len(rank_list)
+        if not idx_list: idx_list = [0] * self.config['num_agents']
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
@@ -1325,7 +1325,7 @@ class CarlaEnv(gym.Env):
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
-            NUM_RETRIES = 10
+            NUM_RETRIES = 100
             for idx in range(1, NUM_RETRIES + 1):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01

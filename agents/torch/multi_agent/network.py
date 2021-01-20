@@ -107,7 +107,7 @@ class PPOActorCritic_Continuous(nn.Module):
     def __str__(self):
         device = next(self.actor.parameters()).device
         return 'PPOActorCritic_Continuous:\n ' + \
-            'device: {}\n actor: {}\n critic: {}\n'.format(device, 
+            'device: {}\n actor: {}\n critic: {}\n'.format(device,
             self.actor, self.critic)
 
 
@@ -158,17 +158,17 @@ class PolicyNetwork(nn.Module):
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
         return mean, log_std
 
-    # def sample(self, state, epsilon=1e-6, deterministic=False):
-    #     mean, log_std = self.forward(state)
-    #     std = log_std.exp()
+    def sample(self, state, epsilon=1e-6, deterministic=False):
+        mean, log_std = self.forward(state)
+        std = log_std.exp()
 
-    #     dist = Normal(mean, std)
-    #     z = dist.mean if deterministic else dist.rsample()
-    #     action = torch.tanh(z)
+        dist = Normal(mean, std)
+        z = dist.mean if deterministic else dist.rsample()
+        action = torch.tanh(z)
 
-    #     log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
-    #     log_pi = log_pi.sum(1, keepdim=True)
-    #     return action, log_pi
+        log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
+        log_pi = log_pi.sum(1, keepdim=True)
+        return action, log_pi
 
     # def rescale_action(self, action):
     #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\
