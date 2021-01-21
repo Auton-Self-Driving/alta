@@ -60,10 +60,10 @@ A2C_CONFIG = {
 
 SAC_CONFIG = {
     'checkpoint': None,
-    'policy_lr': 1e-3,
-    'q_lr': 1e-3,
-    'alpha_lr': 1e-4,
-    'buffer_len': 100000,
+    'policy_lr': 1e-4,
+    'q_lr': 1e-4,
+    'alpha_lr': 1e-5,
+    'buffer_len': 6000000,
     'target_entropy': -2.,
     'tau': .01,
     'batch_size': 512,
@@ -80,15 +80,15 @@ PPO_CONFIG = {
 }
 
 TEST_CONFIG = {
-    'PPO': True, # else SAC, currently only support those two
+    'PPO': False, # else SAC, currently only support those two
     # 'checkpoint': './ckptSACx8_1000000_Jan190101AM49.pth',
     # 'checkpoint': './ckptSACx1_600000_Jan190204AM42.pth',
-    # 'checkpoint': './ckptSACx8_500000_Jan180156AM16.pth',
+    'checkpoint': './ckptSACx8_500000_Jan180156AM16.pth',
     # 'checkpoint': './ckptPPOx8_1400000_Jan191253AM17.pth',
     # 'checkpoint': './ckptPPOx1_600000_Jan180546PM46.pth',
-    'checkpoint': './ckptPPOx8_600000_Jan171100PM37.pth',
+    # 'checkpoint': './ckptPPOx8_600000_Jan171100PM37.pth',
     'num_agents': 1,
-    'num_npc' : 15,
+    'num_npc' : 0,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
@@ -105,7 +105,7 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 4,
+    'num_agents': 8,
     'max_num_steps': 10000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -169,18 +169,18 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 110,
+    'num_npc' : 150,
     'sample_npc': False,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
-    'const_collision_penalty': 250,
-    'collision_penalty_speed_coeff': 250,
+    'const_collision_penalty': 500,
+    'collision_penalty_speed_coeff': 500,
     'const_light_penalty': 250,
     'light_penalty_speed_coeff': 250,
-    'terminate_on_light' : True,
+    'terminate_on_light' : False,
     'enable_brake': True,
     # 'log_freq': 1,
     'zero_speed_threshold': 0.05,

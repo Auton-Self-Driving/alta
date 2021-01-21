@@ -12,7 +12,7 @@ from config import ENV_CONFIG, A2C_CONFIG
 from a2c_agent import A2C_Collective_Agent
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 

@@ -20,18 +20,18 @@ class CarlaServer():
             pass
 
         my_env = os.environ.copy()
-        if self.carla_gpu is not None:
-            my_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
-            del my_env['CUDA_VISIBLE_DEVICES']
+        if self.carla_gpu is not None and 'cuda' in self.carla_gpu:
+            my_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu[-1:] # get GPU number
+            # del my_env['CUDA_VISIBLE_DEVICES']
             print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
 
         if not self.render_server:
             os.environ["SDL_VIDEODRIVER"] = "offscreen"
-        
+
         launch_command = [
                 self.server_binary, "-carla-rpc-port={}".format(self.server_port)
         ]
-        
+
         self.server_process = subprocess.Popen(launch_command,
             preexec_fn=os.setsid, env=my_env)
 
@@ -40,10 +40,10 @@ class CarlaServer():
 
         print('Waiting for server to finish setting up')
         time.sleep(20)
-    
+
     def __del__(self):
         self.close()
-    
+
     def close(self):
         if self.server_process:
             pgid = os.getpgid(self.server_process.pid)
