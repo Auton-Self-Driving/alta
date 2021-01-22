@@ -36,7 +36,8 @@ class CarlaServer():
             preexec_fn=os.setsid, env=my_env)
 
         if self.server_process:
-            print("Launched server at port:", self.server_port)
+            print("Launched server at port [{}], pid [{}]".format(
+                self.server_port, self.server_process.pid))
 
         print('Waiting for server to finish setting up')
         time.sleep(20)

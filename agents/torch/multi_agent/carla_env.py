@@ -1306,7 +1306,7 @@ class CarlaEnv(gym.Env):
 
         return agent.observation
 
-    def list_reset(self, use_idx=False, idx_list=None, rank_list=None):
+    def list_reset(self, use_idx=False, idx_list=None, rank_list=None, break_time=.04):
         if not idx_list: idx_list = [0] * self.config['num_agents']
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
@@ -1345,7 +1345,8 @@ class CarlaEnv(gym.Env):
                         rk, idx, self.source_transform.location.x, self.source_transform.location.y))
                     # print("Number of existing actors, {}".format(len(self.actor_list)))
                     # print("Number of existing ego agents, {}".format(self.curr_num_agents))
-                    time.sleep(.04)
+                    time.sleep(break_time)
+                    break_time += .05
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)

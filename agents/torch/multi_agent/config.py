@@ -81,14 +81,14 @@ PPO_CONFIG = {
 
 TEST_CONFIG = {
     'PPO': False, # else SAC, currently only support those two
-    # 'checkpoint': './ckptSACx8_1000000_Jan190101AM49.pth',
-    # 'checkpoint': './ckptSACx1_600000_Jan190204AM42.pth',
-    'checkpoint': './ckptSACx8_500000_Jan180156AM16.pth',
-    # 'checkpoint': './ckptPPOx8_1400000_Jan191253AM17.pth',
-    # 'checkpoint': './ckptPPOx1_600000_Jan180546PM46.pth',
-    # 'checkpoint': './ckptPPOx8_600000_Jan171100PM37.pth',
+    # 'checkpoint': './ckptSACx4_600000_Jan210145AM29.pth',
+    'checkpoint': './ckptSACx2_600000_Jan211106PM09.pth',
+    # 'checkpoint': './ckptPPOx4_800000_Jan210105AM28.pth',
+    # 'checkpoint': './ckptPPOx4_1300000_Jan210811PM01.pth',
+    # 'checkpoint': './ckptPPOx2_700000_Jan210646PM55.pth',
+    # 'checkpoint': './ckptPPOx2_800000_Jan211138PM17.pth',
     'num_agents': 1,
-    'num_npc' : 0,
+    'num_npc': 15,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
@@ -96,9 +96,9 @@ TEST_CONFIG = {
     'num_episodes' : 25,
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static' : False,
-    'enable_obstacle_sensor': False,
+    'enable_obstacle_sensor': True,
+    'disable_traffic_light': False,
     'terminate_on_light' : False,
-    'enable_obstacle_sensor': False,
     'enable_lane_invasion_collision' : False,
     # 'verbose': True,
 }
@@ -107,7 +107,7 @@ ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 8,
     'max_num_steps': 10000000,
-    'device': 'cuda:0',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',

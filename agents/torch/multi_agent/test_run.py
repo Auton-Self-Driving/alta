@@ -12,7 +12,7 @@ from sac_agent import SAC_Collective_Agent, VanillaReplayBuffer
 from ppo_agent import PPO_Collective_Agent
 
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
