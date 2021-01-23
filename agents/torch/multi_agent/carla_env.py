@@ -1050,11 +1050,11 @@ class CarlaEnv(gym.Env):
         return control
 
 
-    def reset(self, use_idx=False, idx_list=None, rank_list=None):
+    def reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
         # if self.config['test_comparison']:
         #     return self._reset_test_comparison(unseen, index)
         # elif self.config['algo'] == 'A2C':
-        return self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list)
+        return self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list, reset_npc=reset_npc)
         # else:
         #     return self._reset(unseen, index)
 
@@ -1306,7 +1306,7 @@ class CarlaEnv(gym.Env):
 
         return agent.observation
 
-    def list_reset(self, use_idx=False, idx_list=None, rank_list=None, break_time=.04):
+    def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
         if not idx_list: idx_list = [0] * self.config['num_agents']
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
@@ -1329,6 +1329,9 @@ class CarlaEnv(gym.Env):
             for idx in range(1, NUM_RETRIES + 1):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
+                if reset_npc:
+                    self.destroy_all_existing_npc_actors()
+
                 if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
                     if self.config["updated_scenarios"]:
                         self._set_updated_scenario(unseen=use_idx, index=idx_list[rk], town=self.config["city_name"])
@@ -1338,6 +1341,10 @@ class CarlaEnv(gym.Env):
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
                 self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
+
+                if reset_npc:
+                    self.spawn_npc_vehicles()
+
                 if self.vehicle_actor is not None:
                     break
                 else:
@@ -1345,8 +1352,7 @@ class CarlaEnv(gym.Env):
                         rk, idx, self.source_transform.location.x, self.source_transform.location.y))
                     # print("Number of existing actors, {}".format(len(self.actor_list)))
                     # print("Number of existing ego agents, {}".format(self.curr_num_agents))
-                    time.sleep(break_time)
-                    break_time += .05
+                    time.sleep(.04)
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)

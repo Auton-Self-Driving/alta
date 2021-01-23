@@ -260,7 +260,7 @@ class PPO_Collective_Agent(object):
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
         # print(self.glb_num_test_episodes)
         self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
-            idx_list=idx_list)
+            idx_list=idx_list, reset_npc=True)
         self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_PPO_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
@@ -306,7 +306,7 @@ class PPO_Collective_Agent(object):
                     idx_list[rk] += self.num_agents
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
-                    idx_list=idx_list)
+                    idx_list=idx_list, reset_npc=True)
                 # update agent list
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _PPO_Individual_Agent(
