@@ -138,3 +138,6 @@ misc/logs/*jpeg
 configure_env.setup
 AdelaiDet_model/*
 !AdelaiDet_model/README.md
+
+# debug
+**/*debug*.*
