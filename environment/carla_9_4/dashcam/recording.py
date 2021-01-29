@@ -188,23 +188,23 @@ GlobalRecorder = Recorder()
 
 
 class TensorboardWriter(SummaryWriter):
+    """SummaryWriter wrapper
+    https://pytorch.org/docs/stable/tensorboard.html
     """
-    SummaryWriter wrapper
-    """
-    def __init__(self, logdir, anchor_freq=1):
-        super(TensorboardWriter, self).__init__(logdir)
-        self.logdir = logdir
-        self.anchor_freq = anchor_freq
-        if not os.path.exists(logdir):
-            os.makedirs(logdir, exist_ok=True)
+    def __init__(self, log_dir, **kwargs):
+        super(TensorboardWriter, self).__init__(log_dir=log_dir, **kwargs)
+        if not os.path.exists(log_dir): os.makedirs(log_dir, exist_ok=True)
 
-    def add_textfile(self, tag, path, filename=None):
+    def add_textfile(self, tag, filename):
         assert type(tag) == str
-        if filename is not None:
-            path = os.path.join(path, filename)
-        with open(path, 'r') as f:
+        with open(filename, 'r') as f:
             # since 'list' object has no attribute 'encode'
             content = '\n'.join(f.readlines())
+        self.add_text(tag, content)
+        
+    def add_dict(self, tag, dict_obj):
+        assert type(tag) == str
+        content = '\n'.join('{}: {}'.format(k, v) for k, v in dict_obj.items())
         self.add_text(tag, content)
         
         
