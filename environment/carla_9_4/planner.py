@@ -40,7 +40,7 @@ class GlobalPlanner():
         self.second_last_waypoint = None
         self.last_waypoint = None
         self._min_distance = self._hop_resolution * self.MIN_DISTANCE_PERCENTAGE
-    
+
     def _trace_route(self, map, start_transform, destination_transform):
         """
         This method sets up a global router and returns the optimal route
@@ -62,7 +62,7 @@ class GlobalPlanner():
             end_waypoint.transform.location)
 
         return route
-    
+
     def compute_distances_between_waypoints(self, current_plan):
         modified_plan = []
         last_waypoint = current_plan[-1][0]
@@ -88,16 +88,16 @@ class GlobalPlanner():
             prev_wp = elem[0]
 
     def get_next_orientation(self, vehicle_transform):
-        
+
         next_waypoints_angles = []
         next_waypoint_found = False
         num_next_waypoints = 5
         max_index = 0
         for i, (waypoint, _) in enumerate(self._waypoints_queue_old):
-            
+
             dot, angle, _ = self.get_dot_product_and_angle(vehicle_transform, waypoint)
-            
-            # next_waypoint_found implies the first waypoint with 
+
+            # next_waypoint_found implies the first waypoint with
             # positive dot product is found
             if not next_waypoint_found:
                 if dot >= 0:
@@ -112,7 +112,7 @@ class GlobalPlanner():
         if max_index > 0:
             for i in range(max_index):
                 self._waypoints_queue_old.popleft()
-        
+
         if next_waypoint_found and len(next_waypoints_angles) > 0:
             angle = np.mean(np.array(next_waypoints_angles))
         else:
@@ -122,7 +122,7 @@ class GlobalPlanner():
         return angle, 0
 
     # def get_next_orientation_new(self, vehicle_transform):
-        
+
     #     next_waypoints_angles = []
     #     next_waypoints = []
     #     next_waypoint_found = False
@@ -134,8 +134,8 @@ class GlobalPlanner():
 
     #         dist_to_waypoint = distance_vehicle(waypoint, vehicle_transform)
     #         dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
-            
-    #         # next_waypoint_found implies the first waypoint with 
+
+    #         # next_waypoint_found implies the first waypoint with
     #         # positive dot product is found
     #         if not next_waypoint_found:
     #             if dist_to_waypoint < min_dist:
@@ -157,11 +157,11 @@ class GlobalPlanner():
     #         # Remove all waypoints except the closest one (max_index)
     #         for i in range(max_index):
     #             waypoint, _ = self._waypoints_queue.popleft()
-                
+
     #             # Store second-last waypoint for corner case
     #             if i == q_len - 2:
     #                 self.second_last_waypoint = waypoint
-        
+
     #     next_waypoints_angles_array = np.array(next_waypoints_angles)
     #     print("full angle {0}, selected 2nd angle {1}, selected 3rd angle {2}".format(np.mean(next_waypoints_angles_array), np.mean(next_waypoints_angles_array[1:]), np.mean(next_waypoints_angles_array[2:])))
     #     print(next_waypoints_angles)
@@ -183,7 +183,7 @@ class GlobalPlanner():
     #     else:
     #         # Reached near last waypoint
     #         # use second_last_waypoint
-            
+
     #         print("Needed to use second_last_waypoint")
     #         last_wp, _ = self._waypoints_queue[0]
     #         self.dist_to_trajectory = self.getPointToLineDistance(
@@ -194,7 +194,7 @@ class GlobalPlanner():
     #     return angle, self.dist_to_trajectory
 
     def get_next_orientation_new(self, vehicle_transform):
-        
+
         next_waypoints_angles = []
         next_waypoints_vectors = []
         next_waypoints = []
@@ -205,7 +205,7 @@ class GlobalPlanner():
         for i, (waypoint, _, dist) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
-            # print("i:{0}, dist : {1}".format(i, dist_i)) 
+            # print("i:{0}, dist : {1}".format(i, dist_i))
             if dist_i < self._min_distance:
                 max_index = i
 
@@ -234,13 +234,13 @@ class GlobalPlanner():
                 next_waypoints_angles.append(angle)
                 next_waypoints.append(waypoint)
                 next_waypoints_vectors.append(w_vec)
-        
+
         # for i, (waypoint, _) in enumerate(self._waypoints_queue):
 
         #     dist_to_waypoint = distance_vehicle(waypoint, vehicle_transform)
         #     dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
-            
-        #     # next_waypoint_found implies the first waypoint with 
+
+        #     # next_waypoint_found implies the first waypoint with
         #     # positive dot product is found
         #     if not next_waypoint_found:
         #         if dist_to_waypoint < min_dist:
@@ -262,11 +262,11 @@ class GlobalPlanner():
         #     # Remove all waypoints except the closest one (max_index)
         #     for i in range(max_index):
         #         waypoint, _ = self._waypoints_queue.popleft()
-                
+
         #         # Store second-last waypoint for corner case
         #         if i == q_len - 2:
         #             self.second_last_waypoint = waypoint
-        
+
         next_waypoints_angles_array = np.array(next_waypoints_angles)
         # if len(next_waypoints_angles) > 2:
         #     angle = np.mean(next_waypoints_angles_array[2:])
@@ -293,7 +293,7 @@ class GlobalPlanner():
         else:
             # Reached near last waypoint
             # use second_last_waypoint
-            
+
             print("Needed to use second_last_waypoint")
             if self.second_last_waypoint is not None and self.last_waypoint is not None:
                 self.dist_to_trajectory = self.getPointToLineDistance(
@@ -305,7 +305,7 @@ class GlobalPlanner():
 
         # Below is an approximation of dist_to_goal which was used earlier.
         dist_to_goal_approx = len(self._waypoints_queue) *self._hop_resolution
-        
+
         return angle, self.dist_to_trajectory, dist_to_goal, next_waypoints, next_waypoints_angles, next_waypoints_vectors
 
     def get_dot_product_and_angle(self, vehicle_transform, waypoint):
@@ -345,7 +345,7 @@ class GlobalPlanner():
         print("x:{}, y:{}".format(waypoint.transform.location.x, waypoint.transform.location.y))
 
     def sameWaypoint(self, waypoint1, waypoint2):
-        
+
         if waypoint1 is None or waypoint2 is None:
             return True
         x1 = waypoint1.transform.location.x
