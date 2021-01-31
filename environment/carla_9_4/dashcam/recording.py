@@ -83,7 +83,7 @@ class Recorder:
             for key in self[g_name]:
                 val = self[g_name][key].summary()
                 if type(val) == list: continue
-                print('[{}/{} {:.4f}]'.format(g_name, key, val), end=' ')
+                print('[{}/{} {:.2f}]'.format(g_name, key, val), end='')
         print()
 
     def groups(self):

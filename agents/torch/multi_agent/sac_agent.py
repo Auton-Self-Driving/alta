@@ -155,6 +155,7 @@ class SAC_Collective_Agent(object):
         self.glb_num_episodes = 1
         self.num_steps_since_update = 0
         self.glb_num_steps = 0
+        self.recorder = GlobalRecorder
         self.tbwriter = None
 
     def tb_write_config(self, tag, config):
@@ -274,6 +275,8 @@ class SAC_Collective_Agent(object):
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
+                    success_int = int('success' == agent.termination_state)
+                    obs_collision_int = int('obs_collision' == agent.termination_state)
                     # record statistics
                     self.recorder['episode']['reward'].record_value(
                         agent.episode_reward)
@@ -471,9 +474,11 @@ class SAC_Collective_Agent(object):
         self.alpha_optimizer.load_state_dict(checkpoint['alpha_optimizer'])
         print('checkpoint params loadeded')
 
-    def resume(self, checkpoint):
-        assert self.num_agents == checkpoint['num_agents'], '{} != {}'.format(
-            self.num_agents, checkpoint['num_agents'])
+    def resume(self, checkpoint, strict=False):
+        if strict:
+            assert self.num_agents == \
+                checkpoint['num_agents'], '{} != {}'.format(
+                self.num_agents, checkpoint['num_agents'])
         self.load(checkpoint)
         self.target_entropy = checkpoint['target_entropy']
         self.tau = checkpoint['tau']
