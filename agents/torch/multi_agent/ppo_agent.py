@@ -188,7 +188,7 @@ class PPO_Collective_Agent(object):
         # initialize
         if self.tbwriter is None: 
             self.tbwriter = TensorboardWriter(
-                log_dir='./tensorboard_log/', 
+                log_dir='./tensorboard_logs/', 
                 filename_suffix='PPOx{}'.format(self.num_agents),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -428,7 +428,7 @@ class PPO_Collective_Agent(object):
         self.num_steps_since_update = checkpoint['num_steps_since_update']
         self.glb_num_episodes = checkpoint['glb_num_episodes']
         self.tbwriter = TensorboardWriter(
-            log_dir='./tensorboard_log/', 
+            log_dir='./tensorboard_logs/', 
             purge_step=self.glb_num_episodes,
             filename_suffix='PPOx{}'.format(self.num_agents),
         )
