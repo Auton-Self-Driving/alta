@@ -341,9 +341,11 @@ class PPO_Collective_Agent(object):
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
         self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
 
-    def resume(self, checkpoint):
-        assert self.num_agents == checkpoint['num_agents'], '{} != {}'.format(
-            self.num_agents, checkpoint['num_agents'])
+    def resume(self, checkpoint, strict=False):
+        if strict:
+            assert self.num_agents == \
+                checkpoint['num_agents'], '{} != {}'.format(
+                self.num_agents, checkpoint['num_agents'])
         self.load(checkpoint)
         self.eps_clip = checkpoint['eps_clip']
         self.max_glb_num_steps = checkpoint['max_glb_num_steps']

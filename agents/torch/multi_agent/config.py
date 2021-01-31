@@ -59,7 +59,7 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
-    'checkpoint': None,
+    'checkpoint': './ckptSACx6_2900000_Jan300341PM21.pth',
     'policy_lr': 1e-4,
     'q_lr': 1e-4,
     'alpha_lr': 1e-5,
@@ -72,7 +72,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'checkpoint': None,
+    'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
     'policy_lr': 1e-4,
     'eps_clip': .2,
     'glb_update_freq': 1000,
@@ -80,19 +80,30 @@ PPO_CONFIG = {
 }
 
 TEST_CONFIG = {
-    'PPO': False, # else SAC, currently only support those two
+    'PPO': True, # else SAC, currently only support those two
     # 'checkpoint': './ckptSACx4_600000_Jan210145AM29.pth',
     # 'checkpoint': './ckptSACx2_600000_Jan211106PM09.pth',
     # 'checkpoint': './ckptSACx4_1000000_Jan210937PM50.pth',
-    'checkpoint': './ckptSACx4_1500000_Jan221113PM14.pth',
+    # 'checkpoint': './ckptSACx4_1500000_Jan221113PM14.pth',
     # 'checkpoint': './ckptPPOx4_800000_Jan210105AM28.pth',
     # 'checkpoint': './ckptPPOx4_1300000_Jan210811PM01.pth',
+    # 'checkpoint': './ckptSACx6_1900000_Jan250519PM28.pth',
     # 'checkpoint': './ckptPPOx2_700000_Jan210646PM55.pth',
     # 'checkpoint': './ckptPPOx2_800000_Jan211138PM17.pth',
     # 'checkpoint': './ckptPPOx4_1400000_Jan221202AM43.pth',
     # 'checkpoint': './ckptPPOx4_2000000_Jan221151PM55.pth',
+    # 'checkpoint': './ckptPPOx6_3100000_Jan251058AM55.pth',
+    # 'checkpoint': './ckptPPOx4_3300000_Jan251027AM22.pth',
+    # 'checkpoint': './ckptPPOx2_2100000_Jan250957AM42.pth',
+    # 'checkpoint': './ckptPPOx6_3300000_Jan251126PM46.pth',
+    # 'checkpoint': './ckptPPOx6_3200000_Jan250515PM01.pth',
+    # 'checkpoint': './ckptPPOx6_3700000_Jan260817PM09.pth',
+    # 'checkpoint': './ckptPPOx2_2400000_Jan260700PM26.pth',
+    # 'checkpoint': './ckptPPOx2_2800000_Jan280453AM09.pth',
+    # 'checkpoint': './ckptPPOx6_4600000_Jan280108PM25.pth',
+    'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
     'num_agents': 1,
-    'num_npc': 0,
+    'num_npc': 15,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
@@ -109,9 +120,9 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 8,
-    'max_num_steps': 10000000,
-    'device': 'cuda:2',
+    'num_agents': 1,
+    'max_num_steps': 13000000,
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
