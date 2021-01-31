@@ -68,6 +68,8 @@ if SAC_CONFIG['checkpoint']:
     ckpt = torch.load(SAC_CONFIG['checkpoint'], map_location='cpu')
     sac_agent.resume(ckpt)
 
+sac_agent.tb_write_config('env_config',ENV_CONFIG)
+sac_agent.tb_write_config('ppo_config',SAC_CONFIG)
 sac_agent.learn()
 env.close()
 

@@ -40,6 +40,8 @@ if PPO_CONFIG['checkpoint']:
     ckpt = torch.load(PPO_CONFIG['checkpoint'], map_location='cpu')
     ppo_agent.resume(ckpt)
 
+ppo_agent.tb_write_config('env_config',ENV_CONFIG)
+ppo_agent.tb_write_config('ppo_config',PPO_CONFIG)
 ppo_agent.learn()
 env.close()
 
