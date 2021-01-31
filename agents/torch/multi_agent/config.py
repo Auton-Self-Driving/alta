@@ -120,7 +120,7 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 1,
+    'num_agents': 8,
     'max_num_steps': 13000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',

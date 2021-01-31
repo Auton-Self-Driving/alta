@@ -186,9 +186,9 @@ class PPO_Collective_Agent(object):
 
     def learn(self):
         # initialize
-        if self.tbwriter is None: 
+        if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
-                log_dir='./tensorboard_logs/', 
+                log_dir='./tensorboard_logs/',
                 filename_suffix='PPOx{}'.format(self.num_agents),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
@@ -238,7 +238,7 @@ class PPO_Collective_Agent(object):
                     self.recorder['episode']['reward'].record_value(
                         agent.episode_reward)
                     self.recorder['episode']['dist_to_target'].record_value(
-                        agent.episode_measurements['dist_to_target'])
+                        agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['episode']['num_collisions'].record_value(
                         agent.episode_measurements['num_collisions'])
                     self.recorder['episode']['success_rate'].record_value(
@@ -248,7 +248,7 @@ class PPO_Collective_Agent(object):
                     self.recorder['mean']['reward'].record_value(
                         agent.episode_reward)
                     self.recorder['mean']['dist_to_target'].record_value(
-                        agent.episode_measurements['dist_to_target'])
+                        agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['recent']['avg_reward'].record_value(
                         agent.episode_reward)
                     self.recorder['recent']['total_reward'].record_value(
@@ -258,40 +258,40 @@ class PPO_Collective_Agent(object):
                     self.recorder['recent']['collision_rate'].record_value(
                         obs_collision_int)
                     # tensorboard_recording
-                    self.tbwriter.add_scalar('episode/reward', 
+                    self.tbwriter.add_scalar('episode/reward',
                         agent.episode_reward, self.glb_num_episodes)
-                    self.tbwriter.add_scalar('episode/dist_to_target', 
-                        self.recorder['episode']['dist_to_target'], 
+                    self.tbwriter.add_scalar('episode/dist_to_target',
+                        agent.episode_measurements['distance_to_goal_trajec'],
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('episode/num_collisions', 
-                        self.recorder['episode']['dist_to_target'], 
+                    self.tbwriter.add_scalar('episode/num_collisions',
+                        agent.episode_measurements['num_collisions'],
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('episode/success_rate', 
-                        self.recorder['episode']['success_rate'], 
+                    self.tbwriter.add_scalar('episode/success_rate',
+                        self.recorder['episode']['success_rate'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('episode/collision_rate', 
-                        self.recorder['episode']['collision_rate'], 
+                    self.tbwriter.add_scalar('episode/collision_rate',
+                        self.recorder['episode']['collision_rate'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('mean/reward', 
-                        self.recorder['mean']['reward'], 
+                    self.tbwriter.add_scalar('mean/reward',
+                        self.recorder['mean']['reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('mean/dist_to_target', 
-                        self.recorder['mean']['dist_to_target'], 
+                    self.tbwriter.add_scalar('mean/dist_to_target',
+                        self.recorder['mean']['dist_to_target'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/avg_reward', 
-                        self.recorder['recent']['avg_reward'], 
+                    self.tbwriter.add_scalar('recent/avg_reward',
+                        self.recorder['recent']['avg_reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/total_reward', 
-                        self.recorder['recent']['total_reward'], 
+                    self.tbwriter.add_scalar('recent/total_reward',
+                        self.recorder['recent']['total_reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/success_rate', 
-                        self.recorder['recent']['success_rate'], 
+                    self.tbwriter.add_scalar('recent/success_rate',
+                        self.recorder['recent']['success_rate'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/collision_rate', 
-                        self.recorder['recent']['collision_rate'], 
+                    self.tbwriter.add_scalar('recent/collision_rate',
+                        self.recorder['recent']['collision_rate'].summary(),
                         self.glb_num_episodes)
-
-                    self.glb_num_episodes += 1  
+                    self.recorder.summary_all()
+                    self.glb_num_episodes += 1
 
 
                 agent.num_total_steps += 1
@@ -410,6 +410,7 @@ class PPO_Collective_Agent(object):
     def load(self, checkpoint):
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
         self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
+        print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):
         if strict:
@@ -428,7 +429,7 @@ class PPO_Collective_Agent(object):
         self.num_steps_since_update = checkpoint['num_steps_since_update']
         self.glb_num_episodes = checkpoint['glb_num_episodes']
         self.tbwriter = TensorboardWriter(
-            log_dir='./tensorboard_logs/', 
+            log_dir='./tensorboard_logs/',
             purge_step=self.glb_num_episodes,
             filename_suffix='PPOx{}'.format(self.num_agents),
         )

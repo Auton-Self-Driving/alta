@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 class RecordDict(OrderedDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-    
+
     def __setitem__(self, key, value):
         if key in self:
             self[key].record_value(value)
@@ -17,12 +17,12 @@ class RecordDict(OrderedDict):
             assert isinstance(value, _BaseRec), 'unregistered value assignment'
             super().__setitem__(key, value)
 
-    def __getitem__(self, key):
-        if key in self:
-            return self[key].summary()
-        else:
-            return super().__getitem__(key)
-            
+#     def __getitem__(self, key):
+#         if key in self:
+#             return self[key].summary()
+#         else:
+#             return super().__getitem__(key)
+
 
 class Recorder:
     def __init__(self, default_win_size='inf', **kwargs):
@@ -36,7 +36,7 @@ class Recorder:
         assert _mode in {'max', 'min', 'sum', 'mean', 'plain'}, \
             'invalid summary mode {}'.format(_mode)
         _recorder = {
-            'max': _MaxRec, 'min': _MinRec, 'sum': _SumRec, 
+            'max': _MaxRec, 'min': _MinRec, 'sum': _SumRec,
             'mean': _MeanRec, 'plain': _PlainRec,
             }[_mode]
         self._record[_group][key] = _recorder(_win_size)
@@ -57,10 +57,10 @@ class Recorder:
         _recorder = self._record[group][key]
         assert window_size is None or _recorder.win_size == window_size, 'window size mismatch {} {}'.format(_recorder.win_size, window_size)
         assert mode is None or _recorder.mode == mode, 'summary mode mismatch'
-    
+
     def __getitem__(self, group):
         return self._record[group]
-    
+
     def __iter__(self):
         return self._record.__iter__()
 
@@ -77,6 +77,14 @@ class Recorder:
         if key not in self._record[group]:
             raise KeyError('key {} not been recorded in group {}'.format(key, group))
         return self._record[group][key].summary()
+
+    def summary_all(self, skip_nonscalar=True):
+        for g_name in self:
+            for key in self[g_name]:
+                val = self[g_name][key].summary()
+                if type(val) == list: continue
+                print('[{}/{} {:.4f}]'.format(g_name, key, val), end=' ')
+        print()
 
     def groups(self):
         return list(self._record.keys())
@@ -98,37 +106,37 @@ class Recorder:
 
     def reset_all(self):
         self._record.clear()
-        
-        
+
+
 class _BaseRec:
     def __init__(self, _mode, _win_size):
         self.mode = _mode
         self.win_size = _win_size
-        
+
     def record_value(self, value):
         raise NotImplementedError
-    
+
     def summery(self):
         raise NotImplementedError
-        
+
     def __str__(self):
         return 'Rec Object ' + \
         '[mode: {}, win_size: {}]'.format(
             self.mode, self.win_size,)
 
-        
+
 class _PlainRec(_BaseRec):
     def __init__(self, _win_size):
         super().__init__('plain', _win_size)
         self.window = [] if _win_size == 'inf' else deque(maxlen=_win_size)
-    
+
     def record_value(self, value):
         self.window.append(value)
-        
+
     def summary(self):
         return self.window
-    
-        
+
+
 class _MeanRec(_BaseRec):
     def __init__(self, _win_size):
         super().__init__('mean', _win_size)
@@ -186,7 +194,7 @@ class _MinRec(_PolarizedRec):
 class _MaxRec(_PolarizedRec):
     def __init__(self, _win_size):
         super().__init__('max', _win_size)
-    
+
 
 
 GlobalRecorder = Recorder()
@@ -199,8 +207,8 @@ GlobalRecorder.register_key('reward', window_size='inf', mode='mean', group='mea
 GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='mean', group='mean')
 GlobalRecorder.register_key('avg_reward', window_size=25, mode='mean', group='recent')
 GlobalRecorder.register_key('total_reward', window_size='inf', mode='sum', group='recent')
-GlobalRecorder.register_key('success_rate', window_size='25', mode='mean', group='recent')
-GlobalRecorder.register_key('collision_rate', window_size='25', mode='mean', group='recent')
+GlobalRecorder.register_key('success_rate', window_size=25, mode='mean', group='recent')
+GlobalRecorder.register_key('collision_rate', window_size=25, mode='mean', group='recent')
 
 
 
@@ -218,10 +226,10 @@ class TensorboardWriter(SummaryWriter):
             # since 'list' object has no attribute 'encode'
             content = '\n'.join(f.readlines())
         self.add_text(tag, content)
-        
+
     def add_dict(self, tag, dict_obj):
         assert type(tag) == str
         content = '\n'.join('{}: {}'.format(k, v) for k, v in dict_obj.items())
         self.add_text(tag, content)
-        
-        
+
+
