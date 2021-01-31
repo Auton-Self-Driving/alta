@@ -50,7 +50,7 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
 
-from environment.carla_9_4.carla.actor_manager import ActorManager910
+from environment.carla_9_4.carla.carla_interface import Carla910Interface
 
 try:
     import carla
@@ -75,6 +75,8 @@ class CarlaEnv(gym.Env):
         self.config = DEFAULT_ENV
         self._update_config(config)
 
+        self.carla_interface = Carla910Interface(config)
+
         ################################################
         # Elements connected to car
         ################################################
@@ -86,7 +88,7 @@ class CarlaEnv(gym.Env):
             'K_D': 0.0005,
             'K_I': 0.4,
             'dt': 1/10.0}
-        self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
+        # self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
         # self.camera_queue = queue.Queue()
         # self.rgb_camera_queue = queue.Queue()
         # self.front_camera_queue = queue.Queue()
@@ -686,36 +688,32 @@ class CarlaEnv(gym.Env):
         world_frame = None
         reward = 0
 
-        if not self.config["use_pid_in_frame_skip"]:
-            # compute control using PID for each timestep
-            control = self.get_control(action)
-
-            #Store control for this step
-            self.episode_measurements['control_steer'] = control.steer
-            self.episode_measurements['control_throttle'] = control.throttle
-            self.episode_measurements['control_brake'] = control.brake
-            self.episode_measurements['control_reverse'] = control.reverse
-            self.episode_measurements['control_hand_brake'] = control.hand_brake
-
+        #TODO Get Vinay's help with this
         for _ in range(self.config["frame_skip"]):
+            #TODO Replace following with this
+            sensor_readings, ep_statistics = self.carla_interface.step(action)
 
+            # if we are, use loop over # of frames to skip
             if self.config["use_pid_in_frame_skip"]:
                 # compute control using PID for each timestep
-                control = self.get_control(action)
+                # control = self.get_control(action)
 
                 #Print actions
                 if self.config['verbose']:
-                    print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
-                  "reverse", control.reverse)
+                    print("steer", ep_statistics['control_steer'],
+                        "throttle", ep_statistics['control_throttle'],
+                        "brake", ep_statistics['control_brake'],
+                        "reverse", ep_statistics['control_reverse'])
                     print("steps", self.num_steps)
 
 
                 #Store control for this step
-                self.episode_measurements['control_steer'] = control.steer
-                self.episode_measurements['control_throttle'] = control.throttle
-                self.episode_measurements['control_brake'] = control.brake
-                self.episode_measurements['control_reverse'] = control.reverse
-                self.episode_measurements['control_hand_brake'] = control.hand_brake
+                self.episode_measurements['control_steer'] = ep_statistics['control_steer']
+                self.episode_measurements['control_throttle'] = ep_statistics['control_throttle']
+                self.episode_measurements['control_brake'] = ep_statistics['control_brake']
+                self.episode_measurements['control_reverse'] = ep_statistics['control_reverse']
+                self.episode_measurements['control_hand_brake'] = ep_statistics['control_hand_brake']
+
 
             self.obstacle_dist_array.append(self.episode_measurements['obstacle_dist'])
             self.obstacle_speed_array.append(self.episode_measurements['obstacle_speed'])
@@ -726,10 +724,10 @@ class CarlaEnv(gym.Env):
             self.dist_to_trajectory_array.append(self.episode_measurements['dist_to_trajectory'])
             self.dist_to_target_array.append(self.episode_measurements['distance_to_goal_trajec'])
 
-            self.vehicle_actor.apply_control(control)
-            world_frame = self._world.tick()
+            # self.vehicle_actor.apply_control(control)
+            # world_frame = self._world.tick()
 
-            sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
+            # sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
 
             self.num_steps += 1
 
@@ -746,10 +744,17 @@ class CarlaEnv(gym.Env):
                 self.episode_measurements['num_laneintersections'] = sensor_readings['lane_invasion_sensor']['num_laneintersections']
                 self.episode_measurements['out_of_road'] = int(sensor_readings['lane_invasion_sensor']['out_of_road'])
 
+<<<<<<< HEAD
             self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
             self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
             if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
                 self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
+=======
+            # self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
+            self.episode_measurements['distance_to_goal'] = sensor_readings['location'].distance(self.destination_transform.location)
+            if self.episode_measurements['min_distance_to_goal'] >= sensor_readings['location'].distance(self.destination_transform.location):
+                self.episode_measurements['min_distance_to_goal'] = sensor_readings['location'].distance(self.destination_transform.location)
+>>>>>>> c1ac766... Continuing separating carla code from gym env code
             self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
             if self.config["algo"] == "AE":
@@ -798,9 +803,9 @@ class CarlaEnv(gym.Env):
             self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
             self.target_speeds_array.append(self.episode_measurements['target_speed'])
-            self.throttles_array.append(control.throttle)
-            self.steers_array.append(control.steer)
-            self.brakes_array.append(control.brake)
+            self.throttles_array.append(ep_statistics['control_throttle'])
+            self.steers_array.append(ep_statistics['control_steer'])
+            self.brakes_array.append(ep_statistics['control_brake'])
             self.step_reward_array.append(self.episode_measurements['step_reward'])
             self.collision_reward_array.append(self.episode_measurements['collision_reward'])
             self.dist_to_trajectory_reward_array.append(self.episode_measurements['dist_to_trajectory_reward'])
@@ -1192,7 +1197,8 @@ class CarlaEnv(gym.Env):
 
     def _update_traffic_light_states(self):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
-        traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+        #TODO Check with Vinay for how to make this a LOT nicer
+        traffic_actor, dist, traffic_light_orientation = self.carla_interface.actor_fleet.ego_vehicle.find_nearest_traffic_light(self.traffic_actors)
         if traffic_light_orientation is not None:
             self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
         else:
@@ -1226,7 +1232,8 @@ class CarlaEnv(gym.Env):
         front_rgb_image = front_rgb_image[:, :, ::-1] # RGB -> GBR
         res = self.traffic_light_detector(front_rgb_image)
         # print(res, flush=True)
-        traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
+        #TODO Check with Vinay for how to make this a LOT nicer
+        traffic_actor, dist, traffic_light_orientation = self.carla_interface.actor_fleet.ego_vehicle.find_nearest_traffic_light(self.traffic_actors)
 
         if len(res['instances']) == 0: # no lights
             pass
@@ -1381,117 +1388,118 @@ class CarlaEnv(gym.Env):
         ob = self.vae.encode(observation_image)
         return ob
 
-    def get_control(self, action):
-        """ Get Control object for Carla from action
-        Input:
-            - action: tuple containing (steer, throttle, brake) in [-1, 1]
-        Output:
-            - control: Control object for Carla
-        """
-        if self.config["action_type"] != "control":
-            action = action.flatten()
+    # TODO MOVE THIS OUT OF HERE
+    # def get_control(self, action):
+    #     """ Get Control object for Carla from action
+    #     Input:
+    #         - action: tuple containing (steer, throttle, brake) in [-1, 1]
+    #     Output:
+    #         - control: Control object for Carla
+    #     """
+    #     if self.config["action_type"] != "control":
+    #         action = action.flatten()
 
-        if self.config["action_type"] is "sep_gas":
-            steer = float(action[0])
-            throttle = float(action[1])
-            brake = float(action[2])
-        elif self.config["action_type"] is "merged_gas":
-            steer = float(action[0])
-            gas = float(action[1])
-            # gas = gas + 0.25
-            gas = np.clip(gas, 0.0, 0.7)
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "steer_only":
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(20.0)
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "throttle_only":
-            steer = float(0.0)
-            target_speed = float(np.clip(action[0], 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "merged_speed":
-            # steer = float(action[0])
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "merged_speed_tanh":
-            # steer = float(action[0])
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "merged_speed_scaled_tanh":
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = (action[1] * 1.5) + 1
-            target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "merged_speed_pid_test":
-            # steer = float(action[0])
-            steer = (float(action[0]))
-            target_speed = float(action[1])
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "discrete":
-            # Discrete actions
-            # No need to clip actions in case of discrete state-space
-            # since it is chosen to be in range.
-            discrete_actions = DISCRETE_ACTIONS[int(action)]
-            target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "control":
-            target_speed = -1
-            self.episode_measurements["target_speed"] = target_speed
-            return action
+    #     if self.config["action_type"] is "sep_gas":
+    #         steer = float(action[0])
+    #         throttle = float(action[1])
+    #         brake = float(action[2])
+    #     elif self.config["action_type"] is "merged_gas":
+    #         steer = float(action[0])
+    #         gas = float(action[1])
+    #         # gas = gas + 0.25
+    #         gas = np.clip(gas, 0.0, 0.7)
+    #         if gas < 0:
+    #             throttle = 0.0
+    #             brake = abs(gas)
+    #         else:
+    #             throttle = gas
+    #             brake = 0.0
+    #     elif self.config["action_type"] == "steer_only":
+    #         steer = np.clip(float(action[0]), -1.0, 1.0)
+    #         target_speed = float(20.0)
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         throttle = self.controller.pid_control(target_speed, current_speed)
+    #         brake = float(0.0)
+    #     elif self.config["action_type"] == "throttle_only":
+    #         steer = float(0.0)
+    #         target_speed = float(np.clip(action[0], 0, self.target_speed))
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         throttle = self.controller.pid_control(target_speed, current_speed)
+    #         brake = float(0.0)
+    #     elif self.config["action_type"] == "merged_speed":
+    #         # steer = float(action[0])
+    #         steer = np.clip(float(action[0]), -1.0, 1.0)
+    #         target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         throttle = self.controller.pid_control(target_speed, current_speed)
+    #         brake = float(0.0)
+    #     elif self.config["action_type"] == "merged_speed_tanh":
+    #         # steer = float(action[0])
+    #         steer = np.clip(float(action[0]), -1.0, 1.0)
+    #         target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+    #         if gas < 0:
+    #             throttle = 0.0
+    #             brake = abs(gas)
+    #         else:
+    #             throttle = gas
+    #             brake = 0.0
+    #     elif self.config["action_type"] == "merged_speed_scaled_tanh":
+    #         steer = np.clip(float(action[0]), -1.0, 1.0)
+    #         target_speed = (action[1] * 1.5) + 1
+    #         target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+    #         if gas < 0:
+    #             throttle = 0.0
+    #             brake = abs(gas)
+    #         else:
+    #             throttle = gas
+    #             brake = 0.0
+    #     elif self.config["action_type"] == "merged_speed_pid_test":
+    #         # steer = float(action[0])
+    #         steer = (float(action[0]))
+    #         target_speed = float(action[1])
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+    #         if gas < 0:
+    #             throttle = 0.0
+    #             brake = abs(gas)
+    #         else:
+    #             throttle = gas
+    #             brake = 0.0
+    #     elif self.config["action_type"] == "discrete":
+    #         # Discrete actions
+    #         # No need to clip actions in case of discrete state-space
+    #         # since it is chosen to be in range.
+    #         discrete_actions = DISCRETE_ACTIONS[int(action)]
+    #         target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
+    #         current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+    #         if gas < 0:
+    #             throttle = 0.0
+    #             brake = abs(gas)
+    #         else:
+    #             throttle = gas
+    #             brake = 0.0
+    #     elif self.config["action_type"] == "control":
+    #         target_speed = -1
+    #         self.episode_measurements["target_speed"] = target_speed
+    #         return action
 
-        self.episode_measurements["target_speed"] = target_speed
+    #     self.episode_measurements["target_speed"] = target_speed
 
-        control = carla.VehicleControl(
-            throttle=throttle,
-            steer=steer,
-            brake=brake,
-            hand_brake=False,
-            reverse=False,
-            manual_gear_shift=False,
-            gear=0)
+    #     control = carla.VehicleControl(
+    #         throttle=throttle,
+    #         steer=steer,
+    #         brake=brake,
+    #         hand_brake=False,
+    #         reverse=False,
+    #         manual_gear_shift=False,
+    #         gear=0)
 
-        return control
+    #     return control
 
     def reset(self, unseen=False, index=0):
         if not self.config['test_comparison']:
@@ -1647,8 +1655,8 @@ class CarlaEnv(gym.Env):
         else:
             self.index = index
 
-        # Destroy
-        self.destroy_all_existing_actors()
+        # # Destroy
+        # self.destroy_all_existing_actors()
 
 
         # self.expert_agent = expert_agent
@@ -1794,13 +1802,21 @@ class CarlaEnv(gym.Env):
         #     self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
         #     self.actor_list.append(self.lane_invasion_sensor.sensor)
 
-        self.actor_fleet = ActorManager910(self.config, self.client)
+
+        #TODO Replace with carla_interface
+        # self.actor_fleet = ActorManager910(self.config, self.client)
+
+        sensor_readings = self.carla_interface.reset()
+
+        #TODO this needs to go through carla interface
+        self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
+
 
         ################################################
         # Episode information(again)
         ################################################
         # Set state variables for reward calculation
-        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
+        # sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
 
         self.episode_measurements['num_collisions'] = sensor_readings['collision_sensor']['num_collisions']
         self.episode_measurements['collision_actor_id'] = sensor_readings['collision_sensor']['actor_id']
@@ -1809,7 +1825,6 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['num_laneintersections'] = sensor_readings['lane_invasion_sensor']['num_laneintersections']
             self.episode_measurements['out_of_road'] = int(sensor_readings['lane_invasion_sensor']['out_of_road'])
 
-        self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
         self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
@@ -1831,11 +1846,10 @@ class CarlaEnv(gym.Env):
         ################################################
         # Starting episode
         ################################################
-        # Ticking for 15 frames to handle car initialization in air
-        for _ in range(15):
-            world_frame = self._world.tick()
 
-        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
+
+        #TODO Get correct sensor readings here
+        # sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
         # Keeping both semantic and rgb for debugging/visualization purposes. Need to remove one?
         # Need to check about camera sensor name disambiguation
         semantic_image = sensor_readings['sensor.camera.semantic_segmentation/top']
@@ -1847,41 +1861,49 @@ class CarlaEnv(gym.Env):
         ################################################
         # Setting the planner and obtaining the route
         ################################################
-        self.global_planner = planner.GlobalPlanner()
+        # self.global_planner = planner.GlobalPlanner()
 
-        if self.config["use_route_to_plan"]:
-            self.trace_route = []
-            for idx in range(len(self.scenario_route) - 1):
-                source = self.scenario_route[idx]
-                destination = self.scenario_route[idx+1]
-                trace_route = self.global_planner._trace_route(self._map,
-                                source, destination)
-                self.trace_route.extend(trace_route)
-        else:
-            self.trace_route  = self.global_planner._trace_route(self._map,
-                                self.source_transform, self.destination_transform)
-        self.global_planner.set_global_plan(self.trace_route)
 
-        if self.expert_agent:
-            self.vehicle_agent = BasicAgent(self.vehicle_actor, proximity_threshold=self.config['traffic_light_proximity_threshold'])
-            self.vehicle_agent.set_destination((self.destination_transform.location.x,
-                                            self.destination_transform.location.y,
-                                            self.destination_transform.location.z))
-        else:
-            # Agent uses proximity_threshold to detect traffic lights.
-            # Hence we use traffic_light_proximity_threshold while creating an Agent.
-            self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
+        #TODO Handle this in the leaderboard interface - This if condition is only for planning with leaderboard
+        # if self.config["use_route_to_plan"]:
+        #     self.trace_route = []
+        #     for idx in range(len(self.scenario_route) - 1):
+        #         source = self.scenario_route[idx]
+        #         destination = self.scenario_route[idx+1]
+        #         trace_route = self.global_planner._trace_route(self._map,
+        #                         source, destination)
+        #         self.trace_route.extend(trace_route)
+        # else:
+        #     self.trace_route  = self.global_planner._trace_route(self._map,
+        #                         self.source_transform, self.destination_transform)
+        # self.global_planner.set_global_plan(self.trace_route)
 
-        if self.config["algo"] == "AE":
-            next_orientation, self.dist_to_trajectory = 0, 0
-        else:
-            next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
 
-        self.episode_measurements['next_orientation'] = next_orientation
-        self.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
+        #TODO Check with Vinay if this code is all handled within actor_manager
+        # if self.expert_agent:
+        #     self.vehicle_agent = BasicAgent(self.vehicle_actor, proximity_threshold=self.config['traffic_light_proximity_threshold'])
+        #     self.vehicle_agent.set_destination((self.destination_transform.location.x,
+        #                                     self.destination_transform.location.y,
+        #                                     self.destination_transform.location.z))
+        # else:
+        #     # Agent uses proximity_threshold to detect traffic lights.
+        #     # Hence we use traffic_light_proximity_threshold while creating an Agent.
+        #     self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
+
+
+        #TODO We have moved get_next_orientation_new to carla_interface, need to decide how to handle AE algorithm
+        # if self.config["algo"] == "AE":
+        #     next_orientation, self.dist_to_trajectory = 0, 0
+        # else:
+        #     next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+
+
+        # TODO, these are returned by carla_interface.reset() - update where we get those from
+        self.episode_measurements['next_orientation'] = sensor_readings["next_orientation"]
+        self.episode_measurements['distance_to_goal_trajec'] = sensor_readings["distance_to_goal_trajec"]
         if self.unseen:
-            self.total_distance += distance_to_goal_trajec
-        self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
+            self.total_distance += sensor_readings["distance_to_goal_trajec"]
+        self.episode_measurements['dist_to_trajectory'] = sensor_readings["dist_to_trajectory"]
 
         # Update obstacle distance measurements
         # self._update_env_obs(front_rgb_image=rgb_image)
@@ -1890,6 +1912,7 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
 
+        #TODO Work with Vinay to move this observation to actor ###################################################################3
         obs['image'] = image
         obs['rv_image'] = rv_image
 
@@ -2017,6 +2040,8 @@ class CarlaEnv(gym.Env):
         else:
             return obs
 
+        ##################################################################################3
+
     def get_wp_obs_input(self):
         '''
         Create wp angles input
@@ -2055,37 +2080,6 @@ class CarlaEnv(gym.Env):
 
         return wp_angles_array, wp_vectors_array
 
-    def try_spawn_random_vehicle_at(self, blueprints, transform):
-        # blueprint = random.choice(blueprints)
-
-        # To spawn same type of vehicle
-        blueprint = blueprints[0]
-        if blueprint.has_attribute('color'):
-            color = random.choice(blueprint.get_attribute('color').recommended_values)
-            blueprint.set_attribute('color', color)
-
-        # TODO: uncomment below to enable autopilot
-        if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-            blueprint.set_attribute('role_name', 'autopilot')
-        vehicle = self._world.try_spawn_actor(blueprint, transform)
-        tm_port = self.tm.get_port()
-        if vehicle is not None:
-            self.actor_list.append(vehicle)
-            # TODO: uncomment below to enable autopilot
-            if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
-                vehicle.set_autopilot(True, tm_port)
-
-            if self.config['test_comparison']:
-                self.collision_sensor_list.append(sensors.CollisionSensor(vehicle))
-
-            if self.config["verbose"]:
-                print('spawned %r at %s' % (vehicle.type_id, transform.location.x))
-            return True
-        return False
-
-        # if self.config["scenarios"] in ["long_straight", "long_straight_junction"]:
-        #     for spawn_point in spawn_points_1:
-        #         self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point)
 
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
