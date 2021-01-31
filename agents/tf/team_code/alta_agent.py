@@ -1,14 +1,14 @@
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 import numpy as np
-import models, controller
+import imitation_models, controller
 import carla
 
-from environment.carla_9_4.env_util import (
+from env_util import (
     get_world_coords_from_latlong,
     convert_route_from_GPS_world
 )
 
-from environment.carla_9_4.planner import GlobalPlanner
+from planner import GlobalPlanner
 
 import yaml
 import pickle
@@ -44,10 +44,12 @@ class AltaAgent(AutonomousAgent):
         self.track = Track.MAP
 
         # Move this to configuration file later
-        self.mode = "Imitation" # or 'RL'
-        self.image_type = "semantic"
+        self.mode = "Imitation" #'RL'
+        self.image_type = "rgb"
         self.semantic_classes = 5
-        self.pretrained_weights_path = '/zfsauton2/home/vkadi/projects/alta/alta-logs/imitate_ppo/front_exp3_combined-data2_pretrained-comb1.json'
+        #self.pretrained_weights_path = '/zfsauton2/home/vkadi/projects/alta/alta-logs/imitate_ppo/front_exp3_combined-data2_pretrained-comb1.json'
+        #self.pretrained_weights_path = '/zfsauton/datasets/ArgoRL/mayank/front_dagger_iter_5.json'
+        self.pretrained_weights_path = 'initializations/front_dagger_iter_5.json'
         self.target_speed = 20
         self.args_longitudinal_dict = {
             'K_P': 0.1,
@@ -64,15 +66,17 @@ class AltaAgent(AutonomousAgent):
         print("#"*100, "Initializing policy network")
         if self.mode=="Imitation":
             # z_size if for specifying how many manual states are being used
-            self.policy_network = models.ConvPrImitator(z_size = 6, image_size = self.image_size, is_training=False, gpu_mode=True)
+            self.policy_network = imitation_models.ConvPrImitator(z_size = 5, image_size = self.image_size, is_training=False, gpu_mode=True)
             if self.pretrained_weights_path:
                 self.policy_network.load_json(self.pretrained_weights_path)
             else:
                 self.policy_network.set_random_params()
         elif self.mode == 'RL': 
             self.frame_stack = 3
-            self.agent_model_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/models/ppo2_weights15000000.zip' 
-            self.ae_weights_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/ae_weights/ae_15000000'
+            self.agent_model_path = './initializations/rl_pretrained_weights/weights.zip'
+            self.ae_weights_path = './initializations/rl_pretrained_weights/ae_weights'
+            #self.agent_model_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/models/ppo2_weights15000000.zip' 
+            #self.ae_weights_path = '/zfsauton/datasets/ArgoRL/tanmaya_thesis_experiments/dynamic_actors/thesis_models/representationFS_I/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10_/algo_PPO_input_wp_vae_speed_steer_ldist_goal_light_network_CustomPolicy2_lr_0.0002_ae_lr_0.005_dynamic_navigation_npc_70_col_250.0_col_sp_250.0_light_250.0_light_sp_250.0_fstack_3_n_10000_train_vae_epochs_10__clip_0.2__mb_10__runid_3/ae_weights/ae_15000000'
             self.vae = AEController(image_size=(128, 128, 5), frame_stack=self.frame_stack)
             self.vae.load(self.ae_weights_path)
             self.policy_network = PPO.load(self.agent_model_path, None)
@@ -83,16 +87,16 @@ class AltaAgent(AutonomousAgent):
         print("#"*100, "Initializing Sem seg")
         start = time.time()
         tf.keras.backend.clear_session()
-        self.semantic_network = tf.keras.models.load_model('../../../AdelaiDet_model/model.h5', custom_objects={"GlorotUniform": tf.keras.initializers.glorot_uniform}, compile=False)
+        self.semantic_network = tf.keras.models.load_model('initializations/AdelaiDet_model/model.h5', custom_objects={"GlorotUniform": tf.keras.initializers.glorot_uniform}, compile=False)
         print(time.time()-start)
 
         # Zhe: traffic lights detection model
         # print(os.getcwd())
         print("#"*100, "Initializing Traffic light network")
-        with open('../../../AdelaiDet_model/config.yaml', 'r') as f:
+        with open('initializations/AdelaiDet_model/config.yaml', 'r') as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
             # model = Trainer.build_model(CfgNode(cfg))
-            ckpt = torch.load('../../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+            ckpt = torch.load('initializations/AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
             # ckpt = DetectionCheckpointer(model)
             # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
 
@@ -104,7 +108,7 @@ class AltaAgent(AutonomousAgent):
         # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
         self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
         self.MAX_DISTANCE = 10 # or any value that matches the need of the agent
-        self.NO_DISTANCE = -1 # or any value that matches the need of the agent
+        self.NO_DISTANCE = 1 # or any value that matches the need of the agent
 
         # Storing the OpenDRIVE MAP
         self._map = None
@@ -115,23 +119,23 @@ class AltaAgent(AutonomousAgent):
 
         #TODO: Include policy networks other 2 modes 
 
-        SCRATCH_DIR = '/home/scratch/vkadi/'
+        '''SCRATCH_DIR = '/home/scratch/vkadi/'
         IMAGES_PATH = SCRATCH_DIR+'test_images/'
         VIDEO_PATH = SCRATCH_DIR+'test_videos/'
-        self.vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1, videos=True)
+        self.vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, 1, videos=True)'''
 
         print("#"*100, "Setup finished")
 
         self.ctr = 0
     
     def destroy(self):
-        del self.controller
+        '''del self.controller
         del self.policy_network
         del self.semantic_network
         del self.traffic_light_detector
         del self.dist_interpolator
         del self.global_planner
-        del self.vis_wrapper
+        del self.vis_wrapper'''
         del self._map
 
     def get_concat_h(self, im1, im2):
@@ -151,7 +155,7 @@ class AltaAgent(AutonomousAgent):
             'width': 512, 'height': 512, 'fov': 100, 'id': 'Center_high_res'},
             {'type': 'sensor.other.gnss', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'id': 'GPS'},
             {'type': 'sensor.other.imu', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0,
-             'yaw': 0.0, 'id': 'IMU'}, 
+             'yaw': -90.0, 'id': 'IMU'}, 
             {'type': 'sensor.opendrive_map', 'reading_frequency': 1, 'id': 'OpenDRIVE'},
            {'type': 'sensor.speedometer',  'reading_frequency': 20, 'id': 'SPEED'},
            ]
@@ -202,7 +206,7 @@ class AltaAgent(AutonomousAgent):
     #             return dist_pred
     #     return 1
 
-def get_traffic_light_info(self, image):
+    def get_traffic_light_info(self, image):
         image = image[:, :, ::-1].copy() # RGB -> BGR
         res = self.traffic_light_detector(image)
         if len(res['instances']) == 0: # no lights
@@ -210,18 +214,18 @@ def get_traffic_light_info(self, image):
         else:
             area = res['instances'].pred_boxes.area().tolist()
             cls = res['instances'].pred_classes.tolist() # 0: Green, 1: Red, 2: Sign, 3: Car
-#             print(cls)
+            #  print(cls)
             avg_score = res['instances'].scores.mean().tolist()
             std_score = res['instances'].scores.std().tolist()
-#             score_thres = avg_score + std_score
-#             score_thres = 0
+            #             score_thres = avg_score + std_score
+            #             score_thres = 0
             score_thres = avg_score
             score = res['instances'].scores.tolist()
             num_ins = len(res['instances'])
             
             for _area, _cls, _score in zip(area, cls, score):
                 # note, score has been already sorted from high to low.
-#                 print(_area, _cls, _score)
+                #                 print(_area, _cls, _score)
                 if _score <= score_thres: break # possible backgrounds
                 if _cls == 0: break # if Green comes before Red, pred Green.
                 if _cls == 1:
@@ -238,13 +242,12 @@ def get_traffic_light_info(self, image):
         return self.NO_DISTANCE
 
     def compute_wp_stats(self, vehicle_transform):
-        "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
+        # "Return type: list containing [mean_angle, ldist, distance_to_goal_trajec]"
         mean_angle, ldist, distance_to_goal_trajec, _, _, _ = self.global_planner.get_next_orientation_new(vehicle_transform)
-
         return mean_angle, ldist, distance_to_goal_trajec
 
     def get_motion_info(self, imu, speedometer):
-        "Return type: list containing [steer, speed]"
+        # "Return type: list containing [steer, speed]"
         return [0,0]
 
     def _get_vehicle_transform(self, gnss_reading, imu_reading):
@@ -267,6 +270,10 @@ def get_traffic_light_info(self, image):
         object_queue.put(object_to_add)
 
     def preprocess_inputs(self, input_data):
+        input_data['IMU'][1][-1] = (input_data['IMU'][1][-1]*(180/np.pi))
+        if input_data['IMU'][1][-1]>180:
+            input_data['IMU'][1][-1] = input_data['IMU'][1][-1]-360
+
         # Configure planner when we first receive MAP info
         if(self.global_planner is None):
             self._configure_planner(input_data['OpenDRIVE'][1]['opendrive'])        
@@ -280,11 +287,12 @@ def get_traffic_light_info(self, image):
         semantic_image = self.get_sematic_info(rgb_image)
         processed_input['semantic'] = semantic_image
 
-        if self.stacked_observation_queue.empty(): 
-            for _ in range(self.frame_stack): 
+        if self.mode=="RL":
+            if self.stacked_observation_queue.empty(): 
+                for _ in range(self.frame_stack): 
+                    self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
+            else: 
                 self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
-        else: 
-            self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
 
         # Zhe and Swapnil
         #print("*"*50, "preprocessing high res rgb")        
@@ -334,6 +342,8 @@ def get_traffic_light_info(self, image):
         if mode=="Imitation":
             if self.image_type=='rgb':
                 img = np.expand_dims(inputs['rgb'], axis = 0)
+                concat_vis = Image.fromarray(inputs['rgb'], 'RGB').convert('RGBA')
+                img = img/255.0
             else:
                 semantic_image_np = inputs['semantic']
                 #semantic_image_np = tf.keras.backend.eval(inputs['semantic'])
@@ -343,13 +353,15 @@ def get_traffic_light_info(self, image):
 
                 rgb_vis = Image.fromarray(inputs['rgb'], 'RGB').convert('RGBA')
                 concat_vis = self.get_concat_h(rgb_vis, semantic_vis_pil)
-                self.vis_wrapper.save_image(concat_vis, 1)
 
-            filtered_low_dim_input = np.concatenate([low_dim_input[:1], low_dim_input[2:5], low_dim_input[6:]])[None,:]
-            action = self.policy_network.predict(semantic_image_np, filtered_low_dim_input)
+                img = semantic_image_np
+            #self.vis_wrapper.save_image(concat_vis, 1)
+
+            filtered_low_dim_input = np.concatenate([low_dim_input[:1], low_dim_input[3:5], low_dim_input[6:]])[None,:]
+            action = self.policy_network.predict(img, filtered_low_dim_input)
         #TODO: Include policy networks other 2 modes 
 
-    elif mode == 'RL': 
+        elif mode == 'RL': 
             stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=-1) #np.stack(list(self.stacked_observation_queue.queue), axis=2)
             visual_observation = self.vae.encode(stacked_observation[0])
             visual_observation = visual_observation / self.vae_encoding_norm_factor
@@ -402,7 +414,6 @@ def get_traffic_light_info(self, image):
             reverse=False,
             manual_gear_shift=False,
             gear=0)
-
         return control
 
     def run_step(self, input_data, timestamp):

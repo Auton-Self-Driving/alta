@@ -138,5 +138,10 @@ configure_env.setup
 AdelaiDet_model/*
 !AdelaiDet_model/README.md
 
+<<<<<<< HEAD
 # save & load
 **/*.pth
+=======
+# debug
+**/*debug*.*
+>>>>>>> carla_upgrade

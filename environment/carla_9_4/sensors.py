@@ -14,6 +14,59 @@ import re
 import sys
 import weakref
 import carla
+import queue
+
+from environment.carla_9_4.sensors import *
+
+class SensorManager():
+    '''
+    Sensor Manager will always be associated with a parent actor(mostly vehicle)
+    '''
+    def __init__(self, config, parent_actor):
+        self.parent_actor = parent_actor
+        self.sensors_names = list(self.config['sensors'].keys())
+        # Assuming sensors_configs as a list of dictioaries
+        self.sensors_configs = list(self.config['sensors'].values())
+
+        # This is similar to normal dictionary but with efficient memory management during garbage collection
+        self.sensors = weakref.WeakValueDictionary()
+    
+    def spawn(self):
+        # Change this to dict format? Decide on config file format
+        for idx, (k,v) in enumerate(zip(self.sensor_names, self.sensor_configs)):
+            if k=="collision_sensor":
+                sensor = CollisionSensor(self.parent_actor)
+            elif k=="lane_invasion_sensor":
+                sensor = LaneInvasionSensor(self.parent_actor)
+            elif 'camera' in k:
+                v.update({'name':k})
+                sensor = CameraSensor(self.parent_actor, v)
+            else:
+                print("Sensor not supported")
+
+            self.sensors[k] = sensor
+    
+    # TODO: Collect the data from each sensor and return them as a dict with key as sensor name(same as the name used in config)
+    def get_sensor_readings(self, world_frame=None):
+        sensor_readings = {}
+        for idx, k in enumerate(self.sensor_names):
+            if k=="collision_sensor":
+                sensor_readings[k] = {'num_collisions': self.sensors[k].num_collisions,\
+                                        'collision_actor_id': self.sensors[k].actor_id,\
+                                        'collision_actor_type': self.sensors[k].actor_type}
+            elif k=="lane_invasion_sensor":
+                sensor_readings[k] = {'num_laneintersections': self.sensors[k].num_laneintersections,\
+                                        'out_of_road': self.sensors[k].out_of_road}
+            elif 'camera' in k:
+                if world_frame is None:
+                    print("No world frame found! Skipping reading from camera sensor!!")
+                else:
+                    camera_image = self.sensors[k]._read_data(world_frame)
+                    sensor_readings[k] = {'image': camera_image}
+            else:
+                print("Uninitialized sensor!")
+                
+        return sensor_readings
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -38,7 +91,7 @@ def get_actor_display_name(actor, truncate=250):
 
 
 class CollisionSensor(object):
-    def __init__(self, parent_actor):
+    def __init__(self, parent_actor, config=None):
         self.sensor = None
         self.num_collisions = 0
         self.actor_id = None
@@ -86,7 +139,7 @@ class CollisionSensor(object):
 
 
 class LaneInvasionSensor(object):
-    def __init__(self, parent_actor):
+    def __init__(self, parent_actor, config=None):
         self.sensor = None
         self._parent = parent_actor
         self.num_laneintersections = 0
@@ -150,7 +203,7 @@ class ObstacleSensor(object):
 
 
 class GnssSensor(object):
-    def __init__(self, parent_actor):
+    def __init__(self, parent_actor, config=None):
         self.sensor = None
         self._parent = parent_actor
         self.lat = 0.0
@@ -177,96 +230,52 @@ class GnssSensor(object):
 # ==============================================================================
 
 
-class CameraManager(object):
-    def __init__(self, parent_actor, hud):
+class CameraSensor(object):
+    def __init__(self, parent_actor,config=None):
+        '''
+        Assumption:
+            Format of config['name'] should be 'sensor.camera.rgb(or sem_seg)/front(or top)'
+        '''
         self.sensor = None
-        self._surface = None
         self._parent = parent_actor
-        self._hud = hud
-        self._recording = False
-        self._camera_transforms = [
-            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-            carla.Transform(carla.Location(x=1.6, z=1.7))]
-        self._transform_index = 1
-        self._sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
-            ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)'],
-            ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)'],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)'],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']]
+        self.transform = carla.Transform(carla.Location(x=config['x'], z=config['x']), \
+                                            carla.Rotation(pitch=config['pitch']))
+        self.camera_queue = queue.Queue()
+        self.name = config['name']
         world = self._parent.get_world()
-        bp_library = world.get_blueprint_library()
-        for item in self._sensors:
-            bp = bp_library.find(item[0])
-            if item[0].startswith('sensor.camera'):
-                bp.set_attribute('image_size_x', str(hud.dim[0]))
-                bp.set_attribute('image_size_y', str(hud.dim[1]))
-            elif item[0].startswith('sensor.lidar'):
-                bp.set_attribute('range', '5000')
-            item.append(bp)
-        self._index = None
 
-    def toggle_camera(self):
-        self._transform_index = (self._transform_index + 1) % len(self._camera_transforms)
-        self.sensor.set_transform(self._camera_transforms[self._transform_index])
+        sensor_bp = self.blueprint_library.find(config['name'].split('/')[0])
+        sensor_bp.set_attribute('image_size_x', config['sensor_x_res'])
+        sensor_bp.set_attribute('image_size_y', config['sensor_y_res'])
+        sensor_bp.set_attribute('sensor_tick', config['sensor_tick'])
+        sensor_bp.set_attribute('fov', config['fov'])
 
-    def set_sensor(self, index, notify=True):
-        index = index % len(self._sensors)
-        needs_respawn = True if self._index is None \
-            else self._sensors[index][0] != self._sensors[self._index][0]
-        if needs_respawn:
-            if self.sensor is not None:
-                self.sensor.destroy()
-                self._surface = None
-            self.sensor = self._parent.get_world().spawn_actor(
-                self._sensors[index][-1],
-                self._camera_transforms[self._transform_index],
-                attach_to=self._parent)
-            # We need to pass the lambda a weak reference to self to avoid
-            # circular reference.
-            weak_self = weakref.ref(self)
-            self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
-        if notify:
-            self._hud.notification(self._sensors[index][2])
-        self._index = index
+        self.sensor = world.spawn_actor(sensor_bp, self.transform, attach_to=self._parent)
 
-    def next_sensor(self):
-        self.set_sensor(self._index + 1)
+        self.sensor.listen(self.camera_queue.put)
 
-    def toggle_recording(self):
-        self._recording = not self._recording
-        self._hud.notification('Recording %s' % ('On' if self._recording else 'Off'))
+    # Change this to a class method?
+    def _read_data(self, world_frame, timeout=240.0):
+        cam_image = self._retrieve_data(world_frame, timeout)
+        cam_image_p = self._preprocess_image(cam_image)
+        if 'semantic' in self.name:
+            cam_image_p = cam_image_p[:,:,0]
+            cam_image_p = reduce_classes(cam_image_p, False)
+            cam_image_p = convert_to_one_hot(cam_image_p, num_classes=self.config['num_classes'])
+        return cam_image_p
 
-    def render(self, display):
-        if self._surface is not None:
-            display.blit(self._surface, (0, 0))
+    def _retrieve_data(self, world_frame, timeout):
+        while True:
+            data = self.camera_queue.get(timeout=timeout)
+            if data.frame == world_frame:
+                return data
+            else:
+                if self.config["verbose"]:
+                    print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
-    @staticmethod
-    def _parse_image(weak_self, image):
-        self = weak_self()
-        if not self:
-            return
-        if self._sensors[self._index][0].startswith('sensor.lidar'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0]/3), 3))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self._hud.dim) / 100.0
-            lidar_data += (0.5 * self._hud.dim[0], 0.5 * self._hud.dim[1])
-            lidar_data = np.fabs(lidar_data)
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self._hud.dim[0], self._hud.dim[1], 3)
-            lidar_img = np.zeros(lidar_img_size)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self._surface = pygame.surfarray.make_surface(lidar_img)
-        else:
-            image.convert(self._sensors[self._index][1])
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        if self._recording:
-            image.save_to_disk('_out/%08d' % image.frame_number)
+    def _preprocess_image(self, image):
+        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+        array = np.reshape(array, (image.height, image.width, 4))
+        array = array[:, :, :3]
+        array = array[:, :, ::-1]
+        return array
