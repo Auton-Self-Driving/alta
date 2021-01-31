@@ -20,6 +20,7 @@ import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
+from environment.carla_9_4.dashcam import Visualizer
 
 
 # import ipdb
@@ -1378,8 +1379,7 @@ class CarlaEnv(gym.Env):
 
     def _reset_test_comparison(self, unseen=False, index=0):
         pass
-
-
+    
     # @profile
     def _reset(self, unseen=False, index=0):
         pass

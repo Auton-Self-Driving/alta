@@ -16,6 +16,12 @@ class RecordDict(OrderedDict):
 #             print(type(value), isinstance(value, _BaseRec), value.__class__)
             assert isinstance(value, _BaseRec), 'unregistered value assignment'
             super().__setitem__(key, value)
+
+    def __getitem__(self, key):
+        if key in self:
+            return self[key].summary()
+        else:
+            return super().__getitem__(key)
             
 
 class Recorder:
@@ -184,6 +190,17 @@ class _MaxRec(_PolarizedRec):
 
 
 GlobalRecorder = Recorder()
+GlobalRecorder.register_key('reward', window_size='inf', mode='plain', group='episode')
+GlobalRecorder.register_key('num_collisions', window_size='inf', mode='plain', group='episode')
+GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='plain', group='episode')
+GlobalRecorder.register_key('success_rate', window_size='inf', mode='mean', group='episode')
+GlobalRecorder.register_key('collision_rate', window_size='inf', mode='mean', group='episode')
+GlobalRecorder.register_key('reward', window_size='inf', mode='mean', group='mean')
+GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='mean', group='mean')
+GlobalRecorder.register_key('avg_reward', window_size=25, mode='mean', group='recent')
+GlobalRecorder.register_key('total_reward', window_size='inf', mode='sum', group='recent')
+GlobalRecorder.register_key('success_rate', window_size='25', mode='mean', group='recent')
+GlobalRecorder.register_key('collision_rate', window_size='25', mode='mean', group='recent')
 
 
 
