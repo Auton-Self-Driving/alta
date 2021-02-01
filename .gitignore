@@ -127,7 +127,6 @@ misc/logs/*jpeg
 ._*.md
 
 # don't track log directories
-
 *logs/
 *.history/*
 
@@ -139,5 +138,9 @@ configure_env.setup
 AdelaiDet_model/*
 !AdelaiDet_model/README.md
 
+# save & load
+**/*.pth
 # debug
 **/*debug*.*
+# tensorboard logs
+**/tensorboard_logs

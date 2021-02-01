@@ -33,14 +33,14 @@ import yaml
 import pickle
 from scipy.interpolate import interp1d
 import torch
-from detectron2.config import CfgNode
+# from detectron2.config import CfgNode
 # from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.engine.defaults import DefaultPredictor
-from AdelaiDet.tools.train_net import Trainer
+# from detectron2.engine.defaults import DefaultPredictor
+# from AdelaiDet.tools.train_net import Trainer
 
 # Carla imports
 import environment.carla_9_4.scenarios as scenarios
-from environment.carla_9_4.carla import CarlaServer
+from environment.carla_9_4.carla.server import CarlaServer
 import environment.carla_9_4.planner as planner
 import environment.carla_9_4.controller as controller
 import environment.carla_9_4.sensors as sensors
@@ -325,18 +325,18 @@ class CarlaEnv(gym.Env):
         # traffic lights detection model
         # print(os.getcwd())
 
-        with open('../../AdelaiDet_model/config.yaml', 'r') as f:
-            cfg = yaml.load(f, Loader=yaml.FullLoader)
-            model = Trainer.build_model(CfgNode(cfg))
-            ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
-            # ckpt = DetectionCheckpointer(model)
-            # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
-        #with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
-        #    self.dist_interpolator = pickle.load(f)
-        self.dist_interpolator = lambda area: 804 / (area + 1e-6) + 0.378
-        self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
-        # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
-        self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
+        # with open('../../AdelaiDet_model/config.yaml', 'r') as f:
+        #     cfg = yaml.load(f, Loader=yaml.FullLoader)
+        #     model = Trainer.build_model(CfgNode(cfg))
+        #     ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
+        #     # ckpt = DetectionCheckpointer(model)
+        #     # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
+        # #with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
+        # #    self.dist_interpolator = pickle.load(f)
+        # self.dist_interpolator = lambda area: 804 / (area + 1e-6) + 0.378
+        # self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
+        # # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
+        # self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
 
 
     def _update_config(self, config):
@@ -745,7 +745,7 @@ class CarlaEnv(gym.Env):
             if self.config["enable_lane_invasion_sensor"]:
                 self.episode_measurements['num_laneintersections'] = sensor_readings['lane_invasion_sensor']['num_laneintersections']
                 self.episode_measurements['out_of_road'] = int(sensor_readings['lane_invasion_sensor']['out_of_road'])
-                
+
             self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
             self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
             if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
@@ -762,8 +762,8 @@ class CarlaEnv(gym.Env):
 
             # Update obstacle distance measurements
             rgb_image = sensor_readings['sensor.camera.rgb/front']
-            self._update_env_obs(front_rgb_image=rgb_image)
-            #self._update_env_obs()
+            # self._update_env_obs(front_rgb_image=rgb_image)
+            self._update_env_obs()
 
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
@@ -921,20 +921,20 @@ class CarlaEnv(gym.Env):
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
                     self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
             if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
-                # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-                # self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
-                # self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
-                # self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
-                # self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
-                # self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
+                self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
 
                 if self.config["scenarios"] == "straight_dynamic":
                     self._update_straight_dynamic_obs()
@@ -1884,8 +1884,8 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['dist_to_trajectory'] = self.dist_to_trajectory
 
         # Update obstacle distance measurements
-        self._update_env_obs(front_rgb_image=rgb_image)
-        #self._update_env_obs()
+        # self._update_env_obs(front_rgb_image=rgb_image)
+        self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs()
