@@ -32,6 +32,7 @@ ppo_agent = PPO_Collective_Agent(env, glb_policy, glb_optimizer,
     eps_clip=PPO_CONFIG['eps_clip'],
     glb_update_freq=PPO_CONFIG['glb_update_freq'],
     optim_epochs=PPO_CONFIG['optim_epochs'],
+    save_suffix=PPO_CONFIG['save_suffix'],
     verbose=ENV_CONFIG['verbose'],
 )
 
@@ -42,6 +43,7 @@ if PPO_CONFIG['checkpoint']:
 
 ppo_agent.tb_write_config('env_config',ENV_CONFIG)
 ppo_agent.tb_write_config('ppo_config',PPO_CONFIG)
+print('>>>PPO_CONFIG:{}\n>>>ENV_CONFIG:{}'.format(PPO_CONFIG, ENV_CONFIG))
 ppo_agent.learn()
 env.close()
 

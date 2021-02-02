@@ -61,6 +61,7 @@ sac_agent = SAC_Collective_Agent(
     target_update_freq=SAC_CONFIG['target_update_freq'],
     num_agents=ENV_CONFIG['num_agents'],
     max_glb_num_steps=ENV_CONFIG['max_num_steps'],
+    save_suffix=SAC_CONFIG['save_suffix'],
     verbose=ENV_CONFIG['verbose'])
 
 # resume if necessary
@@ -70,6 +71,7 @@ if SAC_CONFIG['checkpoint']:
 
 sac_agent.tb_write_config('env_config',ENV_CONFIG)
 sac_agent.tb_write_config('ppo_config',SAC_CONFIG)
+print('>>>SAC_CONFIG:{}\n>>>ENV_CONFIG:{}'.format(SAC_CONFIG, ENV_CONFIG))
 sac_agent.learn()
 env.close()
 

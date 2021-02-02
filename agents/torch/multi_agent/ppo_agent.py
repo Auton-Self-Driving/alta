@@ -72,7 +72,7 @@ class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
         glb_update_freq=1000, optim_epochs=100, save_freq=100000,
-        verbose=False):
+        save_suffix='', verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
@@ -86,6 +86,7 @@ class PPO_Collective_Agent(object):
             optim_epochs: update policy for how many epochs
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
+            save_suffix: checkpoint saving suffix
             deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
         """
@@ -104,6 +105,9 @@ class PPO_Collective_Agent(object):
         self.agent_list = None
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
+        self.save_suffix = '_' + save_suffix if save_suffix else ''
+        self.run_name = 'PPOx{}{}'.format(self.num_agents,
+            self.save_suffix)
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
@@ -118,7 +122,7 @@ class PPO_Collective_Agent(object):
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
                 log_dir='./tensorboard_logs/',
-                filename_suffix='_PPOx{}'.format(self.num_agents),)
+                filename_suffix='_{}'.format(self.run_name),)
         self.tbwriter.add_dict(tag, config)
 
     def vprint(self, *args, **kwargs):
@@ -193,7 +197,7 @@ class PPO_Collective_Agent(object):
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
                 log_dir='./tensorboard_logs/',
-                filename_suffix='_PPOx{}'.format(self.num_agents),)
+                filename_suffix='_{}'.format(self.run_name),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles()
         self.agent_list = [_PPO_Individual_Agent(
@@ -230,6 +234,7 @@ class PPO_Collective_Agent(object):
 
                 if agent.done:  # done and print information
                     print('[{}]'.format(self.time()) + \
+                        '[{}]'.format(self.run_name) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
                         self.glb_num_episodes, self.glb_num_steps, rk,
@@ -357,7 +362,9 @@ class PPO_Collective_Agent(object):
                 if agent.done:  # done and print information
                     if agent.termination_state == 'success':
                         self.num_successes += 1
-                    print('[glb ep {}/{}]'.format(self.glb_num_episodes,
+                    print('[test {}][glb ep {}/{}]'.format(
+                        self.run_name,
+                        self.glb_num_episodes,
                         self.glb_num_test_episodes) + \
                         '[score {:.2%}][glb step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
@@ -391,8 +398,8 @@ class PPO_Collective_Agent(object):
                 self.glb_env.step()
 
     def save(self, filename=None):
-        if filename is None: filename = './ckptPPOx{}_{}_{}.pth'.format(
-            self.num_agents, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
+        if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
+            self.run_name, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
         _ckpt = {
             'glb_policy': self.glb_policy.state_dict(),
             'glb_optimizer': self.glb_optimizer.state_dict(),
@@ -435,8 +442,7 @@ class PPO_Collective_Agent(object):
         self.tbwriter = TensorboardWriter(
             log_dir='./tensorboard_logs/',
             purge_step=self.glb_num_episodes,
-            filename_suffix='_PPOx{}'.format(self.num_agents),
-        )
+                filename_suffix='_{}'.format(self.run_name),)
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

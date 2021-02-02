@@ -59,12 +59,13 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
+    'save_suffix': '',
     # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
     # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
-    'alpha_lr': 1e-5,
+    'alpha_lr': 4e-5,
     'buffer_len': 1000000,
     'target_entropy': -2.,
     'tau': .01,
@@ -74,6 +75,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
+    'save_suffix': 'obsensor_scratch',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     'checkpoint': '',
@@ -84,11 +86,12 @@ PPO_CONFIG = {
 }
 
 TEST_CONFIG = {
-    'PPO': True, # else SAC, currently only support those two
+    'PPO': False, # else SAC, currently only support those two
     # 'checkpoint': './ckptSACx4_600000_Jan210145AM29.pth',
     # 'checkpoint': './ckptSACx2_600000_Jan211106PM09.pth',
     # 'checkpoint': './ckptSACx4_1000000_Jan210937PM50.pth',
     # 'checkpoint': './ckptSACx4_1500000_Jan221113PM14.pth',
+    'checkpoint': './ckptSACx1_3600000_Feb020658AM43.pth',
     # 'checkpoint': './ckptPPOx4_800000_Jan210105AM28.pth',
     # 'checkpoint': './ckptPPOx4_1300000_Jan210811PM01.pth',
     # 'checkpoint': './ckptSACx6_1900000_Jan250519PM28.pth',
@@ -106,13 +109,13 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx2_2800000_Jan280453AM09.pth',
     # 'checkpoint': './ckptPPOx6_4600000_Jan280108PM25.pth',
     # 'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
-    'checkpoint': './ckptPPOx1_6000000_Feb010515PM48.pth',
+    # 'checkpoint': './ckptPPOx1_6000000_Feb010515PM48.pth',
     'num_agents': 1,
-    'num_npc': 100,
+    'num_npc': 0,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
-    'city_name' : 'Town01',
+    'city_name' : 'Town02',
     'num_episodes' : 25,
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static' : False,
@@ -125,9 +128,9 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 8,
+    'num_agents': 1,
     'max_num_steps': 13000000,
-    'device': 'cuda:0',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -232,7 +235,7 @@ ENV_CONFIG = {
     'testing' : False,
     'disable_collision' : False,
     'enable_static' : True,
-    'enable_obstacle_sensor': False,
+    'enable_obstacle_sensor': True,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_collision' : True,
     'vehicle_proximity_threshold' : 15,
