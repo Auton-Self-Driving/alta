@@ -59,11 +59,13 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
-    'checkpoint': './ckptSACx6_2900000_Jan300341PM21.pth',
-    'policy_lr': 1e-4,
-    'q_lr': 1e-4,
+    # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
+    # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
+    'checkpoint': '',
+    'policy_lr': 4e-4,
+    'q_lr': 4e-4,
     'alpha_lr': 1e-5,
-    'buffer_len': 6000000,
+    'buffer_len': 1000000,
     'target_entropy': -2.,
     'tau': .01,
     'batch_size': 512,
@@ -72,11 +74,13 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
-    'policy_lr': 1e-4,
+    # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
+    # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
+    'checkpoint': '',
+    'policy_lr': 4e-4,
     'eps_clip': .2,
     'glb_update_freq': 1000,
-    'optim_epochs': 100,
+    'optim_epochs': 10,
 }
 
 TEST_CONFIG = {
@@ -101,13 +105,14 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx2_2400000_Jan260700PM26.pth',
     # 'checkpoint': './ckptPPOx2_2800000_Jan280453AM09.pth',
     # 'checkpoint': './ckptPPOx6_4600000_Jan280108PM25.pth',
-    'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
+    # 'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
+    'checkpoint': './ckptPPOx1_6000000_Feb010515PM48.pth',
     'num_agents': 1,
-    'num_npc': 15,
+    'num_npc': 100,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
-    'city_name' : 'Town02',
+    'city_name' : 'Town01',
     'num_episodes' : 25,
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static' : False,
@@ -227,7 +232,7 @@ ENV_CONFIG = {
     'testing' : False,
     'disable_collision' : False,
     'enable_static' : True,
-    'enable_obstacle_sensor': True,
+    'enable_obstacle_sensor': False,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_collision' : True,
     'vehicle_proximity_threshold' : 15,

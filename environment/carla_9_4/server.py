@@ -11,7 +11,7 @@ class CarlaServer():
         self.config = config
         self.server_port = config['server_port']
         self.server_binary = config['server_binary']
-        self.carla_gpu = config['device']
+        self.carla_gpu = config['device'] if 'device' in config else config['carla_gpu']
         self.render_server = config['render_server']
         self.live_carla_processes = set()
         if not self.server_port:

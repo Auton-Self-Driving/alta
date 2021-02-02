@@ -159,6 +159,10 @@ class SAC_Collective_Agent(object):
         self.tbwriter = None
 
     def tb_write_config(self, tag, config):
+        if self.tbwriter is None:
+            self.tbwriter = TensorboardWriter(
+                log_dir='./tensorboard_logs/',
+                filename_suffix='_SACx{}'.format(self.num_agents),)
         self.tbwriter.add_dict(tag, config)
 
     def vprint(self, *args, **kwargs):
