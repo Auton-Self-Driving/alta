@@ -142,16 +142,16 @@ class SAC_Collective_Agent(object):
         self.tau = tau
         self.q_update_freq = q_update_freq
         self.target_update_freq = target_update_freq
-        self.save_freq = save_freq
-        self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'SACx{}{}'.format(self.num_agents,
-            self.save_suffix)
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
         self.device = next(glb_policy.parameters()).device
         self.verbose = verbose
+        self.save_freq = save_freq
+        self.save_suffix = '_' + save_suffix if save_suffix else ''
+        self.run_name = 'SACx{}{}'.format(self.num_agents,
+            self.save_suffix)
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')

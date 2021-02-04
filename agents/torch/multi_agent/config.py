@@ -59,7 +59,7 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
-    'save_suffix': '',
+    'save_suffix': 'obsthres20',
     # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
     # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
     'checkpoint': '',
@@ -75,7 +75,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'ObsLong',
+    'save_suffix': 'obsthres20',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     'checkpoint': '',
@@ -192,7 +192,7 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 150,
+    'num_npc' : 250,
     'sample_npc': False,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
