@@ -83,6 +83,7 @@ class _SAC_Individual_Agent(Agent):
         normal = Normal(mean, std)
         z = normal.mean if deterministic else normal.sample()
         action = torch.tanh(z)
+        # action = z
         action = action.cpu().detach().squeeze(0).numpy()
         # return self.glb_policy.rescale_action(action)
         return action

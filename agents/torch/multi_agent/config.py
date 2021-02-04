@@ -59,7 +59,7 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
-    'save_suffix': 'obsthres20',
+    'save_suffix': '',
     # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
     # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
     'checkpoint': '',
@@ -75,14 +75,14 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'obsthres20',
+    'save_suffix': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,
-    'glb_update_freq': 1000,
-    'optim_epochs': 10,
+    'glb_update_freq': 5000,
+    'optim_epochs': 20,
 }
 
 TEST_CONFIG = {
@@ -128,9 +128,9 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 1,
-    'max_num_steps': 13000000,
-    'device': 'cuda:0',
+    'num_agents': 8,
+    'max_num_steps': 16000000,
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -173,7 +173,8 @@ ENV_CONFIG = {
     'target_speed': 20,
     'sensors': ['sensor.camera.rgb', 'sensor.camera.semantic_segmentation'],
     # 'action_type': 'discrete',
-    'action_type': 'merged_speed',
+    'action_type': 'merged_speed_scaled_tanh',
+    # 'action_type': 'merged_speed',
     'sensor_tick': '0.0',
     'dist_for_success' : 10.0,
     'max_offlane_steps' : 100,

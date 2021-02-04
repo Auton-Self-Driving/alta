@@ -60,7 +60,7 @@ class PPOActorCritic_Continuous(nn.Module):
                 nn.Linear(64, 32),
                 nn.Tanh(),
                 nn.Linear(32, action_dim),
-                # nn.Tanh()
+                nn.Tanh(),
             )
         # critic
         self.critic = nn.Sequential(
@@ -164,12 +164,13 @@ class PolicyNetwork(nn.Module):
 
         dist = Normal(mean, std)
         z = dist.mean if deterministic else dist.rsample()
-        action = z
-        # action = torch.tanh(z)
+        action = torch.tanh(z)
 
+        log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
         log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
         log_pi = log_pi.sum(1, keepdim=True)
         return action, log_pi
+        # return z, log_pi
 
     # def rescale_action(self, action):
     #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\
