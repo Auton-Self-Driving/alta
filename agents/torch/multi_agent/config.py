@@ -75,7 +75,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'obsensor_scratch',
+    'save_suffix': 'ObsLong',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     'checkpoint': '',
@@ -130,7 +130,7 @@ ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
     'max_num_steps': 13000000,
-    'device': 'cuda:1',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',

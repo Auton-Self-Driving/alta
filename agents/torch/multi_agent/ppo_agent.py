@@ -266,7 +266,7 @@ class PPO_Collective_Agent(object):
                         agent.episode_reward)
                     self.recorder['recent']['min_reward'].record_value(
                         agent.episode_reward)
-                    self.recorder['recent']['dist_to_target'].record_value(
+                    self.recorder['recent']['mean_dist_to_trgt'].record_value(
                         agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['recent']['success_rate'].record_value(
                         success_int)
@@ -306,7 +306,7 @@ class PPO_Collective_Agent(object):
                         self.recorder['recent']['min_reward'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/mean_dist_to_target',
-                        self.recorder['recent']['mean_dist_to_target'].summary(),
+                        self.recorder['recent']['mean_dist_to_trgt'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/success_rate',
                         self.recorder['recent']['success_rate'].summary(),

@@ -30,7 +30,7 @@ class SensorManager():
 
         # This is similar to normal dictionary but with efficient memory management during garbage collection
         self.sensors = weakref.WeakValueDictionary()
-    
+
     def spawn(self):
         # Change this to dict format? Decide on config file format
         for idx, (k,v) in enumerate(zip(self.sensor_names, self.sensor_configs)):
@@ -45,7 +45,7 @@ class SensorManager():
                 print("Sensor not supported")
 
             self.sensors[k] = sensor
-    
+
     # TODO: Collect the data from each sensor and return them as a dict with key as sensor name(same as the name used in config)
     def get_sensor_readings(self, world_frame=None):
         sensor_readings = {}
@@ -65,7 +65,7 @@ class SensorManager():
                     sensor_readings[k] = {'image': camera_image}
             else:
                 print("Uninitialized sensor!")
-                
+
         return sensor_readings
 
 # ==============================================================================
@@ -159,14 +159,14 @@ class LaneInvasionSensor(object):
             return
         # TODO : Handle case of lane invasion for dashed vs solid lane markings
         self.num_laneintersections += 1
-        
+
         lane_types = set(x.type for x in event.crossed_lane_markings)
         # print(lane_types)
         if carla.libcarla.LaneMarkingType.NONE in lane_types:
             self.out_of_road = True
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
-        
+
 
 # ==============================================================================
 # -- ObstacleSensor --------------------------------------------------------

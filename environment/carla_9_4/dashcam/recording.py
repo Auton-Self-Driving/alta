@@ -134,7 +134,7 @@ class _PlainRec(_BaseRec):
         self.window.append(value)
 
     def summary(self):
-        return self.window if self.win_size > 1 else self.window[0]
+        return self.window[0] if self.win_size == 1 else self.window
 
 
 class _MeanRec(_BaseRec):
@@ -205,13 +205,13 @@ GlobalRecorder.register_key('num_collisions', window_size='inf', mode='plain', g
 GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='plain', group='train')
 GlobalRecorder.register_key('success_rate', window_size='inf', mode='mean', group='train')
 GlobalRecorder.register_key('collision_rate', window_size='inf', mode='mean', group='train')
-GlobalRecorder.register_key('dist_to_target', window_size=0, mode='plain', group='episode')
+GlobalRecorder.register_key('dist_to_target', window_size=1, mode='plain', group='episode')
 GlobalRecorder.register_key('avg_reward', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('max_reward', window_size=100, mode='max', group='recent')
 GlobalRecorder.register_key('min_reward', window_size=100, mode='min', group='recent')
 GlobalRecorder.register_key('success_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('collision_rate', window_size=100, mode='mean', group='recent')
-GlobalRecorder.register_key('mean_dist_to_target', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('mean_dist_to_trgt', window_size=100, mode='mean', group='recent')
 
 
 

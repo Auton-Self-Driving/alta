@@ -831,7 +831,8 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
-            print('obstacle actor {}, dist: {}, same_lane: {}'.format(obstacle_actor, agent.obstacle_sensor.distance, same_lane))
+            # print('obstacle actor {}, dist: {}, speed: {}, same_lane: {}'.format(obstacle_actor, agent.obstacle_sensor.distance,
+            #     agent.episode_measurements['obstacle_speed'], same_lane))
         if not found_obstacle or not same_lane:
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
@@ -1202,7 +1203,7 @@ class CarlaEnv(gym.Env):
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
             if self.config["enable_obstacle_sensor"]:
-                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor, 
+                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
                     distance=self.config['vehicle_proximity_threshold'])
 
                 agent.actor_list.append(agent.obstacle_sensor.sensor)
@@ -1386,7 +1387,7 @@ class CarlaEnv(gym.Env):
 
     def _reset_test_comparison(self, unseen=False, index=0):
         pass
-    
+
     # @profile
     def _reset(self, unseen=False, index=0):
         pass
