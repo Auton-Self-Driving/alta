@@ -192,7 +192,7 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 250,
+    'num_npc' : 150,
     'sample_npc': False,
     'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,

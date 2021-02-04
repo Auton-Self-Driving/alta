@@ -60,7 +60,7 @@ class PPOActorCritic_Continuous(nn.Module):
                 nn.Linear(64, 32),
                 nn.Tanh(),
                 nn.Linear(32, action_dim),
-                nn.Tanh()
+                # nn.Tanh()
             )
         # critic
         self.critic = nn.Sequential(
@@ -112,7 +112,7 @@ class PPOActorCritic_Continuous(nn.Module):
 
 
 class SoftQNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size=256, init_w=3e-3):
+    def __init__(self, num_inputs, num_actions, hidden_size=64, init_w=3e-3):
         super(SoftQNetwork, self).__init__()
         self.linear1 = nn.Linear(num_inputs + num_actions, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
@@ -132,7 +132,7 @@ class SoftQNetwork(nn.Module):
 class PolicyNetwork(nn.Module):
     # def __init__(self, num_inputs, num_actions, action_range,
     def __init__(self, num_inputs, num_actions,
-        hidden_size=256, init_w=3e-3, log_std_min=-20, log_std_max=2):
+        hidden_size=64, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(PolicyNetwork, self).__init__()
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
@@ -164,7 +164,8 @@ class PolicyNetwork(nn.Module):
 
         dist = Normal(mean, std)
         z = dist.mean if deterministic else dist.rsample()
-        action = torch.tanh(z)
+        action = z
+        # action = torch.tanh(z)
 
         log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
         log_pi = log_pi.sum(1, keepdim=True)
