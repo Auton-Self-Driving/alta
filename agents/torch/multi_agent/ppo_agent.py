@@ -244,24 +244,30 @@ class PPO_Collective_Agent(object):
                     success_int = int('success' == agent.termination_state)
                     obs_collision_int = int('obs_collision' == agent.termination_state)
                     # record statistics
-                    self.recorder['episode']['reward'].record_value(
+                    self.recorder['train']['reward'].record_value(
                         agent.episode_reward)
-                    self.recorder['episode']['dist_to_target'].record_value(
+                    self.recorder['train']['max_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['train']['avg_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['train']['dist_to_target'].record_value(
                         agent.episode_measurements['distance_to_goal_trajec'])
-                    self.recorder['episode']['num_collisions'].record_value(
+                    self.recorder['train']['num_collisions'].record_value(
                         agent.episode_measurements['num_collisions'])
-                    self.recorder['episode']['success_rate'].record_value(
+                    self.recorder['train']['success_rate'].record_value(
                         success_int)
-                    self.recorder['episode']['collision_rate'].record_value(
+                    self.recorder['train']['collision_rate'].record_value(
                         obs_collision_int)
-                    self.recorder['mean']['reward'].record_value(
-                        agent.episode_reward)
-                    self.recorder['mean']['dist_to_target'].record_value(
+                    self.recorder['episode']['dist_to_target'].record_value(
                         agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['recent']['avg_reward'].record_value(
                         agent.episode_reward)
-                    self.recorder['recent']['total_reward'].record_value(
+                    self.recorder['recent']['max_reward'].record_value(
                         agent.episode_reward)
+                    self.recorder['recent']['min_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['recent']['dist_to_target'].record_value(
+                        agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['recent']['success_rate'].record_value(
                         success_int)
                     self.recorder['recent']['collision_rate'].record_value(
@@ -276,22 +282,31 @@ class PPO_Collective_Agent(object):
                         agent.episode_measurements['num_collisions'],
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/success_rate',
-                        self.recorder['episode']['success_rate'].summary(),
+                        self.recorder['train']['success_rate'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/collision_rate',
-                        self.recorder['episode']['collision_rate'].summary(),
+                        self.recorder['train']['collision_rate'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('mean/reward',
-                        self.recorder['mean']['reward'].summary(),
+                    self.tbwriter.add_scalar('episode/avg_reward',
+                        self.recorder['train']['avg_reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('mean/dist_to_target',
-                        self.recorder['mean']['dist_to_target'].summary(),
+                    self.tbwriter.add_scalar('episode/max_reward',
+                        self.recorder['train']['max_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/dist_to_target',
+                        self.recorder['episode']['dist_to_target'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/avg_reward',
                         self.recorder['recent']['avg_reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/total_reward',
-                        self.recorder['recent']['total_reward'].summary(),
+                    self.tbwriter.add_scalar('recent/max_reward',
+                        self.recorder['recent']['max_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/min_reward',
+                        self.recorder['recent']['min_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/mean_dist_to_target',
+                        self.recorder['recent']['mean_dist_to_target'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/success_rate',
                         self.recorder['recent']['success_rate'].summary(),
