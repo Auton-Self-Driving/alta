@@ -775,10 +775,8 @@ class CarlaEnv(gym.Env):
         for target_vehicle in self.actor_list + self.ego_vehicle_list:
             # do not account for the ego vehicle
             try:
-                if hasattr(target_vehicle, 'done') and target_vehicle.done: continue
-                if target_vehicle is None or \
-                    target_vehicle.id == agent.id or \
-                    'vehicle' not in target_vehicle.type_id:
+                if target_vehicle is None or hasattr(target_vehicle, 'done') and target_vehicle.done: continue
+                if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
                     continue
 
                 # if the object is not in our lane it's not an obstacle
@@ -803,6 +801,8 @@ class CarlaEnv(gym.Env):
                         min_obs_distance = distance
             except Exception as e:
                 print('>>> skip this vehicle {} due to [{}]'.format(target_vehicle, e))
+                if target_vehicle is None or hasattr(target_vehicle, 'done'):
+                    print(target_vehicle.done, target_vehicle.termination_state, target_vehicle.rank, target_vehicle.num_total_steps)
                 self.spawn_npc_vehicles()
                 time.sleep(4)
                 return
@@ -827,7 +827,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
-            # print('obstacle actor {}, dist: {}'.format(obstacle_actor, agent.obstacle_sensor.distance))
+            print('obstacle actor {}, dist: {}'.format(obstacle_actor, agent.obstacle_sensor.distance))
         if not found_obstacle:
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
@@ -1197,7 +1197,9 @@ class CarlaEnv(gym.Env):
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
             if self.config["enable_obstacle_sensor"]:
-                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor)
+                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor, 
+                    distance=self.config['vehicle_proximity_threshold'])
+
                 agent.actor_list.append(agent.obstacle_sensor.sensor)
 
             # Set state variables for reward calculation

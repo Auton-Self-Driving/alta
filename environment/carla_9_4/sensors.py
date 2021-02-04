@@ -174,7 +174,7 @@ class LaneInvasionSensor(object):
 
 
 class ObstacleSensor(object):
-    def __init__(self, parent_actor):
+    def __init__(self, parent_actor, distance=15):
         self.sensor = None
         self._parent = parent_actor
         self.distance = -1
@@ -182,6 +182,9 @@ class ObstacleSensor(object):
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.obstacle')
         bp.set_attribute('only_dynamics', 'True')
+        bp.set_attribute('distance', str(distance))
+        hit_radius = math.atan(1 / distance) # calculate detection range
+        bp.set_attribute('hit_radius', str(hit_radius))
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
