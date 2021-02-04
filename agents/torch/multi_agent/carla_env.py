@@ -818,17 +818,22 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['obstacle_orientation'] = -1
 
         found_obstacle = False
+        same_lane = True
         if agent.obstacle_sensor.distance != -1:
+            if 'vehicle' in obstacle_actor.type_id:
+                same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)
             found_obstacle = True
             obstacle_actor = agent.obstacle_sensor.obstacle_actor
             agent.episode_measurements['obstacle_visible'] = True
             agent.episode_measurements['obstacle_dist'] = agent.obstacle_sensor.distance
-            if 'vehicle' in obstacle_actor.type_id:
+            # if 'vehicle' in obstacle_actor.type_id:
+            if hasattr(obstacle_actor, 'get_velocity'):
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
-            print('obstacle actor {}, dist: {}'.format(obstacle_actor, agent.obstacle_sensor.distance))
-        if not found_obstacle:
+            print('obstacle actor {}, dist: {}, same_lane: {}'.format(obstacle_actor, agent.obstacle_sensor.distance, same_lane))
+        if not found_obstacle or not same_lane:
+            agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
 
