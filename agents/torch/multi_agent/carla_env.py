@@ -626,10 +626,10 @@ class CarlaEnv(gym.Env):
                 if self.config["enable_lane_invasion_sensor"]:
                     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
                     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                    if agent.episode_measurements['num_laneintersections'] > 0:
-                        agent.episode_measurements['offlane_steps'] += 1
-                    else:
-                        agent.episode_measurements['offlane_steps'] = 0
+                    # if agent.episode_measurements['num_laneintersections'] > 0:
+                    #     agent.episode_measurements['offlane_steps'] += 1
+                    # else:
+                    #     agent.episode_measurements['offlane_steps'] = 0
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 if agent.episode_measurements['min_distance_to_goal'] >= agent.location.distance(agent.destination_transform.location):
@@ -1163,7 +1163,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['red_light_dist'] = -1
             agent.episode_measurements['traffic_light_orientation'] = -1
             agent.episode_measurements["runover_light"] = False
-            agent.episode_measurements['offlane_steps'] = 0
+            # agent.episode_measurements['offlane_steps'] = 0
 
             agent.rv_camera_queue = queue.Queue()
 
@@ -1522,13 +1522,13 @@ class CarlaEnv(gym.Env):
         # Episode termination conditions
         success = agent.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         static = agent.episode_measurements["static_steps"] > self.config["max_static_steps"]
-        offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
+        # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
         # static = agent.episode_measurements['obstacle_dist'] == -1 and \
         #     self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) < 1e-2
         collision = agent.episode_measurements["is_collision"]
         runover_light = agent.episode_measurements["runover_light"]
         maxStepsTaken = agent.episode_measurements["num_steps"] > self.config['max_steps']
-        # offlane = False
+        offlane = False
 
         # Conditions to check there is obstacle or red light ahead for last 2 timesteps
         obstacle_ahead = agent.episode_measurements['obstacle_dist'] != -1 and agent.prev_measurement['obstacle_dist'] != -1
@@ -1541,6 +1541,7 @@ class CarlaEnv(gym.Env):
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
         if self.config["enable_lane_invasion_sensor"] and self.config["enable_lane_invasion_collision"]:
+            # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
             offlane = agent.episode_measurements['num_laneintersections'] > 0
 
         # Do not want to terminate on reaching goal

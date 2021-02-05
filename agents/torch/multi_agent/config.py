@@ -177,8 +177,8 @@ ENV_CONFIG = {
     # 'action_type': 'merged_speed',
     'sensor_tick': '0.0',
     'dist_for_success' : 10.0,
-    'max_offlane_steps' : 25,
-    'max_static_steps' : 25,
+    'max_offlane_steps' : 5,
+    'max_static_steps' : 100,
     'log_measurements_to_file': False,
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
