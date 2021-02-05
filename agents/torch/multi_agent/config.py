@@ -60,9 +60,10 @@ A2C_CONFIG = {
 
 SAC_CONFIG = {
     'save_suffix': '',
+    'checkpoint': '',
     # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
     # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
-    'checkpoint': '',
+    # 'checkpoint': './ckptSACx8_pidfixed_200000_Feb040617PM37.pth',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
@@ -76,22 +77,23 @@ SAC_CONFIG = {
 
 PPO_CONFIG = {
     'save_suffix': '',
+    # 'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
-    'checkpoint': '',
+    # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
-    'glb_update_freq': 5000,
-    'optim_epochs': 20,
+    'glb_update_freq': 1000,
+    'optim_epochs': 10,
 }
 
 TEST_CONFIG = {
-    'PPO': False, # else SAC, currently only support those two
+    'PPO': True, # else SAC, currently only support those two
     # 'checkpoint': './ckptSACx4_600000_Jan210145AM29.pth',
     # 'checkpoint': './ckptSACx2_600000_Jan211106PM09.pth',
     # 'checkpoint': './ckptSACx4_1000000_Jan210937PM50.pth',
     # 'checkpoint': './ckptSACx4_1500000_Jan221113PM14.pth',
-    'checkpoint': './ckptSACx1_3600000_Feb020658AM43.pth',
+    # 'checkpoint': './ckptSACx1_3600000_Feb020658AM43.pth',
     # 'checkpoint': './ckptPPOx4_800000_Jan210105AM28.pth',
     # 'checkpoint': './ckptPPOx4_1300000_Jan210811PM01.pth',
     # 'checkpoint': './ckptSACx6_1900000_Jan250519PM28.pth',
@@ -110,8 +112,9 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx6_4600000_Jan280108PM25.pth',
     # 'checkpoint': './ckptPPOx6_5400000_Jan300647PM25.pth',
     # 'checkpoint': './ckptPPOx1_6000000_Feb010515PM48.pth',
+    'checkpoint': './ckptPPOx1_pidfixed_200000_Feb040731PM18.pth',
     'num_agents': 1,
-    'num_npc': 0,
+    'num_npc': 70,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
@@ -177,7 +180,7 @@ ENV_CONFIG = {
     # 'action_type': 'merged_speed',
     'sensor_tick': '0.0',
     'dist_for_success' : 10.0,
-    'max_offlane_steps' : 5,
+    'max_offlane_steps' : 0,
     'max_static_steps' : 100,
     'log_measurements_to_file': False,
     'sync_mode': True,

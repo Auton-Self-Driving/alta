@@ -117,6 +117,7 @@ class PPO_Collective_Agent(object):
         self.num_steps_since_update = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
+        self.resumed = False
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -321,15 +322,21 @@ class PPO_Collective_Agent(object):
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
                 self.glb_num_steps += 1
+
                 # save checkpoint
                 if self.glb_num_steps % self.save_freq == 0:
                     self.save()
 
             if self.num_steps_since_update >= self.glb_update_freq:
-                # do the learning
-                # print('updating policy...')
-                self._update()
                 self.num_steps_since_update = 0
+                if self.resumed:
+                    # skip the first update after resume
+                    self.resumed = False
+                else:
+                    # do the learning
+                    # print('updating policy...')
+                    self._update()
+
 
             # respawn dead agents
             respawn_rank_list = []
@@ -458,6 +465,7 @@ class PPO_Collective_Agent(object):
             log_dir='./tensorboard_logs/',
             purge_step=self.glb_num_episodes,
                 filename_suffix='_{}'.format(self.run_name),)
+        self.resumed = True
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')

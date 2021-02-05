@@ -365,9 +365,6 @@ class SAC_Collective_Agent(object):
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
                 self.glb_num_steps += 1
-                # save checkpoint
-                if self.glb_num_steps % self.save_freq == 0:
-                    self.save()
 
                 if self.num_steps_since_update >= self.q_update_freq and \
                     len(self.buffer) > self.batch_size:
@@ -375,6 +372,10 @@ class SAC_Collective_Agent(object):
                     # print('updating policy...')
                     self._update()
                     self.num_steps_since_update = 0
+
+                # save checkpoint
+                if self.glb_num_steps % self.save_freq == 0:
+                    self.save()
 
             # respawn dead agents
             respawn_rank_list = []
