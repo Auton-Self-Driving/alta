@@ -77,7 +77,7 @@ SAC_CONFIG = {
 
 PPO_CONFIG = {
     'save_suffix': '',
-    # 'checkpoint': '',
+    'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',
@@ -245,8 +245,8 @@ ENV_CONFIG = {
     'enable_obstacle_sensor': True,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_collision' : True,
-    'vehicle_proximity_threshold' : 20,
-    'traffic_light_proximity_threshold' : 20,
+    'vehicle_proximity_threshold' : 10,
+    'traffic_light_proximity_threshold' : 10,
     'min_dist_from_red_light' : 4,
     'clip_reward' : False,
     'default_obs_traffic_val': 1,
