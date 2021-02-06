@@ -1,10 +1,11 @@
 from environment.carla_9_4.carla.common import CarlaInterface
-
+import environment.carla_9_4.scenarios as scenarios
 from environment.carla_9_4.carla.server import CarlaServer
 from environment.carla_9_4 import planner
 from environment.carla_9_4.carla.actor_manager import ActorManager910
 from abc import ABC
 import time
+import random
 
 
 # TODO make sure carla import works
@@ -54,11 +55,9 @@ class Carla910Interface(CarlaInterface):
         self.spawn_points = self.world.get_map().get_spawn_points()
 
         # Instantiate a vehicle manager to handle other actors
-        self.actor_fleet = None
+        self.actor_fleet = ActorManager910(self.config, self.client)
 
-        #TODO Decide where this should be
-        # Get traffic lights
-        self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
+        self.scenario_index = 0
 
         print("server_version", self.client.get_server_version())
 
@@ -69,48 +68,132 @@ class Carla910Interface(CarlaInterface):
 
         return client
 
+    def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
+        if self.config["scenarios"] == "straight":
+            source_idx, destination_idx = scenarios.get_straight_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "curved":
+            source_idx, destination_idx = scenarios.get_curved_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
+            source_idx, destination_idx = scenarios.get_navigation_path_updated(unseen, town, index)
+            self.config["num_episodes"] = 25
+        else:
+            raise ValueError("Scenarios Config not set!")
 
-    def reset(self):
+        self.source_transform = self.spawn_points[source_idx]
+        self.destination_transform = self.spawn_points[destination_idx]
+
+    def _set_scenario(self, unseen=False, town="Town01", index=0):
+        if self.config["scenarios"] == "straight":
+            # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
+            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "long_straight":
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
+            self.config["num_episodes"] = 2
+        elif self.config["scenarios"] == "long_straight_junction":
+            self.source_transform, self.destination_transform = scenarios.get_long_straight_junction_path(unseen, town, index)
+            self.config["num_episodes"] = 3
+        elif self.config["scenarios"] == "straight_dynamic":
+            self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town)
+        elif self.config["scenarios"] == "crowded":
+            self.source_transform, self.destination_transform = scenarios.get_crowded_path(unseen, town, index)
+        elif self.config["scenarios"] == "straight_crowded":
+            self.source_transform, self.destination_transform = scenarios.get_straight_crowded_path(unseen, town, index)
+        elif self.config["scenarios"] == "town3":
+            self.source_transform, self.destination_transform = scenarios.get_curved_town03_path(unseen, town, index)
+        elif self.config["scenarios"] == "left_right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
+        elif self.config["scenarios"] == "right_curved":
+            self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
+        elif self.config["scenarios"] == "left_curved":
+            self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
+        elif self.config["scenarios"] == "t_junction":
+            self.source_transform, self.destination_transform = scenarios.get_t_junction_path(unseen, town, index)
+        elif self.config["scenarios"] == "curved":
+            # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
+            self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
+            self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "no_crash_empty" or self.config["scenarios"] == "no_crash_regular" or self.config["scenarios"] == "no_crash_dense":
+            source_idx, destination_idx = scenarios.get_no_crash_path(unseen, town, index)
+            self.source_transform = self.spawn_points[source_idx]
+            self.destination_transform = self.spawn_points[destination_idx]
+            self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "challenge_test_scenario":
+            route = scenarios.get_test_route()
+
+            self.scenario_route = convert_route_from_GPS_world(route, self.map)
+            self.source_transform = self.scenario_route[0]
+            self.destination_transform = self.scenario_route[-1]
+        else:
+            raise ValueError("Scenarios Config not set!")
+
+    def reset(self, unseen = False, index = 0):
         ### Delete old actors
         self.actor_fleet.destroy_actors()
 
+        if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not unseen:
+            # Way to test two scenarios with and without dynamic actors
+            # in training run in long_straight scenario
+            self.scenario_index = (self.scenario_index + 1) % self.config["num_episodes"]
+        else:
+            self.scenario_index = index
 
-        self.actor_fleet = ActorManager910(self.config, self.client)
-
+        ## Set the new scenarios
+        if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
+            if self.config["updated_scenarios"]:
+                self._set_updated_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
+            else:
+                self._set_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
+        else:
+            self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
         ### Spawn new actors
-        #TODO should we spawn here or later
-        self.actor_fleet.spawn()
+        self.actor_fleet.spawn(self.source_transform, unseen)
 
         # Tick for 15 frames to handle car initialization in air
         for _ in range(15):
             world_frame = self.world.tick()
 
+
         # Create a global planner to generate dense waypoints along route
         self.global_planner = planner.GlobalPlanner()
 
-
         ### Setup the global planner
-        #TODO Move these two steps to the global planner if dense_waypoints not used later
-        self.dense_waypoints  = self.global_planner._trace_route(self._map,
+        self.dense_waypoints  = self.global_planner.trace_route(self.map,
                                 self.source_transform, self.destination_transform)
 
-        self.global_planner.set_global_plan(self.trace_route)
+        self.global_planner.set_global_plan(self.dense_waypoints)
 
+        ego_vehicle_transform = self.actor_fleet.get_ego_vehicle_transform()
+        ego_vehicle_velocity = self.actor_fleet.get_ego_vehicle_velocity()
 
-        next_orientation, self.dist_to_trajectory, distance_to_goal_trajec, self.next_waypoints, self.next_wp_angles, self.next_wp_vectors = self.global_planner.get_next_orientation_new(self.vehicle_actor.get_transform())
+        next_orientation, \
+        self.dist_to_trajectory, \
+        distance_to_goal_trajec, \
+        self.next_waypoints, \
+        self.next_wp_angles, \
+        self.next_wp_vectors = self.global_planner.get_next_orientation_new(ego_vehicle_transform)
 
         sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
 
-        #TODO Combine sensor_readings with ep_measurements
+
         ep_measurements = {
             'next_orientation' : next_orientation,
             'distance_to_goal_trajec' : self.dist_to_trajectory,
-            'dist_to_trajectory' : self.dist_to_trajectory
+            'dist_to_trajectory' : self.dist_to_trajectory,
+            'dist_to_goal' : ego_vehicle_transform.distance(self.destination_transform.location),
+            'ego_vehicle_location' : ego_vehicle_transform,
+            'ego_vehicle_velocity' : ego_vehicle_velocity
         }
 
-        sensor_readings.update(ep_measurements)
-        return sensor_readings
+        # Create a copy of sensor_readings and ep_measurements to return
+        obs = {**sensor_readings, **ep_measurements}
+        return obs
 
     def step(self, action):
         ep_measurement = self.actor_fleet.step(action)

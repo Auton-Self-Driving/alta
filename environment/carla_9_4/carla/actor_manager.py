@@ -58,9 +58,9 @@ class ActorManager910():
         self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
         self.actor_list = []
 
-    def spawn(self):
+    def spawn(self, source_transform, unseen):
         # Parameters for ego vehicle
-        self.ego_vehicle = self.spawn_ego_vehicle()
+        self.ego_vehicle = self.spawn_ego_vehicle(source_transform)
         self.args_longitudinal_dict = {
             'K_P': 0.1,
             'K_D': 0.0005,
@@ -78,7 +78,7 @@ class ActorManager910():
 
         self.spawn_npc(number_of_vehicles, unseen)
 
-    def spawn_ego_vehicle(self):
+    def spawn_ego_vehicle(self, source_transform):
         '''
         Spawns and return ego vehicle/Agent
         '''
@@ -98,11 +98,11 @@ class ActorManager910():
         #TODO Do we want this to be vehicle actor?
         for _ in range(NUM_RETRIES):
             # Need to check about passing source_transform
-            self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
+            self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, source_transform)
             if self.vehicle_actor is not None:
                 break
             else:
-                print("Unable to spawn vehicle actor at {0}, {1}.".format(self.source_transform.location.x, self.source_transform.location.y))
+                print("Unable to spawn vehicle actor at {0}, {1}.".format(source_transform.location.x, source_transform.location.y))
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_actors()              # Do we need this as ego vehicle is the first one to be spawned?
                 time.sleep(120)
@@ -118,6 +118,12 @@ class ActorManager910():
         # Hence we use traffic_light_proximity_threshold while creating an Agent.
         vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
         return vehicle_agent
+
+    def get_ego_vehicle_transform(self):
+        return self.ego_vehicle._vehicle.get_transform()
+
+    def get_ego_vehicle_velocity(self):
+        return self.ego_vehicle._vehicle.get_velocity()
 
     def get_control(self, action):
         """ Get Control object for Carla from action
