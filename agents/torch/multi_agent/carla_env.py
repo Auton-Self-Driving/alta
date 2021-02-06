@@ -823,7 +823,8 @@ class CarlaEnv(gym.Env):
 
         found_obstacle = False
         same_lane = True
-        if agent.obstacle_sensor.distance != -1:
+        if agent.obstacle_sensor.frame == self.world_frame:
+            if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor.frame)
             obstacle_actor = agent.obstacle_sensor.obstacle_actor
             if 'vehicle' in obstacle_actor.type_id:
                 same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)

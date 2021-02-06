@@ -176,6 +176,7 @@ class LaneInvasionSensor(object):
 class ObstacleSensor(object):
     def __init__(self, parent_actor, distance=15):
         self.sensor = None
+        self.frame = -1
         self._parent = parent_actor
         self.distance = -1
         self.out_of_road = False
@@ -197,6 +198,7 @@ class ObstacleSensor(object):
         if not self:
             return
         # TODO : Handle case of lane invasion for dashed vs solid lane markings
+        self.frame = event.frame
         self.distance = event.distance
         self.obstacle_actor = event.other_actor
 
