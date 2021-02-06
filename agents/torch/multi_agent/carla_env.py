@@ -66,6 +66,7 @@ class CarlaEnv(gym.Env):
         #     self.config['num_agents'] = 1
         self.curr_num_agents = 0
         self.world_frame = 0
+        self.last_npc_reset_frame = 0
         ################################################################################
         # Can pass in train/test weather as an array
         self.weather = None
@@ -1338,6 +1339,9 @@ class CarlaEnv(gym.Env):
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
+        if reset_npc or (self.config['npc_reset_freq'] and self.world_frame - self.last_npc_reset_frame > self.config['npc_reset_freq']):
+            self.destroy_all_existing_npc_actors()
+
         for rk in rank_list:
             prev_agent = self.ego_agent_list[rk]
             self.ego_agent_list[rk] = None
@@ -1353,8 +1357,6 @@ class CarlaEnv(gym.Env):
             for idx in range(1, NUM_RETRIES + 1):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
-                if reset_npc:
-                    self.destroy_all_existing_npc_actors()
 
                 if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
                     if self.config["updated_scenarios"]:
@@ -1366,8 +1368,6 @@ class CarlaEnv(gym.Env):
 
                 self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
 
-                if reset_npc:
-                    self.spawn_npc_vehicles()
 
                 if self.vehicle_actor is not None:
                     break
@@ -1391,9 +1391,19 @@ class CarlaEnv(gym.Env):
             else:
                 raise Exception("Failed in spawning vehicle actor.")
 
-    def spawn_npc_vehicles(self):
+        if reset_npc:
+            self.spawn_npc_vehicles()
+            self.last_npc_reset_frame = self.world_frame
+        elif self.config['npc_reset_freq'] and self.world_frame - self.last_npc_reset_frame > self.config['npc_reset_freq']:
+            self.spawn_npc_vehicles()
+            self.last_npc_reset_frame = self.world_frame
+
+
+    def spawn_npc_vehicles(self, num_npc=None):
         self.destroy_all_existing_npc_actors()
-        if self.config["sample_npc"]:
+        if num_npc is not None: # override all other situations
+            self.spawn_npc(num_npc)
+        elif self.config["sample_npc"]:
             self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
                 high=self.config["num_npc_upper_threshold"]))
         else:
@@ -1483,12 +1493,12 @@ class CarlaEnv(gym.Env):
 
         count = number_of_vehicles
         for spawn_point in spawn_points:
+            if count <= 0:
+                break
             if self.config["verbose"]:
                 print('spawn_point:', spawn_point)
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
                 count -= 1
-            if count <= 0:
-                break
 
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)

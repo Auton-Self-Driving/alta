@@ -76,12 +76,13 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': '',
-    'checkpoint': '',
+    'save_suffix': 'obsfix',
+    # 'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',
     # 'checkpoint': './ckptPPOx1_100000_Feb041104PM03.pth',
+    'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'glb_update_freq': 1000,
@@ -129,6 +130,7 @@ TEST_CONFIG = {
     'disable_traffic_light': False,
     'terminate_on_light' : False,
     'enable_lane_invasion_collision' : False,
+    'npc_reset_freq': None,
     # 'verbose': True,
 }
 
@@ -202,8 +204,11 @@ ENV_CONFIG = {
     'use_scenarios': True,
     'num_npc' : 200,
     'sample_npc': False,
-    'num_npc_lower_threshold' : 70,
-    'num_npc_upper_threshold' : 150,
+    # 'num_npc_lower_threshold' : 70,
+    # 'num_npc_upper_threshold' : 150,
+    'num_npc_lower_threshold' : 100,
+    'num_npc_upper_threshold' : 200,
+    'npc_reset_freq': 10000,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
