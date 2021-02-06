@@ -76,13 +76,14 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': '',
+    'save_suffix': 'obsfixrwd30km',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',
     # 'checkpoint': './ckptPPOx1_100000_Feb041104PM03.pth',
     # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
+    # 'checkpoint': './ckptPPOx1_localobsfixrwd30km_100000_Feb060728AM31.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'glb_update_freq': 1000,
@@ -159,8 +160,8 @@ ENV_CONFIG = {
     'city_name' : 'Town01',
     'frame_skip': 1,
     'enable_planner' : True,
-    'reward_function' : 'simple2',
-    # 'reward_function' : 'simple2_modified',
+    # 'reward_function' : 'simple2',
+    'reward_function' : 'simple2_modified',
     # Print measurements to screen
     'client' : None,
     ### 'discrete_actions': True,
@@ -179,7 +180,7 @@ ENV_CONFIG = {
                       'vehicle.tesla.model3', 'vehicle.seat.leon', 'vehicle.lincoln.mkz2017',
                       'vehicle.volkswagen.t2', 'vehicle.nissan.micra', 'vehicle.chevrolet.impala', 'vehicle.mini.cooperst',
                       'vehicle.jeep.wrangler_rubicon'],
-    'target_speed': 40,
+    'target_speed': 30,
     'sensors': ['sensor.camera.rgb', 'sensor.camera.semantic_segmentation'],
     # 'action_type': 'discrete',
     'action_type': 'merged_speed_scaled_tanh',

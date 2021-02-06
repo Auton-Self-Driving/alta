@@ -318,8 +318,8 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
 
     dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
     current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
-    acceleration = 3.6 * (current["speed"] - prev["speed"])
-    speed_reward = 3.6 * 10 * current["speed"] / config['target_speed']
+    acceleration = (current["speed"] - prev["speed"])
+    speed_reward = 2 * current["speed"] / config['target_speed']
 
     light_reward = 0
     current["runover_light"] = False
@@ -333,6 +333,11 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
         else:
             current["runover_light"] = False
             light_reward = 0
+    # add punishment before runover light
+    if not config['disable_traffic_light'] and current['red_light_dist'] != -1:
+        # dist_factor = 1 - current['red_light_dist'] / config['traffic_light_proximity_threshold']
+        # light_reward -= current["speed"] * dist_factor + acceleration
+        light_reward -= acceleration
     current["light_reward"] = light_reward
 
     is_collision = False
@@ -342,7 +347,7 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
 
     # obstacle reward
     if current['obstacle_dist'] != -1:
-        dist_factor = config['vehicle_proximity_threshold'] - current['obstacle_dist']
+        dist_factor = 1 - current['obstacle_dist'] / config['vehicle_proximity_threshold']
         speed_reward += (current['obstacle_speed'] - current['speed']) * dist_factor
 
     # count out_of_road also as a collision
