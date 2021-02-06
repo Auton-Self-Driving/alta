@@ -744,17 +744,10 @@ class CarlaEnv(gym.Env):
                 self.episode_measurements['num_laneintersections'] = sensor_readings['lane_invasion_sensor']['num_laneintersections']
                 self.episode_measurements['out_of_road'] = int(sensor_readings['lane_invasion_sensor']['out_of_road'])
 
-<<<<<<< HEAD
-            self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
-            self.episode_measurements['distance_to_goal'] = self.location.distance(self.destination_transform.location)
-            if self.episode_measurements['min_distance_to_goal'] >= self.location.distance(self.destination_transform.location):
-                self.episode_measurements['min_distance_to_goal'] = self.location.distance(self.destination_transform.location)
-=======
             # self.location = self.actor_fleet.ego_vehicle._vehicle.get_location()
             self.episode_measurements['distance_to_goal'] = sensor_readings['location'].distance(self.destination_transform.location)
             if self.episode_measurements['min_distance_to_goal'] >= sensor_readings['location'].distance(self.destination_transform.location):
                 self.episode_measurements['min_distance_to_goal'] = sensor_readings['location'].distance(self.destination_transform.location)
->>>>>>> c1ac766... Continuing separating carla code from gym env code
             self.episode_measurements['speed'] = self.get_speed_from_velocity(self.vehicle_actor.get_velocity())
 
             if self.config["algo"] == "AE":
