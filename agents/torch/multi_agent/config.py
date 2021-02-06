@@ -131,14 +131,14 @@ TEST_CONFIG = {
     'terminate_on_light' : False,
     'enable_lane_invasion_collision' : False,
     'npc_reset_freq': None,
-    # 'verbose': True,
+    'verbose': True,
 }
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:1',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -159,7 +159,8 @@ ENV_CONFIG = {
     'city_name' : 'Town01',
     'frame_skip': 1,
     'enable_planner' : True,
-    'reward_function' : 'simple2',
+    # 'reward_function' : 'simple2',
+    'reward_function' : 'simple2_modified',
     # Print measurements to screen
     'client' : None,
     ### 'discrete_actions': True,
