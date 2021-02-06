@@ -1016,7 +1016,7 @@ class CarlaEnv(gym.Env):
         elif self.config["action_type"] == "merged_speed_scaled_tanh":
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = (action[1] * 1.5) + 1
-            target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
+            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:

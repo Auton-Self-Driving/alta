@@ -318,8 +318,8 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
 
     dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
     current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
-    acceleration = (current["speed"] - prev["speed"])
-    speed_reward = current["speed"]
+    acceleration = 3.6 * (current["speed"] - prev["speed"])
+    speed_reward = 3.6 * 10 * current["speed"] / config['target_speed']
 
     light_reward = 0
     current["runover_light"] = False
