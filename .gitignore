@@ -142,5 +142,7 @@ AdelaiDet_model/*
 **/*.pth
 # debug
 **/*debug*.*
-# tensorboard logs
+# logs
 **/tensorboard_logs
+**/saved_ckpts
+**/saved_logs

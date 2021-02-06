@@ -211,7 +211,7 @@ GlobalRecorder.register_key('max_reward', window_size=100, mode='max', group='re
 GlobalRecorder.register_key('min_reward', window_size=100, mode='min', group='recent')
 GlobalRecorder.register_key('success_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('collision_rate', window_size=100, mode='mean', group='recent')
-GlobalRecorder.register_key('mean_dist_to_trgt', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('avg_dist_to_trgt', window_size=100, mode='mean', group='recent')
 
 
 
@@ -227,12 +227,12 @@ class TensorboardWriter(SummaryWriter):
         assert type(tag) == str
         with open(filename, 'r') as f:
             # since 'list' object has no attribute 'encode'
-            content = '\n'.join(f.readlines())
+            content = '  \n'.join(f.readlines())
         self.add_text(tag, content)
 
     def add_dict(self, tag, dict_obj):
         assert type(tag) == str
-        content = '\n'.join('{}: {}'.format(k, v) for k, v in dict_obj.items())
+        content = '  \n'.join('**{}**: {}'.format(k, v) for k, v in dict_obj.items())
         self.add_text(tag, content)
 
 

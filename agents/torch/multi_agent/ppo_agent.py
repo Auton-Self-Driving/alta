@@ -112,6 +112,9 @@ class PPO_Collective_Agent(object):
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
+        self.log_dir = '{}/{}_{}'.format('./tensorboard_logs/',
+            self.run_name, self.savetime())
         self.glb_num_episodes = 1
         self.glb_num_steps = 0
         self.num_steps_since_update = 0
@@ -122,7 +125,7 @@ class PPO_Collective_Agent(object):
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
-                log_dir='./tensorboard_logs/',
+                log_dir=self.log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.tbwriter.add_dict(tag, config)
 
@@ -197,7 +200,7 @@ class PPO_Collective_Agent(object):
         # initialize
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
-                log_dir='./tensorboard_logs/',
+                log_dir=self.log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles(21 - self.num_agents)
@@ -267,7 +270,7 @@ class PPO_Collective_Agent(object):
                         agent.episode_reward)
                     self.recorder['recent']['min_reward'].record_value(
                         agent.episode_reward)
-                    self.recorder['recent']['mean_dist_to_trgt'].record_value(
+                    self.recorder['recent']['avg_dist_to_trgt'].record_value(
                         agent.episode_measurements['distance_to_goal_trajec'])
                     self.recorder['recent']['success_rate'].record_value(
                         success_int)
@@ -306,8 +309,8 @@ class PPO_Collective_Agent(object):
                     self.tbwriter.add_scalar('recent/min_reward',
                         self.recorder['recent']['min_reward'].summary(),
                         self.glb_num_episodes)
-                    self.tbwriter.add_scalar('recent/mean_dist_to_target',
-                        self.recorder['recent']['mean_dist_to_trgt'].summary(),
+                    self.tbwriter.add_scalar('recent/avg_dist_to_target',
+                        self.recorder['recent']['avg_dist_to_trgt'].summary(),
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/success_rate',
                         self.recorder['recent']['success_rate'].summary(),
@@ -421,7 +424,7 @@ class PPO_Collective_Agent(object):
 
     def save(self, filename=None):
         if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
-            self.run_name, self.glb_num_steps, time.strftime('%b%d%I%M%p%S'))
+            self.run_name, self.glb_num_steps, self.savetime())
         _ckpt = {
             'glb_policy': self.glb_policy.state_dict(),
             'glb_optimizer': self.glb_optimizer.state_dict(),
@@ -462,8 +465,8 @@ class PPO_Collective_Agent(object):
         self.num_steps_since_update = checkpoint['num_steps_since_update']
         self.glb_num_episodes = checkpoint['glb_num_episodes']
         self.tbwriter = TensorboardWriter(
-            log_dir='./tensorboard_logs/',
-            purge_step=self.glb_num_episodes,
+                log_dir=self.log_dir,
+                purge_step=self.glb_num_episodes,
                 filename_suffix='_{}'.format(self.run_name),)
         self.resumed = True
 
