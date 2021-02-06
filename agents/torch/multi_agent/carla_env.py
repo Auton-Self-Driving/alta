@@ -1228,7 +1228,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
             if self.config["enable_lane_invasion_sensor"]:
                 agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
-                agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road)
+                agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
             agent.location = agent.vehicle_actor.get_location()
             agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
             agent.episode_measurements['min_distance_to_goal'] = 1000000.0
@@ -1568,15 +1568,15 @@ class CarlaEnv(gym.Env):
             if 'obs_collision' in agent.episode_measurements and agent.episode_measurements['obs_collision']:
                 termination_state = 'obs_collision'
                 termination_state_code = 1
-            elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements["out_of_road"]:
-                termination_state = 'out_of_road'
-                termination_state_code = 2
-            elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change']:
-                termination_state = 'lane_invasion'
-                termination_state_code = 3
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements["out_of_road"]:
+            termination_state = 'out_of_road'
+            termination_state_code = 2
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change']:
+            termination_state = 'lane_invasion'
+            termination_state_code = 3
         elif runover_light:
             termination_state = 'runover_light'
             termination_state_code = 5

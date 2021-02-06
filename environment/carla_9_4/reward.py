@@ -16,6 +16,8 @@ def compute_reward(name, prev_measurement, cur_measurement, config=None, verbose
         reward = _compute_reward_simple2(prev_measurement, cur_measurement, config, verbose=verbose)
     elif name == "simple2_modified":
         reward = _compute_reward_simple2_modified(prev_measurement, cur_measurement, config, verbose=verbose)
+    elif name == "simple3":
+        reward = _compute_reward_simple3(prev_measurement, cur_measurement, config, verbose=verbose)
     return reward
 
 def _compute_reward_cirl(prev, current, verbose=False):
@@ -364,7 +366,7 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
     current["is_collision"] = is_collision
 
     # Collision damage
-    if(is_collision):
+    if is_collision:
         # Using prev_speed in collision reward computation
         # due to non-determinism in speed at the time of collision
         collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
@@ -402,7 +404,113 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
 
     if verbose:
         print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward)
+        print(dist_to_trajectory_reward, speed_reward, acceleration, collision_reward, light_reward, steer_reward, reward, clipped_reward)
+
+    return clipped_reward
+
+
+def _compute_reward_simple3(prev, current, config=None, verbose=False):
+    cur_dist = current["distance_to_goal"]
+    prev_dist = prev["distance_to_goal"]
+
+    steer = np.abs(current['control_steer'])
+    steer_reward = - config["steer_penalty_coeff"] * steer
+
+    current["steer_reward"] = steer_reward
+
+    if verbose:
+        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
+
+    dist_to_trajectory_reward = -1 * np.abs(current['dist_to_trajectory'])
+    current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
+    acceleration = (current["speed"] - prev["speed"])
+    speed_reward = 2 * current["speed"] / config['target_speed']
+
+    light_reward = 0
+    current["runover_light"] = False
+    if not config['disable_traffic_light']:
+        if _check_if_signal_crossed(prev, current) and \
+            prev['nearest_traffic_actor_state'] == carla.TrafficLightState.Red and \
+            current["speed"] > config["zero_speed_threshold"] and \
+            prev['initial_dist_to_red_light'] > config['min_dist_from_red_light']:
+            current["runover_light"] = True
+            light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+        else:
+            current["runover_light"] = False
+    # add punishment before runover light
+    if not config['disable_traffic_light'] and current['red_light_dist'] != -1:
+        # dist_factor = 1 - current['red_light_dist'] / config['traffic_light_proximity_threshold']
+        # light_reward -= current["speed"] * dist_factor + acceleration
+        light_reward -= acceleration
+    current["light_reward"] = light_reward
+
+    is_collision = False
+    lane_change = False
+    obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
+    is_collision = obs_collision
+
+    # obstacle reward
+    if current['obstacle_dist'] != -1:
+        dist_factor = 1 - current['obstacle_dist'] / config['vehicle_proximity_threshold']
+        speed_reward += (current['obstacle_speed'] - current['speed']) * dist_factor
+
+    collision_reward = 0
+    # count out_of_road also as a collision
+    if config["enable_lane_invasion_sensor"]:
+        # count any lane change also as a collision
+        if config["enable_lane_invasion_collision"]:
+            lane_change = current['num_laneintersections'] > 0
+            is_collision = is_collision or lane_change or current["out_of_road"]
+        else:
+            # out_of_road reward
+            if current["out_of_road"]:
+                speed_reward -= 2 * current['speed']
+                collision_reward -= current['speed']
+            if lane_change:
+                collision_reward -= current['speed']
+
+    current['obs_collision'] = obs_collision
+    current['lane_change'] = lane_change
+    current["is_collision"] = is_collision
+
+    # Collision damage
+    if is_collision:
+        # Using prev_speed in collision reward computation
+        # due to non-determinism in speed at the time of collision
+        collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
+        speed_reward = -prev["speed"]
+
+    current["collision_reward"] = collision_reward
+
+
+    current["speed_reward"] = speed_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
+
+    # Adding constant positive reward to make dist_to_trajectory_reward positive
+    reward += config["constant_positive_reward"]
+
+    # clipping reward
+    if config["clip_reward"]:
+        if reward > 0:
+            clipped_reward = 1
+        elif reward < 0:
+            clipped_reward = -1
+    else:
+        clipped_reward = reward
+
+    # normalize reward
+    clipped_reward = clipped_reward / config["reward_normalize_factor"]
+
+    # success reward
+    success = current["distance_to_goal"] < config["dist_for_success"]
+    if success:
+        clipped_reward += config["success_reward"]
+
+    current["step_reward"] = clipped_reward
+
+    if verbose:
+        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward")
+        print(dist_to_trajectory_reward, speed_reward, acceleration, collision_reward, light_reward, steer_reward, reward, clipped_reward)
 
     return clipped_reward
 
