@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'obsfix',
+    'save_suffix': 'obsfixreset',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -92,9 +92,13 @@ PPO_CONFIG = {
 
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
-    'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
+    # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
+    # 'checkpoint': './ckptPPOx1_obsfix90km_300000_Feb060938PM56.pth',
+    # 'checkpoint': './ckptPPOx8_obsfix_600000_Feb061128PM06.pth',
+    # 'checkpoint': './ckptPPOx1_obsfix_300000_Feb060817PM44.pth',
+    'checkpoint': './ckptPPOx1_obsfixplvg_300000_Feb060956PM07.pth',
     'num_agents': 1,
-    'num_npc': 70,
+    'num_npc': 15,
     'sample_npc': False,
     'scenarios' : 'navigation',
     'use_scenarios': True,
@@ -105,16 +109,17 @@ TEST_CONFIG = {
     'enable_obstacle_sensor': True,
     'disable_traffic_light': False,
     'terminate_on_light' : False,
+    'enable_lane_invasion_sensor': False,
     'enable_lane_invasion_termination' : False,
     'npc_reset_freq': None,
-    'verbose': True,
+    # 'verbose': True,
 }
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -186,7 +191,7 @@ ENV_CONFIG = {
     # 'num_npc_upper_threshold' : 150,
     'num_npc_lower_threshold' : 100,
     'num_npc_upper_threshold' : 200,
-    'npc_reset_freq': 100000,
+    'npc_reset_freq': 1,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,

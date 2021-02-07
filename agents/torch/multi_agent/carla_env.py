@@ -1555,7 +1555,7 @@ class CarlaEnv(gym.Env):
             collision = False
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
-        if self.config["enable_lane_invasion_sensor"]:
+        if self.config["enable_lane_invasion_sensor"] and self.config['enable_lane_invasion_termination']:
             # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
             offlane = agent.episode_measurements['num_laneintersections'] > 0
 
@@ -1580,7 +1580,7 @@ class CarlaEnv(gym.Env):
         elif runover_light:
             termination_state = 'runover_light'
             termination_state_code = 5
-        elif offlane and self.config['enable_lane_invasion_termination']:
+        elif offlane:
             termination_state = 'offlane'
             termination_state_code = 6
         elif static:
