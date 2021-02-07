@@ -203,7 +203,7 @@ class PPO_Collective_Agent(object):
                 log_dir=self.log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.glb_env.reset(rank_list=self.rank_list)
-        self.glb_env.spawn_npc_vehicles(21 - self.num_agents)
+        self.glb_env.spawn_npc_vehicles(51 - self.num_agents)
         self.agent_list = [_PPO_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]

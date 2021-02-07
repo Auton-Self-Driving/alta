@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'obsfix3rwd',
+    'save_suffix': 'obsfix',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -114,7 +114,7 @@ ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:1',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -135,9 +135,9 @@ ENV_CONFIG = {
     'city_name' : 'Town01',
     'frame_skip': 1,
     'enable_planner' : True,
-    # 'reward_function' : 'simple2',
+    'reward_function' : 'simple2',
     # 'reward_function' : 'simple2_modified',
-    'reward_function' : 'simple3',
+    # 'reward_function' : 'simple3',
     # Print measurements to screen
     'client' : None,
     ### 'discrete_actions': True,
@@ -186,7 +186,7 @@ ENV_CONFIG = {
     # 'num_npc_upper_threshold' : 150,
     'num_npc_lower_threshold' : 100,
     'num_npc_upper_threshold' : 200,
-    'npc_reset_freq': 10000,
+    'npc_reset_freq': 100000,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
@@ -229,7 +229,7 @@ ENV_CONFIG = {
     'enable_obstacle_sensor': True,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_termination' : True,
-    'enable_lane_invasion_collision' : False,
+    'enable_lane_invasion_collision' : True,
     'vehicle_proximity_threshold' : 15,
     'traffic_light_proximity_threshold' : 15,
     'min_dist_from_red_light' : 6,
