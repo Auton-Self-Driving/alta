@@ -458,16 +458,15 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
     if config["enable_lane_invasion_sensor"]:
         lane_change = current['num_laneintersections'] > 0
         # count any lane change also as a collision
+            # out_of_road reward
+        if lane_change:
+            speed_reward -= 2 * current['speed'] + acceleration
+            collision_reward -= 2 * prev['speed']
+        if current["out_of_road"]:
+            speed_reward -= 2 * current['speed'] + acceleration
+            collision_reward -= 2 * prev['speed']
         if config["enable_lane_invasion_collision"]:
             is_collision = is_collision or lane_change or current["out_of_road"]
-        else:
-            # out_of_road reward
-            if current["out_of_road"]:
-                speed_reward -= 2 * current['speed']
-                collision_reward -= 2 * current['speed']
-            if lane_change:
-                speed_reward -= current['speed']
-                collision_reward -= current['speed']
 
     current['obs_collision'] = obs_collision
     current['lane_change'] = lane_change

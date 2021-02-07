@@ -1555,7 +1555,7 @@ class CarlaEnv(gym.Env):
             collision = False
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
-        if self.config["enable_lane_invasion_sensor"] and self.config["enable_lane_invasion_collision"]:
+        if self.config["enable_lane_invasion_sensor"]:
             # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
             offlane = agent.episode_measurements['num_laneintersections'] > 0
 
@@ -1571,16 +1571,16 @@ class CarlaEnv(gym.Env):
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
-        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements["out_of_road"]:
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['out_of_road'] and self.config['enable_lane_invasion_termination']:
             termination_state = 'out_of_road'
             termination_state_code = 2
-        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change']:
+        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change'] and self.config['enable_lane_invasion_termination']:
             termination_state = 'lane_invasion'
             termination_state_code = 3
         elif runover_light:
             termination_state = 'runover_light'
             termination_state_code = 5
-        elif offlane:
+        elif offlane and self.config['enable_lane_invasion_termination']:
             termination_state = 'offlane'
             termination_state_code = 6
         elif static:
@@ -1609,6 +1609,7 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['termination_state_code'] = termination_state_code
 
         done = success or collision or runover_light or offlane or static or maxStepsTaken
+        # print(success, collision, runover_light, offlane, static, maxStepsTaken)
         return done
 
     def printInfo(self, agent):
