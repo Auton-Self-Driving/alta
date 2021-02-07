@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'obsfixrwd3',
+    'save_suffix': 'obsfix3rwd',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -137,7 +137,7 @@ ENV_CONFIG = {
     'enable_planner' : True,
     # 'reward_function' : 'simple2',
     # 'reward_function' : 'simple2_modified',
-    # 'reward_function' : 'simple3',
+    'reward_function' : 'simple3',
     # Print measurements to screen
     'client' : None,
     ### 'discrete_actions': True,
@@ -228,7 +228,7 @@ ENV_CONFIG = {
     'enable_static' : True,
     'enable_obstacle_sensor': True,
     'use_pid_in_frame_skip' : True,
-    'enable_lane_invasion_collision' : True,
+    'enable_lane_invasion_collision' : False,
     'vehicle_proximity_threshold' : 15,
     'traffic_light_proximity_threshold' : 15,
     'min_dist_from_red_light' : 6,
