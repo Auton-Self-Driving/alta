@@ -232,7 +232,8 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
             current["runover_light"] = True
             # print('runover_light')
             light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
-            if config['weak_verbose'] or config['test_verbose']: print('[light reward {}]'.format(light_reward))
+            # if config['weak_verbose'] or config['test_verbose']: print('[light reward {}]'.format(light_reward))
+            if config['test_verbose']: print('-' * 60' + [light reward {}]'.format(light_reward))
         else:
             current["runover_light"] = False
             light_reward = 0
@@ -264,7 +265,8 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         speed_reward = prev["speed"]
         # old collision reward
         # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
-        if config['weak_verbose'] or config['test_verbose']: print('[collision reward {}]'.format(collision_reward))
+        # if config['weak_verbose'] or config['test_verbose']: print('[collision reward {}]'.format(collision_reward))
+        if config['test_verbose']: print('-' * 60 + '[collision reward {}]'.format(collision_reward))
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -430,7 +432,7 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
     current["dist_to_trajectory_reward"] = dist_to_trajectory_reward
     speed_reward = current["speed"]
     # print('speed', current['speed'] * 3.6)
-    acceleration_reward = (current["speed"] - prev["speed"])
+    acceleration = (current["speed"] - prev["speed"])
 
     current["speed_reward"] = speed_reward
 
@@ -445,7 +447,7 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
             current["runover_light"] = True
             # print('runover_light')
             light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
-            if config['weak_verbose'] or config['test_verbose']: print('[light reward {}]'.format(light_reward))
+            if config['test_verbose']: print('-' * 60 + '[light reward {}]'.format(light_reward))
         else:
             current["runover_light"] = False
             light_reward = 0
@@ -489,7 +491,8 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
         speed_reward = prev["speed"]
         # old collision reward
         # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
-        if config['weak_verbose'] or config['test_verbose']: print('[collision reward {}]'.format(collision_reward))
+        # if config['weak_verbose'] or config['test_verbose']: print('[collision reward {}]'.format(collision_reward))
+        if config['test_verbose']: print('-' * 60 + '[collision reward {}]'.format(collision_reward))
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
@@ -559,8 +562,8 @@ def _compute_reward_obs(prev, current, config=None, verbose=False):
             current["runover_light"] = True
             # print('runover_light')
             light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
-            # if config['weak_verbose'] or config['test_verbose']: 
-            if config['test_verbose']: 
+            # if config['weak_verbose'] or config['test_verbose']:
+            if config['test_verbose']:
                 print('-' * 25 +  '[light reward {:.2}]'.format(light_reward) + '-' * 25)
         else:
             current["runover_light"] = False
@@ -596,8 +599,8 @@ def _compute_reward_obs(prev, current, config=None, verbose=False):
         if obs_collision:
             collision_reward *= 10
             speed_reward = -prev["speed"]
-        # if config['weak_verbose'] or config['test_verbose']: 
-        if config['test_verbose']: 
+        # if config['weak_verbose'] or config['test_verbose']:
+        if config['test_verbose']:
             print('-' * 25 +  '[collision reward {:.2}]'.format(collision_reward) + '-' * 25)
     else:
         collision_reward = 0

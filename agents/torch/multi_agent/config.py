@@ -150,8 +150,8 @@ ENV_CONFIG = {
     'city_name' : 'Town01',
     'frame_skip': 1,
     'enable_planner' : True,
-    'reward_function': 'obs',
-    # 'reward_function' : 'simple2',
+    # 'reward_function': 'obs',
+    'reward_function' : 'simple2',
     # 'reward_function' : 'simple2_modified',
     # 'reward_function' : 'simple3',
     # Print measurements to screen
