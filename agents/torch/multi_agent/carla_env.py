@@ -841,16 +841,17 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed'] = -1
             # for weak_verbose
             if agent.episode_measurements['obstacle_init_id'] != obstacle_actor.id: # initial
+                agent.episode_measurements['obstacle_init_id'] = obstacle_actor.id
                 agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor.distance
-                if self.config['weak_verbose']: 
-                    print('[obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
-                        obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6, 
+                if self.config['weak_verbose']:
+                    print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
+                        agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                         agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
-            if self.config['verbose']:
-                print('[obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
-                    obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6, 
+            if self.config['verbose'] or self.config['test_verbose']:
+                print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
+                    agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                     agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
-                    
+
         # if not found_obstacle or not same_lane:
         if not found_obstacle:
             agent.episode_measurements['obstacle_visible'] = False
@@ -877,13 +878,13 @@ class CarlaEnv(gym.Env):
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     agent.episode_measurements['initial_dist_to_red_light'] = dist
                     if self.config['weak_verbose']:
-                        print('[traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id, 
-                            agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'], 
+                        print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id,
+                            agent.curr_ep_num_steps, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
                             dist, traffic_actor.state))
-                if self.config['verbose']:
-                        print('[traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id, 
-                            agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'], 
-                            dist, traffic_actor.state))
+                if self.config['verbose'] or self.config['test_verbose']:
+                    print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id,
+                        agent.curr_ep_num_steps, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
+                        dist, traffic_actor.state))
             else:
                 agent.episode_measurements['red_light_dist'] = -1
                 agent.episode_measurements['initial_dist_to_red_light'] = -1

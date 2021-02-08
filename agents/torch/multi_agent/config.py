@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O10mL10m',
+    'save_suffix': '',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -101,7 +101,8 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx1_obsfixplvg_300000_Feb060956PM07.pth',
     # 'checkpoint': './ckptPPOx1_input_300000_Feb050757AM39.pth',
     # 'checkpoint': './ckptPPOx1_obsfixplvg_500000_Feb070445PM26.pth',
-    'checkpoint': './ckptPPOx8_obsfix_1200000_Feb071057PM43.pth',
+    # 'checkpoint': './ckptPPOx8_obsfix_1200000_Feb071057PM43.pth',
+    'checkpoint': './ckptPPOx1_obsfixplvg_600000_Feb080307AM17.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -118,7 +119,8 @@ TEST_CONFIG = {
     'enable_lane_invasion_termination' : False,
     'npc_reset_freq': None,
     # 'verbose': True,
-     'weak_verbose': True,
+    # 'weak_verbose': True,
+    'test_verbose': True,
 }
 
 ENV_CONFIG = {
@@ -159,7 +161,8 @@ ENV_CONFIG = {
     'max_steps' : 10000,
     'next_command': None,
     'verbose': False,
-    'weak_verbose': False,
+    'weak_verbose': True,
+    'test_verbose': False,
     'vehicle_type': 'vehicle.toyota.prius',
     'disable_two_wheeler' : True,
     'vehicle_types': ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola',
@@ -196,9 +199,9 @@ ENV_CONFIG = {
     'sample_npc': True,
     # 'num_npc_lower_threshold' : 70,
     # 'num_npc_upper_threshold' : 150,
-    'num_npc_lower_threshold' : 200,
-    'num_npc_upper_threshold' : 300,
-    'npc_reset_freq': 1,
+    'num_npc_lower_threshold' : 100,
+    'num_npc_upper_threshold' : 200,
+    'npc_reset_freq': 10000,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
