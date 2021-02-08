@@ -87,6 +87,7 @@ PPO_CONFIG = {
     # 'checkpoint': './ckptPPOx1_localobsfixrwd30km_100000_Feb060728AM31.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
+    'grad_clip': .5,
     'glb_update_freq': 1000,
     'optim_epochs': 10,
 }

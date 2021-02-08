@@ -71,8 +71,8 @@ class _PPO_Individual_Agent(Agent):
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer,
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
-        glb_update_freq=1000, optim_epochs=100, save_freq=100000,
-        save_suffix='', verbose=False):
+        grad_clip=None, glb_update_freq=1000, optim_epochs=100, 
+        save_freq=100000, save_suffix='', verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
@@ -82,6 +82,7 @@ class PPO_Collective_Agent(object):
             max_glb_num_steps: max number of global steps
             gamma: reward discount factor
             eps_clip: clip parameter for PPO
+            grad_clip: value for clipping gradient, None to disable
             glb_update_freq: update frequency of glb_policy
             optim_epochs: update policy for how many epochs
             save_freq: checkpoint saving frequency
@@ -103,6 +104,7 @@ class PPO_Collective_Agent(object):
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
+        self.grad_clip = grad_clip
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
@@ -165,16 +167,20 @@ class PPO_Collective_Agent(object):
 
         # convert list to tensor
         # print(old_states)
-        old_states = torch.tensor(old_states, dtype=torch.float32, device=self.device).squeeze().detach()
+        old_states = torch.tensor(old_states, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
         # print(old_states.shape)
-        old_actions = torch.tensor(old_actions, dtype=torch.float32, device=self.device).squeeze().detach()
-        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32, device=self.device).squeeze().detach()
+        old_actions = torch.tensor(old_actions, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
 
         # Optimize policy for K epochs:
         for _ in range(self.optim_epochs):
             # Evaluating old actions and values:
             # print(old_states.shape)
-            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(old_states, old_actions)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
 
             # Finding the ratio (pi_theta / pi_theta__old):
             ratios = torch.exp(logprobs - old_logprobs.detach())
@@ -182,13 +188,18 @@ class PPO_Collective_Agent(object):
             # print('state_values', state_values.shape)
             advantages = rewards - state_values.detach()
             surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values, rewards) - 0.01 * dist_entropy
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
 
             # take gradient step
             self.glb_optimizer.zero_grad()
             loss = loss.mean()
             loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
             self.glb_optimizer.step()
 
         for agent in self.agent_list:
