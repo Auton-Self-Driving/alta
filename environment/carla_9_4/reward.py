@@ -229,6 +229,7 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
             current["runover_light"] = True
             # print('runover_light')
             light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
+            if config['weak_verbose']: print('[light reward {:.2}]'.format(light_reward))
         else:
             current["runover_light"] = False
             light_reward = 0
@@ -253,14 +254,14 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     current["is_collision"] = is_collision
 
     # Collision damage
-    if(is_collision):
+    if is_collision:
         # Using prev_speed in collision reward computation
         # due to non-determinism in speed at the time of collision
         collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
         speed_reward = prev["speed"]
         # old collision reward
         # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
-
+        if config['weak_verbose']: print('[collision reward {:.2}]'.format(collision_reward))
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward

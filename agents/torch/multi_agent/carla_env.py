@@ -821,6 +821,8 @@ class CarlaEnv(gym.Env):
     def _update_obs_detector_via_sensor(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
+        agent.episode_measurements['obstacle_init_dist'] = -1
+        agent.episode_measurements['obstacle_init_id'] = -1
 
         found_obstacle = False
         same_lane = True
@@ -837,14 +839,25 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
-            if self.config['verbose'] or self.config['weak_verbose']:
-                print('obstacle actor {}, dist: {}, speed: {}, same_lane: {}'.format(obstacle_actor, agent.obstacle_sensor.distance,
-                    agent.episode_measurements['obstacle_speed'], same_lane))
+            # for weak_verbose
+            if agent.episode_measurements['obstacle_init_id'] != obstacle_actor.id: # initial
+                agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor.distance
+                if self.config['weak_verbose']: 
+                    print('[obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
+                        obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6, 
+                        agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
+            if self.config['verbose']:
+                print('[obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
+                    obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6, 
+                    agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
+                    
         # if not found_obstacle or not same_lane:
         if not found_obstacle:
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
+            agent.episode_measurements['obstacle_init_dist'] = -1
+            agent.episode_measurements['obstacle_init_id'] = -1
 
 
     def _update_traffic_light_states(self, agent):
@@ -863,9 +876,14 @@ class CarlaEnv(gym.Env):
                 if agent.episode_measurements['initial_dist_to_red_light'] == -1 or \
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     agent.episode_measurements['initial_dist_to_red_light'] = dist
-                if self.config['verbose'] or self.config['weak_verbose']:
-                    print('[agent {} init {}] traffic light info'.format(
-                        agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
+                    if self.config['weak_verbose']:
+                        print('[traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id, 
+                            agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'], 
+                            dist, traffic_actor.state))
+                if self.config['verbose']:
+                        print('[traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id, 
+                            agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'], 
+                            dist, traffic_actor.state))
             else:
                 agent.episode_measurements['red_light_dist'] = -1
                 agent.episode_measurements['initial_dist_to_red_light'] = -1
