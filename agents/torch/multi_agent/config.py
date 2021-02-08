@@ -118,8 +118,8 @@ TEST_CONFIG = {
     'enable_lane_invasion_sensor': False,
     'enable_lane_invasion_termination' : False,
     'npc_reset_freq': None,
-    # 'verbose': True,
-    # 'weak_verbose': True,
+    'verbose': False,
+    'weak_verbose': False,
     'test_verbose': True,
 }
 

@@ -821,8 +821,6 @@ class CarlaEnv(gym.Env):
     def _update_obs_detector_via_sensor(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
-        agent.episode_measurements['obstacle_init_dist'] = -1
-        agent.episode_measurements['obstacle_init_id'] = -1
 
         found_obstacle = False
         same_lane = True
@@ -878,12 +876,12 @@ class CarlaEnv(gym.Env):
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     agent.episode_measurements['initial_dist_to_red_light'] = dist
                     if self.config['weak_verbose']:
-                        print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id,
-                            agent.curr_ep_num_steps, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
+                        print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(agent.curr_ep_num_steps,
+                            traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
                             dist, traffic_actor.state))
                 if self.config['verbose'] or self.config['test_verbose']:
-                    print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(traffic_actor.id,
-                        agent.curr_ep_num_steps, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
+                    print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(agent.curr_ep_num_steps,
+                        traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
                         dist, traffic_actor.state))
             else:
                 agent.episode_measurements['red_light_dist'] = -1
@@ -1188,6 +1186,8 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['traffic_light_orientation'] = -1
             agent.episode_measurements["runover_light"] = False
             # agent.episode_measurements['offlane_steps'] = 0
+            agent.episode_measurements['obstacle_init_dist'] = -1
+            agent.episode_measurements['obstacle_init_id'] = -1
 
             agent.rv_camera_queue = queue.Queue()
 
