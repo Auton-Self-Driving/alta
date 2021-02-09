@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': '',
+    'save_suffix': 'O15mL15mGC',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -104,7 +104,12 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx8_obsfix_1200000_Feb071057PM43.pth',
     # 'checkpoint': './ckptPPOx1_obsfixplvg_600000_Feb080307AM17.pth',
     # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_300000_Feb080425AM45.pth',
-    'checkpoint': './ckptPPOx1_localobsfixrwd30km_300000_Feb060743PM10.pth',
+    # 'checkpoint': './ckptPPOx1_localobsfixrwd30km_300000_Feb060743PM10.pth',
+    # 'checkpoint': './ckptPPOx1_obsfix1wupd_700000_Feb080730AM52.pth',
+    # 'checkpoint': './ckptPPOx1_O10mL10m25h_200000_Feb081152AM36.pth',
+    # 'checkpoint': './ckptPPOx8_obsfixpvlg_900000_Feb080512AM23.pth',
+    # 'checkpoint': './ckptPPOx1_obsfixrwd_500000_Feb070504PM56.pth',
+    'checkpoint': './ckptPPOx1_obsfixplvg_600000_Feb080307AM17.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -123,6 +128,7 @@ TEST_CONFIG = {
     'verbose': False,
     'weak_verbose': False,
     'test_verbose': True,
+    # 'test_verbose': False,
 }
 
 ENV_CONFIG = {

@@ -598,9 +598,16 @@ class CarlaEnv(gym.Env):
                 if self.config["use_pid_in_frame_skip"]:
                     control = self._update_control(agent)
                     if self.config['verbose']:
-                        print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
-                    "reverse", control.reverse)
-                        print("steps", agent.curr_ep_num_steps)
+                        print('[step {}][agent {}][steer {:.2f}][throttle {:.2f}][break {:.2f}][reverse {}][speed {:.2f}]'.format(
+                            agent.curr_ep_num_steps, agent.rank, control.steer, control.throttle, control.brake, control.reverse,
+                            self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
+                    elif self.config['test_verbose']:
+                        print('[step {}][agent {}][steer {:.2f}][speed {:.2f}]'.format(
+                            agent.curr_ep_num_steps, agent.rank, control.steer,
+                            self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
+                        # print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
+                        #     "reverse", control.reverse)
+                        # print("steps", agent.curr_ep_num_steps)
 
                 agent.obstacle_dist_array.append(agent.episode_measurements['obstacle_dist'])
                 agent.obstacle_speed_array.append(agent.episode_measurements['obstacle_speed'])
