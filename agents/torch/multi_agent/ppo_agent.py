@@ -207,6 +207,74 @@ class PPO_Collective_Agent(object):
             agent.update_local_policy()
             agent.reset_memory()
 
+    def _nesterov_update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        for agent in self.agent_list:
+            agent_rewards = deque()
+            # Monte Carlo estimate of rewards:
+            mem = agent.memory
+            discounted_reward = 0
+            for reward, is_terminal in zip(reversed(mem['reward']), reversed(mem['done'])):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            rewards.extend(list(agent_rewards))
+            old_states.extend(mem['state'])
+            old_actions.extend(mem['action'])
+            old_logprobs.extend(mem['logprob'])
+
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
+
+        # convert list to tensor
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32, 
+            device=self.device).squeeze().detach()
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            # print(old_states.shape)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
+
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+
+        for agent in self.agent_list:
+            if agent.done: continue # no need to update for a done agent
+            agent.update_local_policy()
+            agent.reset_memory()
+
     def learn(self):
         # initialize
         if self.tbwriter is None:

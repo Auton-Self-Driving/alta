@@ -842,13 +842,15 @@ class CarlaEnv(gym.Env):
             # if 'vehicle' in obstacle_actor.type_id:
             if hasattr(obstacle_actor, 'get_velocity'):
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
+                cos = self.cosine_between_velocities(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
+                print('API test COS', cos)
             else:
                 agent.episode_measurements['obstacle_speed'] = -1
             # for weak_verbose
             if agent.episode_measurements['obstacle_init_id'] != obstacle_actor.id: # initial
                 agent.episode_measurements['obstacle_init_id'] = obstacle_actor.id
                 agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor.distance
-                if self.config['weak_verbose']:
+                if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
                     print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}]'.format(
                         agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                         agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
@@ -882,7 +884,7 @@ class CarlaEnv(gym.Env):
                 if agent.episode_measurements['initial_dist_to_red_light'] == -1 or \
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     agent.episode_measurements['initial_dist_to_red_light'] = dist
-                    if self.config['weak_verbose']:
+                    if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
                         print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(agent.curr_ep_num_steps,
                             traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
                             dist, traffic_actor.state))
@@ -890,6 +892,7 @@ class CarlaEnv(gym.Env):
                     print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(agent.curr_ep_num_steps,
                         traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
                         dist, traffic_actor.state))
+                    print('API test', agent.vehicle.get_traffic_light(), agent.vehicle.get_traffic_light_state())
             else:
                 agent.episode_measurements['red_light_dist'] = -1
                 agent.episode_measurements['initial_dist_to_red_light'] = -1
@@ -1530,6 +1533,10 @@ class CarlaEnv(gym.Env):
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
+
+    def cosine_between_velocities(self, v1, v2):
+        return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / \
+            (self.get_speed_from_velocity(v1) * self.get_speed_from_velocity(v2))
 
     def _read_data(self, camera_queue, world_frame, timeout=240.0):
 
