@@ -264,11 +264,11 @@ class PPO_Collective_Agent(object):
                 dtype=torch.float32, device=self.device)
             _agt_reward = (_agt_reward - _agt_reward.mean()) / \
                 (_agt_reward.std() + 1e-5)
-            _agt_states = torch.tensor(mem['state'], dtype=torch.float32,
+            _agt_states = torch.tensor(_agt_states, dtype=torch.float32,
                 device=self.device).squeeze().detach()
-            _agt_actions = torch.tensor(mem['action'], dtype=torch.float32,
+            _agt_actions = torch.tensor(_agt_actions , dtype=torch.float32,
                 device=self.device).squeeze().detach()
-            _agt_logprobs = torch.tensor(mem['logprob'], dtype=torch.float32,
+            _agt_logprobs = torch.tensor(_agt_logprobs , dtype=torch.float32,
                 device=self.device).squeeze().detach()
 
             _local_optim = self.glb_optimizer.__class__(
