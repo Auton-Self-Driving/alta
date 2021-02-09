@@ -841,8 +841,11 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_dist'] = agent.obstacle_sensor.distance
             # if 'vehicle' in obstacle_actor.type_id:
             if hasattr(obstacle_actor, 'get_velocity'):
-                cos = self.cosine_between_obs(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
-                agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) # * cos
+                if self.config['obs_cosine_velocity']:
+                    cos = self.cosine_between_obs(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
+                else:
+                    cos = 1.
+                agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
                 # cos = self.cosine_between_velocities(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
                 # print('API test COS', cos)
             else:
