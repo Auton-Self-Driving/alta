@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': '',
+    'save_suffix': 'O15mL15m0mgraceCosGC',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -88,8 +88,8 @@ PPO_CONFIG = {
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
-    'nesterov': True,
-    'glb_update_freq': 1000,
+    'nesterov': False,
+    'glb_update_freq': 2800,
     'optim_epochs': 10,
 }
 
@@ -134,9 +134,9 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_agents': 1,
+    'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -211,8 +211,8 @@ ENV_CONFIG = {
     'num_npc_upper_threshold' : 150,
     # 'num_npc_lower_threshold' : 100,
     # 'num_npc_upper_threshold' : 200,
-    'npc_reset_freq': 1,
-    'obs_cosine_velocity': False,
+    'npc_reset_freq': 10000,
+    'obs_cosine_velocity': True,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,

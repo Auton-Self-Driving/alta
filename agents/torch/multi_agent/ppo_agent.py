@@ -249,10 +249,10 @@ class PPO_Collective_Agent(object):
         old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
             device=self.device).squeeze().detach()
 
-        glb_surr1 = torch.zeros_like(rewards, dtype=torch.float32,
-            device=self.device, requires_grad=False)
-        glb_surr2 = torch.zeros_like(rewards, dtype=torch.float32,
-            device=self.device, requires_grad=False)
+        # glb_surr1 = torch.zeros_like(rewards, dtype=torch.float32,
+        #     device=self.device, requires_grad=False)
+        # glb_surr2 = torch.zeros_like(rewards, dtype=torch.float32,
+        #     device=self.device, requires_grad=False)
 
         for agent, _agt_reward, _agt_states, _agt_actions, _agt_logprobs in zip(
             self.agent_list, list_rewards, list_old_states,
@@ -301,26 +301,27 @@ class PPO_Collective_Agent(object):
                     agent.local_policy.evaluate(old_states, old_actions)
                 _ratios = torch.exp(_logprobs - old_logprobs.detach())
                 _advantages = rewards - _state_values.detach()
-                glb_surr1 += _ratios * _advantages
-                glb_surr2 += torch.clamp(_ratios, 1 - self.eps_clip,
+                glb_surr1 = _ratios * _advantages
+                glb_surr2 = torch.clamp(_ratios, 1 - self.eps_clip,
                     1 + self.eps_clip) * _advantages
 
-        # for _ in range(self.optim_epochs):
-        # upload global policy
-        _, state_values, dist_entropy = self.glb_policy.evaluate(
-            old_states, old_actions)
+            # for _ in range(self.optim_epochs):
+                # upload global policy
+                _, state_values, dist_entropy = self.glb_policy.evaluate(
+                    old_states, old_actions)
 
-        loss = -torch.min(glb_surr1, glb_surr2) + 0.5 * F.mse_loss(state_values,
-            rewards) - 0.01 * dist_entropy
+                loss = -torch.min(glb_surr1, glb_surr2) + 0.5 * F.mse_loss(state_values,
+                    rewards) - 0.01 * dist_entropy
 
-        # take gradient step
-        self.glb_optimizer.zero_grad()
-        loss = loss.mean()
-        loss.backward()
-        if self.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(self.glb_policy.parameters(),
-                self.grad_clip * self.optim_epochs)
-        self.glb_optimizer.step()
+                # take gradient step
+                self.glb_optimizer.zero_grad()
+                loss = loss.mean()
+                loss.backward()
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(self.glb_policy.parameters(),
+                        self.grad_clip)
+                        # self.grad_clip * self.optim_epochs)
+                self.glb_optimizer.step()
 
         # del _glb_policy_state
         # del _glb_optim_state
