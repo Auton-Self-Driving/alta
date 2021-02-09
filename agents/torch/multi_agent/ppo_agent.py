@@ -1,6 +1,7 @@
 import os
 import time
 import pickle
+import copy
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -69,8 +70,8 @@ class _PPO_Individual_Agent(Agent):
 
 
 class PPO_Collective_Agent(object):
-    def __init__(self, glb_env, glb_policy, glb_optimizer,
-        num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
+    def __init__(self, glb_env, glb_policy, glb_optimizer, num_agents=1,
+        max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
         grad_clip=None, glb_update_freq=1000, optim_epochs=100, 
         save_freq=100000, save_suffix='', verbose=False):
         """An synchronous PPO agent.
@@ -83,6 +84,7 @@ class PPO_Collective_Agent(object):
             gamma: reward discount factor
             eps_clip: clip parameter for PPO
             grad_clip: value for clipping gradient, None to disable
+            nesterov: if using nesterov update
             glb_update_freq: update frequency of glb_policy
             optim_epochs: update policy for how many epochs
             save_freq: checkpoint saving frequency
@@ -105,6 +107,7 @@ class PPO_Collective_Agent(object):
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
         self.grad_clip = grad_clip
+        self.nesterov = nesterov
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
@@ -208,10 +211,13 @@ class PPO_Collective_Agent(object):
             agent.reset_memory()
 
     def _nesterov_update(self):
-        rewards = []
-        old_states = []
-        old_actions = []
-        old_logprobs = []
+        # _glb_policy_state = copy.deepcopy(self.glb_policy.state_dict())
+        # _glb_optim_state = copy.deepcopy(self.glb_optimizer.state_dict())
+        # _local_policy = copy.deepcopy(self.glb_policy)
+        # _local_optim = copy.deepcopy(self.glb_optimizer)
+
+        rewards, old_states, old_actions, old_logprobs = [], [], [], []
+        list_rewards, list_old_states, list_old_actions, list_old_logprobs = [], [], [], []
         for agent in self.agent_list:
             agent_rewards = deque()
             # Monte Carlo estimate of rewards:
@@ -227,53 +233,99 @@ class PPO_Collective_Agent(object):
             old_actions.extend(mem['action'])
             old_logprobs.extend(mem['logprob'])
 
+            list_rewards.append(list(agent_rewards))
+            list_old_states.append(mem['state'])
+            list_old_actions.append(mem['action'])
+            list_old_logprobs.append(mem['logprob'])
+
         # Normalizing the rewards:
-        # rewards = torch.tensor(rewards).to(device)
         rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
         rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
-        # print('rewards', rewards, rewards.shape)
-
         # convert list to tensor
-        # print(old_states)
         old_states = torch.tensor(old_states, dtype=torch.float32, 
             device=self.device).squeeze().detach()
-        # print(old_states.shape)
         old_actions = torch.tensor(old_actions, dtype=torch.float32, 
             device=self.device).squeeze().detach()
         old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32, 
             device=self.device).squeeze().detach()
+        
+        glb_surr1 = torch.zeros_like(rewards, dtype=torch.float32, 
+            device=self.device, requires_grad=False)
+        glb_surr2 = torch.zeros_like(rewards, dtype=torch.float32, 
+            device=self.device, requires_grad=False)
 
-        # Optimize policy for K epochs:
-        for _ in range(self.optim_epochs):
-            # Evaluating old actions and values:
-            # print(old_states.shape)
-            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-                old_states, old_actions)
+        for agent, _agt_reward, _agt_states, _agt_actions, _agt_logprobs in zip(
+            self.agent_list, list_rewards, list_old_states, 
+            list_old_actions, list_old_logprobs,
+        ):
+            # independent updates
+            _agt_reward = torch.tensor(agent_rewards, 
+                dtype=torch.float32, device=self.device)
+            _agt_reward = (_agt_reward - _agt_reward.mean()) / \
+                (_agt_reward.std() + 1e-5)
+            _agt_states = torch.tensor(mem['state'], dtype=torch.float32, 
+                device=self.device).squeeze().detach()
+            _agt_actions = torch.tensor(mem['action'], dtype=torch.float32, 
+                device=self.device).squeeze().detach()
+            _agt_logprobs = torch.tensor(mem['logprob'], dtype=torch.float32,
+                device=self.device).squeeze().detach()
 
-            # Finding the ratio (pi_theta / pi_theta__old):
-            ratios = torch.exp(logprobs - old_logprobs.detach())
-            # Finding Surrogate Loss:
-            # print('state_values', state_values.shape)
-            advantages = rewards - state_values.detach()
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 
-                1 + self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
-                rewards) - 0.01 * dist_entropy
+            _local_optim = self.glb_optimizer.__class__(
+                agent.local_policy.parameters(), lr=999.9)
+            _local_optim.load_state_dict(self.glb_optimizer.state_dict())
 
-            # take gradient step
-            self.glb_optimizer.zero_grad()
-            loss = loss.mean()
-            loss.backward()
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.glb_policy.parameters(), self.grad_clip)
-            self.glb_optimizer.step()
+            for _ in range(self.optim_epochs):
+                _logprobs, _state_values, _dist_entropy = \
+                    agent.local_policy.evaluate(_agt_states, _agt_actions)
 
+                _ratios = torch.exp(_logprobs - _agt_logprobs.detach())
+                _advantages = _agt_reward - _state_values.detach()
+                _surr1 = _ratios * _advantages
+                _surr2 = torch.clamp(_ratios, 1 - self.eps_clip, 
+                    1 + self.eps_clip) * _advantages
+                _loss = -torch.min(_surr1, _surr2) + 0.5 * F.mse_loss(
+                    _state_values, _agt_reward) - 0.01 * _dist_entropy
+
+                # take gradient step
+                _local_optim.zero_grad()
+                _loss = _loss.mean()
+                _loss.backward()
+                if self.grad_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(
+                        agent.local_policy.parameters(), self.grad_clip)
+                _local_optim.step()
+
+                # calculate global surr1 and surr2
+                _logprobs, _state_values, _dist_entropy = \
+                    agent.local_policy.evaluate(old_states, old_actions)
+                _ratios = torch.exp(_logprobs - old_logprobs.detach())
+                _advantages = rewards - _state_values.detach()
+                glb_surr1 += _ratios * _advantages
+                glb_surr2 += torch.clamp(_ratios, 1 - self.eps_clip, 
+                    1 + self.eps_clip) * _advantages
+            
+        # for _ in range(self.optim_epochs):
+        # upload global policy
+        _, state_values, dist_entropy = self.glb_policy.evaluate(
+            old_states, old_actions)
+
+        loss = -torch.min(glb_surr1, glb_surr2) + 0.5 * F.mse_loss(state_values,
+            rewards) - 0.01 * dist_entropy
+
+        # take gradient step
+        self.glb_optimizer.zero_grad()
+        loss = loss.mean()
+        loss.backward()
+        self.glb_optimizer.step()
+
+        # del _glb_policy_state
+        # del _glb_optim_state
+        del _local_optim
         for agent in self.agent_list:
             if agent.done: continue # no need to update for a done agent
             agent.update_local_policy()
             agent.reset_memory()
+
 
     def learn(self):
         # initialize
@@ -417,7 +469,10 @@ class PPO_Collective_Agent(object):
                 else:
                     # do the learning
                     # print('updating policy...')
-                    self._update()
+                    if self.nesterov:
+                        self._nesterov_update()
+                    else:
+                        self._update()
 
 
             # respawn dead agents
