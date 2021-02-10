@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O15mL15m0mgraceCosGCnstv',
+    'save_suffix': 'O15mL15m0mgraceCosGC',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -85,10 +85,11 @@ PPO_CONFIG = {
     # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
     # 'checkpoint': './ckptPPOx1_input_300000_Feb050757AM39.pth',
     # 'checkpoint': './ckptPPOx1_localobsfixrwd30km_100000_Feb060728AM31.pth',
+    'checkpoint': './ckptPPOx1_O15mL15m0graceCosGC_200000_Feb091229PM30.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
-    'nesterov': True,
+    'nesterov': False,
     'glb_update_freq': 1000,
     'optim_epochs': 10,
 }
@@ -136,7 +137,7 @@ ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:3',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
