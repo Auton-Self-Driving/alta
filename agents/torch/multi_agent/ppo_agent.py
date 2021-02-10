@@ -279,6 +279,8 @@ class PPO_Collective_Agent(object):
             glb_advantages = torch.zeros_like(rewards, dtype=torch.float32,
                 device=self.device, requires_grad=False)
 
+            self.glb_optimizer.zero_grad()
+
             for (agent, _agt_reward, _agt_states,
                 _agt_actions, _agt_logprobs, _local_optim) in zip(
                 self.agent_list, list_rewards, list_old_states,
@@ -305,27 +307,48 @@ class PPO_Collective_Agent(object):
                 _local_optim.zero_grad()
                 _loss = _loss.mean()
                 _loss.backward()
+                # accumulate loss to glb_policy
+                for lp, gp in zip(
+                    agent.local_policy.parameters(),
+                    self.glb_policy.parameters(),
+                ):
+                    gp._grad += lp.grad
                 if self.grad_clip is not None:
                     torch.nn.utils.clip_grad_norm_(
-                        agent.local_policy.parameters(), self.grad_clip)
+                        agent.local_policy.parameters(), self.grad_clip,)
                 _local_optim.step()
 
                 # calculate global surr1 and surr2
                 if len(rank_mask[rank_mask != agent.rank]) > 0:
                     # _logprobs, _state_values, _dist_entropy = \
-                    with torch.no_grad:
-                        _, _state_values, _dist_entropy = \
-                            agent.local_policy.evaluate(
-                            old_states[rank_mask != agent.rank],
-                            old_actions[rank_mask != agent.rank],
-                        )
-                    # _ratios = torch.exp(_logprobs - \
-                    #     old_logprobs[rank_mask != agent.rank].detach())
+                    # with torch.no_grad:
+                    _logprobs, _state_values, _dist_entropy = \
+                        agent.local_policy.evaluate(
+                        old_states[rank_mask != agent.rank],
+                        old_actions[rank_mask != agent.rank],
+                    )
+                    _ratios = torch.exp(_logprobs - \
+                        old_logprobs[rank_mask != agent.rank].detach())
                     _advantages = rewards[rank_mask != agent.rank] - \
                         _state_values.detach()
+                    _surr1 = _ratios * _advantages
+                    _surr2 = torch.clamp(_ratios, 1 - self.eps_clip,
+                        1 + self.eps_clip) * _advantages
+                    _loss = -torch.min(_surr1, _surr2) + 0.5 * F.mse_loss(
+                        _state_values, _agt_reward) - 0.01 * _dist_entropy
+                    _local_optim.zero_grad()
+                    _loss = _loss.mean()
+                    _loss.backward()
+                    # accumulate loss to glb_policy
+                    for lp, gp in zip(
+                        agent.local_policy.parameters(),
+                        self.glb_policy.parameters(),
+                    ):
+                        gp._grad += lp.grad
+
                     # add to glb_ratios & glb_advantages
                     # glb_ratios[rank_mask != agent.rank] += _ratios
-                    glb_advantages[rank_mask != agent.rank] += _advantages
+                    # glb_advantages[rank_mask != agent.rank] += _advantages
                 # glb_surr1 += _ratios * _advantages
                 # glb_surr2 += torch.clamp(_ratios, 1 - self.eps_clip,
                 #     1 + self.eps_clip) * _advantages
@@ -334,23 +357,25 @@ class PPO_Collective_Agent(object):
             # upload global policy
             # glb_ratios /= self.num_agents
             # glb_advantages /= self.num_agents
-            log_probs, state_values, dist_entropy = self.glb_policy.evaluate(
-                old_states, old_actions)
-            glb_ratios = torch.exp(log_probs - old_logprobs.detach())
-            glb_surr1 = glb_ratios * glb_advantages
-            glb_surr2 = torch.clamp(glb_ratios, 1 - self.eps_clip,
-                1 + self.eps_clip) * glb_advantages
+            # log_probs, state_values, dist_entropy = self.glb_policy.evaluate(
+            #     old_states, old_actions)
+            # glb_ratios = torch.exp(log_probs - old_logprobs.detach())
+            # glb_surr1 = glb_ratios * glb_advantages
+            # glb_surr2 = torch.clamp(glb_ratios, 1 - self.eps_clip,
+            #     1 + self.eps_clip) * glb_advantages
 
-            loss = -torch.min(glb_surr1, glb_surr2) + 0.5 * F.mse_loss(state_values,
-                rewards) - 0.01 * dist_entropy
+            # loss = -torch.min(glb_surr1, glb_surr2) + 0.5 * F.mse_loss(state_values,
+            #     rewards) - 0.01 * dist_entropy
 
             # take gradient step
-            self.glb_optimizer.zero_grad()
-            loss = loss.mean()
-            loss.backward()
+            # self.glb_optimizer.zero_grad()
+            # loss = loss.mean()
+            # loss.backward()
             if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(self.glb_policy.parameters(),
-                    self.grad_clip)
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(),
+                    self.grad_clip,
+                )
                     # self.grad_clip * self.optim_epochs / self.num_agents)
             self.glb_optimizer.step()
 
