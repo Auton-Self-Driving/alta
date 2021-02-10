@@ -122,7 +122,7 @@ class PPO_Collective_Agent(object):
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
-        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
+        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, self.savetime())
         self.vid_log_dir = '{}/{}_{}'.format('./video_logs',
             'PPO_test', self.savetime())

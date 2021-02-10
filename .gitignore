@@ -144,5 +144,6 @@ AdelaiDet_model/*
 **/*debug*.*
 # logs
 **/tensorboard_logs
+**/video_logs
 **/saved_ckpts
 **/saved_logs
