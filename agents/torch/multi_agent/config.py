@@ -131,6 +131,7 @@ TEST_CONFIG = {
     'weak_verbose': False,
     'test_verbose': True,
     # 'test_verbose': False,
+    'videos': True,
 }
 
 ENV_CONFIG = {
@@ -213,7 +214,6 @@ ENV_CONFIG = {
     # 'num_npc_lower_threshold' : 100,
     # 'num_npc_upper_threshold' : 200,
     'npc_reset_freq': 1,
-    'obs_cosine_velocity': True,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
@@ -225,7 +225,6 @@ ENV_CONFIG = {
     'enable_brake': True,
     # 'log_freq': 1,
     'zero_speed_threshold': 0.05,
-    ### 'videos' : False,
     'obstacle_dist_norm' : 60,
     'spawn_points_fixed_idx' : [
         54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
@@ -254,6 +253,8 @@ ENV_CONFIG = {
     'disable_collision' : False,
     'enable_static' : True,
     'enable_obstacle_sensor': True,
+    'obs_cosine_velocity': True,
+    'obs_sensor_hit_radius': .5,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_termination' : True,
     'enable_lane_invasion_collision' : True,

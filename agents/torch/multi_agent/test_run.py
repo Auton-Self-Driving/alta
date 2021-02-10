@@ -36,7 +36,7 @@ if TEST_CONFIG['PPO']:
     )
     ckpt = torch.load(TEST_CONFIG['checkpoint'], map_location='cpu')
     ppo_agent.load(ckpt)
-    ppo_agent.test()
+    ppo_agent.test(videos=TEST_CONFIG['videos'])
 else:
     glb_policy = PolicyNetwork(N_S, N_A).to(ENV_CONFIG['device']) # policy network
     policy_optimizer = torch.optim.Adam(glb_policy.parameters(),

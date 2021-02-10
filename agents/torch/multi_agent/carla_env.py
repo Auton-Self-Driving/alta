@@ -886,7 +886,7 @@ class CarlaEnv(gym.Env):
         #     lt_loc = lt_actor.get_location()
         #     print('API test', lt_actor, agent.vehicle_actor.get_traffic_light_state(), lt_loc.distance(agt_loc))
         if traffic_actor is not None:
-            if traffic_actor.state == carla.TrafficLightState.Red:
+            if traffic_actor.state != carla.TrafficLightState.Green:
                 agent.episode_measurements['red_light_dist'] = dist
                 # print('[agent {} init {}] traffic light info'.format(
                 #         agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
@@ -1260,7 +1260,8 @@ class CarlaEnv(gym.Env):
 
             if self.config["enable_obstacle_sensor"]:
                 agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
-                    distance=self.config['vehicle_proximity_threshold'])
+                    distance=self.config['vehicle_proximity_threshold'],
+                    hit_radius=self.config['obs_sensor_hit_radius'],)
 
                 agent.actor_list.append(agent.obstacle_sensor.sensor)
 
@@ -1329,7 +1330,7 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs(agent)
 
-        obs['rv_image'] = rv_image
+        obs['rv_image'] = agent.rv_image = rv_image
         # self.save_rgb_image(agent, rv_image)
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30

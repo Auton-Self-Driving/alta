@@ -11,7 +11,10 @@ from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
-from environment.carla_9_4.dashcam import GlobalRecorder, TensorboardWriter
+from environment.carla_9_4.dashcam import (
+    GlobalRecorder, 
+    TensorboardWriter, 
+    Visualizer,)
 
 class _PPO_Individual_Agent(Agent):
     def __init__(self, vehicle, glb_policy, rank=None, memory=None, **kwargs):
@@ -37,6 +40,7 @@ class _PPO_Individual_Agent(Agent):
         self.rank = rank
         self.done = False
         self.action = None
+        self.rv_image = None
         self.id = vehicle.id
         self.type_id = vehicle.type_id
         self.vehicle_actor = vehicle
@@ -118,8 +122,10 @@ class PPO_Collective_Agent(object):
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
-        self.log_dir = '{}/{}_{}'.format('./tensorboard_logs/',
+        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, self.savetime())
+        self.vid_log_dir = '{}/{}_{}'.format('./video_logs',
+            'PPO_test', self.savetime())
         self.glb_num_episodes = 1
         self.glb_num_steps = 0
         self.num_steps_since_update = 0
@@ -130,7 +136,7 @@ class PPO_Collective_Agent(object):
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
-                log_dir=self.log_dir,
+                log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.tbwriter.add_dict(tag, config)
 
@@ -361,7 +367,7 @@ class PPO_Collective_Agent(object):
         # initialize
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
-                log_dir=self.log_dir,
+                log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles(51 - self.num_agents)
@@ -521,9 +527,11 @@ class PPO_Collective_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
-    def test(self):
+    def test(self, videos=False):
         # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
+        viz = Visualizer(images_path=self.vid_log_dir, 
+            video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
         # print(self.glb_num_test_episodes)
@@ -548,7 +556,10 @@ class PPO_Collective_Agent(object):
             self.glb_env.step()
 
             for rk, agent in enumerate(self.agent_list):
+                sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
+                viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
+                    viz.generate_video(sub_folder)
                     if agent.termination_state == 'success':
                         self.num_successes += 1
                     print('[test {}][glb ep {}/{}]'.format(
@@ -629,7 +640,7 @@ class PPO_Collective_Agent(object):
         self.num_steps_since_update = checkpoint['num_steps_since_update']
         self.glb_num_episodes = checkpoint['glb_num_episodes']
         self.tbwriter = TensorboardWriter(
-                log_dir=self.log_dir,
+                log_dir=self.tb_log_dir,
                 purge_step=self.glb_num_episodes,
                 filename_suffix='_{}'.format(self.run_name),)
         self.resumed = True
