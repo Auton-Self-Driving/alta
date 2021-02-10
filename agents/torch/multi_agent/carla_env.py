@@ -1170,6 +1170,10 @@ class CarlaEnv(gym.Env):
             self.ego_agent_list[agent.rank] = agent
 
             # set attributes
+            agent._proximity_threshold = self.config['traffic_light_proximity_threshold']
+            agent._traffic_light_proximity_threshold = self.config['traffic_light_proximity_threshold']
+            agent._vehicle_proximity_threshold = self.config['vehicle_proximity_threshold']
+
             agent.image_data = None
             agent.source_transform = agent.vehicle_actor.source_transform
             agent.destination_transform = agent.vehicle_actor.destination_transform
