@@ -212,7 +212,7 @@ class PPO_Collective_Agent(object):
 
     def _nesterov_update(self):
         # _glb_policy_state = copy.deepcopy(self.glb_policy.state_dict())
-        # _glb_optim_state = copy.deepcopy(self.glb_optimizer.state_dict())
+        _glb_optim_state = copy.deepcopy(self.glb_optimizer.state_dict())
         # _local_policy = copy.deepcopy(self.glb_policy)
         # _local_optim = copy.deepcopy(self.glb_optimizer)
 
@@ -273,7 +273,7 @@ class PPO_Collective_Agent(object):
 
             _local_optim = self.glb_optimizer.__class__(
                 agent.local_policy.parameters(), lr=999.9)
-            _local_optim.load_state_dict(self.glb_optimizer.state_dict())
+            _local_optim.load_state_dict(_glb_optim_state)
 
             for _ in range(self.optim_epochs):
                 _logprobs, _state_values, _dist_entropy = \
@@ -319,8 +319,8 @@ class PPO_Collective_Agent(object):
                 loss.backward()
                 if self.grad_clip is not None:
                     torch.nn.utils.clip_grad_norm_(self.glb_policy.parameters(),
-                        self.grad_clip)
-                        # self.grad_clip * self.optim_epochs)
+                        self.grad_clip / self.num_agents)
+                        # self.grad_clip * self.optim_epochs / self.num_agents)
                 self.glb_optimizer.step()
 
         # del _glb_policy_state
