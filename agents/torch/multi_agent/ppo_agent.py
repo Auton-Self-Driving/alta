@@ -530,7 +530,7 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
-        viz = Visualizer(images_path=self.vid_log_dir, 
+        if videos: viz = Visualizer(images_path=self.vid_log_dir, 
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
@@ -556,10 +556,13 @@ class PPO_Collective_Agent(object):
             self.glb_env.step()
 
             for rk, agent in enumerate(self.agent_list):
-                sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
-                viz.save_image(agent.rv_image, sub_folder=sub_folder)
+                if videos: 
+                    sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
+                    viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
-                    viz.generate_video(sub_folder)
+                    if videos: 
+                        viz.generate_video(sub_folder)
+                        viz.remove_images(sub_folder)
                     if agent.termination_state == 'success':
                         self.num_successes += 1
                     print('[test {}][glb ep {}/{}]'.format(

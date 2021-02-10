@@ -5,6 +5,7 @@ from PIL import Image, ImageFont, ImageDraw
 import os
 import glob
 import time
+from collections import defaultdict
 
 class Visualizer:
     def __init__(self, images_path, video_path, videos=True):
@@ -13,17 +14,17 @@ class Visualizer:
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         # Keeps track of internal image ID
-        self.image_idx = 0
+        self.image_idx = defaultdict(int)
         os.makedirs(self.images_path, exist_ok=True)
         if videos and not os.path.exists(self.video_path):
             os.makedirs(self.video_path, exist_ok=True)
 
     def save_image(self, image, sub_folder=''):
-        self.image_idx += 1
+        self.image_idx[sub_folder] += 1
         _path = os.path.join(self.images_path, str(sub_folder))
         if not os.path.exists(_path):
             os.mkdir(_path)
-        img_id = "{:08d}".format(self.image_idx)
+        img_id = "{:08d}".format(self.image_idx[sub_folder])
         im_path = os.path.join(_path, img_id + '.png')
         plt.imsave(im_path, image)
 
@@ -53,12 +54,15 @@ class Visualizer:
 
         return Image.alpha_composite(image, overlay)
 
-    def save_pil_image(self, image, step_number, step_info):
+    def save_pil_image(self, image, step_number, step_info, sub_folder=''):
+        _path = os.path.join(self.images_path, str(sub_folder))
+        if not os.path.exists(_path):
+            os.mkdir(_path)
         image = self.convert_image(image)
         image = self.modify_image(image, step_info)
-        self.image_idx += 1
-        img_id = "{:08d}".format(self.image_idx)
-        im_path = os.path.join(self.images_path, img_id+'.png')
+        self.image_idx[sub_folder] += 1
+        img_id = "{:08d}".format(self.image_idx[sub_folder])
+        im_path = os.path.join(_path, img_id+'.png')
         image.save(im_path)
 
     # @profile
@@ -67,13 +71,13 @@ class Visualizer:
         file_name = str(vid_prefix) + '_' + self.savetime() + '.mp4'
         vid_path = os.path.join(self.video_path, file_name)
         im_path = os.path.join(os.path.join(self.images_path, sub_folder), "%08d.png")
-        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", "-r", "30", "-pix_fmt", "yuv420p",
-        vid_path]
+        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", 
+            "-framerate", "60", "-pix_fmt", "yuv420p", vid_path]
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         gen_vid_process.wait()
 
     # @profile
-    def remove_images(self, , sub_folder=''):
+    def remove_images(self, sub_folder=''):
         # rm_img_command = ["rm", "-f", "{}/*.png".format(self.images_path)]
         # rm_img_process = subprocess.Popen(rm_img_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         #TODO: Faster way remove images?
@@ -82,7 +86,7 @@ class Visualizer:
         for image in images:
             os.remove(image)
         # Reset image idx (ffmpeg starts from index 0)? Bug where there was no video generation past episode 1
-        self.image_idx = 0
+        self.image_idx[sub_folder] = 0
 
     def create_directories_if_not_exist(self,*directories):
         for d in directories:
