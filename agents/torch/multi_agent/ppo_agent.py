@@ -217,8 +217,8 @@ class PPO_Collective_Agent(object):
         # _local_optim = copy.deepcopy(self.glb_optimizer)
 
         rewards, old_states, old_actions, old_logprobs = [], [], [], []
-        list_rewards, list_old_states, list_old_actions, list_old_logprobs = [], [], [], []
-        list_local_optim = []
+        list_rewards, list_old_states, list_old_actions = [], [], []
+        list_old_logprobs, list_local_optim, rank_mask = [], [], []
         for agent in self.agent_list:
             agent_rewards = deque()
             # Monte Carlo estimate of rewards:
@@ -229,6 +229,7 @@ class PPO_Collective_Agent(object):
                     discounted_reward = 0
                 discounted_reward = reward + (self.gamma * discounted_reward)
                 agent_rewards.appendleft(discounted_reward)
+                rank_mask.append(agent.rank)
             rewards.extend(list(agent_rewards))
             old_states.extend(mem['state'])
             old_actions.extend(mem['action'])
@@ -263,12 +264,15 @@ class PPO_Collective_Agent(object):
             device=self.device).squeeze().detach()
         old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
             device=self.device).squeeze().detach()
+        rank_mask = torch.tensor(rank_mask, dtype=torch.uint8,
+            device=self.device).squeeze().detach()
 
         for _ in range(self.optim_epochs):
-            glb_surr1 = torch.zeros_like(rewards, dtype=torch.float32,
+            glb_ratios = torch.zeros_like(rewards, dtype=torch.float32,
                 device=self.device, requires_grad=False)
-            glb_surr2 = torch.zeros_like(rewards, dtype=torch.float32,
+            glb_advantages = torch.zeros_like(rewards, dtype=torch.float32,
                 device=self.device, requires_grad=False)
+            local_ratios, local_advantages = [], []
 
             for (agent, _agt_reward, _agt_states, 
                 _agt_actions, _agt_logprobs, _local_optim) in zip(
@@ -283,6 +287,9 @@ class PPO_Collective_Agent(object):
 
                 _ratios = torch.exp(_logprobs - _agt_logprobs.detach())
                 _advantages = _agt_reward - _state_values.detach()
+                # add to glb_ratios & glb_advantages
+                glb_ratios[rank_mask == agent.rank] += _ratios
+                glb_advantages[rank_mask == agent.rank] += _advantages
                 _surr1 = _ratios * _advantages
                 _surr2 = torch.clamp(_ratios, 1 - self.eps_clip,
                     1 + self.eps_clip) * _advantages
@@ -300,15 +307,26 @@ class PPO_Collective_Agent(object):
 
                 # calculate global surr1 and surr2
                 _logprobs, _state_values, _dist_entropy = \
-                    agent.local_policy.evaluate(old_states, old_actions)
-                _ratios = torch.exp(_logprobs - old_logprobs.detach())
-                _advantages = rewards - _state_values.detach()
-                glb_surr1 += _ratios * _advantages
-                glb_surr2 += torch.clamp(_ratios, 1 - self.eps_clip,
-                    1 + self.eps_clip) * _advantages
+                    agent.local_policy.evaluate(old_states[rank_mask != agent.rank], 
+                    old_actions[rank_mask != agent.rank])
+                _ratios = torch.exp(_logprobs - \
+                    old_logprobs[rank_mask != agent.rank]).detach()
+                _advantages = rewards[rank_mask != agent.rank] - \
+                    _state_values.detach()
+                # add to glb_ratios & glb_advantages
+                glb_ratios[rank_mask != agent.rank] += _ratios
+                glb_advantages[rank_mask != agent.rank] += _advantages
+                # glb_surr1 += _ratios * _advantages
+                # glb_surr2 += torch.clamp(_ratios, 1 - self.eps_clip,
+                #     1 + self.eps_clip) * _advantages
 
                 # for _ in range(self.optim_epochs):
             # upload global policy
+            glb_ratios /= self.num_agents
+            glb_advantages /= self.num_agents
+            glb_surr1 = glb_ratios * glb_advantages
+            glb_surr2 = torch.clamp(glb_ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * glb_advantages
             _, state_values, dist_entropy = self.glb_policy.evaluate(
                 old_states, old_actions)
 
