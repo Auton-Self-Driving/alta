@@ -12,8 +12,8 @@ from carla_env import CarlaEnv
 from config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.dashcam import (
-    GlobalRecorder, 
-    TensorboardWriter, 
+    GlobalRecorder,
+    TensorboardWriter,
     Visualizer,)
 
 class _PPO_Individual_Agent(Agent):
@@ -312,7 +312,12 @@ class PPO_Collective_Agent(object):
                     agent.local_policy.parameters(),
                     self.glb_policy.parameters(),
                 ):
-                    gp._grad += lp.grad
+                    if gp._grad is None:
+                        gp._grad = lp.grad.clone() / self.num_agents
+                    else:
+                        gp._grad += lp.grad / self.num_agents
+
+
                 if self.grad_clip is not None:
                     torch.nn.utils.clip_grad_norm_(
                         agent.local_policy.parameters(), self.grad_clip,)
@@ -335,7 +340,8 @@ class PPO_Collective_Agent(object):
                     _surr2 = torch.clamp(_ratios, 1 - self.eps_clip,
                         1 + self.eps_clip) * _advantages
                     _loss = -torch.min(_surr1, _surr2) + 0.5 * F.mse_loss(
-                        _state_values, _agt_reward) - 0.01 * _dist_entropy
+                        _state_values, rewards[rank_mask != agent.rank]) - \
+                        0.01 * _dist_entropy
                     _local_optim.zero_grad()
                     _loss = _loss.mean()
                     _loss.backward()
@@ -344,7 +350,7 @@ class PPO_Collective_Agent(object):
                         agent.local_policy.parameters(),
                         self.glb_policy.parameters(),
                     ):
-                        gp._grad += lp.grad
+                        gp._grad += lp.grad / self.num_agents
 
                     # add to glb_ratios & glb_advantages
                     # glb_ratios[rank_mask != agent.rank] += _ratios
@@ -555,7 +561,7 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
-        if videos: viz = Visualizer(images_path=self.vid_log_dir, 
+        if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
@@ -581,11 +587,11 @@ class PPO_Collective_Agent(object):
             self.glb_env.step()
 
             for rk, agent in enumerate(self.agent_list):
-                if videos: 
+                if videos:
                     sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
                     viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
-                    if videos: 
+                    if videos:
                         viz.generate_video(sub_folder)
                         viz.remove_images(sub_folder)
                     if agent.termination_state == 'success':
