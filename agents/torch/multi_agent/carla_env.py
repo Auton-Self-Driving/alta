@@ -892,7 +892,11 @@ class CarlaEnv(gym.Env):
                 #         agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
                 if agent.episode_measurements['initial_dist_to_red_light'] == -1 or \
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
-                    agent.episode_measurements['initial_dist_to_red_light'] = dist
+                    if dist < self.config['min_dist_from_red_light']:
+                        agent.episode_measurements['red_light_dist'] = -1
+                        agent.episode_measurements['initial_dist_to_red_light'] = -1
+                    else:
+                        agent.episode_measurements['initial_dist_to_red_light'] = dist
                     if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
                         print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}]'.format(agent.curr_ep_num_steps,
                             traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
