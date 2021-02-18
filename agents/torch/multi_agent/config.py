@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'localO10mL10m_continue',
+    'save_suffix': 'localO10mL10m0mgracevarNPC_continue',
     # 'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -94,7 +94,7 @@ PPO_CONFIG = {
     'eps_clip': .2,
     'grad_clip': .5,
     'nesterov': True,
-    'glb_update_freq': 2800,
+    'glb_update_freq': 1000,
     'optim_epochs': 10,
 }
 
@@ -117,8 +117,12 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx1_obsfixrwd_500000_Feb070504PM56.pth',
     # 'checkpoint': './ckptPPOx1_obsfixplvg_600000_Feb080307AM17.pth',
     # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_1200000_Feb090622PM19.pth',
+    # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_2600000_Feb120509PM42.pth',
     # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_2700000_Feb130247AM48.pth',
-    'checkpoint': './ckptPPOx1_localO10mL10m_continue_2800000_Feb130917AM50.pth',
+    # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_2800000_Feb130917AM50.pth',
+    # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_2500000_Feb121104AM07.pth',
+    'checkpoint': './ckptPPOx1_localO10mL10m_continue_3200000_Feb140856AM40.pth',
+    # 'checkpoint': './ckptPPOx1_localO10mL10m_continue_2400000_Feb120529AM04.pth',
     'num_agents': 1,
     'num_npc': 0,
     'sample_npc': False,
@@ -131,6 +135,7 @@ TEST_CONFIG = {
     'enable_static' : False,
     'enable_obstacle_sensor': True,
     'obs_cosine_velocity': False,
+    'check_obs_same_lane': False,
     'obs_sensor_hit_radius': .5,
     'disable_traffic_light': False,
     'terminate_on_light' : False,
@@ -142,8 +147,8 @@ TEST_CONFIG = {
     'npc_reset_freq': None,
     'verbose': False,
     'weak_verbose': False,
+    # 'test_verbose': True,
     'test_verbose': False,
-    # 'test_verbose': False,
     'videos': False,
 }
 
@@ -222,9 +227,9 @@ ENV_CONFIG = {
     'use_scenarios': True,
     'num_npc' : 200,
     'sample_npc': True,
-    # 'num_npc_lower_threshold' : 20,
+    'num_npc_lower_threshold' : 20,
     # 'num_npc_upper_threshold' : 80,
-    'num_npc_lower_threshold' : 70,
+    # 'num_npc_lower_threshold' : 70,
     'num_npc_upper_threshold' : 150,
     # 'num_npc_lower_threshold' : 100,
     # 'num_npc_upper_threshold' : 200,
@@ -269,6 +274,7 @@ ENV_CONFIG = {
     'enable_static' : True,
     'enable_obstacle_sensor': True,
     'obs_cosine_velocity': False,
+    'check_obs_same_lane': True,
     'obs_sensor_hit_radius': .5,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_termination' : True,
