@@ -843,6 +843,7 @@ class CarlaEnv(gym.Env):
             if hasattr(obstacle_actor, 'get_velocity'):
                 if self.config['obs_cosine_velocity']:
                     cos = self.cosine_between_obs(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
+                    if cos < 0: cos = 0.
                 else:
                     cos = 1.
                 agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
@@ -863,8 +864,8 @@ class CarlaEnv(gym.Env):
                     agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                     agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane))
 
-        # if not found_obstacle or not same_lane:
-        if not found_obstacle:
+        if not found_obstacle or (self.config['check_obs_same_lane'] and not same_lane):
+        # if not found_obstacle:
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
