@@ -80,3 +80,7 @@ else:
     sac_agent.test()
 
 env.close()
+
+print('testing config:\n{}'.format(TEST_CONFIG))
+
+
