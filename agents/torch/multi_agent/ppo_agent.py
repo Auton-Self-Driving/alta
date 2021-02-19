@@ -592,7 +592,8 @@ class PPO_Collective_Agent(object):
                     viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
                     if videos:
-                        viz.generate_video(sub_folder)
+                        viz.generate_video(sub_folder,
+                            suffix=agent.termination_state)
                         viz.remove_images(sub_folder)
                     if agent.termination_state == 'success':
                         self.num_successes += 1

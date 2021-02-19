@@ -66,12 +66,13 @@ class Visualizer:
         image.save(im_path)
 
     # @profile
-    def generate_video(self, sub_folder=''):
+    def generate_video(self, sub_folder='', suffix=''):
         vid_prefix = 'video' if not sub_folder else sub_folder
-        file_name = str(vid_prefix) + '_' + self.savetime() + '.mp4'
+        vid_suffix = '' if not suffix else '_' + str(suffix)
+        file_name = str(vid_prefix) + '_' + self.savetime() + vid_suffix + '.mp4'
         vid_path = os.path.join(self.video_path, file_name)
         im_path = os.path.join(os.path.join(self.images_path, sub_folder), "%08d.png")
-        gen_vid_command = ["ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264", 
+        gen_vid_command = ["/usr/local/bin/ffmpeg", "-y", "-i", im_path ,"-c:v", "libx264",
             "-framerate", "60", "-pix_fmt", "yuv420p", vid_path]
         gen_vid_process = subprocess.Popen(gen_vid_command, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
         gen_vid_process.wait()
@@ -85,6 +86,8 @@ class Visualizer:
         images = glob.glob("{}/*.png".format(_path))
         for image in images:
             os.remove(image)
+        anything_else = glob.glob("{}/*.*".format(_path))
+        if not anything_else: os.rmdir(_path)
         # Reset image idx (ffmpeg starts from index 0)? Bug where there was no video generation past episode 1
         self.image_idx[sub_folder] = 0
 
