@@ -93,7 +93,8 @@ PPO_CONFIG = {
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
-    'nesterov': True,
+    'nesterov': False,
+    'focal_loss': [.5, .5],
     'glb_update_freq': 1000,
     'optim_epochs': 10,
 }
