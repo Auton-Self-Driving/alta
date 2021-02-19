@@ -34,6 +34,7 @@ ppo_agent = PPO_Collective_Agent(env, glb_policy, glb_optimizer,
     nesterov=PPO_CONFIG['nesterov'],
     glb_update_freq=PPO_CONFIG['glb_update_freq'],
     optim_epochs=PPO_CONFIG['optim_epochs'],
+    focal_loss=PPO_CONFIG['focal_loss'],
     save_suffix=PPO_CONFIG['save_suffix'],
     verbose=ENV_CONFIG['verbose'],
 )

@@ -76,8 +76,8 @@ class _PPO_Individual_Agent(Agent):
 class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer, num_agents=1,
         max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
-        grad_clip=None, glb_update_freq=1000, optim_epochs=100,
-        save_freq=100000, save_suffix='', verbose=False):
+        glb_update_freq=1000, optim_epochs=100, focal_loss=False,
+        grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
@@ -106,6 +106,7 @@ class PPO_Collective_Agent(object):
         self.eps_clip = eps_clip
         self.glb_update_freq = glb_update_freq
         self.optim_epochs = optim_epochs
+        self.focal_loss = focal_loss
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
@@ -196,6 +197,12 @@ class PPO_Collective_Agent(object):
             # Finding Surrogate Loss:
             # print('state_values', state_values.shape)
             advantages = rewards - state_values.detach()
+            if self.focal_loss: 
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - self.eps_clip,
                 1 + self.eps_clip) * advantages
