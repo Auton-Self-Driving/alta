@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 
-from collections import deque
+from collections import deque, defaultdict
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
@@ -197,7 +197,7 @@ class PPO_Collective_Agent(object):
             # Finding Surrogate Loss:
             # print('state_values', state_values.shape)
             advantages = rewards - state_values.detach()
-            if self.focal_loss: 
+            if self.focal_loss:
                 _al, _ga = self.focal_loss # assume a [alpha, gamma] list
                 _p = torch.exp(logprobs)
                 _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
@@ -568,6 +568,7 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
+        term_stats = defaultdict(int)
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
@@ -598,6 +599,7 @@ class PPO_Collective_Agent(object):
                     sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
                     viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
+                    term_stats[agent.termination_state] += 1
                     if videos:
                         viz.generate_video(sub_folder,
                             suffix=agent.termination_state)
@@ -638,6 +640,7 @@ class PPO_Collective_Agent(object):
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
+        print('[Finished]', term_stats)
 
     def save(self, filename=None):
         if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
