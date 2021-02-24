@@ -851,12 +851,13 @@ class DPPO_Collective_Agent(object):
 
     def _learn(self, env_id):
         # initialize
+        print('854', env_id)
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         env = self.glb_env_list[env_id]
-        env.reset(rank_list=self.rank_list)
+        env.reset(rank_list=self.rank_list[env_id])
         env.spawn_npc_vehicles(51 - self.num_agents)
         self.agent_list[env_id] = [_PPO_Individual_Agent(
             env.ego_vehicle_list[i],
@@ -867,6 +868,7 @@ class DPPO_Collective_Agent(object):
         avg_t_action, avg_t_step  = [], []
 
         while self.glb_num_steps.value < self.max_glb_num_steps + 1:
+            print('871, env_id, steps', env_id, self.glb_num_steps.value)
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list[env_id]):
@@ -896,7 +898,7 @@ class DPPO_Collective_Agent(object):
                         '[glb ep {}][glb step {}][env {}, agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
                         self.glb_num_episodes.value, self.glb_num_steps.value,
-                        env_id, rk, agent.termination_state, 
+                        env_id, rk, agent.termination_state,
                         agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
@@ -1021,7 +1023,7 @@ class DPPO_Collective_Agent(object):
 
     def learn(self):
         proc_list = []
-        for env_id, _ in self.glb_env_list:
+        for env_id, _ in enumerate(self.glb_env_list):
             p = mp.Process(target=self._learn, args=(env_id,))
             proc_list.append(p)
 
@@ -1064,7 +1066,7 @@ class DPPO_Collective_Agent(object):
 
     def run(self):
         raise NotImplementedError
-        
+
 
 
 if __name__ == '__main__':

@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0mR315Cos1KupdVarNPC',
+    'save_suffix': 'DPPO_TEST',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -197,7 +197,7 @@ ENV_CONFIG = {
     'num_envs': 2,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:2',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
