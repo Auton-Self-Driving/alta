@@ -157,6 +157,7 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_2300000_Feb210305AM06.pth',
     # 'checkpoint': './ckptPPOx8_O5mL5mG0mCosDiffLaneOKVarNPC_2400000_Feb211121AM14.pth',
     'num_agents': 1,
+    'num_envs': 2,
     'num_npc': 0,
     'sample_npc': False,
     # 'scenarios' : 'navigation',
