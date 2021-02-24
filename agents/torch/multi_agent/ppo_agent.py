@@ -4,6 +4,7 @@ import pickle
 import copy
 import torch
 import torch.multiprocessing as mp
+from threading import Thread, Lock
 import torch.nn.functional as F
 import numpy as np
 
@@ -722,6 +723,7 @@ class DPPO_Collective_Agent(object):
         super().__init__()
         self.glb_env_list = glb_env_list
         self.glb_policy = glb_policy
+        self.policy_lock = Lock()
         self.glb_optimizer = glb_optimizer
         self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
@@ -748,9 +750,15 @@ class DPPO_Collective_Agent(object):
             self.run_name, self.savetime())
         self.vid_log_dir = '{}/{}_{}'.format('./video_logs',
             'PPO_test', self.savetime())
-        self.glb_num_episodes = mp.Value('i', 1)
-        self.glb_num_steps = mp.Value('i', 0)
-        self.num_steps_since_update = mp.Value('i', 0)
+        # self.glb_num_episodes = mp.Value('i', 1)
+        self.glb_num_episodes = 1
+        self.episode_lock = Lock()
+        # self.glb_num_steps = mp.Value('i', 0)
+        self.glb_num_steps = 0
+        self.step_lock = Lock()
+        # self.num_steps_since_update = mp.Value('i', 0)
+        self.num_steps_since_update = 0
+        self.update_lock = Lock()
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
@@ -867,8 +875,8 @@ class DPPO_Collective_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while self.glb_num_steps.value < self.max_glb_num_steps + 1:
-            print('871, env_id, steps', env_id, self.glb_num_steps.value)
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
+            print('871, env_id, steps', env_id, self.glb_num_steps)
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list[env_id]):
@@ -897,7 +905,7 @@ class DPPO_Collective_Agent(object):
                         '[{}]'.format(self.run_name) + \
                         '[glb ep {}][glb step {}][env {}, agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        self.glb_num_episodes.value, self.glb_num_steps.value,
+                        self.glb_num_episodes, self.glb_num_steps,
                         env_id, rk, agent.termination_state,
                         agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
@@ -935,74 +943,74 @@ class DPPO_Collective_Agent(object):
                         obs_collision_int)
                     # tensorboard_recording
                     self.tbwriter.add_scalar('episode/reward',
-                        agent.episode_reward, self.glb_num_episodes.value)
+                        agent.episode_reward, self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/dist_to_target',
                         agent.episode_measurements['distance_to_goal_trajec'],
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/num_collisions',
                         agent.episode_measurements['num_collisions'],
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/success_rate',
                         self.recorder['train']['success_rate'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/collision_rate',
                         self.recorder['train']['collision_rate'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/avg_reward',
                         self.recorder['train']['avg_reward'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/max_reward',
                         self.recorder['train']['max_reward'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('episode/dist_to_target',
                         self.recorder['episode']['dist_to_target'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/avg_reward',
                         self.recorder['recent']['avg_reward'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/max_reward',
                         self.recorder['recent']['max_reward'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/min_reward',
                         self.recorder['recent']['min_reward'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/avg_dist_to_target',
                         self.recorder['recent']['avg_dist_to_trgt'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/success_rate',
                         self.recorder['recent']['success_rate'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.tbwriter.add_scalar('recent/collision_rate',
                         self.recorder['recent']['collision_rate'].summary(),
-                        self.glb_num_episodes.value)
+                        self.glb_num_episodesß)
                     self.recorder.summary_all()
-                    with self.glb_num_episodes.get_lock():
+                    with self.episode_lock:
                         self.glb_num_episodes += 1
 
 
                 agent.num_total_steps += 1
-                with self.num_steps_since_update.get_lock():
-                    self.num_steps_since_update.value += 1
-                with self.glb_num_steps.get_lock():
-                    self.glb_num_steps.value += 1
+                with self.step_lock:
+                    self.num_steps_since_update += 1
+                    self.glb_num_steps += 1
 
                 # save checkpoint
-                if env_id == 0 and self.glb_num_steps.value % self.save_freq == 0:
+                if env_id == 0 and self.glb_num_steps % self.save_freq == 0:
                     self.save()
 
-            if self.num_steps_since_update.value >= self.glb_update_freq:
-                with self.num_steps_since_update.get_lock():
-                    self.num_steps_since_update.value = 0
+            if self.num_steps_since_update >= self.glb_update_freq:
+                with self.step_lock:
+                    self.num_steps_since_update = 0
                 if self.resumed:
                     # skip the first update after resume
                     self.resumed = False
                 else:
                     # do the learning
                     print('updating policy...')
-                    if self.nesterov:
-                        self._nesterov_update()
-                    else:
-                        self._update()
+                    with self.update_lock:
+                        if self.nesterov:
+                            self._nesterov_update()
+                        else:
+                            self._update()
 
 
             # respawn dead agents
