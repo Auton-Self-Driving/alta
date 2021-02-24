@@ -733,7 +733,7 @@ class DPPO_Collective_Agent(object):
         self.focal_loss = focal_loss
         self.num_agents = num_agents
         self.rank_list = [list(range(num_agents)) for _ in glb_env_list]
-        self.agent_list = [list(range(num_agents)) for _ in glb_env_list]
+        self.agent_list = [[None] * num_agents for _ in glb_env_list]
         self.grad_clip = grad_clip
         self.nesterov = nesterov
         self.device = next(glb_policy.parameters()).device
@@ -1014,7 +1014,7 @@ class DPPO_Collective_Agent(object):
                 self.update_bar.wait()
                 if not self.resumed and env_id == 0:
                     # do the learning
-                    print('updating policy...')
+                    # print('updating policy...')
                     if self.nesterov:
                         self._nesterov_update()
                     else:

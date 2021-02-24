@@ -1128,8 +1128,10 @@ class CarlaEnv(gym.Env):
         # Delete all existing actors
         for _ in range(len(self.actor_list)):
             try:
-                actor = self.actor_list.pop()
-                actor.destroy()
+                # actor = self.actor_list.pop()
+                # actor.destroy()
+                self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+                self.actor_list.clear()
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id, traceback.format_exc()))
 

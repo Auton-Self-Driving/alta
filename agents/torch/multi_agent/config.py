@@ -197,7 +197,7 @@ ENV_CONFIG = {
     'num_envs': 4,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:1',
+    'device': 'cuda:3',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -206,8 +206,8 @@ ENV_CONFIG = {
     'render_res_x' : 800,
     # Y Rendering Resolution
     'render_res_y' : 800,
-    'sensor_x_res' : '80',
-    'sensor_y_res' : '160',
+    'sensor_x_res' : '1',
+    'sensor_y_res' : '1',
     # Input X Res (Default set to Atari)
     'x_res': 84,
     # Input Y Res (Default set to Atari)
@@ -274,7 +274,7 @@ ENV_CONFIG = {
     'num_npc_upper_threshold' : 150,
     # 'num_npc_lower_threshold' : 100,
     # 'num_npc_upper_threshold' : 200,
-    'npc_reset_freq': 1000,
+    'npc_reset_freq': 1,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
