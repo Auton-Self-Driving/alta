@@ -194,10 +194,10 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_envs': 2,
+    'num_envs': 4,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',

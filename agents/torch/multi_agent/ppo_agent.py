@@ -4,7 +4,7 @@ import pickle
 import copy
 import torch
 import torch.multiprocessing as mp
-from threading import Thread, Lock
+from threading import Thread, Lock, Condition, Barrier
 import torch.nn.functional as F
 import numpy as np
 
@@ -57,11 +57,7 @@ class _PPO_Individual_Agent(Agent):
         state_tensor = torch.from_numpy(prev_state).to(torch.float).to(self.device)
         action, logprob = self.local_policy.act(state_tensor,
             deterministic=deterministic)
-        # update partial memory
-        self.memory['state'].append(prev_state.tolist())
-        self.memory['action'].append(action.tolist())
-        self.memory['logprob'].append(logprob.tolist())
-        return action
+        return action, logprob
 
     def update_local_policy(self):
         self.local_policy.load_state_dict(self.glb_policy.state_dict())
@@ -424,8 +420,12 @@ class PPO_Collective_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
-                action = agent.select_action()
+                action, logprob = agent.select_action()
                 agent.action = action
+                # update partial memory
+                agent.memory['state'].append(agent.observation.tolist())
+                agent.memory['action'].append(action.tolist())
+                agent.memory['logprob'].append(logprob.tolist())
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list])
             # get new observation
@@ -590,7 +590,7 @@ class PPO_Collective_Agent(object):
             # take action
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
-                action = agent.select_action(deterministic=True)
+                action, _ = agent.select_action(deterministic=True)
                 agent.action = action
             self.vprint('action chosen:', [a.action for a in self.agent_list])
             # get new observation
@@ -760,6 +760,8 @@ class DPPO_Collective_Agent(object):
         # self.num_steps_since_update = mp.Value('i', 0)
         self.num_steps_since_update = 0
         self.update_lock = Lock()
+        self.memory_cond = Condition()
+        self.update_bar = Barrier(len(glb_env_list), timeout=None)
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
@@ -780,6 +782,8 @@ class DPPO_Collective_Agent(object):
         return torch.from_numpy(np_array).to(self.device)
 
     def _update(self):
+        # with self.memory_cond:
+        #     self.memory_cond.wait()
         rewards = []
         old_states = []
         old_actions = []
@@ -880,8 +884,13 @@ class DPPO_Collective_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list[env_id]):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
-                action = agent.select_action()
+                action, logprob = agent.select_action()
                 agent.action = action
+                # update partial memory
+                # with self.update_lock:
+                agent.memory['state'].append(agent.observation.tolist())
+                agent.memory['action'].append(action.tolist())
+                agent.memory['logprob'].append(logprob.tolist())
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list[env_id]])
             # get new observation
@@ -896,6 +905,7 @@ class DPPO_Collective_Agent(object):
                 np.mean(avg_t_step)))
 
             for rk, agent in enumerate(self.agent_list[env_id]):
+                # with self.update_lock:
                 agent.memory['reward'].append(agent.curr_reward)
                 agent.memory['done'].append(agent.done)
 
@@ -996,20 +1006,23 @@ class DPPO_Collective_Agent(object):
                 if env_id == 0 and self.glb_num_steps % self.save_freq == 0:
                     self.save()
 
+            # with self.memory_cond:
+            #     self.memory_cond.notify_all()
+
+            # with self.update_lock:
             if self.num_steps_since_update >= self.glb_update_freq:
-                with self.step_lock:
-                    self.num_steps_since_update = 0
-                if self.resumed:
-                    # skip the first update after resume
-                    self.resumed = False
-                else:
+                self.update_bar.wait()
+                if not self.resumed and env_id == 0:
                     # do the learning
                     print('updating policy...')
-                    with self.update_lock:
-                        if self.nesterov:
-                            self._nesterov_update()
-                        else:
-                            self._update()
+                    if self.nesterov:
+                        self._nesterov_update()
+                    else:
+                        self._update()
+                self.update_bar.wait()
+                with self.step_lock:
+                    self.num_steps_since_update = 0
+                    self.resumed = False
 
 
             # respawn dead agents
@@ -1076,10 +1089,31 @@ class DPPO_Collective_Agent(object):
         print('checkpoint saved at [{}]'.format(filename))
 
     def load(self, checkpoint):
-        raise NotImplementedError
+        self.glb_policy.load_state_dict(checkpoint['glb_policy'])
+        self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
+        print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):
-        raise NotImplementedError
+        if strict:
+            assert self.num_agents == \
+                checkpoint['num_agents'], '{} != {}'.format(
+                self.num_agents, checkpoint['num_agents'])
+        self.load(checkpoint)
+        self.eps_clip = checkpoint['eps_clip']
+        self.max_glb_num_steps = checkpoint['max_glb_num_steps']
+        self.gamma = checkpoint['gamma']
+        self.glb_update_freq = checkpoint['glb_update_freq']
+        self.optim_epochs = checkpoint['optim_epochs']
+        self.save_freq = checkpoint['save_freq']
+        self.verbose = checkpoint['verbose']
+        self.glb_num_steps = checkpoint['glb_num_steps']
+        self.num_steps_since_update = checkpoint['num_steps_since_update']
+        self.glb_num_episodes = checkpoint['glb_num_episodes']
+        self.tbwriter = TensorboardWriter(
+                log_dir=self.tb_log_dir,
+                purge_step=self.glb_num_episodes,
+                filename_suffix='_{}'.format(self.run_name),)
+        self.resumed = True
 
     def run(self):
         raise NotImplementedError
