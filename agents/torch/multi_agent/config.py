@@ -194,6 +194,7 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
+    'num_envs': 2,
     'num_agents': 8,
     'max_num_steps': 16000000,
     'device': 'cuda:2',
