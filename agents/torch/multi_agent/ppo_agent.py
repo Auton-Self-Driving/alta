@@ -3,10 +3,12 @@ import time
 import pickle
 import copy
 import torch
+import torch.multiprocessing as mp
+from threading import Thread, Lock
 import torch.nn.functional as F
 import numpy as np
 
-from collections import deque
+from collections import deque, defaultdict
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
@@ -197,7 +199,7 @@ class PPO_Collective_Agent(object):
             # Finding Surrogate Loss:
             # print('state_values', state_values.shape)
             advantages = rewards - state_values.detach()
-            if self.focal_loss: 
+            if self.focal_loss:
                 _al, _ga = self.focal_loss # assume a [alpha, gamma] list
                 _p = torch.exp(logprobs)
                 _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
@@ -568,6 +570,7 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
+        term_stats = defaultdict(int)
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
@@ -598,6 +601,7 @@ class PPO_Collective_Agent(object):
                     sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
                     viz.save_image(agent.rv_image, sub_folder=sub_folder)
                 if agent.done:  # done and print information
+                    term_stats[agent.termination_state] += 1
                     if videos:
                         viz.generate_video(sub_folder,
                             suffix=agent.termination_state)
@@ -638,6 +642,7 @@ class PPO_Collective_Agent(object):
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
+        print('[Finished]', term_stats)
 
     def save(self, filename=None):
         if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
@@ -689,6 +694,396 @@ class PPO_Collective_Agent(object):
 
     def run(self):
         raise NotImplementedError('This agent does not use MP')
+
+
+class DPPO_Collective_Agent(object):
+    def __init__(self, glb_env_list, glb_policy, glb_optimizer, num_agents=1,
+        max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
+        glb_update_freq=1000, optim_epochs=100, focal_loss=False,
+        grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
+        """A DPPO agent.
+        Args:
+            glb_env_list: global environment list
+            glb_policy: network shared by all PPO agents
+            glb_optimizer: optimizer for the glb_policy
+            num_agents: list of numbers of PPO agents
+            max_glb_num_steps: max number of global steps
+            gamma: reward discount factor
+            eps_clip: clip parameter for PPO
+            grad_clip: value for clipping gradient, None to disable
+            nesterov: if using nesterov update
+            glb_update_freq: update frequency of glb_policy
+            optim_epochs: update policy for how many epochs
+            save_freq: checkpoint saving frequency
+                (save the agent every N global steps)
+            save_suffix: checkpoint saving suffix
+            deterministic: evaluation mode (deterministic action)
+            verbose: if print some debug information
+        """
+        super().__init__()
+        self.glb_env_list = glb_env_list
+        self.glb_policy = glb_policy
+        self.policy_lock = Lock()
+        self.glb_optimizer = glb_optimizer
+        self.max_glb_num_steps = max_glb_num_steps
+        self.gamma = gamma
+        self.eps_clip = eps_clip
+        self.glb_update_freq = glb_update_freq
+        self.optim_epochs = optim_epochs
+        self.focal_loss = focal_loss
+        self.num_agents = num_agents
+        self.rank_list = [list(range(num_agents)) for _ in glb_env_list]
+        self.agent_list = [list(range(num_agents)) for _ in glb_env_list]
+        self.grad_clip = grad_clip
+        self.nesterov = nesterov
+        self.device = next(glb_policy.parameters()).device
+        self.save_freq = save_freq
+        self.save_suffix = '_' + save_suffix if save_suffix else ''
+        self.run_name = 'DPPO{}x{}{}'.format(len(glb_env_list), num_agents,
+            self.save_suffix)
+        self.verbose = verbose
+        self.glb_ep_reward_list = []
+        self.agent_reward_list = \
+            [[[] for _ in range(num_agents)] for _ in glb_env_list]
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
+        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
+            self.run_name, self.savetime())
+        self.vid_log_dir = '{}/{}_{}'.format('./video_logs',
+            'PPO_test', self.savetime())
+        # self.glb_num_episodes = mp.Value('i', 1)
+        self.glb_num_episodes = 1
+        self.episode_lock = Lock()
+        # self.glb_num_steps = mp.Value('i', 0)
+        self.glb_num_steps = 0
+        self.step_lock = Lock()
+        # self.num_steps_since_update = mp.Value('i', 0)
+        self.num_steps_since_update = 0
+        self.update_lock = Lock()
+        self.recorder = GlobalRecorder
+        self.tbwriter = None
+        self.resumed = False
+
+    def tb_write_config(self, tag, config):
+        if self.tbwriter is None:
+            self.tbwriter = TensorboardWriter(
+                log_dir=self.tb_log_dir,
+                filename_suffix='_{}'.format(self.run_name),)
+        self.tbwriter.add_dict(tag, config)
+
+    def vprint(self, *args, **kwargs):
+        if self.verbose: print(*args, **kwargs)
+
+    def to_tensor(self, np_array, dtype=np.float32):
+        if np_array.dtype != dtype:
+            np_array = np_array.astype(dtype)
+        return torch.from_numpy(np_array).to(self.device)
+
+    def _update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        for env_id, _ in enumerate(self.glb_env_list):
+            for agent in self.agent_list[env_id]:
+                agent_rewards = deque()
+                # Monte Carlo estimate of rewards:
+                mem = agent.memory
+                discounted_reward = 0
+                for reward, is_terminal in zip(reversed(mem['reward']), reversed(mem['done'])):
+                    if is_terminal:
+                        discounted_reward = 0
+                    discounted_reward = reward + (self.gamma * discounted_reward)
+                    agent_rewards.appendleft(discounted_reward)
+                rewards.extend(list(agent_rewards))
+                old_states.extend(mem['state'])
+                old_actions.extend(mem['action'])
+                old_logprobs.extend(mem['logprob'])
+
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
+
+        # convert list to tensor
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            # print(old_states.shape)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
+
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            if self.focal_loss:
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+
+        for env_id, _ in enumerate(self.glb_env_list):
+            for agent in self.agent_list[env_id]:
+                if agent.done: continue # no need to update for a done agent
+                agent.update_local_policy()
+                agent.reset_memory()
+
+    def _nesterov_update(self):
+        raise NotImplementedError
+
+    def _learn(self, env_id):
+        # initialize
+        if self.tbwriter is None:
+            self.tbwriter = TensorboardWriter(
+                log_dir=self.tb_log_dir,
+                filename_suffix='_{}'.format(self.run_name),)
+        env = self.glb_env_list[env_id]
+        env.reset(rank_list=self.rank_list[env_id])
+        env.spawn_npc_vehicles(51 - self.num_agents)
+        self.agent_list[env_id] = [_PPO_Individual_Agent(
+            env.ego_vehicle_list[i],
+            glb_policy=self.glb_policy, rank=i) for i in self.rank_list[env_id]]
+        env.reset_vehicle_agent(self.agent_list[env_id])
+        env.step()
+
+        avg_t_action, avg_t_step  = [], []
+
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
+            # take action
+            ts_action = time.time()
+            for rk, agent in enumerate(self.agent_list[env_id]):
+                # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
+                action = agent.select_action()
+                agent.action = action
+            te_action = time.time()
+            self.vprint('action chosen:', [a.action for a in self.agent_list[env_id]])
+            # get new observation
+            ts_step = time.time()
+            env.step()
+            te_step = time.time()
+            avg_t_action.append(te_action - ts_action)
+            avg_t_step.append(te_step - ts_step)
+            self.vprint('[num_agent {}][action time {:.4f}, avg {:.4f}]'
+                '[step time {:.4f}, avg {:.4f}]'.format(self.num_agents,
+                avg_t_action[-1], np.mean(avg_t_action), avg_t_step[-1],
+                np.mean(avg_t_step)))
+
+            for rk, agent in enumerate(self.agent_list[env_id]):
+                agent.memory['reward'].append(agent.curr_reward)
+                agent.memory['done'].append(agent.done)
+
+                if agent.done:  # done and print information
+                    print('[{}]'.format(self.time()) + \
+                        '[{}]'.format(self.run_name) + \
+                        '[glb ep {}][glb step {}][env {}, agent {}] done({})'
+                        ', ep reward [{:.4f}]'.format(
+                        self.glb_num_episodes, self.glb_num_steps,
+                        env_id, rk, agent.termination_state,
+                        agent.episode_reward))
+                    self.agent_reward_list[env_id][rk].append(agent.episode_reward)
+                    self.glb_ep_reward_list.append(agent.episode_reward)
+                    success_int = int('success' == agent.termination_state)
+                    obs_collision_int = int('obs_collision' == agent.termination_state)
+                    # record statistics
+                    self.recorder['train']['reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['train']['max_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['train']['avg_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['train']['dist_to_target'].record_value(
+                        agent.episode_measurements['distance_to_goal_trajec'])
+                    self.recorder['train']['num_collisions'].record_value(
+                        agent.episode_measurements['num_collisions'])
+                    self.recorder['train']['success_rate'].record_value(
+                        success_int)
+                    self.recorder['train']['collision_rate'].record_value(
+                        obs_collision_int)
+                    self.recorder['episode']['dist_to_target'].record_value(
+                        agent.episode_measurements['distance_to_goal_trajec'])
+                    self.recorder['recent']['avg_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['recent']['max_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['recent']['min_reward'].record_value(
+                        agent.episode_reward)
+                    self.recorder['recent']['avg_dist_to_trgt'].record_value(
+                        agent.episode_measurements['distance_to_goal_trajec'])
+                    self.recorder['recent']['success_rate'].record_value(
+                        success_int)
+                    self.recorder['recent']['collision_rate'].record_value(
+                        obs_collision_int)
+                    # tensorboard_recording
+                    self.tbwriter.add_scalar('episode/reward',
+                        agent.episode_reward, self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/dist_to_target',
+                        agent.episode_measurements['distance_to_goal_trajec'],
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/num_collisions',
+                        agent.episode_measurements['num_collisions'],
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/success_rate',
+                        self.recorder['train']['success_rate'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/collision_rate',
+                        self.recorder['train']['collision_rate'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/avg_reward',
+                        self.recorder['train']['avg_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/max_reward',
+                        self.recorder['train']['max_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('episode/dist_to_target',
+                        self.recorder['episode']['dist_to_target'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/avg_reward',
+                        self.recorder['recent']['avg_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/max_reward',
+                        self.recorder['recent']['max_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/min_reward',
+                        self.recorder['recent']['min_reward'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/avg_dist_to_target',
+                        self.recorder['recent']['avg_dist_to_trgt'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/success_rate',
+                        self.recorder['recent']['success_rate'].summary(),
+                        self.glb_num_episodes)
+                    self.tbwriter.add_scalar('recent/collision_rate',
+                        self.recorder['recent']['collision_rate'].summary(),
+                        self.glb_num_episodes)
+                    self.recorder.summary_all()
+                    with self.episode_lock:
+                        self.glb_num_episodes += 1
+
+
+                agent.num_total_steps += 1
+                with self.step_lock:
+                    self.num_steps_since_update += 1
+                    self.glb_num_steps += 1
+
+                # save checkpoint
+                if env_id == 0 and self.glb_num_steps % self.save_freq == 0:
+                    self.save()
+
+            if self.num_steps_since_update >= self.glb_update_freq:
+                with self.step_lock:
+                    self.num_steps_since_update = 0
+                if self.resumed:
+                    # skip the first update after resume
+                    self.resumed = False
+                else:
+                    # do the learning
+                    print('updating policy...')
+                    with self.update_lock:
+                        if self.nesterov:
+                            self._nesterov_update()
+                        else:
+                            self._update()
+
+
+            # respawn dead agents
+            respawn_rank_list = []
+            for rk, agent in enumerate(self.agent_list[env_id]):
+                if agent.done: respawn_rank_list.append(rk)
+            if len(respawn_rank_list) > 0: # there're dead agents to respawn
+                env.reset(rank_list=respawn_rank_list)
+                # update agent list
+                for rk in respawn_rank_list:
+                    self.agent_list[env_id][rk] = _PPO_Individual_Agent(
+                        env.ego_vehicle_list[rk],
+                        glb_policy=self.glb_policy, rank=rk,
+                        memory=self.agent_list[env_id][rk].memory)
+                env.reset_vehicle_agent(
+                    [self.agent_list[env_id][rk] for rk in respawn_rank_list])
+                env.step()
+
+    def learn(self):
+        # proc_list = []
+       #  for env_id, _ in enumerate(self.glb_env_list):
+       #      p = mp.Process(target=self._learn, args=(env_id,))
+       #      proc_list.append(p)
+
+       #  for p in proc_list:
+       #      p.start()
+       #  for p in proc_list:
+       #      p.join()
+       #
+        thread_list = []
+        for env_id, _ in enumerate(self.glb_env_list):
+            p = Thread(target=self._learn, args=(env_id,))
+            thread_list.append(p)
+
+        for p in thread_list:
+            p.start()
+        for p in thread_list:
+            p.join()
+
+        print('Training Finished')
+
+    def test(self, videos=False):
+        raise NotImplementedError
+
+    def save(self, filename=None):
+        if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
+            self.run_name, self.glb_num_steps, self.savetime())
+        _ckpt = {
+            'glb_policy': self.glb_policy.state_dict(),
+            'glb_optimizer': self.glb_optimizer.state_dict(),
+            'num_agents': self.num_agents,
+            'max_glb_num_steps': self.max_glb_num_steps,
+            'gamma': self.gamma,
+            'eps_clip': self.eps_clip,
+            'glb_update_freq': self.glb_update_freq,
+            'optim_epochs': self.optim_epochs,
+            'save_freq': self.save_freq,
+            'verbose': self.verbose,
+            'glb_num_steps': self.glb_num_steps,
+            'num_steps_since_update': self.num_steps_since_update,
+            'glb_num_episodes': self.glb_num_episodes,
+        }
+        torch.save(_ckpt, filename)
+        print('checkpoint saved at [{}]'.format(filename))
+
+    def load(self, checkpoint):
+        raise NotImplementedError
+
+    def resume(self, checkpoint, strict=False):
+        raise NotImplementedError
+
+    def run(self):
+        raise NotImplementedError
+
 
 
 if __name__ == '__main__':

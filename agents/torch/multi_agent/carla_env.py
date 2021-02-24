@@ -1290,7 +1290,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['total_steps'] = agent.num_total_steps
 
         # Ticking for 15 frames to handle car initialization in air
-        time.sleep(.04)
+        # time.sleep(.04)
         # for _ in range(3):
         #     # print(self.world_frame)
         #     self.world_frame = self._world.tick()
@@ -1429,7 +1429,7 @@ class CarlaEnv(gym.Env):
                         rk, idx, self.source_transform.location.x, self.source_transform.location.y))
                     # print("Number of existing actors, {}".format(len(self.actor_list)))
                     # print("Number of existing ego agents, {}".format(self.curr_num_agents))
-                    time.sleep(.04)
+                    # time.sleep(.04)
 
             if self.vehicle_actor is not None:
                 # print(self.vehicle_actor)
