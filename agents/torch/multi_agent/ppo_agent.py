@@ -733,7 +733,7 @@ class DPPO_Collective_Agent(object):
         self.focal_loss = focal_loss
         self.num_agents = num_agents
         self.rank_list = [list(range(num_agents)) for _ in glb_env_list]
-        self.agent_list = None
+        self.agent_list = [list(range(num_agents)) for _ in glb_env_list]
         self.grad_clip = grad_clip
         self.nesterov = nesterov
         self.device = next(glb_policy.parameters()).device
@@ -743,7 +743,8 @@ class DPPO_Collective_Agent(object):
             self.save_suffix)
         self.verbose = verbose
         self.glb_ep_reward_list = []
-        self.agent_reward_list = [[] for _ in self.rank_list]
+        self.agent_reward_list = \
+            [[[] for _ in range(num_agents)] for _ in glb_env_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
@@ -849,7 +850,7 @@ class DPPO_Collective_Agent(object):
             self.glb_optimizer.step()
 
         for env_id, _ in enumerate(self.glb_env_list):
-            for agent in self.agent_list:
+            for agent in self.agent_list[env_id]:
                 if agent.done: continue # no need to update for a done agent
                 agent.update_local_policy()
                 agent.reset_memory()
@@ -859,7 +860,6 @@ class DPPO_Collective_Agent(object):
 
     def _learn(self, env_id):
         # initialize
-        print('854', env_id)
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
@@ -876,7 +876,6 @@ class DPPO_Collective_Agent(object):
         avg_t_action, avg_t_step  = [], []
 
         while self.glb_num_steps < self.max_glb_num_steps + 1:
-            print('871, env_id, steps', env_id, self.glb_num_steps)
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list[env_id]):
@@ -908,7 +907,7 @@ class DPPO_Collective_Agent(object):
                         self.glb_num_episodes, self.glb_num_steps,
                         env_id, rk, agent.termination_state,
                         agent.episode_reward))
-                    self.agent_reward_list[rk].append(agent.episode_reward)
+                    self.agent_reward_list[env_id][rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     success_int = int('success' == agent.termination_state)
                     obs_collision_int = int('obs_collision' == agent.termination_state)
@@ -961,28 +960,28 @@ class DPPO_Collective_Agent(object):
                         self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/max_reward',
                         self.recorder['train']['max_reward'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('episode/dist_to_target',
                         self.recorder['episode']['dist_to_target'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/avg_reward',
                         self.recorder['recent']['avg_reward'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/max_reward',
                         self.recorder['recent']['max_reward'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/min_reward',
                         self.recorder['recent']['min_reward'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/avg_dist_to_target',
                         self.recorder['recent']['avg_dist_to_trgt'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/success_rate',
                         self.recorder['recent']['success_rate'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.tbwriter.add_scalar('recent/collision_rate',
                         self.recorder['recent']['collision_rate'].summary(),
-                        self.glb_num_episodesß)
+                        self.glb_num_episodes)
                     self.recorder.summary_all()
                     with self.episode_lock:
                         self.glb_num_episodes += 1
@@ -1030,14 +1029,24 @@ class DPPO_Collective_Agent(object):
                 env.step()
 
     def learn(self):
-        proc_list = []
-        for env_id, _ in enumerate(self.glb_env_list):
-            p = mp.Process(target=self._learn, args=(env_id,))
-            proc_list.append(p)
+        # proc_list = []
+       #  for env_id, _ in enumerate(self.glb_env_list):
+       #      p = mp.Process(target=self._learn, args=(env_id,))
+       #      proc_list.append(p)
 
-        for p in proc_list:
+       #  for p in proc_list:
+       #      p.start()
+       #  for p in proc_list:
+       #      p.join()
+       #
+        thread_list = []
+        for env_id, _ in enumerate(self.glb_env_list):
+            p = Thread(target=self._learn, args=(env_id,))
+            thread_list.append(p)
+
+        for p in thread_list:
             p.start()
-        for p in proc_list:
+        for p in thread_list:
             p.join()
 
         print('Training Finished')
