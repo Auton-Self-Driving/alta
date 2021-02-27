@@ -31,7 +31,7 @@ DEFAULT_ENV = {
     "y_res": 84,
     "server_fps" : 10,
     "server_port" : None,
-    "server_retries" : 5, 
+    "server_retries" : 5,
     "city_name" : "Town01",
     "frame_skip": 1,
     "enable_planner" : True,
@@ -50,7 +50,7 @@ DEFAULT_ENV = {
     "verbose": False,
     "vehicle_type": 'vehicle.toyota.prius',
     "disable_two_wheeler" : True,
-    "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola', 
+    "vehicle_types": ['vehicle.ford.mustang', 'vehicle.audi.a2', 'vehicle.audi.tt', 'vehicle.bmw.isetta', 'vehicle.carlamotors.carlacola',
                       'vehicle.citroen.c3', 'vehicle.bmw.grandtourer', 'vehicle.mercedes-benz.coupe',
                       'vehicle.toyota.prius', 'vehicle.dodge_charger.police', 'vehicle.nissan.patrol',
                       'vehicle.tesla.model3', 'vehicle.seat.leon', 'vehicle.lincoln.mkz2017',
@@ -64,7 +64,7 @@ DEFAULT_ENV = {
     "max_offlane_steps" : 20,
     "max_static_steps" : 1000,
     "log_measurements_to_file": False,
-    "train_config": None,
+    "train_config": "PPO",
     "sync_mode": True,
     # NOTE: crop does not work with framestack yet. need to add.
     "preprocess_crop_image": False,
@@ -92,7 +92,7 @@ DEFAULT_ENV = {
     "terminate_on_light" : True,
     "enable_brake": True,
     "log_freq": 1,
-    "zero_speed_threshold": 0.05, 
+    "zero_speed_threshold": 0.05,
     "videos" : False,
     "obstacle_dist_norm" : 60,
     "spawn_points_fixed_idx" : [ 54, 234, 108,  12, 175,  71, 116,  99, 196,  63, 205,  46,  96,
@@ -140,7 +140,7 @@ DEFAULT_ENV = {
     "sample_npc": True,
     "use_offline_map": False,
     "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
-    "use_route_to_plan" : False
+    "use_route_to_plan" : False,
 }
 
 episode_measurements = {
@@ -262,7 +262,7 @@ def get_discrete_actions():
         for j in range(len(steer)):
             action_space[n] = [target_speed[i], steer[j]]
             n = n+1
-    
+
     action_space[n] = [20, -0.5]
     action_space[n+1] = [20, 0.5]
     return action_space
@@ -270,7 +270,7 @@ def get_discrete_actions():
 DISCRETE_ACTIONS = get_discrete_actions()
 
 class ConfigManager(object):
-    def __init__(self, algo='DDPG'):
+    def __init__(self, algo='PPO'):
         self.config = {}
 
         self._initialize_config(algo)
@@ -307,12 +307,20 @@ class ConfigManager(object):
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["semantic"] = True
+            # self.config["semantic"] = True
+            self.config["sensors"] = {"lane_invasion_sensor":None, \
+                                        "collision_sensor": None, \
+                                        "sensor.camera.semantic_segmentation/top": {'x':13.0, 'z':18.0, 'pitch':270.0, \
+                                                                                    'sensor_x_res': '112', 'sensor_y_res':'112', 'fov':'90', \
+                                                                                    'sensor_tick': '0.0', 'num_classes':5},
+                                        "sensor.camera.rgb/front": {'x':2.0, 'z':1.4, 'pitch':0.0, \
+                                                                    'sensor_x_res':'112', 'sensor_y_res':'112', 'fov':'90', \
+                                                                    'sensor_tick': '0.0'} }
             self.config["scenarios"] = "navigation"
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp"
+            self.config["input_type"] = "wp_bev_rv_obs_info_speed_steer_ldist_goal_light"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"

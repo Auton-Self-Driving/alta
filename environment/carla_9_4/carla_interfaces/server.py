@@ -26,7 +26,7 @@ class CarlaServer():
         self.carla_env = os.environ.copy()
         if self.carla_gpu is not None:
             self.carla_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
-            del carla_env['CUDA_VISIBLE_DEVICES']
+            del self.carla_env['CUDA_VISIBLE_DEVICES']
             print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
 
         if not self.render_server:

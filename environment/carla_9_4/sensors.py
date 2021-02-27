@@ -15,37 +15,40 @@ import sys
 import weakref
 import carla
 import queue
-
-from environment.carla_9_4.sensors import *
+import numpy as np
+from ae.util import *
 
 class SensorManager():
     '''
     Sensor Manager will always be associated with a parent actor(mostly vehicle)
     '''
     def __init__(self, config, parent_actor):
+        self.config = config
+
         self.parent_actor = parent_actor
-        self.sensors_names = list(self.config['sensors'].keys())
+        self.sensor_names = list(self.config['sensors'].keys())
         # Assuming sensors_configs as a list of dictioaries
-        self.sensors_configs = list(self.config['sensors'].values())
+        self.sensor_configs = list(self.config['sensors'].values())
 
         # This is similar to normal dictionary but with efficient memory management during garbage collection
-        self.sensors = weakref.WeakValueDictionary()
-    
+        #self.sensors = weakref.WeakValueDictionary()
+        self.sensors = {}
+
     def spawn(self):
         # Change this to dict format? Decide on config file format
-        for idx, (k,v) in enumerate(zip(self.sensor_names, self.sensor_configs)):
-            if k=="collision_sensor":
+        for idx, (sensor_name, sensor_config) in enumerate(zip(self.sensor_names, self.sensor_configs)):
+            if sensor_name=="collision_sensor":
                 sensor = CollisionSensor(self.parent_actor)
-            elif k=="lane_invasion_sensor":
+            elif sensor_name=="lane_invasion_sensor":
                 sensor = LaneInvasionSensor(self.parent_actor)
-            elif 'camera' in k:
-                v.update({'name':k})
-                sensor = CameraSensor(self.parent_actor, v)
+            elif 'camera' in sensor_name:
+                sensor_config.update({'name':sensor_name})
+                sensor = CameraSensor(self.parent_actor, sensor_config, self.config['verbose'])
             else:
-                print("Sensor not supported")
+                raise Exception("Sensor {} not supported".format(sensor_name))
 
-            self.sensors[k] = sensor
-    
+            self.sensors[sensor_name] = sensor
+
     # TODO: Collect the data from each sensor and return them as a dict with key as sensor name(same as the name used in config)
     def get_sensor_readings(self, world_frame=None):
         sensor_readings = {}
@@ -55,7 +58,7 @@ class SensorManager():
                                         'collision_actor_id': self.sensors[k].actor_id,\
                                         'collision_actor_type': self.sensors[k].actor_type}
             elif k=="lane_invasion_sensor":
-                sensor_readings[k] = {'num_laneintersections': self.sensors[k].num_laneintersections,\
+                sensor_readings[k] = {'num_lane_intersections': self.sensors[k].num_laneintersections,\
                                         'out_of_road': self.sensors[k].out_of_road}
             elif 'camera' in k:
                 if world_frame is None:
@@ -65,7 +68,7 @@ class SensorManager():
                     sensor_readings[k] = {'image': camera_image}
             else:
                 print("Uninitialized sensor!")
-                
+
         return sensor_readings
 
 # ==============================================================================
@@ -158,7 +161,7 @@ class LaneInvasionSensor(object):
             return
         # TODO : Handle case of lane invasion for dashed vs solid lane markings
         self.num_laneintersections += 1
-        
+
         lane_types = set(x.type for x in event.crossed_lane_markings)
         if carla.libcarla.LaneMarkingType.NONE in lane_types:
             self.out_of_road = True
@@ -199,20 +202,23 @@ class GnssSensor(object):
 
 
 class CameraSensor(object):
-    def __init__(self, parent_actor,config=None):
+    def __init__(self, parent_actor,config=None, verbose = False):
         '''
         Assumption:
             Format of config['name'] should be 'sensor.camera.rgb(or sem_seg)/front(or top)'
         '''
         self.sensor = None
         self._parent = parent_actor
-        self.transform = carla.Transform(carla.Location(x=config['x'], z=config['x']), \
+        self.transform = carla.Transform(carla.Location(x=config['x'], z=config['z']), \
                                             carla.Rotation(pitch=config['pitch']))
+
+        self.verbose = verbose
+        self.config = config
         self.camera_queue = queue.Queue()
         self.name = config['name']
         world = self._parent.get_world()
-
-        sensor_bp = self.blueprint_library.find(config['name'].split('/')[0])
+        blueprint_library = world.get_blueprint_library()
+        sensor_bp = blueprint_library.find(config['name'].split('/')[0])
         sensor_bp.set_attribute('image_size_x', config['sensor_x_res'])
         sensor_bp.set_attribute('image_size_y', config['sensor_y_res'])
         sensor_bp.set_attribute('sensor_tick', config['sensor_tick'])
@@ -238,7 +244,7 @@ class CameraSensor(object):
             if data.frame == world_frame:
                 return data
             else:
-                if self.config["verbose"]:
+                if self.verbose:
                     print("difference in frames, world_frame={0}, data_frame={1}".format(world_frame, data.frame))
 
     def _preprocess_image(self, image):

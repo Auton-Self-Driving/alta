@@ -1,8 +1,7 @@
-from environment.carla_9_4.carla.common import CarlaInterface
 import environment.carla_9_4.scenarios as scenarios
-from environment.carla_9_4.carla.server import CarlaServer
+from environment.carla_9_4.carla_interfaces.server import CarlaServer
 from environment.carla_9_4 import planner
-from environment.carla_9_4.carla.actor_manager import ActorManager910
+from environment.carla_9_4.carla_interfaces.actor_manager import ActorManager910
 from abc import ABC
 import time
 import random
@@ -14,23 +13,31 @@ import carla
 #TODO add handling for offline map - needed for leaderboard
 
 
-class Carla910Interface(CarlaInterface):
+class Carla910Interface():
 
-    def __init__(self, config):
+    def __init__(self, config, log_dir):
         self.config = config
 
         # Instantiate and start server
-        self.server = CarlaServer(config)
+        # self.server = CarlaServer(config)
 
         self.client = None
 
+        self.log_dir = log_dir
+
+        self.setup()
+
     def setup(self):
         # Start the carla server and get a client
-        self.server.start()
+        # self.server.start()
         self.client = self._spawn_client()
 
         # Get the world
         self.world = self.client.get_world()
+
+        # Temporary
+        self.spectator = self.world.get_spectator()
+
 
         # Update the settings from the config
         settings = self.world.get_settings()
@@ -55,14 +62,18 @@ class Carla910Interface(CarlaInterface):
         self.spawn_points = self.world.get_map().get_spawn_points()
 
         # Instantiate a vehicle manager to handle other actors
-        self.actor_fleet = ActorManager910(self.config, self.client)
+        self.actor_fleet = ActorManager910(self.config, self.client, self.log_dir)
+
+        # Get traffic lights
+        self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
 
         self.scenario_index = 0
 
         print("server_version", self.client.get_server_version())
 
     def _spawn_client(self, hostname='localhost', port_number=None):
-        port_number = self.server.server_port
+        #TODO switch back to getting port from server
+        port_number = 2000#self.server.server_port
         client = carla.Client(hostname, port_number)
         client.set_timeout(self.config["client_timeout_seconds"])
 
@@ -132,6 +143,12 @@ class Carla910Interface(CarlaInterface):
         else:
             raise ValueError("Scenarios Config not set!")
 
+    def check_subset(self, pt):
+        for spawn_pt in self.spawn_points:
+            if pt.location.distance(spawn_pt.location)<1:
+                return True
+        return False
+
     def reset(self, unseen = False, index = 0):
         ### Delete old actors
         self.actor_fleet.destroy_actors()
@@ -149,6 +166,10 @@ class Carla910Interface(CarlaInterface):
                 self._set_updated_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
             else:
                 self._set_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
+                if self.check_subset(self.source_transform):
+                    print("Valid start point")
+                else:
+                    print("Invalid start point")
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -156,8 +177,14 @@ class Carla910Interface(CarlaInterface):
         self.actor_fleet.spawn(self.source_transform, unseen)
 
         # Tick for 15 frames to handle car initialization in air
-        for _ in range(15):
+        for _ in range(100):
+            transform = self.actor_fleet.get_ego_vehicle_transform()
+            self.spectator.set_transform(transform)
             world_frame = self.world.tick()
+
+
+        transform = self.actor_fleet.get_ego_vehicle_transform()
+        self.spectator.set_transform(transform)
 
 
         # Create a global planner to generate dense waypoints along route
@@ -179,36 +206,78 @@ class Carla910Interface(CarlaInterface):
         self.next_wp_angles, \
         self.next_wp_vectors = self.global_planner.get_next_orientation_new(ego_vehicle_transform)
 
-        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
+        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
 
 
         ep_measurements = {
             'next_orientation' : next_orientation,
             'distance_to_goal_trajec' : self.dist_to_trajectory,
             'dist_to_trajectory' : self.dist_to_trajectory,
-            'dist_to_goal' : ego_vehicle_transform.distance(self.destination_transform.location),
+            'dist_to_goal' : ego_vehicle_transform.location.distance(self.destination_transform.location),
             'ego_vehicle_location' : ego_vehicle_transform,
             'ego_vehicle_velocity' : ego_vehicle_velocity
         }
 
+        control = {
+            "target_speed" : 0.0,
+            "control_steer" : 0.0,
+            "control_throttle" : 0.0,
+            "control_brake" : 0.0,
+            "control_reverse" : False,
+            "control_hand_brake" : False
+        }
+
         # Create a copy of sensor_readings and ep_measurements to return
-        obs = {**sensor_readings, **ep_measurements}
+        obs = {**sensor_readings, **ep_measurements, **control}
         return obs
 
-    def step(self, action):
-        ep_measurement = self.actor_fleet.step(action)
 
-        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
+    def step(self, action):
+        control = self.actor_fleet.step(action)
+
+        world_frame = self.world.tick()
+
+        sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
         location = self.actor_fleet.ego_vehicle._vehicle.get_location()
 
         sensor_readings["location"] = location
 
-        world_frame = self.world.tick()
+        ego_vehicle_transform = self.actor_fleet.get_ego_vehicle_transform()
+        ego_vehicle_velocity = self.actor_fleet.get_ego_vehicle_velocity()
 
-        return sensor_readings, ep_measurement
+        next_orientation, \
+        self.dist_to_trajectory, \
+        distance_to_goal_trajec, \
+        self.next_waypoints, \
+        self.next_wp_angles, \
+        self.next_wp_vectors = self.global_planner.get_next_orientation_new(ego_vehicle_transform)
+
+        ep_measurements = {
+            'next_orientation' : next_orientation,
+            'distance_to_goal_trajec' : self.dist_to_trajectory,
+            'dist_to_trajectory' : self.dist_to_trajectory,
+            'dist_to_goal' : ego_vehicle_transform.location.distance(self.destination_transform.location),
+            'ego_vehicle_location' : ego_vehicle_transform,
+            'ego_vehicle_velocity' : ego_vehicle_velocity,
+            'location' : location
+        }
+
+        obs = {**control, **ep_measurements, **sensor_readings}
+
+        return obs
 
 
+    def get_actor_list(self):
+        return self.actor_fleet.actor_list
 
+    def get_ego_vehicle(self):
+        return self.actor_fleet.ego_vehicle
+
+    def get_traffic_actors(self):
+        return self.traffic_actors
+
+    def get_map(self):
+        return self.map
 
     def destroy_all_actors(self):
         # raise NotImplementedError()

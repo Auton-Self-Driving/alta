@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import random
+import time
 
 # Need to change the imports to contain env flag
 import environment.carla_9_4.scenarios as scenarios
@@ -8,14 +9,16 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 import environment.carla_9_4.sensors as sensors
 import environment.carla_9_4.controller as controller
 from environment.carla_9_4.config import DISCRETE_ACTIONS
-# Need to change the imports to contain env flag
+from environment.carla_9_4 import env_util as util
 
+# Need to change the imports to contain env flag
+import carla
 from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
 
 class ActorManager910():
-    def __init__(self, config, client):
+    def __init__(self, config, client, log_dir):
         '''
         Manages ego vehicle, other actors and sensors
         Assumes that sensormanager is always attached to ego vehicle
@@ -37,12 +40,13 @@ class ActorManager910():
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
-            np.save(os.path.join(self.config.log_dir, "spawn_pt_order"), spawn_pt_idx)
+            np.save(os.path.join(log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         ################################################
         # Blueprints
         ################################################
+        self.blueprint_library = self.world.get_blueprint_library()
         self.vehicle_blueprints = self.world.get_blueprint_library().filter('vehicle.*')
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -54,8 +58,6 @@ class ActorManager910():
         self.tm = client.get_trafficmanager(4050)
         self.tm.set_synchronous_mode(True)
 
-        # Get traffic lights
-        self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
         self.actor_list = []
 
     def spawn(self, source_transform, unseen):
@@ -85,11 +87,11 @@ class ActorManager910():
         # Spawn the actor
         # Create an Agent object with that actor
         # Return the agent instance
-        try:
-            vehicle_bp = self.vehicle_blueprints.find(self.config['vehicle_type'])
-            # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
-        except Exception as e:
-            print("Error during vehicle creation: {}".format(traceback.format_exc()))
+        #try:
+        vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
+        # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
+        #except Exception as e:
+        #    print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
 
         # Spawning vehicle actor with retry logic as it fails to spawn sometimes
@@ -98,7 +100,7 @@ class ActorManager910():
         #TODO Do we want this to be vehicle actor?
         for _ in range(NUM_RETRIES):
             # Need to check about passing source_transform
-            self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, source_transform)
+            self.vehicle_actor = self.world.try_spawn_actor(vehicle_bp, source_transform)
             if self.vehicle_actor is not None:
                 break
             else:
@@ -156,27 +158,27 @@ class ActorManager910():
         elif self.config["action_type"] == "steer_only":
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(20.0)
-            current_speed = self.get_speed_from_velocity(self.ego_vehicle.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.ego_vehicle.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "throttle_only":
             steer = float(0.0)
             target_speed = float(np.clip(action[0], 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             throttle = self.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "merged_speed_tanh":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
@@ -188,7 +190,7 @@ class ActorManager910():
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = (action[1] * 1.5) + 1
             target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
@@ -200,7 +202,7 @@ class ActorManager910():
             # steer = float(action[0])
             steer = (float(action[0]))
             target_speed = float(action[1])
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
@@ -214,7 +216,7 @@ class ActorManager910():
             # since it is chosen to be in range.
             discrete_actions = DISCRETE_ACTIONS[int(action)]
             target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
-            current_speed = self.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
+            current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
@@ -246,21 +248,23 @@ class ActorManager910():
 
         return control, episode_measurements
 
-    def step(self, action, frame_skip):
+    def step(self, action):
             control, ep_measurements = self.get_control(action)
-            self.ego_vehicle.apply_control(control)
+            self.ego_vehicle._vehicle.apply_control(control)
 
             return ep_measurements
+
+
 
 
     def spawn_sensors(self):
         if self.ego_vehicle is None:
             print("Not spwaning sensors as the parent actor is not initialized properly")
             return None
-        sensor_manager = sensors.SensorManager(self.config, self.ego_vehicle)
+        sensor_manager = sensors.SensorManager(self.config, self.ego_vehicle._vehicle)
         sensor_manager.spawn()
         for k,v in sensor_manager.sensors.items():
-            self.actor_list.append(v)
+            self.actor_list.append(v.sensor)
         return sensor_manager
 
     def spawn_npc(self, number_of_vehicles, unseen):
@@ -326,6 +330,8 @@ class ActorManager910():
         if self.config["verbose"]:
             print('found %d spawn points.' % len(spawn_points))
 
+        return spawn_points
+
     def try_spawn_random_vehicle_at(self, blueprints, transform):
         # To spawn same type of vehicle
         blueprint = blueprints[0]
@@ -336,7 +342,7 @@ class ActorManager910():
         # TODO: uncomment below to enable autopilot
         if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
-        vehicle = self._world.try_spawn_actor(blueprint, transform)
+        vehicle = self.world.try_spawn_actor(blueprint, transform)
         tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
@@ -352,7 +358,7 @@ class ActorManager910():
             return True
         return False
 
-    def destroy_actors():
+    def destroy_actors(self):
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
