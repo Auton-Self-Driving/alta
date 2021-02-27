@@ -249,10 +249,10 @@ class ActorManager910():
         return control, episode_measurements
 
     def step(self, action):
-            control, ep_measurements = self.get_control(action)
-            self.ego_vehicle._vehicle.apply_control(control)
+        control, ep_measurements = self.get_control(action)
+        self.ego_vehicle._vehicle.apply_control(control)
 
-            return ep_measurements
+        return ep_measurements
 
 
 

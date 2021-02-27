@@ -2061,6 +2061,7 @@ class CarlaEnv(gym.Env):
         if self.unseen:
             self.total_distance += carla_obs["distance_to_goal_trajec"]
         self.episode_measurements['dist_to_trajectory'] = carla_obs["dist_to_trajectory"]
+        self.next_waypoints = carla_obs["next_waypoints"]
 
         # Update obstacle distance measurements
         # self._update_env_obs(front_rgb_image=rgb_image)
@@ -2413,5 +2414,12 @@ def plot_episode_info(path,
 if __name__ == "__main__":
     env = CarlaEnv(log_dir = "/home/swapnil/temp_dir")
     env.reset()
-    env.step(np.array([0,0]))
+    for i in range(10000):
+
+        obs, reward, done, info = env.step(np.array([0,1.0]))
+
+        print(reward, done)
+
+        if(done):
+            env.reset()
 

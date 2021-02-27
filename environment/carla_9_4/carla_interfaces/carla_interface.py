@@ -33,7 +33,8 @@ class Carla910Interface():
         self.client = self._spawn_client()
 
         # Get the world
-        self.world = self.client.get_world()
+        self.world = self.client.load_world(self.config['city_name'])
+        # self.world = self.client.get_world()
 
         # Temporary
         self.spectator = self.world.get_spectator()
@@ -177,7 +178,7 @@ class Carla910Interface():
         self.actor_fleet.spawn(self.source_transform, unseen)
 
         # Tick for 15 frames to handle car initialization in air
-        for _ in range(100):
+        for _ in range(15):
             transform = self.actor_fleet.get_ego_vehicle_transform()
             self.spectator.set_transform(transform)
             world_frame = self.world.tick()
@@ -213,6 +214,7 @@ class Carla910Interface():
             'next_orientation' : next_orientation,
             'distance_to_goal_trajec' : self.dist_to_trajectory,
             'dist_to_trajectory' : self.dist_to_trajectory,
+            'next_waypoints' : self.next_waypoints,
             'dist_to_goal' : ego_vehicle_transform.location.distance(self.destination_transform.location),
             'ego_vehicle_location' : ego_vehicle_transform,
             'ego_vehicle_velocity' : ego_vehicle_velocity
@@ -240,6 +242,9 @@ class Carla910Interface():
         sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
         location = self.actor_fleet.ego_vehicle._vehicle.get_location()
 
+        transform = self.actor_fleet.get_ego_vehicle_transform()
+        self.spectator.set_transform(transform)
+
         sensor_readings["location"] = location
 
         ego_vehicle_transform = self.actor_fleet.get_ego_vehicle_transform()
@@ -254,6 +259,7 @@ class Carla910Interface():
 
         ep_measurements = {
             'next_orientation' : next_orientation,
+            "next_waypoints" : self.next_waypoints,
             'distance_to_goal_trajec' : self.dist_to_trajectory,
             'dist_to_trajectory' : self.dist_to_trajectory,
             'dist_to_goal' : ego_vehicle_transform.location.distance(self.destination_transform.location),
