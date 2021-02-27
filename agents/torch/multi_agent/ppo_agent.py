@@ -696,12 +696,12 @@ class PPO_Collective_Agent(object):
         raise NotImplementedError('This agent does not use MP')
 
 
-class DPPO_Collective_Agent(object):
+class MultiPPO_Collective_Agent(object):
     def __init__(self, glb_env_list, glb_policy, glb_optimizer, num_agents=1,
         max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
         glb_update_freq=1000, optim_epochs=100, focal_loss=False,
         grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
-        """A DPPO agent.
+        """A Multi-Server PPO agent.
         Args:
             glb_env_list: global environment list
             glb_policy: network shared by all PPO agents
@@ -739,7 +739,7 @@ class DPPO_Collective_Agent(object):
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'DPPO{}x{}{}'.format(len(glb_env_list), num_agents,
+        self.run_name = 'MultiPPO{}x{}{}'.format(len(glb_env_list), num_agents,
             self.save_suffix)
         self.verbose = verbose
         self.glb_ep_reward_list = []
@@ -1003,7 +1003,7 @@ class DPPO_Collective_Agent(object):
                     self.glb_num_steps += 1
 
                 # save checkpoint
-                if env_id == 0 and self.glb_num_steps % self.save_freq == 0:
+                if self.glb_num_steps % self.save_freq == 0:
                     self.save()
 
             # with self.memory_cond:
@@ -1042,16 +1042,6 @@ class DPPO_Collective_Agent(object):
                 env.step()
 
     def learn(self):
-        # proc_list = []
-       #  for env_id, _ in enumerate(self.glb_env_list):
-       #      p = mp.Process(target=self._learn, args=(env_id,))
-       #      proc_list.append(p)
-
-       #  for p in proc_list:
-       #      p.start()
-       #  for p in proc_list:
-       #      p.join()
-       #
         thread_list = []
         for env_id, _ in enumerate(self.glb_env_list):
             p = Thread(target=self._learn, args=(env_id,))

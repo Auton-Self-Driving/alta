@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG, PPO_CONFIG
-from ppo_agent import DPPO_Collective_Agent
+from ppo_agent import MultiPPO_Collective_Agent
 
 
 os.environ["OMP_NUM_THREADS"] = '1'
