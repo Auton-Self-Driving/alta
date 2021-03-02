@@ -56,7 +56,7 @@ glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device']) # glob
 glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
     lr=PPO_CONFIG['policy_lr'], betas=(0.92, 0.999))
 
-dppo_agent = DPPO_Collective_Agent(env_list, glb_policy, glb_optimizer,
+dppo_agent = MultiPPO_Collective_Agent(env_list, glb_policy, glb_optimizer,
     num_agents=ENV_CONFIG['num_agents'],
     max_glb_num_steps=ENV_CONFIG['max_num_steps'],
     eps_clip=PPO_CONFIG['eps_clip'],

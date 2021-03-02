@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'DPPO_TEST',
+    'save_suffix': 'O10mL10mG0mCos4KupdDiffLaneOKVarNPC',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -96,7 +96,7 @@ PPO_CONFIG = {
     'nesterov': False,
     # 'focal_loss': [.5, .5],
     'focal_loss': False,
-    'glb_update_freq': 1000,
+    'glb_update_freq': 4000,
     'optim_epochs': 10,
 }
 
@@ -162,7 +162,14 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx8_O15mL15m0mgraceCosCGnstv_6600000_Feb220730PM17.pth',
     # 'checkpoint': './ckptPPOx8_O15mL15mG0mCosVarNPC_4200000_Feb230725PM17.pth',
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_4100000_Feb230844PM05.pth',
-    'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_3000000_Feb230249AM16.pth',
+    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_3000000_Feb230249AM16.pth',
+    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCosVarNPC_6100000_Feb270935AM55.pth',
+    # 'checkpoint': './ckptDPPO4x8_DPPO_TEST_3900000_Feb270801AM22.pth',
+    'checkpoint': './ckptDPPO4x8_DPPO_TEST_6800000_Mar010315PM20.pth',
+    # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_1800000_Feb261113PM43.pth',
+    # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_3100000_Feb280344PM26.pth',
+    # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_2800000_Feb280623AM07.pth',
+    # 'checkpoint': './ckptPPOx8_O15mL15m0mgraceCosCGnstv_9000000_Feb270855AM46.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
