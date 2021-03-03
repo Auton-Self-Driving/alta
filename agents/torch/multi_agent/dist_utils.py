@@ -34,12 +34,12 @@ def get_num_servers():
 def get_num_workers():
     return int(os.environ['NUM_WORKERS'])
 
-def init_param_server_comm(gpu_id_list=None):
+# def init_param_server_comm(gpu_id_list=None):
+def init_param_server_comm():
     rank, world_size = get_rank(), get_world_size()
-    if gpu_id_list is not None:
-        gpu_id = gpu_id_list[rank % len(gpu_id_list)]
-        torch.cuda.set_device(gpu_id)
-
+    # if gpu_id_list is not None:
+    #     gpu_id = gpu_id_list[rank % len(gpu_id_list)]
+    #     torch.cuda.set_device(gpu_id)
     dist.init_process_group(backend=get_backend())
 
     num_servers = get_num_servers()

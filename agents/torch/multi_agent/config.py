@@ -75,6 +75,22 @@ SAC_CONFIG = {
     'target_update_freq': 1,
 }
 
+DPPO_CONFIG = {
+    'save_suffix': 'O10mL10mG0mCos1wupdDiffLaneOK',
+    'checkpoint': '', 
+    'policy_lr': 4e-4,
+    'eps_clip': .2,
+    'grad_clip': .5,
+    'focal_loss': False,
+    'num_clients': 8,
+    'num_servers': 4, # currently only support 1 server
+    'num_threads_per_server': 4,
+    'device_list': ['cuda:2', 'cuda:3'],
+    'worker_grad_update_freq': 1000,
+    'worker_optim_epochs': 10,
+    'server_glb_update_freq': 10000,
+}
+
 PPO_CONFIG = {
     'save_suffix': 'O10mL10mG0mCos4KupdDiffLaneOKVarNPC',
     'checkpoint': '',
