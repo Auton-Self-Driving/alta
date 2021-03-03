@@ -77,18 +77,18 @@ SAC_CONFIG = {
 
 DPPO_CONFIG = {
     'save_suffix': 'O10mL10mG0mCos1wupdDiffLaneOK',
-    'checkpoint': '', 
+    'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
     'focal_loss': False,
-    'num_clients': 8,
-    'num_servers': 4, # currently only support 1 server
-    'num_threads_per_server': 4,
-    'device_list': ['cuda:2', 'cuda:3'],
+    'num_workers': 10,
+    'num_servers': 1, # currently only support 1 server
+    'num_threads_per_server': 5,
+    'device_list': ['cuda:0', 'cuda:3'],
     'worker_grad_update_freq': 1000,
-    'worker_optim_epochs': 10,
-    'server_glb_update_freq': 10000,
+    'worker_optim_epochs': 5,
+    'server_glb_update_freq': 20000,
 }
 
 PPO_CONFIG = {
@@ -181,7 +181,9 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_3000000_Feb230249AM16.pth',
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCosVarNPC_6100000_Feb270935AM55.pth',
     # 'checkpoint': './ckptDPPO4x8_DPPO_TEST_3900000_Feb270801AM22.pth',
-    'checkpoint': './ckptDPPO4x8_DPPO_TEST_6800000_Mar010315PM20.pth',
+    # 'checkpoint': './ckptDPPO4x8_DPPO_TEST_6800000_Mar010315PM20.pth',
+    # 'checkpoint': './ckptMultiPPO4x8_O10mL10mG0mCos4KupdDiffLaneOKVarNPC_3600000_Mar021055PM22.pth',
+    'checkpoint': './ckptMultiPPO4x8_O10mL10mG0mCos4KupdDiffLaneOKVarNPC_3500000_Mar020832PM16.pth',
     # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_1800000_Feb261113PM43.pth',
     # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_3100000_Feb280344PM26.pth',
     # 'checkpoint': './ckptDPPO2x8_DPPO2x8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_2800000_Feb280623AM07.pth',

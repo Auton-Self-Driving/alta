@@ -26,14 +26,17 @@ res = {'log_time': time.strftime('%b%d%I%M%p%S')}
 def launch_server(rank, resources):
     os.environ['RANK'] = str(rank)
 
-    tmp_env = CarlaEnv(ENV_CONFIG)
+    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
+
+    # overriding carla device
+    ENV_CONFIG['device'] = device
+    tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
     N_S = tmp_env.observation_space.shape[-1]
     N_A = tmp_env.action_space.shape[-1]
     tmp_env.close()
     # print(N_S, N_A)
     # from IPython import embed; embed()
 
-    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
     glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(device) # global network
     # glb_policy.share_memory()
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
@@ -42,10 +45,9 @@ def launch_server(rank, resources):
     server_agent = DPPO_Server_Agent(glb_policy, glb_optimizer,
         num_agents=ENV_CONFIG['num_agents'],
         max_glb_num_steps=ENV_CONFIG['max_num_steps'],
-        gamma=DPPO_CONFIG['gamma'],
         eps_clip=DPPO_CONFIG['eps_clip'],
         glb_update_freq=DPPO_CONFIG['server_glb_update_freq'],
-        optim_epochs=DPPO_CONFIG['optim_epochs'],
+        optim_epochs=DPPO_CONFIG['worker_optim_epochs'],
         num_threads=DPPO_CONFIG['num_threads_per_server'],
         save_suffix=DPPO_CONFIG['save_suffix'],
         log_time=resources['log_time'],
@@ -67,14 +69,17 @@ def launch_server(rank, resources):
 def launch_worker(rank, resources):
     os.environ['RANK'] = str(rank)
 
-    env = CarlaEnv(ENV_CONFIG)
+    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
+
+    # overriding carla device
+    ENV_CONFIG['device'] = device
+    env = CarlaEnv(ENV_CONFIG, env_rank=rank)
 
     N_S = env.observation_space.shape[-1]
     N_A = env.action_space.shape[-1]
     # print(N_S, N_A)
     # from IPython import embed; embed()
 
-    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
     local_policy = PPOActorCritic_Continuous(N_S, N_A).to(device) # global network
     # glb_policy.share_memory()
 
@@ -95,7 +100,7 @@ def launch_worker(rank, resources):
     env.close()
 
 
-dist.run_param_server(launch_server, launch_worker, 1, 4, res, dist.get_host_ip(), random.randint(10000, 60000))
-
+dist.run_param_server(launch_server, launch_worker, DPPO_CONFIG['num_servers'],
+    DPPO_CONFIG['num_workers'], res, dist.get_host_ip(), random.randint(10000, 60000))
 
 

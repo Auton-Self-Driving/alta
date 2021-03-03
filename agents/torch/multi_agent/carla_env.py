@@ -46,10 +46,11 @@ from environment.carla_9_4.env_util import (
 
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config, logger=None):
+    def __init__(self, config, logger=None, env_rank=0):
         self.config = config
         # self._update_config(config)
         self.CarlaServer = None
+        self.env_rank = env_rank
         self.episode_measurements = self.config['episode_measurements']
         self.episode_id = None
         self.vehicle_actor = None
@@ -1404,7 +1405,7 @@ class CarlaEnv(gym.Env):
             try:
                 self.destroy_an_existing_ego_agent(prev_agent)
             except:
-                print('>>> Error when deleting prev_agent [rank {}]'.format(rk))
+                print('>>> [rank {}] Error when deleting prev_agent [agent {}]'.format(self.env_rank, rk))
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
@@ -1427,8 +1428,8 @@ class CarlaEnv(gym.Env):
                 if self.vehicle_actor is not None:
                     break
                 else:
-                    print("[rank {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
-                        rk, idx, self.source_transform.location.x, self.source_transform.location.y))
+                    print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
+                        self.env_rank, rk, idx, self.source_transform.location.x, self.source_transform.location.y))
                     # print("Number of existing actors, {}".format(len(self.actor_list)))
                     # print("Number of existing ego agents, {}".format(self.curr_num_agents))
                     # time.sleep(.04)
@@ -1439,7 +1440,7 @@ class CarlaEnv(gym.Env):
                 self.vehicle_actor.source_transform = self.source_transform
                 self.vehicle_actor.destination_transform = self.destination_transform
                 if self.config['verbose']:
-                    print('########## rank {} ##########'.format(rk))
+                    print('########## agent {} ##########'.format(rk))
                     print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
                     print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
                 self.curr_num_agents += 1

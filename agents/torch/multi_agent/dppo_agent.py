@@ -112,6 +112,7 @@ class DPPO_Server_Agent(object):
         self.model_len = len(parameters_to_vector(glb_policy.parameters()))
         self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32, device=self.device, requires_grad=False)
         self.save_freq = save_freq
+        self.verbose = verbose
         ################################################################
         comm_vars = dist.init_param_server_comm()
         self.rank, self.world_size = comm_vars[:2]
@@ -128,13 +129,13 @@ class DPPO_Server_Agent(object):
         self.save_suffix = '_' + save_suffix if save_suffix else ''
         self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
-        self.verbose = verbose
         self.recv_info_len = 4
         self.glb_ep_reward_list = []
         # self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.glb_update_freq = glb_update_freq
-        self.glb_num_steps = 1
+        self.glb_num_steps = 0
+        self.glb_num_episodes = 1
         self.num_steps_since_update = 0
         self.last_save_steps = 0
         self.server_lock = Lock()
@@ -163,20 +164,20 @@ class DPPO_Server_Agent(object):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
             sender, num_steps_added, num_eps_added, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
-            self.vprint('server', self.rank, 'QUERY', sender, 
+            self.vprint('server', self.rank, 'QUERY', sender,
                 num_steps_added, signal)
             if signal == SIG.GRAD_PUSH:
-                _, vec_grad = dist.recv(self.recv_info_len, self.model_len, 
+                _, vec_grad = dist.recv(self.recv_info_len, self.model_len,
                     src=sender, tag=SIG.GRAD, device=self.device)
                 # vector_to_parameters(vec_grad, self.glb_grad.parameters())
                 with self.server_lock:
                     self.glb_grad += vec_grad
             elif signal == SIG.PARAM_REQ:
-                self.vprint('server', self.rank, 'send param', sender, 
+                self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
                 dist.isend(
-                    [self.glb_num_steps, self.glb_num_episodes], 
-                    self.glb_policy.parameters(), 
+                    [self.glb_num_steps, self.glb_num_episodes],
+                    self.glb_policy.parameters(),
                     dst=sender, tag=SIG.PARAM
                 ).wait()
             else:
@@ -185,12 +186,12 @@ class DPPO_Server_Agent(object):
                 self.glb_num_steps += num_steps_added
                 self.num_steps_since_update += num_steps_added
                 self.glb_num_episodes += num_eps_added
-                if self.num_steps_since_update > self.glb_update_freq:
+                if self.num_steps_since_update >= self.glb_update_freq:
                     if self.resumed:
                         self.resumed = False
                     else:
                         print('[server rank {}][glb ep {}][glb step {}] updating ...'.format(
-                            self.rank, self.glb_num_steps, self.glb_num_episodes,
+                            self.rank, self.glb_num_episodes, self.glb_num_steps,
                         ))
                         self.num_steps_since_update = 0
                         self.glb_optimizer.zero_grad()
@@ -200,13 +201,13 @@ class DPPO_Server_Agent(object):
                             param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
                             ptr += n
                         self.glb_optimizer.step()
-                        self.glb_grad = torch.zeros(self.model_len, 
-                            dtype=torch.float32, device=self.device, 
+                        self.glb_grad = torch.zeros(self.model_len,
+                            dtype=torch.float32, device=self.device,
                             requires_grad=False)
 
             # save checkpoint
             with self.server_save_lock:
-                if self.glb_num_steps - self.last_save_steps > self.save_freq:
+                if self.glb_num_steps - self.last_save_steps >= self.save_freq:
                     self.last_save_steps = self.glb_num_steps
                     self.save()
 
@@ -310,6 +311,7 @@ class DPPO_Worker_Agent(object):
         self.glb_ep_reward_list = []
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
+        self.verbose = verbose
         ################################################################
         comm_vars = dist.init_param_server_comm()
         self.rank, self.world_size = comm_vars[:2]
@@ -326,7 +328,6 @@ class DPPO_Worker_Agent(object):
         self.save_suffix = '_' + save_suffix if save_suffix else ''
         self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
-        self.verbose = verbose
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
@@ -442,20 +443,20 @@ class DPPO_Worker_Agent(object):
         self.vprint('rank', self.rank, 'send_gradients')
         param_grad = [item.grad for item in self.local_policy.parameters()]
         vec_grad = parameters_to_vector(param_grad).detach()
-        overhead = [self.rank, self.num_steps_since_update, 
+        overhead = [self.rank, self.num_steps_since_update,
             self.num_eps_since_update, SIG.GRAD_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_grad, dst=self.server_rank, tag=SIG.GRAD).wait()
 
     def update_parameters(self):
         self.vprint('rank', self.rank, 'update_parameters')
-        overhead = [self.rank, self.num_steps_since_update, 
+        overhead = [self.rank, self.num_steps_since_update,
             self.num_eps_since_update, SIG.PARAM_REQ]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
-        glb_steps, glb_eps, vec_param = dist.recv(self.recv_info_len, self.model_len,
+        glb_stats, vec_param = dist.recv(self.recv_info_len, self.model_len,
             src=self.server_rank, tag=SIG.PARAM, device=self.device)
         vector_to_parameters(vec_param, self.local_policy.parameters())
-        return glb_steps, glb_eps
+        return glb_stats
 
     def learn(self):
         # get new parameters
@@ -617,7 +618,7 @@ class DPPO_Worker_Agent(object):
                         memory=self.agent_list[rk].memory)
                 self.local_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
-                # self.local_env.step()
+                self.local_env.step()
 
     def test(self, videos=False):
         raise NotImplementedError

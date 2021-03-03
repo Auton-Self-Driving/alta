@@ -18,8 +18,8 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
-def create_env(list_, cfg):
-    list_.append(CarlaEnv(ENV_CONFIG))
+def create_env(list_, cfg, rank):
+    list_.append(CarlaEnv(ENV_CONFIG), env_rank=rank)
 
 # proc_list = []
 # with mp.Manager() as mgr:
@@ -33,8 +33,8 @@ def create_env(list_, cfg):
 #         p.join()
 
 thread_list, env_list = [], []
-for _ in range(ENV_CONFIG['num_envs']):
-    p = Thread(target=create_env, args=(env_list, ENV_CONFIG,))
+for rank in range(ENV_CONFIG['num_envs']):
+    p = Thread(target=create_env, args=(env_list, ENV_CONFIG, rank))
     thread_list.append(p)
 for p in thread_list:
     p.start()
