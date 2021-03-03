@@ -4,7 +4,7 @@ import multiprocessing as mp
 from threading import Thread
 import socket
 import torch
-from torch.distributed as dist
+import torch.distributed as dist
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
 def get_host_ip():
@@ -41,19 +41,19 @@ def init_param_server_comm(gpu_id_list=None):
         torch.cuda.set_device(gpu_id)
 
     dist.init_process_group(backend=get_backend())
-    
+
     num_servers = get_num_servers()
     server_list = list(range(num_servers))
     worker_list = list(range(num_servers, world_size))
-    
+
     server_group = dist.new_group(ranks=server_list)
     worker_group = dist.new_group(ranks=worker_list)
 
     return rank, world_size, server_list, worker_list, server_group, worker_group
 
 
-def run_param_server(server_func, worker_func, num_servers, num_workers, 
-    resources, ip, port, mp_method='spawn'):
+def run_param_server(server_func, worker_func, num_servers, num_workers,
+    resources, ip, port, mp_method='fork'):
     world_size = num_servers + num_workers
     os.environ['MASTER_ADDR'] = str(ip)
     os.environ['MASTER_PORT'] = str(random.randint(10000, 50000))
@@ -64,6 +64,7 @@ def run_param_server(server_func, worker_func, num_servers, num_workers,
 
     if mp.get_start_method(allow_none=True) != mp_method:
         mp.set_start_method(mp_method, force=True)
+
     proc_list = []
     for rank in range(num_servers):
         proc_list.append(mp.Process(target=server_func, args=(rank, resources)))
@@ -74,7 +75,7 @@ def run_param_server(server_func, worker_func, num_servers, num_workers,
     for p in proc_list:
         p.join()
 
-def sync_grad_mean(network, group_size, group=None)
+def sync_grad_mean(network, group_size, group=None):
     if group_size == 1: return
     for param in network.parameters():
         if param.grad is None:
@@ -82,9 +83,9 @@ def sync_grad_mean(network, group_size, group=None)
         dist.all_reduce(param.grad.data, dist.ReduceOp.SUM, group)
         param.grad.div_(group_size)
 
-def isend(self, overhead, payload=None, dst=0, tag=0, comm='cpu'):
+def isend(overhead, payload=None, dst=0, tag=0, comm='cpu'):
     _overhead_msg, _payload_msg = overhead, payload
-    if not isinstance(_overhead_msg, torch.Tensor): 
+    if not isinstance(_overhead_msg, torch.Tensor):
         if hasattr(_overhead_msg, '__iter__'):
             _overhead_msg = torch.tensor(overhead, dtype=torch.float32)
         else:
@@ -99,11 +100,11 @@ def isend(self, overhead, payload=None, dst=0, tag=0, comm='cpu'):
         _payload_msg = _payload_msg.to(comm)
         msg = torch.cat((msg, _payload_msg))
     return dist.isend(msg, dst, tag=tag)
-    
 
-def recv(self, overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu'):
+
+def recv(overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu'):
     msg = torch.zeros(overhead_len, dtype=torch.float32, device=comm)
-    if payload_len > 0: 
+    if payload_len > 0:
         _payload_msg = torch.zeros(payload_len, dtype=torch.float32, device=comm)
         msg = torch.cat((msg, _payload_msg))
     dist.recv(msg, src, tag=tag)

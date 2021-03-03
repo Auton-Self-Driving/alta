@@ -96,7 +96,7 @@ PPO_CONFIG = {
     'nesterov': False,
     # 'focal_loss': [.5, .5],
     'focal_loss': False,
-    'glb_update_freq': 4000,
+    'glb_update_freq': 1000,
     'optim_epochs': 10,
 }
 
