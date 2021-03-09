@@ -4,21 +4,26 @@ import os
 import glob
 import sys
 
-CARLA_9_4_PATH = "/home/swapnil/carla910"#os.environ.get("CARLA_9_4_PATH")
+# CARLA_9_4_PATH = "/home/swapnil/carla910"#os.environ.get("CARLA_9_4_PATH")
+# if CARLA_9_4_PATH == None:
+#     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+# user_paths = os.environ['PYTHONPATH'].split(os.pathsep)
+
+# # try:
+# # sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
+# #     sys.version_info.major,
+# #     sys.version_info.minor,
+# #     'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+# # except IndexError:
+# #     pass
+
+# sys.path.append("/home/swapnil/carla910/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg")
+
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+
 if CARLA_9_4_PATH == None:
     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
-
-user_paths = os.environ['PYTHONPATH'].split(os.pathsep)
-
-# try:
-# sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
-#     sys.version_info.major,
-#     sys.version_info.minor,
-#     'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-# except IndexError:
-#     pass
-
-sys.path.append("/home/swapnil/carla910/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg")
 
 import carla
 

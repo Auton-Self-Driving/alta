@@ -99,6 +99,7 @@ def launch_server(config, vis_wrapper, ALTA_LOGS, logger=None):
     env = None
     while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
         try:
+            # print(102, config.config)
             env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
             serverStarted = True
 

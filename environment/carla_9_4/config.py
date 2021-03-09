@@ -73,7 +73,7 @@ DEFAULT_ENV = {
     "client_timeout_seconds" : 600,
     "enable_lane_invasion_sensor" : True,
     "carla_gpu": "0",
-    "render_server": False,
+    "render_server": True,
     "steer_penalty_coeff": 0,
     "vae_encoding_norm_factor" : 10,
     "input_type": None,
@@ -271,7 +271,8 @@ DISCRETE_ACTIONS = get_discrete_actions()
 
 class ConfigManager(object):
     def __init__(self, algo='PPO'):
-        self.config = {}
+        # self.config = {'client_timeout_seconds': 100,}
+        self.config = DEFAULT_ENV
 
         self._initialize_config(algo)
 
@@ -320,10 +321,11 @@ class ConfigManager(object):
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp_bev_rv_obs_info_speed_steer_ldist_goal_light"
+            # self.config["input_type"] = "wp_bev_rv_obs_info_speed_steer_ldist_goal_light"
+            self.config["input_type"] = "wp"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
-            self.config["carla_gpu"] = "1"
+            self.config["carla_gpu"] = "0"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
             # self.config["traffic_light_proximity_threshold"] = 15

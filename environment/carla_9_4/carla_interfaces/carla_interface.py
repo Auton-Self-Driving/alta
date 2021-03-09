@@ -19,12 +19,15 @@ class Carla910Interface():
         self.config = config
 
         # Instantiate and start server
-        # self.server = CarlaServer(config)
+        # print(23)
+        self.server = CarlaServer(config)
 
         self.client = None
 
         self.log_dir = log_dir
 
+        print('[29]')
+        time.sleep(10)
         self.setup()
 
     def setup(self):
@@ -33,11 +36,17 @@ class Carla910Interface():
         self.client = self._spawn_client()
 
         # Get the world
+        print('[38]')
+        print('[38.5]')
+        print(self.client.get_available_maps())
+        print('[39]')
         self.world = self.client.load_world(self.config['city_name'])
+        print('[40]')
         # self.world = self.client.get_world()
 
         # Temporary
-        self.spectator = self.world.get_spectator()
+        # self.spectator = self.world.get_spectator()
+        print('[43]')
 
 
         # Update the settings from the config
@@ -53,7 +62,7 @@ class Carla910Interface():
         self.world.apply_settings(settings)
 
         # Sleep to allow for settings to update
-        time.sleep(20)
+        time.sleep(5)
 
         # Retrieve map
         self.map = self.world.get_map()
@@ -70,12 +79,17 @@ class Carla910Interface():
 
         self.scenario_index = 0
 
+        print(747474747474747474)
+
         print("server_version", self.client.get_server_version())
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         #TODO switch back to getting port from server
-        port_number = 2000#self.server.server_port
+        port_number = self.server.server_port
+        # port_number = 2000
         client = carla.Client(hostname, port_number)
+        print('[84]')
+        # print(self.config)
         client.set_timeout(self.config["client_timeout_seconds"])
 
         return client
@@ -180,12 +194,12 @@ class Carla910Interface():
         # Tick for 15 frames to handle car initialization in air
         for _ in range(15):
             transform = self.actor_fleet.get_ego_vehicle_transform()
-            self.spectator.set_transform(transform)
+            # self.spectator.set_transform(transform)
             world_frame = self.world.tick()
 
 
         transform = self.actor_fleet.get_ego_vehicle_transform()
-        self.spectator.set_transform(transform)
+        # self.spectator.set_transform(transform)
 
 
         # Create a global planner to generate dense waypoints along route
@@ -243,7 +257,7 @@ class Carla910Interface():
         location = self.actor_fleet.ego_vehicle._vehicle.get_location()
 
         transform = self.actor_fleet.get_ego_vehicle_transform()
-        self.spectator.set_transform(transform)
+        # self.spectator.set_transform(transform)
 
         sensor_readings["location"] = location
 
