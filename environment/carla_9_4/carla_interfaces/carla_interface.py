@@ -45,8 +45,8 @@ class Carla910Interface():
         # self.world = self.client.get_world()
 
         # Temporary
-        # self.spectator = self.world.get_spectator()
         print('[43]')
+        # self.spectator = self.world.get_spectator()
 
 
         # Update the settings from the config
@@ -149,12 +149,15 @@ class Carla910Interface():
             self.source_transform = self.spawn_points[source_idx]
             self.destination_transform = self.spawn_points[destination_idx]
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "challenge_train_scenario":
+            self.source_transform, self.destination_transform = scenarios.get_leaderboard_route(unseen, town, index, mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
-            route = scenarios.get_test_route()
+            self.source_transform, self.destination_transform = scenarios.get_leaderboard_route(unseen, town, index, mode='test')
+            # route = scenarios.get_test_route()
 
-            self.scenario_route = convert_route_from_GPS_world(route, self.map)
-            self.source_transform = self.scenario_route[0]
-            self.destination_transform = self.scenario_route[-1]
+            # self.scenario_route = convert_route_from_GPS_world(route, self.map)
+            # self.source_transform = self.scenario_route[0]
+            # self.destination_transform = self.scenario_route[-1]
         else:
             raise ValueError("Scenarios Config not set!")
 

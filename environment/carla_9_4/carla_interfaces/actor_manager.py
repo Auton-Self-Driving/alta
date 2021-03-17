@@ -107,7 +107,7 @@ class ActorManager910():
                 print("Unable to spawn vehicle actor at {0}, {1}.".format(source_transform.location.x, source_transform.location.y))
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_actors()              # Do we need this as ego vehicle is the first one to be spawned?
-                time.sleep(120)
+                # time.sleep(120)
 
         if self.vehicle_actor is not None:
             self.actor_list.append(self.vehicle_actor)

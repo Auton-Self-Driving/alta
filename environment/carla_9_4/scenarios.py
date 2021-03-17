@@ -2106,6 +2106,33 @@ def get_test_route():
     source_transform = Transform(Location(x=271.0400085449219, y=129.489990234375, z=1.32), Rotation(yaw=179.999755859375)),
     return route
 
+import xml.etree.ElementTree as ET
+
+def get_leaderboard_route(unseen=False, town="Town01", index=0, mode='train'):
+    xml_file = {
+            'train': '../../agents/tf/leaderboard/data/routes_training.xml',
+            'test': '../../agents/tf/leaderboard/data/routes_testing.xml'
+        }[mode]
+
+    _route_tree = ET.parse(xml_file)
+    _routes = _route_tree.findall('route')
+    _route_in_this_town = []
+    for _r in _routes: 
+        if _r.attrib['town'] == town:
+            _route_in_this_town.append(_r)
+
+    if not unseen:
+        _route = random.choice(_route_in_this_town)
+    else:
+        _route = _route_in_this_town[index]
+    _wps = _route.findall('waypoint')
+    _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5), 
+        Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+    _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=1.32), 
+        Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
+    print(_src, _dst)
+    return _src, _dst
+
 '''
 # Deprecated Helper functions
 def get_train_right_turn():
