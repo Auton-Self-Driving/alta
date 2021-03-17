@@ -2110,8 +2110,8 @@ import xml.etree.ElementTree as ET
 
 def get_leaderboard_route(unseen=False, town="Town01", index=0, mode='train'):
     xml_file = {
-            'train': '../../agents/tf/leaderboard/data/routes_training.xml',
-            'test': '../../agents/tf/leaderboard/data/routes_testing.xml'
+            'train': '../../leaderboard/data/routes_training.xml',
+            'test': '../../leaderboard/data/routes_testing.xml'
         }[mode]
 
     _route_tree = ET.parse(xml_file)
@@ -2126,12 +2126,21 @@ def get_leaderboard_route(unseen=False, town="Town01", index=0, mode='train'):
     else:
         _route = _route_in_this_town[index]
     _wps = _route.findall('waypoint')
+    # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
     _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5), 
         Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
-    _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=1.32), 
-        Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
+    _wp_list = [_src.location]
+    for _wp in _wps[1:-1]: 
+        _wp_loc = Transform(Location(x=float(_wp.attrib['x']), y=float(_wp.attrib['y']), z=float(_wp.attrib['z']) + .5))
+        _wp_list.append(_wp_loc.location)
+    _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
+    _wp_list.append(_dst.location)
+    # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5), 
+    #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+    # _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5), 
+    #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
     print(_src, _dst)
-    return _src, _dst
+    return _src, _dst, _wp_list
 
 '''
 # Deprecated Helper functions

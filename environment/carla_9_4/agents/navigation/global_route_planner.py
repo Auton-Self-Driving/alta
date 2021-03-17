@@ -11,9 +11,33 @@ import numpy as np
 import networkx as nx
 
 import carla
-from environment.carla_9_4.agents.navigation.local_planner import RoadOption
-from environment.carla_9_4.agents.tools.misc import vector
+#from environment.carla_9_4.agents.navigation.local_planner import RoadOption
+# from misc import vector
+from enum import Enum
 
+def vector(location_1, location_2):
+    """
+    Returns the unit vector from location_1 to location_2
+    location_1, location_2:   carla.Location objects
+    """
+    x = location_2.x - location_1.x
+    y = location_2.y - location_1.y
+    z = location_2.z - location_1.z
+    norm = np.linalg.norm([x, y, z]) + np.finfo(float).eps
+
+    return [x / norm, y / norm, z / norm]
+
+class RoadOption(Enum):
+    """
+    RoadOption represents the possible topological configurations when moving from a segment of lane to other.
+    """
+    VOID = -1
+    LEFT = 1
+    RIGHT = 2
+    STRAIGHT = 3
+    LANEFOLLOW = 4
+    CHANGELANELEFT = 5
+    CHANGELANERIGHT = 6
 
 class GlobalRoutePlanner(object):
     """

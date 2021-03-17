@@ -2,7 +2,7 @@
 	path = AdelaiDet
 	url = https://github.com/aim-uofa/AdelaiDet
 [submodule "agents/tf/leaderboard"]
-	path = agents/tf/leaderboard
+	path = leaderboard
 	url = https://github.com/carla-simulator/leaderboard.git
 [submodule "detectron2"]
 	path = detectron2

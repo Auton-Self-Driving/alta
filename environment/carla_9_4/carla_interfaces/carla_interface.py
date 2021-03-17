@@ -5,16 +5,27 @@ from environment.carla_9_4.carla_interfaces.actor_manager import ActorManager910
 from abc import ABC
 import time
 import random
+import numpy.random as nprandom
 
 
+# Leaerboard Import
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../leaderboard'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../scenario_runner'))
+from leaderboard.utils.route_manipulation import interpolate_trajectory
+from leaderboard.utils.route_parser import RouteParser, TRIGGER_THRESHOLD, TRIGGER_ANGLE_THRESHOLD
+from leaderboard.scenarios.route_scenario import scenario_sampling, build_scenario_instances
+from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+# print(leaderboard, leaderboard.__file__)
+# interpolate_trajectory = route_manipulation.interpolate_trajectory
+# print(leaderboard.utils.route_manipulation.interpolate_trajectory)
 # TODO make sure carla import works
 import carla
 
 #TODO add handling for offline map - needed for leaderboard
 
 
-class Carla910Interface():
-
+class Carla910Interface:
     def __init__(self, config, log_dir):
         self.config = config
 
@@ -26,7 +37,6 @@ class Carla910Interface():
 
         self.log_dir = log_dir
 
-        print('[29]')
         time.sleep(10)
         self.setup()
 
@@ -36,16 +46,12 @@ class Carla910Interface():
         self.client = self._spawn_client()
 
         # Get the world
-        print('[38]')
-        print('[38.5]')
         print(self.client.get_available_maps())
-        print('[39]')
         self.world = self.client.load_world(self.config['city_name'])
-        print('[40]')
+
         # self.world = self.client.get_world()
 
         # Temporary
-        print('[43]')
         # self.spectator = self.world.get_spectator()
 
 
@@ -79,16 +85,23 @@ class Carla910Interface():
 
         self.scenario_index = 0
 
-        print(747474747474747474)
-
         print("server_version", self.client.get_server_version())
+
+        # print(os.getcwd())
+        self.world_annotations = RouteParser.parse_annotations_file(
+            '../../leaderboard/data/all_towns_traffic_scenarios_public.json')
+        # print(self.world_annotations)
+
+        CarlaDataProvider.set_client(self.client)
+        CarlaDataProvider.set_world(self.world)
+        CarlaDataProvider.set_traffic_manager_port(4050)
+
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         #TODO switch back to getting port from server
         port_number = self.server.server_port
         # port_number = 2000
         client = carla.Client(hostname, port_number)
-        print('[84]')
         # print(self.config)
         client.set_timeout(self.config["client_timeout_seconds"])
 
@@ -150,9 +163,9 @@ class Carla910Interface():
             self.destination_transform = self.spawn_points[destination_idx]
             self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "challenge_train_scenario":
-            self.source_transform, self.destination_transform = scenarios.get_leaderboard_route(unseen, town, index, mode='train')
+            self.source_transform, self.destination_transform, self.wps_list = scenarios.get_leaderboard_route(unseen, town, index, mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
-            self.source_transform, self.destination_transform = scenarios.get_leaderboard_route(unseen, town, index, mode='test')
+            self.source_transform, self.destination_transform, self.wps_list  = scenarios.get_leaderboard_route(unseen, town, index, mode='test')
             # route = scenarios.get_test_route()
 
             # self.scenario_route = convert_route_from_GPS_world(route, self.map)
@@ -184,10 +197,10 @@ class Carla910Interface():
                 self._set_updated_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
             else:
                 self._set_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
-                if self.check_subset(self.source_transform):
-                    print("Valid start point")
-                else:
-                    print("Invalid start point")
+                # if self.check_subset(self.source_transform):
+                #     print("Valid start point")
+                # else:
+                #     print("Invalid start point")
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -204,15 +217,31 @@ class Carla910Interface():
         transform = self.actor_fleet.get_ego_vehicle_transform()
         # self.spectator.set_transform(transform)
 
-
         # Create a global planner to generate dense waypoints along route
         self.global_planner = planner.GlobalPlanner()
 
         ### Setup the global planner
-        self.dense_waypoints  = self.global_planner.trace_route(self.map,
-                                self.source_transform, self.destination_transform)
+        # print(219, self.config["scenarios"])
+        if 'challenge' in self.config["scenarios"]:
+            print(213, len(self.wps_list))
+            _, self.route, self._global_plan_world_coord = interpolate_trajectory(self.world, self.wps_list)
+            print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
+            self.dense_waypoints = self._global_plan_world_coord
+        else:
+            self.dense_waypoints  = self.global_planner.trace_route(self.map,
+                                    self.source_transform, self.destination_transform)
+            # print(self.dense_waypoints)
 
         self.global_planner.set_global_plan(self.dense_waypoints)
+
+        potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
+            'Town01', self.route, self.world_annotations)
+
+        # Sample the scenarios to be used for this route instance.
+        self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
+        print(236, self.sampled_scenarios_definitions)
+        self.scenarios = build_scenario_instances(self.world, self.actor_fleet.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=False)
+        print(244, self.scenarios)
 
         ego_vehicle_transform = self.actor_fleet.get_ego_vehicle_transform()
         ego_vehicle_velocity = self.actor_fleet.get_ego_vehicle_velocity()

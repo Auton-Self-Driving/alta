@@ -540,10 +540,10 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
                 pass
 
         # wait for the actor to be spawned properly before we do anything
-        if CarlaDataProvider.is_sync_mode():
-            CarlaDataProvider._world.tick()
-        else:
-            CarlaDataProvider._world.wait_for_tick()
+        # if CarlaDataProvider.is_sync_mode():
+        #     CarlaDataProvider._world.tick()
+        # else:
+        #     CarlaDataProvider._world.wait_for_tick()
 
         if actor is None:
             return None
