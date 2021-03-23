@@ -53,7 +53,7 @@ class Carla910Interface():
         self.world.apply_settings(settings)
 
         # Sleep to allow for settings to update
-        time.sleep(20)
+        time.sleep(10)
 
         # Retrieve map
         self.map = self.world.get_map()
@@ -167,10 +167,10 @@ class Carla910Interface():
                 self._set_updated_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
             else:
                 self._set_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
-                if self.check_subset(self.source_transform):
-                    print("Valid start point")
-                else:
-                    print("Invalid start point")
+                # if self.check_subset(self.source_transform):
+                #     print("Valid start point")
+                # else:
+                #     print("Invalid start point")
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -185,6 +185,7 @@ class Carla910Interface():
 
 
         transform = self.actor_fleet.get_ego_vehicle_transform()
+        transform.location.z += 5.
         self.spectator.set_transform(transform)
 
 
@@ -289,10 +290,11 @@ class Carla910Interface():
         # raise NotImplementedError()
         pass
 
+    def close(self):
+        self.spectator = None
+        self.traffic_actors = None
 
+        self.actor_fleet.close()
 
-
-
-
-
-
+        self.world = None
+        self.client = None

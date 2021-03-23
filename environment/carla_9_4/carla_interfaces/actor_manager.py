@@ -29,6 +29,7 @@ class ActorManager910():
         '''
         self.config = config
         self.world = client.get_world()
+        self.client = client
 
 
         ################################################
@@ -107,7 +108,7 @@ class ActorManager910():
                 print("Unable to spawn vehicle actor at {0}, {1}.".format(source_transform.location.x, source_transform.location.y))
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_actors()              # Do we need this as ego vehicle is the first one to be spawned?
-                time.sleep(120)
+                time.sleep(1)
 
         if self.vehicle_actor is not None:
             self.actor_list.append(self.vehicle_actor)
@@ -359,9 +360,20 @@ class ActorManager910():
         return False
 
     def destroy_actors(self):
-        for _ in range(len(self.actor_list)):
-            try:
-                actor = self.actor_list.pop()
-                actor.destroy()
-            except Exception as e:
-                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+        # for _ in range(len(self.actor_list)):
+        #     try:
+        #         actor = self.actor_list.pop()
+        #         actor.destroy()
+        #     except Exception as e:
+        #         print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+        self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+        self.actor_list = []
+        time.sleep(1)
+        self.sensor_manager = None
+
+    def close(self):
+        self.tm = None
+        self.ego_vehicle = None
+        self.controller = None
+
+        self.destroy_actors()

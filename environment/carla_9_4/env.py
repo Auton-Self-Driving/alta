@@ -26,8 +26,8 @@ import matplotlib.pyplot as plt
 # st = ipdb.set_trace
 
 # ALTA imports
-sys.path.append("/home/swapnil/important_things/auton/alta/agents/tf")
-sys.path.append("/home/swapnil/important_things/auton/alta")
+# sys.path.append("/home/swapnil/important_things/auton/alta/agents/tf")
+# sys.path.append("/home/swapnil/important_things/auton/alta")
 # sys.path.append("./../")
 import ae.util as util
 from ae.util import *
@@ -76,10 +76,11 @@ from environment.carla_9_4.env_util import (
 )
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
+    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None, **kwargs):
         self.config = DEFAULT_ENV
         self.PPO_config = ConfigManager()
         self._update_config(self.PPO_config.config)
+        self._update_config(kwargs) # allow specification of config when initializing environment
 
         self.carla_interface = Carla910Interface(config, log_dir)
 
@@ -124,7 +125,7 @@ class CarlaEnv(gym.Env):
         # Elements outside of car
         ################################################
         # self.weather = None
-        # # self.actor_list = []
+        # self.actor_list = []
         # self.source_transform = None
         # self.destination_transform = None
         # self.scenario_route = None
@@ -218,7 +219,7 @@ class CarlaEnv(gym.Env):
             elif self.config["action_type"] == "merged_speed_pid_test":
                 self.action_space = Box(low=np.array([-0.5, -20.0]), high=np.array([0.5, 20.0]), dtype=np.float32)
             elif self.config["action_type"] == 'steer_only':
-                # Steer only
+                # Steer onlydestroy_sensors
                 self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
             elif self.config["action_type"] == 'discrete':
                 # Discrete actions
@@ -371,52 +372,52 @@ class CarlaEnv(gym.Env):
         #     raise
         #     # self.reset()
 
-    def get_action_for_test_comparison(self):
-        for ind, agent in enumerate(self.vehicle_agent_list):
-            control = agent.run_step()
-            self.control_list[ind] = control
-        self.step(None)
+    # def get_action_for_test_comparison(self):
+    #     for ind, agent in enumerate(self.vehicle_agent_list):
+    #         control = agent.run_step()
+    #         self.control_list[ind] = control
+    #     self.step(None)
 
-    def _step_test_comparison(self, action):
+    # def _step_test_comparison(self, action):
 
-        world_frame = None
+    #     world_frame = None
 
-        for _ in range(self.config["frame_skip"]):
+    #     for _ in range(self.config["frame_skip"]):
 
-            batch = []
-            for ind, vehicle in enumerate(self.actor_list):
-                batch.append(carla.command.ApplyVehicleControl(vehicle, self.control_list[ind]))
+    #         batch = []
+    #         for ind, vehicle in enumerate(self.actor_list):
+    #             batch.append(carla.command.ApplyVehicleControl(vehicle, self.control_list[ind]))
 
-            self.client.apply_batch_sync(batch)
+    #         self.client.apply_batch_sync(batch)
 
-            world_frame = self._world.tick()
-            self.num_steps += 1
+    #         world_frame = self._world.tick()
+    #         self.num_steps += 1
 
-            self.episode_measurements['num_steps'] = self.num_steps
-            self.episode_measurements['num_collisions'] = sum([sensor.num_collisions for sensor in self.collision_sensor_list])
+    #         self.episode_measurements['num_steps'] = self.num_steps
+    #         self.episode_measurements['num_collisions'] = sum([sensor.num_collisions for sensor in self.collision_sensor_list])
 
-            self.episode_measurements['distance_to_goal'] = [vehicle.get_location().distance(self.goal_destination_list[ind].location) for ind, vehicle in enumerate(self.actor_list)]
-            self.episode_measurements['speed'] = [util.get_speed_from_velocity(vehicle.get_velocity()) for vehicle in self.actor_list]
-            print("Num Steps: {}, Num Collisons: {}".format(self.episode_measurements['num_steps'], self.episode_measurements['num_collisions']))
+    #         self.episode_measurements['distance_to_goal'] = [vehicle.get_location().distance(self.goal_destination_list[ind].location) for ind, vehicle in enumerate(self.actor_list)]
+    #         self.episode_measurements['speed'] = [util.get_speed_from_velocity(vehicle.get_velocity()) for vehicle in self.actor_list]
+    #         print("Num Steps: {}, Num Collisons: {}".format(self.episode_measurements['num_steps'], self.episode_measurements['num_collisions']))
 
-            for ind, goal_distance in enumerate(self.episode_measurements['distance_to_goal']):
-                if goal_distance < self.config["dist_for_success"]:
-                    print("***************************DONE: {}***********************".format(ind + 1))
-                    random_waypoint = random.choice(self.spawn_points)
-                    self.goal_destination_list[ind] = random_waypoint
-                    self.vehicle_agent_list[ind].set_destination((random_waypoint.location.x,
-                                                                  random_waypoint.location.y,
-                                                                  random_waypoint.location.z))
+    #         for ind, goal_distance in enumerate(self.episode_measurements['distance_to_goal']):
+    #             if goal_distance < self.config["dist_for_success"]:
+    #                 print("***************************DONE: {}***********************".format(ind + 1))
+    #                 random_waypoint = random.choice(self.spawn_points)
+    #                 self.goal_destination_list[ind] = random_waypoint
+    #                 self.vehicle_agent_list[ind].set_destination((random_waypoint.location.x,
+    #                                                               random_waypoint.location.y,
+    #                                                               random_waypoint.location.z))
 
-            self.prev_measurement = copy.deepcopy(self.episode_measurements)
+    #         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        # obs = {}
-        # sensor_image = self._read_data(self.camera_queue, world_frame)
+    #     # obs = {}
+    #     # sensor_image = self._read_data(self.camera_queue, world_frame)
 
-        # obs['image'] = sensor_image
-        # self.vis_wrapper.save_image(obs['image'], self.num_steps)
+    #     # obs['image'] = sensor_image
+    #     # self.vis_wrapper.save_image(obs['image'], self.num_steps)
 
-        return None, None, None, self.episode_measurements
+    #     return None, None, None, self.episode_measurements
 
     def _step(self, action):
 
@@ -492,6 +493,7 @@ class CarlaEnv(gym.Env):
             # True/False, did we collide in this step
             obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
 
+
             if obs_collision and self.episode_measurements["collision_actor_id"] != self.prev_measurement["collision_actor_id"]:
                 self.total_collisions += 1
                 if 'vehicle' in self.episode_measurements['collision_actor_type']:
@@ -539,6 +541,9 @@ class CarlaEnv(gym.Env):
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
+
+        image = carla_obs['sensor.camera.rgb/front']['image']
+        self.episode_measurements['front_image'] = image
 
         # obs = {}
         # #TODO: Get branch_idx from planner and set accordingly.
@@ -1644,11 +1649,13 @@ class CarlaEnv(gym.Env):
             scalars_obs = np.expand_dims(scalars_obs, axis = 0)
 
             # Stack all camera frames (flattened) with the low-dim features
-            fused_input = np.hstack([*feature_obs, scalar_observations])
+            fused_input = np.hstack([*feature_obs, scalars_obs])
             return fused_input
 
         elif self.config["input_type"] in ['wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
             scalars_obs = np.expand_dims(scalars_obs, axis = 0)
+
+            # return feature_obs[0], scalars_obs[0]
 
             # Flatten camera frames and stack
             feature_obs = [elt.reshape((1,-1)) for elt in feature_obs]
@@ -1680,8 +1687,11 @@ class CarlaEnv(gym.Env):
 
     def destroy_all_existing_actors(self):
         # Delete all existing actors
-        if self.config['test_comparison']:
-            self.actor_list = self.actor_list + self.collision_sensor_list + [self.camera_actor]
+        self.actor_list = self.actor_list + self.carla_interface.actor_fleet.actor_list
+        self.actor_list = self.actor_list + self.collision_sensor_list
+
+        self.carla_interface = None
+
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
@@ -1700,85 +1710,85 @@ class CarlaEnv(gym.Env):
 
             self.episode_measurements[key] = 0
 
-    def _reset_test_comparison(self, unseen=False, index=0):
-        self.clear_episode_measurements()
+    # def _reset_test_comparison(self, unseen=False, index=0):
+    #     self.clear_episode_measurements()
 
-        self.num_steps = 0 # Episode level step count
-        self.total_reward = 0 # Episode level total reward
-        self.prev_measurement = None
-        self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
-        self.measurements_file = None
-        self.unseen = unseen
+    #     self.num_steps = 0 # Episode level step count
+    #     self.total_reward = 0 # Episode level total reward
+    #     self.prev_measurement = None
+    #     self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
+    #     self.measurements_file = None
+    #     self.unseen = unseen
 
-        # Destroy
-        self.destroy_all_existing_actors()
-        self.collision_sensor_list.clear()
-        self.vehicle_agent_list.clear()
-        self.control_list.clear()
-        self.goal_destination_list.clear()
+    #     # Destroy
+    #     self.destroy_all_existing_actors()
+    #     self.collision_sensor_list.clear()
+    #     self.vehicle_agent_list.clear()
+    #     self.control_list.clear()
+    #     self.goal_destination_list.clear()
 
-        self.camera_queue.queue.clear()
+    #     self.camera_queue.queue.clear()
 
-        try:
-            vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
-            # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
-        except Exception as e:
-            print("Error during vehicle creation: {}".format(traceback.format_exc()))
+    #     try:
+    #         vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
+    #         # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
+    #     except Exception as e:
+    #         print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
-        if self.config['city_name'] == 'Town01':
-            source_spawn_points_inds = np.random.permutation(255)
-        elif self.config['city_name'] == 'Town02':
-            source_spawn_points_inds = np.random.permutation(101)
+    #     if self.config['city_name'] == 'Town01':
+    #         source_spawn_points_inds = np.random.permutation(255)
+    #     elif self.config['city_name'] == 'Town02':
+    #         source_spawn_points_inds = np.random.permutation(101)
 
-        source_spawn_points = [self.spawn_points[ind] for ind in source_spawn_points_inds]
+    #     source_spawn_points = [self.spawn_points[ind] for ind in source_spawn_points_inds]
 
-        count = self.config["num_npc"]
-        for spawn_point in source_spawn_points:
-            if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
-                count -= 1
-            if count <= 0:
-                break
+    #     count = self.config["num_npc"]
+    #     for spawn_point in source_spawn_points:
+    #         if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
+    #             count -= 1
+    #         if count <= 0:
+    #             break
 
-        # TODO: Generalize this code to attach 'n' different sensors to the vehicle
-        # Attach a sensor to the vehicle
-        sensor = self.config['sensors'][0]
+    #     # TODO: Generalize this code to attach 'n' different sensors to the vehicle
+    #     # Attach a sensor to the vehicle
+    #     sensor = self.config['sensors'][0]
 
-        camera = self.blueprint_library.find(sensor)
-        camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        camera.set_attribute('fov', '90')
+    #     camera = self.blueprint_library.find(sensor)
+    #     camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+    #     camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+    #     camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+    #     camera.set_attribute('fov', '90')
 
-        camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.actor_list[0])
-        # self.actor_list.append(self.camera_actor)
+    #     camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+    #     self.camera_actor = self._world.spawn_actor(camera, camera_transform, attach_to=self.actor_list[0])
+    #     self.actor_list.append(self.camera_actor)
 
-        self.camera_actor.listen(self.camera_queue.put)
+    #     self.camera_actor.listen(self.camera_queue.put)
 
-        # Ticking for 15 frames to handle car initialization in air
-        for _ in range(15):
-            world_frame = self._world.tick()
+    #     # Ticking for 15 frames to handle car initialization in air
+    #     for _ in range(15):
+    #         world_frame = self._world.tick()
 
-        for ind, vehicle in enumerate(self.actor_list):
-            agent = BasicAgent(vehicle)
-            self.vehicle_agent_list.append(agent)
-            random_waypoint = random.choice(self.spawn_points)
-            self.goal_destination_list[ind] = random_waypoint
-            agent.set_destination((random_waypoint.location.x,
-                                   random_waypoint.location.y,
-                                   random_waypoint.location.z))
+    #     for ind, vehicle in enumerate(self.actor_list):
+    #         agent = BasicAgent(vehicle)
+    #         self.vehicle_agent_list.append(agent)
+    #         random_waypoint = random.choice(self.spawn_points)
+    #         self.goal_destination_list[ind] = random_waypoint
+    #         agent.set_destination((random_waypoint.location.x,
+    #                                random_waypoint.location.y,
+    #                                random_waypoint.location.z))
 
-        self.episode_measurements['num_collisions'] = sum([sensor.num_collisions for sensor in self.collision_sensor_list])
-        self.episode_measurements['distance_to_goal'] = [vehicle.get_location().distance(self.goal_destination_list[ind].location) for ind, vehicle in enumerate(self.actor_list)]
-        self.episode_measurements['speed'] = [util.get_speed_from_velocity(vehicle.get_velocity()) for vehicle in self.actor_list]
+    #     self.episode_measurements['num_collisions'] = sum([sensor.num_collisions for sensor in self.collision_sensor_list])
+    #     self.episode_measurements['distance_to_goal'] = [vehicle.get_location().distance(self.goal_destination_list[ind].location) for ind, vehicle in enumerate(self.actor_list)]
+    #     self.episode_measurements['speed'] = [util.get_speed_from_velocity(vehicle.get_velocity()) for vehicle in self.actor_list]
 
-        # obs = {}
-        # image = self._read_data(self.camera_queue, world_frame)
-        # obs['image'] = image
+    #     # obs = {}
+    #     # image = self._read_data(self.camera_queue, world_frame)
+    #     # obs['image'] = image
 
-        self.prev_measurement = copy.deepcopy(self.episode_measurements)
+    #     self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        return None
+    #     return None
 
 
     # @profile
@@ -2099,6 +2109,11 @@ class CarlaEnv(gym.Env):
         return self.create_observations(carla_obs)
 
 
+    def render(self, mode='rgb_array'):
+        image = self.episode_measurements['front_image'].copy()
+        return image
+
+
         ##################################################################################3
 
     def get_wp_obs_input(self):
@@ -2257,20 +2272,41 @@ class CarlaEnv(gym.Env):
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
     def close(self):
+        print('closing')
 
         try:
-            self.destroy_all_existing_actors()
+            self.collision_sensor_list = []
+            self.vehicle_agent_list = []
+            self.control_list = {}
+            self.goal_destination_list = {}
+            self.episode_measurements = {}
+            self.prev_measurement = {}
 
-            if not self.CarlaServer is None:
-                self.CarlaServer.close()
+            self.camera_actor = None
+            self.vehicle_actor = None
+
+            # self.destroy_all_existing_actors()
+
+            self.carla_interface.close()
+            self.carla_interface = None
+
+            # if not self.CarlaServer is None:
+            #     self.CarlaServer.close()
 
         except Exception as e:
                 print("********** Exception in closing env **********")
                 print(e)
-                print(traceback.format_exc())
+                # print(traceback.format_exc())
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self):
+        self.close()
 
     def __del__(self):
-        self.close()
+        print('deleting env object cleanly')
+        # self.close()
 
 # @profile
 def plot_episode_info(path,
@@ -2412,13 +2448,13 @@ def plot_episode_info(path,
 #     plt.close()
 
 if __name__ == "__main__":
-    env = CarlaEnv(log_dir = "/home/swapnil/temp_dir")
+    env = CarlaEnv(log_dir = "/home/brian/temp")
     env.reset()
     for i in range(10000):
 
         obs, reward, done, info = env.step(np.array([0,1.0]))
 
-        print(reward, done)
+        print(obs)
 
         if(done):
             env.reset()

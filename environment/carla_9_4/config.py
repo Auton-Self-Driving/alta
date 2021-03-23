@@ -85,9 +85,9 @@ DEFAULT_ENV = {
     "binarized_image": False,
     "single_channel_image": False,
     "noise_dim" : 1,
-    "const_collision_penalty": 0,
+    "const_collision_penalty": 50,
     "collision_penalty_speed_coeff": 0,
-    "const_light_penalty": 0,
+    "const_light_penalty": 50,
     "light_penalty_speed_coeff": 0,
     "terminate_on_light" : True,
     "enable_brake": True,
@@ -320,7 +320,7 @@ class ConfigManager(object):
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp_bev_rv_obs_info_speed_steer_ldist_goal_light"
+            self.config["input_type"] = 'wp_obs_info_speed_steer_ldist_goal_light' # "wp_bev_rv_obs_info_speed_steer_ldist_goal_light"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
             self.config["carla_gpu"] = "1"

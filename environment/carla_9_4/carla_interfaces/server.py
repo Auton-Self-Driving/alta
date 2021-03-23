@@ -18,7 +18,7 @@ class CarlaServer():
         self.live_carla_processes = set()
 
         if not self.server_port:
-            self.server_port = random.randint(10000, 60000)
+            self.server_port = 2000 # random.randint(10000, 60000)
         else:
             pass
 
@@ -39,7 +39,7 @@ class CarlaServer():
 
 
         print('Waiting for server to finish setting up')
-        time.sleep(20)
+        time.sleep(10)
 
     def _attempt_server_launch(self):
         # Try to launch
@@ -69,14 +69,14 @@ class CarlaServer():
         server_start_retries = 0
 
         while ((not server_started) and server_start_retries < self.config['server_retries']):
-            server_started = self._attempt_server_launch
+            server_started = self._attempt_server_launch()
             server_start_retries += 1
 
         # Max retry attempts exceeded
         if(not server_started):
             raise Exception("Failed to start CARLA server. Check configuration and try again.")
 
-        time.sleep(120)
+        time.sleep(1)
 
     def __del__(self):
         self.close()
@@ -92,4 +92,11 @@ class CarlaServer():
 
 if __name__ == "__main__":
     server = CarlaServer(config=DEFAULT_ENV)
+    server.start()
     time.sleep(10)
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        server.close()
+
