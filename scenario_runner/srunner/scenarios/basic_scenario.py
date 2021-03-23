@@ -61,6 +61,7 @@ class BasicScenario(object):
             py_trees.logging.level = py_trees.logging.Level.DEBUG
 
         behavior = self._create_behavior()
+        # print(64, behavior)
 
         criteria = None
         if criteria_enable:
@@ -69,6 +70,7 @@ class BasicScenario(object):
         # Add a trigger condition for the behavior to ensure the behavior is only activated, when it is relevant
         behavior_seq = py_trees.composites.Sequence()
         trigger_behavior = self._setup_scenario_trigger(config)
+        # print(73, trigger_behavior)
         if trigger_behavior:
             behavior_seq.add_child(trigger_behavior)
 
@@ -132,6 +134,7 @@ class BasicScenario(object):
         ego_vehicle_route = CarlaDataProvider.get_ego_vehicle_route()
 
         if start_location:
+            # print(137, start_location)
             if ego_vehicle_route:
                 if config.route_var_name is None:  # pylint: disable=no-else-return
                     return conditions.InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
@@ -143,7 +146,8 @@ class BasicScenario(object):
                     return conditions.WaitForBlackboardVariable(name=check_name,
                                                                 variable_name=config.route_var_name,
                                                                 variable_value=True,
-                                                                var_init_value=False)
+                                                                var_init_value=False,
+                                                                debug=True)
 
             return conditions.InTimeToArrivalToLocation(self.ego_vehicles[0],
                                                         2.0,

@@ -17,6 +17,12 @@ from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
 
+# Leaerboard Import
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../leaderboard'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../scenario_runner'))
+from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+
 class ActorManager910():
     def __init__(self, config, client, log_dir):
         '''
@@ -99,8 +105,14 @@ class ActorManager910():
 
         #TODO Do we want this to be vehicle actor?
         for _ in range(NUM_RETRIES):
-            # Need to check about passing source_transform
-            self.vehicle_actor = self.world.try_spawn_actor(vehicle_bp, source_transform)
+            try:
+                # Need to check about passing source_transform
+                self.vehicle_actor = CarlaDataProvider.request_new_actor(self.config['vehicle_type'],
+                                                                        source_transform,
+                                                                        'hero',)
+            except:
+                self.vehicle_actor = None
+            # self.vehicle_actor = self.world.try_spawn_actor(vehicle_bp, source_transform)
             if self.vehicle_actor is not None:
                 break
             else:

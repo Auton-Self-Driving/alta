@@ -199,7 +199,7 @@ class DynamicObjectCrossing(BasicScenario):
         return carla.Transform(location, carla.Rotation(yaw=orientation_yaw)), orientation_yaw
 
     def _spawn_adversary(self, transform, orientation_yaw):
-
+        # print(202, 'spawned', self._adversary_type)
         self._time_to_reach *= self._num_lane_changes
 
         if self._adversary_type is False:

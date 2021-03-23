@@ -89,7 +89,7 @@ DEFAULT_ENV = {
     "collision_penalty_speed_coeff": 0,
     "const_light_penalty": 0,
     "light_penalty_speed_coeff": 0,
-    "terminate_on_light" : True,
+    "terminate_on_light" : False,
     "enable_brake": True,
     "log_freq": 1,
     "zero_speed_threshold": 0.05,
@@ -118,8 +118,8 @@ DEFAULT_ENV = {
     "test_fixed_spawn_points" : True,
     "train_fixed_spawn_points": False,
     "testing" : False,
-    "disable_collision" : False,
-    "enable_static" : False,
+    "disable_collision": False,
+    "enable_static": False,
     "use_pid_in_frame_skip" : True,
     "enable_lane_invasion_collision" : True,
     "vehicle_proximity_threshold" : 15,
@@ -141,6 +141,7 @@ DEFAULT_ENV = {
     "use_offline_map": False,
     "map_path" : "/home/hitesh/research/repos/alta/environment/carla_9_4/OpenDrive/Town01.xodr",
     "use_route_to_plan" : False,
+    "min_num_eps_before_switch_town": 3,
 }
 
 episode_measurements = {
