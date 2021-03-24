@@ -82,10 +82,11 @@ class _DPPO_Individual_Agent(Agent):
 
 
 class DPPO_Server_Agent(object):
-    def __init__(self, glb_policy, glb_optimizer, num_threads=1,
+    def __init__(self, glb_policy, glb_optimizer, num_threads=1, standard=True,
         glb_update_freq=1000, num_agents=1, max_glb_num_steps=1000000,
-        gamma=.99, eps_clip=.2, optim_epochs=100, log_time='TEST',
-        save_freq=100000, save_suffix='', verbose=False):
+        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100, 
+        focal_loss=False, log_time='TEST', save_freq=100000, save_suffix='', 
+        verbose=False):
         """An asynchronous DPPO agent.
         Args:
             glb_policy: network shared by all PPO agents
@@ -94,6 +95,8 @@ class DPPO_Server_Agent(object):
             gamma: reward discount factor
             eps_clip: clip parameter for PPO
             optim_epochs: update policy for how many epochs
+            standard: whether doing standard ParamServer (i.e. recv grad)
+                if not True, receive experience instead
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
@@ -101,13 +104,17 @@ class DPPO_Server_Agent(object):
             verbose: if print some debug information
         """
         self.glb_policy = glb_policy
+        self.N_S = self.glb_policy.N_S
+        self.N_A = self.glb_policy.N_A
         self.glb_optimizer = glb_optimizer
         self.num_agents = num_agents
         self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
+        self.standard = standard
         self.eps_clip = eps_clip
         self.optim_epochs = optim_epochs
-        # self.grad_clip = grad_clip
+        self.focal_loss = focal_loss
+        self.grad_clip = grad_clip
         self.device = next(glb_policy.parameters()).device
         self.model_len = len(parameters_to_vector(glb_policy.parameters()))
         self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32, device=self.device, requires_grad=False)
@@ -144,6 +151,15 @@ class DPPO_Server_Agent(object):
             self.run_name, log_time)
         self.tbwriter = None
         self.resumed = False
+        self.reset_memory()
+
+    def reset_memory(self):
+        self.memory = {
+            'actions': [],
+            'states': [],
+            'logprobs': [],
+            'rewards': [],
+            'dones': [],}
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -211,13 +227,142 @@ class DPPO_Server_Agent(object):
                     self.last_save_steps = self.glb_num_steps
                     self.save()
 
+    def listen_buffer(self):
+        while self.glb_num_steps < self.max_glb_num_steps + 1:
+            sender, num_steps_added, buffer_len, signal = dist.recv(
+                self.recv_info_len, tag=SIG.QUERY)
+            self.vprint('server', self.rank, 'QUERY', sender,
+                num_steps_added, signal)
+            if signal == SIG.GRAD_PUSH:
+                total_len = (self.N_S + self.N_A + 3) * buffer_len
+                _, vec_mem = dist.recv(self.recv_info_len, total_len,
+                    src=sender, tag=SIG.GRAD_PUSH, device='cpu')
+                # disintegrate them into memories derived from buffer_len
+                _action = vec_mem[:self.N_A * buffer_len]
+                _action = _action.reshape(buffer_len, self.N_A).tolist()
+                _state = vec_mem[self.N_A * buffer_len:(self.N_S + self.N_A) * buffer_len]
+                _state = _state.reshape(buffer_len, self.N_S).tolist()
+                _logprob = vec_mem[-3 * buffer_len:-2 * buffer_len].tolist()
+                _reward = vec_mem[-2 * buffer_len:-buffer_len].tolist()
+                _done = vec_mem[-buffer_len:]
+                _done = torch.isclose(_done, torch.ones(buffer_len)).tolist()
+                self.memory['actions'].append(_action)
+                self.memory['states'].append(_state)
+                self.memory['logprobs'].append(_logprob)
+                self.memory['rewards'].append(_reward)
+                self.memory['dones'].append(_done)
+
+            elif signal == SIG.PARAM_REQ:
+                self.vprint('server', self.rank, 'send param', sender,
+                    num_steps_added, signal)
+                dist.isend(
+                    [self.glb_num_steps, self.glb_num_episodes],
+                    self.glb_policy.parameters(),
+                    dst=sender, tag=SIG.PARAM
+                ).wait()
+            else:
+                raise ValueError('signal not seen')
+            with self.server_lock:
+                self.glb_num_steps += num_steps_added
+                self.num_steps_since_update += num_steps_added
+                self.glb_num_episodes += 1
+                if self.num_steps_since_update >= self.glb_update_freq:
+                    if self.resumed:
+                        self.resumed = False
+                    else:
+                        print('[server rank {}][glb ep {}][glb step {}] updating ...'.format(
+                            self.rank, self.glb_num_episodes, self.glb_num_steps,
+                        ))
+                        self.num_steps_since_update = 0
+                        self.update()
+
+            # save checkpoint
+            with self.server_save_lock:
+                if self.glb_num_steps - self.last_save_steps >= self.save_freq:
+                    self.last_save_steps = self.glb_num_steps
+                    self.save()
+
     def learn(self):
         thread_list = []
         for _ in range(self.num_threads):
-            t = Thread(target=self.listen)
+            if self.standard:
+                t = Thread(target=self.listen)
+            else:
+                t = Thread(target=self.listen_buffer)
             thread_list.append(t)
         for t in thread_list: t.start()
         for t in thread_list: t.join()
+
+    def _update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        agent_rewards = deque()
+        # Monte Carlo estimate of rewards
+        discounted_reward = 0
+        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'], 
+            self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
+            for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            rewards.extend(list(agent_rewards))
+            old_states.extend(_state)
+            old_actions.extend(_action)
+            old_logprobs.extend(_logprob)
+
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
+
+        # convert list to tensor
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            # print(old_states.shape)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
+
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            if self.focal_loss:
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+
+        self.agent.reset_memory()
 
     def test(self, videos=False):
         raise NotImplementedError
@@ -278,7 +423,8 @@ class DPPO_Worker_Agent(object):
     def __init__(self, local_env, local_policy, log_time='TEST',
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
         grad_update_freq=1000, optim_epochs=100, focal_loss=False,
-        grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
+        standard='True', grad_clip=None, save_freq=100000, save_suffix='', 
+        verbose=False):
         """An synchronous DPPO Worker agent.
         Args:
             local_env: the global environment
@@ -290,6 +436,8 @@ class DPPO_Worker_Agent(object):
             grad_clip: value for clipping gradient, None to disable
             grad_update_freq: frequency of pushing gradients
             optim_epochs: update policy for how many epochs
+            standard: whether doing standard ParamServer (i.e. recv grad)
+                if not True, receive experience instead
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
@@ -298,6 +446,8 @@ class DPPO_Worker_Agent(object):
         """
         self.local_env = local_env
         self.local_policy = local_policy
+        self.N_S = self.local_policy.N_S
+        self.N_A = self.local_policy.N_A
         self.model_len = len(parameters_to_vector(local_policy.parameters()))
         self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
@@ -305,6 +455,7 @@ class DPPO_Worker_Agent(object):
         self.grad_update_freq = grad_update_freq
         self.optim_epochs = optim_epochs
         self.focal_loss = focal_loss
+        self.standard = standard
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.agent_reward_list = [[] for _ in self.rank_list]
@@ -439,6 +590,20 @@ class DPPO_Worker_Agent(object):
             if agent.done: continue # no need to update for a done agent
             agent.reset_memory()
 
+    def _update_buffer(self, agent):
+        mem = agent.memory
+        print('rank', self.rank, 'send_memory', 'agent rank', agent.rank)
+        vec_mem = np.array(mem['action']).flatten().tolist()
+        vec_mem.extend(np.array(mem['state']).flatten().tolist())
+        vec_mem.extend(mem['logprob'])
+        vec_mem.extend(mem['reward'])
+        vec_mem.extend(mem['done'])
+        overhead = [self.rank, self.num_steps_since_update,
+            len(mem['reward']), SIG.GRAD_PUSH]
+        dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
+        dist.isend(overhead, vec_mem, dst=self.server_rank, tag=SIG.GRAD).wait()
+        agent.reset_memory()
+
     def send_gradients(self):
         self.vprint('rank', self.rank, 'send_gradients')
         param_grad = [item.grad for item in self.local_policy.parameters()]
@@ -504,6 +669,9 @@ class DPPO_Worker_Agent(object):
             for rk, agent in enumerate(self.agent_list):
                 agent.memory['reward'].append(agent.curr_reward)
                 agent.memory['done'].append(agent.done)
+                agent.num_total_steps += 1
+                self.num_steps_since_update += 1
+                self.local_num_steps += 1
 
                 if agent.done:  # done and print information
                     print('[{}]'.format(self.time()) + \
@@ -591,11 +759,12 @@ class DPPO_Worker_Agent(object):
                     self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 
-                agent.num_total_steps += 1
-                self.num_steps_since_update += 1
-                self.local_num_steps += 1
+                    if not self.standard:
+                        self._update_buffer(agent)
+                        self.num_steps_since_update = 0
+                        self.num_eps_since_update = 0
 
-            if self.num_steps_since_update >= self.grad_update_freq:
+            if self.standard and self.num_steps_since_update >= self.grad_update_freq:
                 if self.resumed:
                     # skip the first update after resume
                     self.resumed = False

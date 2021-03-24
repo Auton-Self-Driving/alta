@@ -54,6 +54,8 @@ class PPOActorCritic_Continuous(nn.Module):
     def __init__(self, state_dim, action_dim, action_std=.5):
         super(PPOActorCritic_Continuous, self).__init__()
         # action mean range -1 to 1
+        self.N_S = state_dim
+        self.N_A = action_dim
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, 64),
                 nn.Tanh(),
