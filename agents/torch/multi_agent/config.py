@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'TEST',
+    'save_suffix': 'O10mL10mG0m1kupdstdoff',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -85,15 +85,18 @@ DPPO_CONFIG = {
     'standard': False,
     'num_workers': 10,
     'num_servers': 1, # currently only support 1 server
-    'num_threads_per_server': 1,
-    'device_list': ['cuda:0', 'cuda:3'],
+    'num_threads_per_server': 5,
+    # 'device_list': ['cuda:0', 'cuda:1'],
+    # 'device_list': ['cuda:2', 'cuda:3'],
+    'device_list': ['cuda:0', 'cuda:1', 'cuda:3'],
+    # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
     'worker_grad_update_freq': 1000,
-    'worker_optim_epochs': 5,
+    'worker_optim_epochs': 10,
     'server_glb_update_freq': 1000,
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0mCos4KupdDiffLaneOKVarNPC',
+    'save_suffix': 'O10mL10mG0m56hupdFL',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -112,9 +115,9 @@ PPO_CONFIG = {
     'eps_clip': .2,
     'grad_clip': .5,
     'nesterov': False,
-    # 'focal_loss': [.5, .5],
+    'focal_loss': [.5, .5],
     'focal_loss': False,
-    'glb_update_freq': 4000,
+    'glb_update_freq': 5600,
     'optim_epochs': 10,
 }
 
@@ -231,7 +234,7 @@ ENV_CONFIG = {
     'num_envs': 4,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
