@@ -130,7 +130,6 @@ class DPPO_Server_Agent(object):
         self.num_servers = len(self.server_list)
         self.num_workers = len(self.worker_list)
         self.num_threads = num_threads
-        self.buffer_len = [None] * num_threads
         self.vprint(comm_vars)
         # self.glb_num_steps = server_resources['glb_num_steps']
         # self.num_steps_since_update = server_resources['num_steps_since_update']
@@ -179,7 +178,7 @@ class DPPO_Server_Agent(object):
             np_array = np_array.astype(dtype)
         return torch.from_numpy(np_array).to(self.device)
 
-    def listen(self, tid):
+    def listen(self):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
             sender, num_steps_added, num_eps_added, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
@@ -230,36 +229,36 @@ class DPPO_Server_Agent(object):
                     self.last_save_steps = self.glb_num_steps
                     self.save()
 
-    def listen_buffer(self, tid):
+    def listen_buffer(self):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
-            sender, num_steps_added, self.buffer_len[tid], signal = dist.recv(
+            sender, num_steps_added, buffer_len, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
             self.vprint('server', self.rank, 'QUERY', sender,
-                num_steps_added, 'buffer_len', self.buffer_len[tid], signal)
+                num_steps_added, 'buffer_len', buffer_len, signal)
             # print('server', self.rank, 'QUERY', sender,
                 # num_steps_added, 'buffer_len', buffer_len, signal)
             if signal == SIG.GRAD_PUSH:
+                total_len = (self.N_S + self.N_A + 3) * buffer_len
+                _, vec_mem = dist.recv(self.recv_info_len, total_len, 
+                    src=sender, tag=SIG.GRAD, device='cpu')
+                # disintegrate them into memories derived from buffer_len
+                _action = vec_mem[:self.N_A * buffer_len]
+                _action = _action.reshape(buffer_len, self.N_A).tolist()
+                _state = vec_mem[self.N_A * buffer_len:(self.N_S + self.N_A) * buffer_len]
+                _state = _state.reshape(buffer_len, self.N_S).tolist()
+                _logprob = vec_mem[-3 * buffer_len:-2 * buffer_len].tolist()
+                _reward = vec_mem[-2 * buffer_len:-buffer_len].tolist()
+                _done = vec_mem[-buffer_len:]
+                _done = torch.isclose(_done, torch.ones(buffer_len)).tolist()
                 with self.server_lock:
-                    self.glb_num_steps += num_steps_added
-                    self.num_steps_since_update += num_steps_added
-                    self.glb_num_episodes += 1
-                    _, vec_mem = dist.recv(self.recv_info_len, 
-                        (self.N_S + self.N_A + 3) * self.buffer_len[tid],
-                        src=sender, tag=SIG.GRAD, device='cpu')
-                    # disintegrate them into memories derived from buffer_len
-                    _action = vec_mem[:self.N_A * self.buffer_len[tid]]
-                    _action = _action.reshape(self.buffer_len[tid], self.N_A).tolist()
-                    _state = vec_mem[self.N_A * self.buffer_len[tid]:(self.N_S + self.N_A) * self.buffer_len[tid]]
-                    _state = _state.reshape(self.buffer_len[tid], self.N_S).tolist()
-                    _logprob = vec_mem[-3 * self.buffer_len[tid]:-2 * self.buffer_len[tid]].tolist()
-                    _reward = vec_mem[-2 * self.buffer_len[tid]:-self.buffer_len[tid]].tolist()
-                    _done = vec_mem[-self.buffer_len[tid]:]
-                    _done = torch.isclose(_done, torch.ones(self.buffer_len[tid])).tolist()
                     self.memory['actions'].append(_action)
                     self.memory['states'].append(_state)
                     self.memory['logprobs'].append(_logprob)
                     self.memory['rewards'].append(_reward)
                     self.memory['dones'].append(_done)
+                    self.glb_num_steps += num_steps_added
+                    self.num_steps_since_update += num_steps_added
+                    self.glb_num_episodes += 1
                 # print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
@@ -290,11 +289,11 @@ class DPPO_Server_Agent(object):
 
     def learn(self):
         thread_list = []
-        for tid in range(self.num_threads):
+        for _ in range(self.num_threads):
             if self.standard:
-                t = Thread(target=self.listen, args=(tid,))
+                t = Thread(target=self.listen)
             else:
-                t = Thread(target=self.listen_buffer, args=(tid,))
+                t = Thread(target=self.listen_buffer)
             thread_list.append(t)
         for t in thread_list: t.start()
         for t in thread_list: t.join()
