@@ -131,7 +131,7 @@ class DPPO_Server_Agent(object):
             self.num_workers, self.num_agents, self.save_suffix)
         self.recv_info_len = 4
         self.glb_ep_reward_list = []
-        # self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.glb_update_freq = glb_update_freq
         self.glb_num_steps = 0
@@ -190,8 +190,8 @@ class DPPO_Server_Agent(object):
                     if self.resumed:
                         self.resumed = False
                     else:
-                        print('[server rank {}][glb ep {}][glb step {}] updating ...'.format(
-                            self.rank, self.glb_num_episodes, self.glb_num_steps,
+                        print('[{}][server rank {}][glb ep {}][glb step {}] updating ...'.format(
+                            self.time(), self.rank, self.glb_num_episodes, self.glb_num_steps,
                         ))
                         self.num_steps_since_update = 0
                         self.glb_optimizer.zero_grad()

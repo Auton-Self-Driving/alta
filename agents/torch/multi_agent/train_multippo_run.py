@@ -19,7 +19,7 @@ print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
 def create_env(list_, cfg, rank):
-    list_.append(CarlaEnv(ENV_CONFIG), env_rank=rank)
+    list_.append(CarlaEnv(ENV_CONFIG, env_rank=rank))
 
 # proc_list = []
 # with mp.Manager() as mgr:
