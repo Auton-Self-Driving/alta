@@ -31,7 +31,7 @@ class SIG:
 
 
 class _DPPO_Individual_Agent(Agent):
-    def __init__(self, vehicle, local_policy, rank=None, memory=None, **kwargs):
+    def __init__(self, vehicle, glb_policy, rank=None, memory=None, **kwargs):
         """A local individual Distributed PPO agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
@@ -43,8 +43,10 @@ class _DPPO_Individual_Agent(Agent):
                 vehicle_proximity_threshold=15.0
         """
         super().__init__(vehicle, **kwargs)
-        self.device = next(local_policy.parameters()).device
-        self.local_policy = local_policy
+        self.device = next(glb_policy.parameters()).device
+        self.glb_policy = glb_policy
+        self.local_policy = pickle.loads(pickle.dumps(self.glb_policy))
+        self.local_policy = self.local_policy.to(self.device)
         if memory is not None:
             self.memory = memory
         else:
@@ -70,7 +72,7 @@ class _DPPO_Individual_Agent(Agent):
         return action, logprob
 
     def update_local_policy(self):
-        raise NotImplementedError
+        self.local_policy.load_state_dict(self.glb_policy.state_dict())
 
     def reset_memory(self):
         self.memory = {
@@ -128,6 +130,7 @@ class DPPO_Server_Agent(object):
         self.num_servers = len(self.server_list)
         self.num_workers = len(self.worker_list)
         self.num_threads = num_threads
+        self.buffer_len = [None] * num_threads
         self.vprint(comm_vars)
         # self.glb_num_steps = server_resources['glb_num_steps']
         # self.num_steps_since_update = server_resources['num_steps_since_update']
@@ -176,7 +179,7 @@ class DPPO_Server_Agent(object):
             np_array = np_array.astype(dtype)
         return torch.from_numpy(np_array).to(self.device)
 
-    def listen(self):
+    def listen(self, tid):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
             sender, num_steps_added, num_eps_added, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
@@ -227,34 +230,37 @@ class DPPO_Server_Agent(object):
                     self.last_save_steps = self.glb_num_steps
                     self.save()
 
-    def listen_buffer(self):
+    def listen_buffer(self, tid):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
-            sender, num_steps_added, buffer_len, signal = dist.recv(
+            sender, num_steps_added, self.buffer_len[tid], signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
             self.vprint('server', self.rank, 'QUERY', sender,
-                num_steps_added, 'buffer_len', buffer_len, signal)
-            print('server', self.rank, 'QUERY', sender,
-                num_steps_added, 'buffer_len', buffer_len, signal)
+                num_steps_added, 'buffer_len', self.buffer_len[tid], signal)
+            # print('server', self.rank, 'QUERY', sender,
+                # num_steps_added, 'buffer_len', buffer_len, signal)
             if signal == SIG.GRAD_PUSH:
-                total_len = (self.N_S + self.N_A + 3) * buffer_len
-                _, vec_mem = dist.recv(self.recv_info_len, total_len,
-                    src=sender, tag=SIG.GRAD, device='cpu')
-                # disintegrate them into memories derived from buffer_len
-                _action = vec_mem[:self.N_A * buffer_len]
-                _action = _action.reshape(buffer_len, self.N_A).tolist()
-                _state = vec_mem[self.N_A * buffer_len:(self.N_S + self.N_A) * buffer_len]
-                _state = _state.reshape(buffer_len, self.N_S).tolist()
-                _logprob = vec_mem[-3 * buffer_len:-2 * buffer_len].tolist()
-                _reward = vec_mem[-2 * buffer_len:-buffer_len].tolist()
-                _done = vec_mem[-buffer_len:]
-                _done = torch.isclose(_done, torch.ones(buffer_len)).tolist()
-                self.memory['actions'].append(_action)
-                self.memory['states'].append(_state)
-                self.memory['logprobs'].append(_logprob)
-                self.memory['rewards'].append(_reward)
-                self.memory['dones'].append(_done)
-                print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
-
+                with self.server_lock:
+                    self.glb_num_steps += num_steps_added
+                    self.num_steps_since_update += num_steps_added
+                    self.glb_num_episodes += 1
+                    _, vec_mem = dist.recv(self.recv_info_len, 
+                        (self.N_S + self.N_A + 3) * self.buffer_len[tid],
+                        src=sender, tag=SIG.GRAD, device='cpu')
+                    # disintegrate them into memories derived from buffer_len
+                    _action = vec_mem[:self.N_A * self.buffer_len[tid]]
+                    _action = _action.reshape(self.buffer_len[tid], self.N_A).tolist()
+                    _state = vec_mem[self.N_A * self.buffer_len[tid]:(self.N_S + self.N_A) * self.buffer_len[tid]]
+                    _state = _state.reshape(self.buffer_len[tid], self.N_S).tolist()
+                    _logprob = vec_mem[-3 * self.buffer_len[tid]:-2 * self.buffer_len[tid]].tolist()
+                    _reward = vec_mem[-2 * self.buffer_len[tid]:-self.buffer_len[tid]].tolist()
+                    _done = vec_mem[-self.buffer_len[tid]:]
+                    _done = torch.isclose(_done, torch.ones(self.buffer_len[tid])).tolist()
+                    self.memory['actions'].append(_action)
+                    self.memory['states'].append(_state)
+                    self.memory['logprobs'].append(_logprob)
+                    self.memory['rewards'].append(_reward)
+                    self.memory['dones'].append(_done)
+                # print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
@@ -266,9 +272,6 @@ class DPPO_Server_Agent(object):
             else:
                 raise ValueError('signal not seen')
             with self.server_lock:
-                self.glb_num_steps += num_steps_added
-                self.num_steps_since_update += num_steps_added
-                self.glb_num_episodes += 1
                 if self.num_steps_since_update >= self.glb_update_freq:
                     if self.resumed:
                         self.resumed = False
@@ -287,11 +290,11 @@ class DPPO_Server_Agent(object):
 
     def learn(self):
         thread_list = []
-        for _ in range(self.num_threads):
+        for tid in range(self.num_threads):
             if self.standard:
-                t = Thread(target=self.listen)
+                t = Thread(target=self.listen, args=(tid,))
             else:
-                t = Thread(target=self.listen_buffer)
+                t = Thread(target=self.listen_buffer, args=(tid,))
             thread_list.append(t)
         for t in thread_list: t.start()
         for t in thread_list: t.join()
@@ -315,7 +318,7 @@ class DPPO_Server_Agent(object):
             old_states.extend(_state)
             old_actions.extend(_action)
             old_logprobs.extend(_logprob)
-        print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
+        # print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
 
         # Normalizing the rewards:
         # rewards = torch.tensor(rewards).to(device)
@@ -596,7 +599,7 @@ class DPPO_Worker_Agent(object):
 
     def _update_buffer(self, agent):
         mem = agent.memory
-        print('rank', self.rank, 'send_memory', 'agent_rk', agent.rank)
+        # print('rank', self.rank, 'send_memory', 'agent_rk', agent.rank)
         vec_mem = np.array(mem['action']).flatten().tolist()
         vec_mem.extend(np.array(mem['state']).flatten().tolist())
         vec_mem.extend(np.array(mem['logprob']).flatten().tolist())
@@ -609,6 +612,7 @@ class DPPO_Worker_Agent(object):
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_mem, dst=self.server_rank, tag=SIG.GRAD).wait()
         agent.reset_memory()
+        self.glb_num_steps, self.glb_num_episodes = self.update_parameters()
 
     def send_gradients(self):
         self.vprint('rank', self.rank, 'send_gradients')
@@ -642,7 +646,7 @@ class DPPO_Worker_Agent(object):
         self.local_env.spawn_npc_vehicles(51 - self.num_agents)
         self.agent_list = [_DPPO_Individual_Agent(
             self.local_env.ego_vehicle_list[i],
-            local_policy=self.local_policy, rank=i) for i in self.rank_list]
+            glb_policy=self.local_policy, rank=i) for i in self.rank_list]
         self.local_env.reset_vehicle_agent(self.agent_list)
         self.local_env.step()
 
@@ -789,7 +793,7 @@ class DPPO_Worker_Agent(object):
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _DPPO_Individual_Agent(
                         self.local_env.ego_vehicle_list[rk],
-                        local_policy=self.local_policy, rank=rk,
+                        glb_policy=self.local_policy, rank=rk,
                         memory=self.agent_list[rk].memory)
                 self.local_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
