@@ -75,7 +75,8 @@ class PPO_Collective_Agent(object):
     def __init__(self, glb_env, glb_policy, glb_optimizer, num_agents=1,
         max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
         glb_update_freq=1000, optim_epochs=100, focal_loss=False,
-        grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
+        grad_clip=None, save_freq=100000, save_suffix='', standard=True,
+        verbose=False):
         """An synchronous PPO agent.
         Args:
             glb_env: the global environment
@@ -92,6 +93,8 @@ class PPO_Collective_Agent(object):
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
+            standard: whether doing standard PPO (i.e. truncated mem + sync)
+                if not True, only use complete episode + async after update
             deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
         """
@@ -111,6 +114,7 @@ class PPO_Collective_Agent(object):
         self.agent_list = None
         self.grad_clip = grad_clip
         self.nesterov = nesterov
+        self.standard = standard
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
@@ -131,6 +135,15 @@ class PPO_Collective_Agent(object):
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
+        self.reset_glb_memory()
+
+    def reset_glb_memory(self):
+        self.memory = {
+            'actions': [],
+            'states': [],
+            'logprobs': [],
+            'rewards': [],
+            'dones': [],}
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -146,6 +159,76 @@ class PPO_Collective_Agent(object):
         if np_array.dtype != dtype:
             np_array = np_array.astype(dtype)
         return torch.from_numpy(np_array).to(self.device)
+
+    def _standoff_update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        # Monte Carlo estimate of rewards
+        discounted_reward = 0
+        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'],
+            self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
+            agent_rewards = deque()
+            for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            rewards.extend(list(agent_rewards))
+            old_states.extend(_state)
+            old_actions.extend(_action)
+            old_logprobs.extend(_logprob)
+
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
+
+        # convert list to tensor
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            # print(old_states.shape)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
+
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            if self.focal_loss:
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+        self.reset_glb_memory()
 
     def _update(self):
         rewards = []
@@ -442,8 +525,19 @@ class PPO_Collective_Agent(object):
             for rk, agent in enumerate(self.agent_list):
                 agent.memory['reward'].append(agent.curr_reward)
                 agent.memory['done'].append(agent.done)
+                agent.num_total_steps += 1
+                self.num_steps_since_update += 1
+                self.glb_num_steps += 1
 
                 if agent.done:  # done and print information
+                    if not self.standard:
+                        mem = agent.memory
+                        self.memory['actions'].append(mem['action'])
+                        self.memory['states'].append(mem['state'])
+                        self.memory['logprobs'].append(mem['logprob'])
+                        self.memory['rewards'].append(mem['reward'])
+                        self.memory['dones'].append(mem['done'])
+                        agent.reset_memory()
                     print('[{}]'.format(self.time()) + \
                         '[{}]'.format(self.run_name) + \
                         '[glb ep {}][glb step {}][agent {}] done({})'
@@ -528,11 +622,6 @@ class PPO_Collective_Agent(object):
                     self.recorder.summary_all()
                     self.glb_num_episodes += 1
 
-
-                agent.num_total_steps += 1
-                self.num_steps_since_update += 1
-                self.glb_num_steps += 1
-
                 # save checkpoint
                 if self.glb_num_steps % self.save_freq == 0:
                     self.save()
@@ -545,11 +634,12 @@ class PPO_Collective_Agent(object):
                 else:
                     # do the learning
                     # print('updating policy...')
-                    if self.nesterov:
+                    if not self.standard:
+                        self._standoff_update()
+                    elif self.nesterov:
                         self._nesterov_update()
                     else:
                         self._update()
-
 
             # respawn dead agents
             respawn_rank_list = []
@@ -700,7 +790,8 @@ class MultiPPO_Collective_Agent(object):
     def __init__(self, glb_env_list, glb_policy, glb_optimizer, num_agents=1,
         max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, nesterov=False,
         glb_update_freq=1000, optim_epochs=100, focal_loss=False,
-        grad_clip=None, save_freq=100000, save_suffix='', verbose=False):
+        grad_clip=None, save_freq=100000, save_suffix='', standard=True,
+        verbose=False):
         """A Multi-Server PPO agent.
         Args:
             glb_env_list: global environment list
@@ -712,6 +803,8 @@ class MultiPPO_Collective_Agent(object):
             eps_clip: clip parameter for PPO
             grad_clip: value for clipping gradient, None to disable
             nesterov: if using nesterov update
+            standard: whether doing standard PPO (i.e. truncated mem + sync)
+                if not True, only use complete episode + async after update
             glb_update_freq: update frequency of glb_policy
             optim_epochs: update policy for how many epochs
             save_freq: checkpoint saving frequency
@@ -736,6 +829,7 @@ class MultiPPO_Collective_Agent(object):
         self.agent_list = [[None] * num_agents for _ in glb_env_list]
         self.grad_clip = grad_clip
         self.nesterov = nesterov
+        self.standard = standard
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
@@ -765,6 +859,15 @@ class MultiPPO_Collective_Agent(object):
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
+        self.reset_glb_memory()
+
+    def reset_glb_memory(self):
+        self.memory = {
+            'actions': [],
+            'states': [],
+            'logprobs': [],
+            'rewards': [],
+            'dones': [],}
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -862,6 +965,76 @@ class MultiPPO_Collective_Agent(object):
     def _nesterov_update(self):
         raise NotImplementedError
 
+    def _standoff_update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        # Monte Carlo estimate of rewards
+        discounted_reward = 0
+        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'],
+            self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
+            agent_rewards = deque()
+            for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            rewards.extend(list(agent_rewards))
+            old_states.extend(_state)
+            old_actions.extend(_action)
+            old_logprobs.extend(_logprob)
+
+        # Normalizing the rewards:
+        # rewards = torch.tensor(rewards).to(device)
+        rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
+        # print('rewards', rewards, rewards.shape)
+
+        # convert list to tensor
+        # print(old_states)
+        old_states = torch.tensor(old_states, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        # print(old_states.shape)
+        old_actions = torch.tensor(old_actions, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+        old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
+            device=self.device).squeeze().detach()
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            # print(old_states.shape)
+            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                old_states, old_actions)
+
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            if self.focal_loss:
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
+
+            # take gradient step
+            self.glb_optimizer.zero_grad()
+            loss = loss.mean()
+            loss.backward()
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+        self.reset_glb_memory()
+
     def _learn(self, env_id):
         # initialize
         if self.tbwriter is None:
@@ -908,8 +1081,20 @@ class MultiPPO_Collective_Agent(object):
                 # with self.update_lock:
                 agent.memory['reward'].append(agent.curr_reward)
                 agent.memory['done'].append(agent.done)
+                agent.num_total_steps += 1
+                with self.step_lock:
+                    self.num_steps_since_update += 1
+                    self.glb_num_steps += 1
 
                 if agent.done:  # done and print information
+                    if not self.standard:
+                        mem = agent.memory
+                        self.memory['actions'].append(mem['action'])
+                        self.memory['states'].append(mem['state'])
+                        self.memory['logprobs'].append(mem['logprob'])
+                        self.memory['rewards'].append(mem['reward'])
+                        self.memory['dones'].append(mem['done'])
+                        agent.reset_memory()
                     print('[{}]'.format(self.time()) + \
                         '[{}]'.format(self.run_name) + \
                         '[glb ep {}][glb step {}][env {}, agent {}] done({})'
@@ -996,12 +1181,6 @@ class MultiPPO_Collective_Agent(object):
                     with self.episode_lock:
                         self.glb_num_episodes += 1
 
-
-                agent.num_total_steps += 1
-                with self.step_lock:
-                    self.num_steps_since_update += 1
-                    self.glb_num_steps += 1
-
                 # save checkpoint
                 if self.glb_num_steps % self.save_freq == 0:
                     self.save()
@@ -1015,7 +1194,9 @@ class MultiPPO_Collective_Agent(object):
                 if not self.resumed and env_id == 0:
                     # do the learning
                     # print('updating policy...')
-                    if self.nesterov:
+                    if not self.standard:
+                        self._standoff_update()
+                    elif self.nesterov:
                         self._nesterov_update()
                     else:
                         self._update()
@@ -1023,7 +1204,6 @@ class MultiPPO_Collective_Agent(object):
                 with self.step_lock:
                     self.num_steps_since_update = 0
                     self.resumed = False
-
 
             # respawn dead agents
             respawn_rank_list = []
