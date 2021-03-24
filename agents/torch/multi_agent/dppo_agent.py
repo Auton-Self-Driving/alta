@@ -84,8 +84,8 @@ class _DPPO_Individual_Agent(Agent):
 class DPPO_Server_Agent(object):
     def __init__(self, glb_policy, glb_optimizer, num_threads=1, standard=True,
         glb_update_freq=1000, num_agents=1, max_glb_num_steps=1000000,
-        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100, 
-        focal_loss=False, log_time='TEST', save_freq=100000, save_suffix='', 
+        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100,
+        focal_loss=False, log_time='TEST', save_freq=100000, save_suffix='',
         verbose=False):
         """An asynchronous DPPO agent.
         Args:
@@ -232,11 +232,13 @@ class DPPO_Server_Agent(object):
             sender, num_steps_added, buffer_len, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
             self.vprint('server', self.rank, 'QUERY', sender,
-                num_steps_added, signal)
+                num_steps_added, 'buffer_len', buffer_len, signal)
+            print('server', self.rank, 'QUERY', sender,
+                num_steps_added, 'buffer_len', buffer_len, signal)
             if signal == SIG.GRAD_PUSH:
                 total_len = (self.N_S + self.N_A + 3) * buffer_len
                 _, vec_mem = dist.recv(self.recv_info_len, total_len,
-                    src=sender, tag=SIG.GRAD_PUSH, device='cpu')
+                    src=sender, tag=SIG.GRAD, device='cpu')
                 # disintegrate them into memories derived from buffer_len
                 _action = vec_mem[:self.N_A * buffer_len]
                 _action = _action.reshape(buffer_len, self.N_A).tolist()
@@ -251,6 +253,7 @@ class DPPO_Server_Agent(object):
                 self.memory['logprobs'].append(_logprob)
                 self.memory['rewards'].append(_reward)
                 self.memory['dones'].append(_done)
+                print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
 
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
@@ -274,7 +277,7 @@ class DPPO_Server_Agent(object):
                             self.rank, self.glb_num_episodes, self.glb_num_steps,
                         ))
                         self.num_steps_since_update = 0
-                        self.update()
+                        self._update()
 
             # save checkpoint
             with self.server_save_lock:
@@ -298,11 +301,11 @@ class DPPO_Server_Agent(object):
         old_states = []
         old_actions = []
         old_logprobs = []
-        agent_rewards = deque()
         # Monte Carlo estimate of rewards
         discounted_reward = 0
-        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'], 
+        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'],
             self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
+            agent_rewards = deque()
             for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
                 if is_terminal:
                     discounted_reward = 0
@@ -312,6 +315,7 @@ class DPPO_Server_Agent(object):
             old_states.extend(_state)
             old_actions.extend(_action)
             old_logprobs.extend(_logprob)
+        print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
 
         # Normalizing the rewards:
         # rewards = torch.tensor(rewards).to(device)
@@ -362,7 +366,7 @@ class DPPO_Server_Agent(object):
                     self.glb_policy.parameters(), self.grad_clip)
             self.glb_optimizer.step()
 
-        self.agent.reset_memory()
+        self.reset_memory()
 
     def test(self, videos=False):
         raise NotImplementedError
@@ -423,7 +427,7 @@ class DPPO_Worker_Agent(object):
     def __init__(self, local_env, local_policy, log_time='TEST',
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
         grad_update_freq=1000, optim_epochs=100, focal_loss=False,
-        standard='True', grad_clip=None, save_freq=100000, save_suffix='', 
+        standard='True', grad_clip=None, save_freq=100000, save_suffix='',
         verbose=False):
         """An synchronous DPPO Worker agent.
         Args:
@@ -592,13 +596,15 @@ class DPPO_Worker_Agent(object):
 
     def _update_buffer(self, agent):
         mem = agent.memory
-        print('rank', self.rank, 'send_memory', 'agent rank', agent.rank)
+        print('rank', self.rank, 'send_memory', 'agent_rk', agent.rank)
         vec_mem = np.array(mem['action']).flatten().tolist()
         vec_mem.extend(np.array(mem['state']).flatten().tolist())
-        vec_mem.extend(mem['logprob'])
+        vec_mem.extend(np.array(mem['logprob']).flatten().tolist())
         vec_mem.extend(mem['reward'])
         vec_mem.extend(mem['done'])
-        overhead = [self.rank, self.num_steps_since_update,
+        # print(vec_mem, len(vec_mem), type(vec_mem))
+        vec_mem = torch.tensor(vec_mem)
+        overhead = [self.rank, agent.num_total_steps,
             len(mem['reward']), SIG.GRAD_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_mem, dst=self.server_rank, tag=SIG.GRAD).wait()
