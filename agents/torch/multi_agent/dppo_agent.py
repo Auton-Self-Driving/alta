@@ -191,6 +191,9 @@ class DPPO_Server_Agent(object):
                 # vector_to_parameters(vec_grad, self.glb_grad.parameters())
                 with self.server_lock:
                     self.glb_grad += vec_grad
+                    self.glb_num_steps += num_steps_added
+                    self.num_steps_since_update += num_steps_added
+                    self.glb_num_episodes += num_eps_added
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
@@ -202,9 +205,6 @@ class DPPO_Server_Agent(object):
             else:
                 raise ValueError('signal not seen')
             with self.server_lock:
-                self.glb_num_steps += num_steps_added
-                self.num_steps_since_update += num_steps_added
-                self.glb_num_episodes += num_eps_added
                 if self.num_steps_since_update >= self.glb_update_freq:
                     if self.resumed:
                         self.resumed = False
