@@ -87,7 +87,7 @@ def main(cfg):
     # Loading agent and environment
     agent = hydra.utils.instantiate(cfg.algo.agent)
     env_class = CarlaEnv # if not cfg.data_module.use_images else CarlaImageEnv
-    env = env_class(log_dir=os.getcwd(), **cfg.environment)
+    env = env_class(log_dir=os.getcwd(), server_port=cfg.server_port, **cfg.environment)
 
     # Setting up logger and checkpoint/eval callbacks
     logger = TensorBoardLogger(save_dir=os.getcwd(), name='', version='')
@@ -101,6 +101,7 @@ def main(cfg):
 
     cfg.trainer.gpus = str(cfg.trainer.gpus) # str denotes gpu id, not quantity
 
+    '''
     offline_data_module = OfflineCarlaDataModule(cfg.data_module)
     offline_data_module.setup(None)
 
@@ -111,6 +112,7 @@ def main(cfg):
             callbacks=callbacks,
             max_epochs=cfg.offline_epochs)
         trainer.fit(agent, offline_data_module)
+    '''
 
     # Online training
     if cfg.train_online:
@@ -124,7 +126,7 @@ def main(cfg):
             trainer.current_epoch = cfg.offline_epochs
         trainer.fit(agent, online_data_module)
 
-    env.close()
+    # env.close()
 
 
 if __name__ == '__main__':

@@ -15,6 +15,8 @@ from .utils import to_np, soft_update_params
 from agents.torch.models import make_conv_preprocessor
 from sac import SAC
 
+from agents.torch.utils import COLOR, CONVERTER
+
 class ImageSAC(SAC):
     """ CQL for mixed observation spaces """
     def __init__(self, *args, **kwargs):
@@ -34,7 +36,13 @@ class ImageSAC(SAC):
         if len(x.shape) > 1:
             x = x.flatten()
         img, mlp_features = x[:-8], x[-8:]
-        img = img.reshape(112, 112, 3)
+
+        num_channels = int(img.size / (112 * 112))
+        img = img.reshape(112, 112, num_channels)
+
+        # if num_channels == 5:
+        #     img = COLOR[np.argmax(img, axis=2)] / 255.
+
         img = torch.FloatTensor(img).permute(2,0,1).cuda()
 
         mlp_features = torch.FloatTensor(mlp_features).cuda()
@@ -47,12 +55,21 @@ class ImageSAC(SAC):
         obs, action, reward, next_obs, terminal = batch
 
         img, mlp_features = obs[:,:-8], obs[:,-8:]
-        img = img.reshape(-1, 112, 112, 3)
+        num_channels = int(img.size(1) / (112 * 112))
+        img = img.reshape(-1, 112, 112, num_channels)
+
+        # if num_channels == 5:
+        #     img = torch.tensor(COLOR)[torch.argmax(img, dim=3)].cuda() / 255.
+
         img = torch.cuda.FloatTensor(img).permute(0,3,1,2)
         mlp_features = torch.cuda.FloatTensor(mlp_features)
 
         next_img, next_mlp_features = next_obs[:,:-8], next_obs[:,-8:]
-        next_img = next_img.reshape(-1, 112, 112, 3)
+        next_img = next_img.reshape(-1, 112, 112, num_channels)
+
+        # if num_channels == 5:
+        #     next_img = torch.tensor(COLOR)[torch.argmax(next_img, dim=3)].cuda() / 255.
+
         next_img = torch.cuda.FloatTensor(next_img).permute(0,3,1,2)
         next_mlp_features = torch.cuda.FloatTensor(next_mlp_features)
 

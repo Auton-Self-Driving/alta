@@ -17,6 +17,7 @@ import carla
 import queue
 import numpy as np
 from ae.util import *
+from agents.torch.utils import COLOR
 
 class SensorManager():
     '''
@@ -235,7 +236,8 @@ class CameraSensor(object):
         if 'semantic' in self.name:
             cam_image_p = cam_image_p[:,:,0]
             cam_image_p = reduce_classes(cam_image_p, False)
-            cam_image_p = convert_to_one_hot(cam_image_p, num_classes=self.config['num_classes'])
+            cam_image_p = COLOR[cam_image_p]
+            # cam_image_p = convert_to_one_hot(cam_image_p, num_classes=self.config['num_classes'])
         return cam_image_p
 
     def _retrieve_data(self, world_frame, timeout):

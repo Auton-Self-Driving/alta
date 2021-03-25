@@ -15,7 +15,7 @@ import carla
 
 class Carla910Interface():
 
-    def __init__(self, config, log_dir):
+    def __init__(self, config, log_dir, server_port=2000):
         self.config = config
 
         # Instantiate and start server
@@ -24,13 +24,15 @@ class Carla910Interface():
         self.client = None
 
         self.log_dir = log_dir
+        self.server_port = server_port
 
         self.setup()
 
     def setup(self):
         # Start the carla server and get a client
         # self.server.start()
-        self.client = self._spawn_client()
+        self.client = self._spawn_client(port_number=self.server_port)
+        self.client.set_timeout(5.)
 
         # Get the world
         self.world = self.client.load_world(self.config['city_name'])
@@ -72,9 +74,8 @@ class Carla910Interface():
 
         print("server_version", self.client.get_server_version())
 
-    def _spawn_client(self, hostname='localhost', port_number=None):
+    def _spawn_client(self, hostname='localhost', port_number=2000):
         #TODO switch back to getting port from server
-        port_number = 2000#self.server.server_port
         client = carla.Client(hostname, port_number)
         client.set_timeout(self.config["client_timeout_seconds"])
 
@@ -290,11 +291,11 @@ class Carla910Interface():
         # raise NotImplementedError()
         pass
 
-    def close(self):
-        self.spectator = None
-        self.traffic_actors = None
+    # def close(self):
+    #     self.spectator = None
+    #     self.traffic_actors = None
 
-        self.actor_fleet.close()
+    #     self.actor_fleet.close()
 
-        self.world = None
-        self.client = None
+    #     self.world = None
+    #     self.client = None

@@ -18,7 +18,7 @@ class CarlaServer():
         self.live_carla_processes = set()
 
         if not self.server_port:
-            self.server_port = 2000 # random.randint(10000, 60000)
+            self.server_port = random.randint(10000, 60000)
         else:
             pass
 

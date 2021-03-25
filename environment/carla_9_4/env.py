@@ -74,15 +74,16 @@ from environment.carla_9_4.env_util import (
     get_world_coords_from_latlong,
     convert_route_from_GPS_world
 )
+from agents.torch.utils import COLOR
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None, **kwargs):
+    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None, server_port=2000, **kwargs):
         self.config = DEFAULT_ENV
         self.PPO_config = ConfigManager()
         self._update_config(self.PPO_config.config)
         self._update_config(kwargs) # allow specification of config when initializing environment
 
-        self.carla_interface = Carla910Interface(config, log_dir)
+        self.carla_interface = Carla910Interface(config, log_dir, server_port=server_port)
 
         ################################################
         # Elements connected to car
@@ -125,7 +126,7 @@ class CarlaEnv(gym.Env):
         # Elements outside of car
         ################################################
         # self.weather = None
-        # self.actor_list = []
+        self.actor_list = []
         # self.source_transform = None
         # self.destination_transform = None
         # self.scenario_route = None
@@ -542,7 +543,7 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
 
-        image = carla_obs['sensor.camera.rgb/front']['image']
+        image = carla_obs['sensor.camera.semantic_segmentation/top']['image']
         self.episode_measurements['front_image'] = image
 
         # obs = {}
@@ -1685,13 +1686,24 @@ class CarlaEnv(gym.Env):
         else:
             return self._reset_test_comparison(unseen, index)
 
+    # def destroy_all_existing_actors(self):
+    #     # Delete all existing actors
+    #     self.actor_list = self.actor_list + self.carla_interface.actor_fleet.actor_list
+    #     self.actor_list = self.actor_list + self.collision_sensor_list
+
+    #     self.carla_interface = None
+
+    #     for _ in range(len(self.actor_list)):
+    #         try:
+    #             actor = self.actor_list.pop()
+    #             actor.destroy()
+    #         except Exception as e:
+    #             print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
+
     def destroy_all_existing_actors(self):
         # Delete all existing actors
-        self.actor_list = self.actor_list + self.carla_interface.actor_fleet.actor_list
-        self.actor_list = self.actor_list + self.collision_sensor_list
-
-        self.carla_interface = None
-
+        if self.config['test_comparison']:
+            self.actor_list = self.actor_list + self.collision_sensor_list + [self.camera_actor]
         for _ in range(len(self.actor_list)):
             try:
                 actor = self.actor_list.pop()
@@ -1984,7 +1996,7 @@ class CarlaEnv(gym.Env):
         #     self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
         #     self.actor_list.append(self.lane_invasion_sensor.sensor)
 
-        carla_obs = self.carla_interface.reset()
+        carla_obs = self.carla_interface.reset(unseen=unseen, index=index)
 
         #TODO ensure we don't need to write self.location
         # self.location = self.carla_interface.actor_fleet.ego_vehicle._vehicle.get_location()
@@ -2111,6 +2123,8 @@ class CarlaEnv(gym.Env):
 
     def render(self, mode='rgb_array'):
         image = self.episode_measurements['front_image'].copy()
+        # if image.shape[2] == 5:
+        #     image = COLOR[np.argmax(image.astype(int), axis=2)]
         return image
 
 
@@ -2271,24 +2285,47 @@ class CarlaEnv(gym.Env):
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
 
+    # def close(self):
+    #     print('closing')
+
+    #     try:
+    #         self.collision_sensor_list = []
+    #         self.vehicle_agent_list = []
+    #         self.control_list = {}
+    #         self.goal_destination_list = {}
+    #         self.episode_measurements = {}
+    #         self.prev_measurement = {}
+
+    #         self.camera_actor = None
+    #         self.vehicle_actor = None
+
+    #         # self.destroy_all_existing_actors()
+
+    #         self.carla_interface.close()
+    #         self.carla_interface = None
+
+    #         # if not self.CarlaServer is None:
+    #         #     self.CarlaServer.close()
+
+    #     except Exception as e:
+    #             print("********** Exception in closing env **********")
+    #             print(e)
+    #             # print(traceback.format_exc())
+
+    # def __enter__(self):
+    #     pass
+
+    # def __exit__(self):
+    #     self.close()
+
+    # def __del__(self):
+    #     print('deleting env object cleanly')
+    #     # self.close()
+
     def close(self):
-        print('closing')
 
         try:
-            self.collision_sensor_list = []
-            self.vehicle_agent_list = []
-            self.control_list = {}
-            self.goal_destination_list = {}
-            self.episode_measurements = {}
-            self.prev_measurement = {}
-
-            self.camera_actor = None
-            self.vehicle_actor = None
-
-            # self.destroy_all_existing_actors()
-
-            self.carla_interface.close()
-            self.carla_interface = None
+            self.destroy_all_existing_actors()
 
             # if not self.CarlaServer is None:
             #     self.CarlaServer.close()
@@ -2296,17 +2333,10 @@ class CarlaEnv(gym.Env):
         except Exception as e:
                 print("********** Exception in closing env **********")
                 print(e)
-                # print(traceback.format_exc())
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self):
-        self.close()
+                print(traceback.format_exc())
 
     def __del__(self):
-        print('deleting env object cleanly')
-        # self.close()
+        self.close()
 
 # @profile
 def plot_episode_info(path,

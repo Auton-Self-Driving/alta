@@ -2,7 +2,7 @@ defaults:
   - algo: sac
 
 exp_name: ???
-checkpoint_freq: 10
+checkpoint_freq: 5
 
 gpu: 0 # assuming single GPU
 seed: 0
@@ -13,7 +13,7 @@ data_module:
     buffer_size: 1e5
     num_workers: 4
     dataset_paths: 
-      - '/home/brian/ml-multiple-futures-prediction/multiple_futures_prediction/carla_data/autopilot_5hz_data'
+      # - '/home/brian/ml-multiple-futures-prediction/multiple_futures_prediction/carla_data/autopilot_5hz_data'
       # - '/home/scratch/brianyan/static_data_v2'
       # - '/home/scratch/brianyan/static_data_town02_v2'
       # - '/home/scratch/brianyan/static_data_town03_v2'
@@ -31,30 +31,30 @@ environment:
     scenarios: 'no_crash_empty'
     input_type: 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
     sensors:
-        # sensor.camera.semantic_segmentation/top:
-        #     name: 'sensor.camera.semantic_segmentation/top'
-        #     x: 13.0
-        #     z: 18.0
-        #     pitch: 270.0
-        #     sensor_x_res: '112'
-        #     sensor_y_res: '112'
-        #     fov: '90'
-        #     sensor_tick: '0.0'
-        #     num_classes: 5
-        sensor.camera.rgb/front:
-            name: 'sensor.camera.rgb/front'
-            x: 2.0
-            z: 1.4
-            pitch: 0.0
+        sensor.camera.semantic_segmentation/top:
+            name: 'sensor.camera.semantic_segmentation/top'
+            x: 13.0
+            z: 18.0
+            pitch: 270.0
             sensor_x_res: '112'
             sensor_y_res: '112'
             fov: '90'
             sensor_tick: '0.0'
+            num_classes: 5
+        # sensor.camera.rgb/front:
+        #     name: 'sensor.camera.rgb/front'
+        #     x: 2.0
+        #     z: 1.4
+        #     pitch: 0.0
+        #     sensor_x_res: '112'
+        #     sensor_y_res: '112'
+        #     fov: '90'
+        #     sensor_tick: '0.0'
         lane_invasion_sensor:
         collision_sensor:
 
-eval_freq: 10
-eval_length: 500
+eval_freq: 5
+eval_length: 2000
 num_eval_episodes: 2
 
 train_offline: false
@@ -70,4 +70,4 @@ trainer:
 
 hydra:
     run:
-        dir: /home/brian/temp/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
+        dir: /home/scratch/brianyan/outputs/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}

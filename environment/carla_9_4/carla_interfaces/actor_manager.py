@@ -56,7 +56,8 @@ class ActorManager910():
         # tm is valid for carla0.9.10. If using carla0.9.6, this has to be commented out
         # This is for autopilot purpose on npcs
         # push it to spawn_npc() function?
-        self.tm = client.get_trafficmanager(4050)
+        tm_port = random.randint(10000, 60000)
+        self.tm = client.get_trafficmanager(tm_port)
         self.tm.set_synchronous_mode(True)
 
         self.actor_list = []
@@ -360,20 +361,21 @@ class ActorManager910():
         return False
 
     def destroy_actors(self):
-        # for _ in range(len(self.actor_list)):
-        #     try:
-        #         actor = self.actor_list.pop()
-        #         actor.destroy()
-        #     except Exception as e:
-        #         print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
-        self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
-        self.actor_list = []
-        time.sleep(1)
-        self.sensor_manager = None
+        for _ in range(len(self.actor_list)):
+            try:
+                actor = self.actor_list.pop()
+                actor.destroy()
+            except Exception as e:
+                print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
 
-    def close(self):
-        self.tm = None
-        self.ego_vehicle = None
-        self.controller = None
+        # self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+        # self.actor_list = []
+        # time.sleep(1)
+        # self.sensor_manager = None
 
-        self.destroy_actors()
+    # def close(self):
+    #     self.tm = None
+    #     self.ego_vehicle = None
+    #     self.controller = None
+
+    #     self.destroy_actors()
