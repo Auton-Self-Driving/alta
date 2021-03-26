@@ -6,9 +6,9 @@ agent:
     action_dim: 2
     actor_cfg: ${algo.actor}
     critic_cfg: ${algo.critic}
-    discount: 0.95
+    discount: 0.99
     reward_scale: .1
-    policy_lr: 3e-5
+    policy_lr: 3e-4
     qf_lr: 3e-4
     soft_target_tau: 1e-2
     use_automatic_entropy_tuning: true
@@ -28,7 +28,7 @@ actor:
     _target_: sac.actor.DiagGaussianActor
     obs_dim: ${algo.agent.obs_dim}
     action_dim: ${algo.agent.action_dim}
-    hidden_dim: 256
+    hidden_dim: 1024
     hidden_depth: 2
     log_std_bounds: [-5, 2]
 
@@ -36,5 +36,5 @@ critic:
     _target_: sac.critic.Critic
     obs_dim: ${algo.agent.obs_dim}
     action_dim: ${algo.agent.action_dim}
-    hidden_dim: 256
+    hidden_dim: 1024
     hidden_depth: 2

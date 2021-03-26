@@ -10,7 +10,7 @@ server_port: 2000
 
 data_module:
     batch_size: 256
-    buffer_size: 1e5
+    buffer_size: 5e5
     num_workers: 4
     dataset_paths: 
       # - '/home/brian/ml-multiple-futures-prediction/multiple_futures_prediction/carla_data/autopilot_5hz_data'
@@ -52,6 +52,9 @@ environment:
         #     sensor_tick: '0.0'
         lane_invasion_sensor:
         collision_sensor:
+    const_collision_penalty: 250
+    const_light_penalty: 250
+    verbose: 1
 
 eval_freq: 5
 eval_length: 2000
@@ -70,4 +73,4 @@ trainer:
 
 hydra:
     run:
-        dir: /home/scratch/brianyan/outputs/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
+        dir: /home/brian/temp/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}

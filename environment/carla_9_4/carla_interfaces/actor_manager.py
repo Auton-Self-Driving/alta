@@ -136,6 +136,7 @@ class ActorManager910():
         Output:
             - control: Control object for Carla
         """
+        action[1] = action[1] / 2.
 
         episode_measurements = {}
 
