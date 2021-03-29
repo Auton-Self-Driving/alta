@@ -53,7 +53,7 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements, ConfigManager
 
-from environment.carla_9_4.carla_interfaces.carla_interface import Carla910Interface
+from environment.carla_9_4.carla_interfaces.carla_interface import Carla910Interface, Carla910Interface_Leaderboard
 
 from environment.carla_9_4 import env_util as util
 
@@ -81,7 +81,10 @@ class CarlaEnv(gym.Env):
         self.PPO_config = ConfigManager()
         self._update_config(self.PPO_config.config)
 
-        self.carla_interface = Carla910Interface(config, log_dir)
+        if 'challenge' in self.config["scenarios"]:
+            self.carla_interface = Carla910Interface_Leaderboard(config, log_dir)
+        else:
+            self.carla_interface = Carla910Interface(config, log_dir)
 
         ################################################
         # Elements connected to car
