@@ -23,6 +23,7 @@ import hydra
 from data_modules import OfflineCarlaDataModule, OnlineCarlaDataModule
 from agents.torch.bc import BC, ImageBC
 from agents.torch.sac import SAC, ImageSAC
+from agents.torch.tabular import DiscreteModel
 from environment.carla_9_4.env import CarlaEnv
 
 
@@ -84,8 +85,15 @@ def main(cfg):
     # For reproducibility
     seed_everything(cfg.seed)
 
+    # Loading encoder
+    # from agents.torch.representation import IA
+    # affordances = IA.load_from_checkpoint('/home/brian/temp/encoder/2021-04-06_14-02-48/checkpoints/epoch=5-step=16949.ckpt', obs_dim=8, action_dim=2)
+    # encoder = affordances.encoder.eval().cuda()
+
     # Loading agent and environment
     agent = hydra.utils.instantiate(cfg.algo.agent)
+    # agent.set_encoder(encoder)
+
     env_class = CarlaEnv # if not cfg.data_module.use_images else CarlaImageEnv
     env = env_class(log_dir=os.getcwd(), server_port=cfg.server_port, **cfg.environment)
 
@@ -117,6 +125,7 @@ def main(cfg):
     # Online training
     if cfg.train_online:
         online_data_module = OnlineCarlaDataModule(agent, env, cfg.data_module)
+        agent._datamodule = online_data_module
         online_data_module.populate(cfg.data_module.populate_size) # populate buffer with offline data
         trainer = pl.Trainer(**cfg.trainer,
             logger=logger,

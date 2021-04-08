@@ -31,8 +31,7 @@ class Carla910Interface():
     def setup(self):
         # Start the carla server and get a client
         # self.server.start()
-        self.client = self._spawn_client(port_number=self.server_port)
-        self.client.set_timeout(5.)
+        self.client = self._spawn_client()
 
         # Get the world
         self.world = self.client.load_world(self.config['city_name'])
@@ -55,7 +54,7 @@ class Carla910Interface():
         self.world.apply_settings(settings)
 
         # Sleep to allow for settings to update
-        time.sleep(10)
+        time.sleep(5)
 
         # Retrieve map
         self.map = self.world.get_map()
@@ -74,8 +73,9 @@ class Carla910Interface():
 
         print("server_version", self.client.get_server_version())
 
-    def _spawn_client(self, hostname='localhost', port_number=2000):
+    def _spawn_client(self, hostname='localhost'):
         #TODO switch back to getting port from server
+        port_number = self.server_port #self.server.server_port
         client = carla.Client(hostname, port_number)
         client.set_timeout(self.config["client_timeout_seconds"])
 
@@ -186,7 +186,6 @@ class Carla910Interface():
 
 
         transform = self.actor_fleet.get_ego_vehicle_transform()
-        transform.location.z += 5.
         self.spectator.set_transform(transform)
 
 
@@ -291,11 +290,10 @@ class Carla910Interface():
         # raise NotImplementedError()
         pass
 
-    # def close(self):
-    #     self.spectator = None
-    #     self.traffic_actors = None
 
-    #     self.actor_fleet.close()
 
-    #     self.world = None
-    #     self.client = None
+
+
+
+
+

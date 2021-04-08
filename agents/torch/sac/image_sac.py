@@ -26,11 +26,11 @@ class ImageSAC(SAC):
 
         super().__init__(*args, **kwargs)
 
-        self.encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
-        self.target_encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
-        self.target_encoder.load_state_dict(self.encoder.state_dict())
-        if not self.freeze_conv:
-            self.encoder_optimizer = optim.Adam(self.encoder.parameters())
+        # self.encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
+        # self.target_encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
+        # self.target_encoder.load_state_dict(self.encoder.state_dict())
+        # if not self.freeze_conv:
+        #     self.encoder_optimizer = optim.Adam(self.encoder.parameters())
 
     def predict(self, x):
         if len(x.shape) > 1:
@@ -40,64 +40,51 @@ class ImageSAC(SAC):
         num_channels = int(img.size / (112 * 112))
         img = img.reshape(112, 112, num_channels)
 
-        # if num_channels == 5:
-        #     img = COLOR[np.argmax(img, axis=2)] / 255.
-
-        img = torch.FloatTensor(img).permute(2,0,1).cuda()
+        img = torch.FloatTensor(img).permute(2,0,1).cuda() / 255.
 
         mlp_features = torch.FloatTensor(mlp_features).cuda()
-        img_features = self.encoder(img[None])
+        img_features = self.encoder(img[None]).reshape(1,8192)[:,:32]
         state = torch.cat([img_features, mlp_features[None]], dim=1)
         action = self.policy(state).rsample()
         return action.detach().cpu().numpy().reshape(-1, self.action_dim)
 
     def convert_batch_obs(self, batch):
-        obs, action, reward, next_obs, terminal = batch
+        (obs, actions, rewards, next_obs, terminals), indices, weights = batch
 
         img, mlp_features = obs[:,:-8], obs[:,-8:]
         num_channels = int(img.size(1) / (112 * 112))
         img = img.reshape(-1, 112, 112, num_channels)
 
-        # if num_channels == 5:
-        #     img = torch.tensor(COLOR)[torch.argmax(img, dim=3)].cuda() / 255.
-
-        img = torch.cuda.FloatTensor(img).permute(0,3,1,2)
+        img = torch.cuda.FloatTensor(img).permute(0,3,1,2) / 255.
         mlp_features = torch.cuda.FloatTensor(mlp_features)
 
         next_img, next_mlp_features = next_obs[:,:-8], next_obs[:,-8:]
         next_img = next_img.reshape(-1, 112, 112, num_channels)
 
-        # if num_channels == 5:
-        #     next_img = torch.tensor(COLOR)[torch.argmax(next_img, dim=3)].cuda() / 255.
-
-        next_img = torch.cuda.FloatTensor(next_img).permute(0,3,1,2)
+        next_img = torch.cuda.FloatTensor(next_img).permute(0,3,1,2) / 255.
         next_mlp_features = torch.cuda.FloatTensor(next_mlp_features)
 
-        img_features = self.encoder(img).detach()
-        next_img_features = self.encoder(next_img).detach()
+        img_features = self.encoder(img).reshape(-1,8192)[:,:32]
+        next_img_features = self.encoder(next_img).reshape(-1,8192)[:,:32]
 
         state = torch.cat([img_features, mlp_features], dim=1)
         next_state = torch.cat([next_img_features, next_mlp_features], dim=1)
-        return state, action, reward, next_state, terminal
+        return (state, actions, rewards, next_state, terminals), indices, weights
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        if not self.freeze_conv:
-            self.encoder_optimizer.zero_grad()
-
         new_batch = self.convert_batch_obs(batch)
         super().training_step(new_batch, batch_idx, optimizer_idx)
 
-        if not self.freeze_conv:
-            self.encoder_optimizer.step()
-
     def configure_optimizers(self):
-        if not self.freeze_conv:
-            return super().configure_optimizers() + [self.encoder_optimizer]
-        else:
-            return super().configure_optimizers()
+        return super().configure_optimizers()
+
+    def set_encoder(self, encoder):
+        self.encoder = encoder
+        for param in self.encoder.parameters():
+            param.requires_grad = False
 
 
-class DBC(ImageSAC):
+class DBC(SAC):
     """ Uses DBC to learn representations for control using bisimulation metrics
     https://arxiv.org/abs/2006.10742
     """
@@ -123,11 +110,13 @@ class DBC(ImageSAC):
         self.dynamics_optimizer = optim.Adam(self.dynamics_model.parameters())
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        with torch.no_grad():
-            new_batch = self.convert_batch_obs(batch)
+        # with torch.no_grad():
+        #     new_batch = self.convert_batch_obs(batch)
+
+        new_batch = batch
 
         # train policy
-        torch.autograd.set_detect_anomaly(True)
+        # torch.autograd.set_detect_anomaly(True)
         CQL.training_step(self, new_batch, batch_idx, optimizer_idx)
 
         # train encoder + dynamics

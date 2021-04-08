@@ -315,8 +315,11 @@ class ConfigManager(object):
                                                                                     'sensor_tick': '0.0', 'num_classes':5},
                                         "sensor.camera.rgb/front": {'x':2.0, 'z':1.4, 'pitch':0.0, \
                                                                     'sensor_x_res':'112', 'sensor_y_res':'112', 'fov':'90', \
-                                                                    'sensor_tick': '0.0'} }
-            self.config["scenarios"] = "navigation"
+                                                                    'sensor_tick': '0.0'},\
+                                        "sensor.camera.semantic_segmentation/front": {'x':2.0, 'z':1.4, 'pitch':0.0, \
+                                                                    'sensor_x_res':'112', 'sensor_y_res':'112', 'fov':'90', \
+                                                                    'sensor_tick': '0.0', 'num_classes': 5} }
+            self.config["scenarios"] = "no_crash_dense"
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160

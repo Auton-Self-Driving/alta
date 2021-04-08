@@ -6,14 +6,14 @@ agent:
     freeze_conv: false
     conv_arch: 'resnet'
 
-    obs_dim: 264
+    obs_dim: 40
     action_dim: 2
     actor_cfg: ${algo.actor}
     critic_cfg: ${algo.critic}
     discount: 0.95
     reward_scale: .1
     policy_lr: 3e-5
-    qf_lr: 3e-4
+    qf_lr: 3e-5
     soft_target_tau: 1e-2
     use_automatic_entropy_tuning: true
     policy_eval_start: 0
@@ -32,13 +32,13 @@ actor:
     _target_: sac.actor.DiagGaussianActor
     obs_dim: ${algo.agent.obs_dim}
     action_dim: ${algo.agent.action_dim}
-    hidden_dim: 256
+    hidden_dim: 1024
     hidden_depth: 2
     log_std_bounds: [-5, 2]
 
 critic:
-    _target_: sac.critic.Critic
+    _target_: sac.critic.MemoryCritic
     obs_dim: ${algo.agent.obs_dim}
     action_dim: ${algo.agent.action_dim}
-    hidden_dim: 256
-    hidden_depth: 2
+    # hidden_dim: 1024
+    # hidden_depth: 2

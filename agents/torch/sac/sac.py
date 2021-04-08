@@ -99,14 +99,14 @@ class SAC(pl.LightningModule):
             self.policy.parameters(),
             lr=policy_lr,
         )
-        self.qf1_optimizer = optim.Adam(
-            self.qf1.parameters(),
-            lr=qf_lr,
-        )
-        self.qf2_optimizer = optim.Adam(
-            self.qf2.parameters(),
-            lr=qf_lr,
-        )
+        # self.qf1_optimizer = optim.Adam(
+        #     self.qf1.parameters(),
+        #     lr=qf_lr,
+        # )
+        # self.qf2_optimizer = optim.Adam(
+        #     self.qf2.parameters(),
+        #     lr=qf_lr,
+        # )
         self.alpha_optimizer = None
         self.alpha_prime_optimizer = None
 
@@ -164,7 +164,7 @@ class SAC(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         self._step += 1
-        obs, actions, rewards, next_obs, terminals = batch
+        (obs, actions, rewards, next_obs, terminals), indices, weights = batch
 
         """
         Policy and Alpha Loss
@@ -206,7 +206,7 @@ class SAC(pl.LightningModule):
         """
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
-        
+
         next_dist = self.policy(next_obs)
         new_next_actions = next_dist.rsample()
         new_log_pi = next_dist.log_prob(new_next_actions).sum(-1, keepdim=True)
@@ -230,11 +230,19 @@ class SAC(pl.LightningModule):
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values
         q_target = q_target.detach()
 
-        qf1_loss = self.qf_criterion(q1_pred, q_target)
-        qf2_loss = self.qf_criterion(q2_pred, q_target)
+        self.qf1.update(obs, actions, rewards, q_target)
+        self.qf2.update(obs, actions, rewards, q_target)
 
-        self.log('qf1/mse_loss', qf1_loss)
-        self.log('qf2/mse_loss', qf2_loss)
+        # qf1_loss = self.qf_criterion(q1_pred, q_target)
+        # qf2_loss = self.qf_criterion(q2_pred, q_target)
+
+        # update PER
+        td_error_1 = F.mse_loss(q1_pred.flatten(), q_target.flatten(), reduction='none')
+        td_error_2 = F.mse_loss(q2_pred.flatten(), q_target.flatten(), reduction='none')
+        self._datamodule.dataset.replay_buffer.update_priorities(indices, td_error_1 + td_error_2)
+
+        # self.log('qf1/mse_loss', qf1_loss)
+        # self.log('qf2/mse_loss', qf2_loss)
 
         if self.use_cql:
             ## add CQL
@@ -298,8 +306,8 @@ class SAC(pl.LightningModule):
             self.log('qf2/std', std_q2.mean())
 
         self.log('policy/loss', policy_loss, prog_bar=True)
-        self.log('qf1/loss', qf1_loss, prog_bar=True)
-        self.log('qf2/loss', qf2_loss, prog_bar=True)
+        # self.log('qf1/loss', qf1_loss, prog_bar=True)
+        # self.log('qf2/loss', qf2_loss, prog_bar=True)
         self.log('qf1/mean', q1_pred.mean())
         self.log('qf2/mean', q2_pred.mean())
 
@@ -308,15 +316,15 @@ class SAC(pl.LightningModule):
         """
         # Update the Q-functions iff 
         self._num_q_update_steps += 1
-        self.qf1_optimizer.zero_grad()
-        qf1_loss.backward(retain_graph=True)
-        # self.manual_backward(qf1_loss, self.qf1_optimizer, retain_graph=True)
-        self.qf1_optimizer.step()
+        # self.qf1_optimizer.zero_grad()
+        # qf1_loss.backward(retain_graph=True)
+        # # self.manual_backward(qf1_loss, self.qf1_optimizer, retain_graph=True)
+        # self.qf1_optimizer.step()
 
-        self.qf2_optimizer.zero_grad()
-        qf2_loss.backward(retain_graph=True)
-        # self.manual_backward(qf2_loss, self.qf2_optimizer, retain_graph=True)
-        self.qf2_optimizer.step()
+        # self.qf2_optimizer.zero_grad()
+        # qf2_loss.backward(retain_graph=True)
+        # # self.manual_backward(qf2_loss, self.qf2_optimizer, retain_graph=True)
+        # self.qf2_optimizer.step()
 
         self._num_policy_update_steps += 1
         self.policy_optimizer.zero_grad()
@@ -338,8 +346,8 @@ class SAC(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizers = [
-            self.qf1_optimizer,
-            self.qf2_optimizer,
+            # self.qf1_optimizer,
+            # self.qf2_optimizer,
             self.policy_optimizer,
         ]
         if self.use_automatic_entropy_tuning:

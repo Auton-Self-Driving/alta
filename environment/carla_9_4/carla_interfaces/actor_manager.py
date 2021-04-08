@@ -29,7 +29,6 @@ class ActorManager910():
         '''
         self.config = config
         self.world = client.get_world()
-        self.client = client
 
 
         ################################################
@@ -56,8 +55,7 @@ class ActorManager910():
         # tm is valid for carla0.9.10. If using carla0.9.6, this has to be commented out
         # This is for autopilot purpose on npcs
         # push it to spawn_npc() function?
-        tm_port = random.randint(10000, 60000)
-        self.tm = client.get_trafficmanager(tm_port)
+        self.tm = client.get_trafficmanager(4050)
         self.tm.set_synchronous_mode(True)
 
         self.actor_list = []
@@ -109,7 +107,7 @@ class ActorManager910():
                 print("Unable to spawn vehicle actor at {0}, {1}.".format(source_transform.location.x, source_transform.location.y))
                 print("Number of existing actors, {0}".format(len(self.actor_list)))
                 self.destroy_actors()              # Do we need this as ego vehicle is the first one to be spawned?
-                time.sleep(1)
+                time.sleep(120)
 
         if self.vehicle_actor is not None:
             self.actor_list.append(self.vehicle_actor)
@@ -136,7 +134,6 @@ class ActorManager910():
         Output:
             - control: Control object for Carla
         """
-        action[1] = action[1] / 2.
 
         episode_measurements = {}
 
@@ -368,15 +365,3 @@ class ActorManager910():
                 actor.destroy()
             except Exception as e:
                 print("Error during destroying actor {0}:{1}: {2}".format(actor.type_id, actor.id,traceback.format_exc()))
-
-        # self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
-        # self.actor_list = []
-        # time.sleep(1)
-        # self.sensor_manager = None
-
-    # def close(self):
-    #     self.tm = None
-    #     self.ego_vehicle = None
-    #     self.controller = None
-
-    #     self.destroy_actors()

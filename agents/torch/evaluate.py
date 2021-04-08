@@ -7,8 +7,8 @@ from agents.torch.sac import SAC
 from environment.carla_9_4.env import CarlaEnv
 
 
-EXPERIMENT_DIR = '/home/brian/temp/sac_test/2021-03-25_15-38-16'
-CHECKPOINT = 'epoch=44-step=4499.ckpt'
+EXPERIMENT_DIR = '/home/brian/temp/sac_per_20/2021-04-01_14-36-57'
+CHECKPOINT = 'epoch=5-step=5999.ckpt'
 
 
 
@@ -21,7 +21,7 @@ def main(cfg):
     reward_list = []
     status_list = []
 
-    env = CarlaEnv(log_dir=os.getcwd(), server_port=28766, **cfg.environment)
+    env = CarlaEnv(log_dir=os.getcwd(), server_port=32352, **cfg.environment)
     for index in range(25):
         obs = env.reset(unseen=False, index=index)
         total_reward = 0.
@@ -35,9 +35,6 @@ def main(cfg):
             # frame = env.render()
             # cv2.imshow('frame', frame)
             # cv2.waitKey(.01)
-
-            print('=======')
-            print(info)
 
             if done:
                 break
