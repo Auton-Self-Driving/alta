@@ -59,9 +59,10 @@ class IA(pl.LightningModule):
         resnet.layer4[0].downsample[0].kernel_size = (2, 2)
 
         self.encoder = nn.Sequential(*list(resnet.children())[:-2],
-            # nn.ReLU(),
-            # nn.Conv2d(512, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(512, 32, kernel_size=3, padding=1),
         )
+        '''
         self.seg_decoder = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=(2,2), stride=(2,2), bias=False),
             nn.BatchNorm2d(512, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True),
@@ -87,13 +88,19 @@ class IA(pl.LightningModule):
         #     nn.ReLU(),
         #     nn.Linear(64, 9)
         # )
+        '''
+        self.action_decoder = nn.Sequential(
+              nn.Flatten(),
+              nn.Linear(128, 2)
+        )
 
     def training_step(self, batch, batch_idx):
-        rgb, seg, state, reward = batch
-        seg = F.one_hot((seg * 255).long()[:,0], 5).permute(0,3,1,2)
+        rgb, seg, state, reward, action = batch
+        # seg = F.one_hot((seg * 255).long()[:,0], 5).permute(0,3,1,2)
         batch_size = rgb.size(0)
         state = torch.cat([state.reshape(batch_size, -1), reward.reshape(batch_size, -1)], dim=1)
 
+        '''
         encoding = self.encoder(rgb)
         pred_seg = self.seg_decoder(encoding)
         seg_loss = F.binary_cross_entropy_with_logits(pred_seg, seg.float())
@@ -111,13 +118,21 @@ class IA(pl.LightningModule):
 
         # return state_loss + seg_loss
         return seg_loss + rgb_loss
+        '''
+
+        encoding = self.encoder(rgb)
+        pred_action = self.action_decoder(encoding)
+        bc_loss = F.mse_loss(pred_action.reshape(-1,2), action.reshape(-1,2))
+        self.log('train/bc_loss', bc_loss)
+        return bc_loss
 
     def validation_step(self, batch, batch_idx):
-        rgb, seg, state, reward = batch
-        seg = F.one_hot((seg * 255).long()[:,0], 5).permute(0,3,1,2)
+        rgb, seg, state, reward, action = batch
+        # seg = F.one_hot((seg * 255).long()[:,0], 5).permute(0,3,1,2)
         batch_size = rgb.size(0)
         state = torch.cat([state.reshape(batch_size, -1), reward.reshape(batch_size, -1)], dim=1)
 
+        '''
         encoding = self.encoder(rgb)
         pred_seg = self.seg_decoder(encoding)
         seg_loss = F.binary_cross_entropy_with_logits(pred_seg, seg.float())
@@ -145,6 +160,11 @@ class IA(pl.LightningModule):
         viz = np.concatenate([seg_viz, rgb_viz, gt_viz], axis=0)
         viz = torch.tensor(viz).permute(2,0,1)
         self.logger.experiment.add_image('val/predictions', viz, self.current_epoch)
+        '''
+        encoding = self.encoder(rgb)
+        pred_action = self.action_decoder(encoding)
+        bc_loss = F.mse_loss(pred_action.reshape(-1,2), action.reshape(-1,2))
+        self.log('val/bc_loss', bc_loss)
 
     def configure_optimizers(self):
         return [optim.Adam(self.encoder.parameters())]

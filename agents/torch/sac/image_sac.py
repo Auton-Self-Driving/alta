@@ -26,11 +26,11 @@ class ImageSAC(SAC):
 
         super().__init__(*args, **kwargs)
 
-        # self.encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
-        # self.target_encoder = make_conv_preprocessor(256, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
-        # self.target_encoder.load_state_dict(self.encoder.state_dict())
-        # if not self.freeze_conv:
-        #     self.encoder_optimizer = optim.Adam(self.encoder.parameters())
+        self.encoder = make_conv_preprocessor(512, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
+        self.target_encoder = make_conv_preprocessor(512, arch=self.conv_arch, frame_stack=self.frame_stack, freeze_conv=self.freeze_conv)
+        self.target_encoder.load_state_dict(self.encoder.state_dict())
+        if not self.freeze_conv:
+            self.encoder_optimizer = optim.Adam(self.encoder.parameters())
 
     def predict(self, x):
         if len(x.shape) > 1:
@@ -43,7 +43,7 @@ class ImageSAC(SAC):
         img = torch.FloatTensor(img).permute(2,0,1).cuda() / 255.
 
         mlp_features = torch.FloatTensor(mlp_features).cuda()
-        img_features = self.encoder(img[None]).reshape(1,8192)[:,:32]
+        img_features = self.encoder(img[None]).reshape(1,512)
         state = torch.cat([img_features, mlp_features[None]], dim=1)
         action = self.policy(state).rsample()
         return action.detach().cpu().numpy().reshape(-1, self.action_dim)
@@ -64,8 +64,8 @@ class ImageSAC(SAC):
         next_img = torch.cuda.FloatTensor(next_img).permute(0,3,1,2) / 255.
         next_mlp_features = torch.cuda.FloatTensor(next_mlp_features)
 
-        img_features = self.encoder(img).reshape(-1,8192)[:,:32]
-        next_img_features = self.encoder(next_img).reshape(-1,8192)[:,:32]
+        img_features = self.encoder(img).reshape(-1,512)
+        next_img_features = self.encoder(next_img).reshape(-1,512)
 
         state = torch.cat([img_features, mlp_features], dim=1)
         next_state = torch.cat([next_img_features, next_mlp_features], dim=1)

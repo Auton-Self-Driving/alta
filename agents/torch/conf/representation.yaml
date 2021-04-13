@@ -14,7 +14,8 @@ data_module:
     batch_size: 32
     num_workers: 4
     dataset_paths: 
-      - '/home/brian/alta/agents/torch/sample_data'
+      # - '/home/brian/alta/agents/torch/sample_data'
+      - '/home/scratch/brianyan/static_data_v2'
     train_val_split: 0.9
     frame_stack: 1
     epoch_size: 20000
@@ -25,4 +26,4 @@ trainer:
 
 hydra:
     run:
-        dir: /home/brian/temp/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
+        dir: /home/scratch/brianyan/outputs/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}

@@ -15,7 +15,7 @@ from agents.torch.utils import COLOR
 # from agents.navigation.behavior_agent import BehaviorAgent
 
 
-EXPERIMENT_DIR = '/home/brian/temp/sac_per_20/2021-04-01_14-36-57'
+EXPERIMENT_DIR = '/home/scratch/brianyan/outputs/2021-04-01_14-36-57'
 CHECKPOINT = 'epoch=5-step=5999.ckpt'
 
 
@@ -91,7 +91,7 @@ def save_env_state(rgb, segmentation, topdown, measurements, save_path, idx):
 
 
 def main(args):
-    env = CarlaEnv(log_dir='sample_data/', server_port=args.port)
+    env = CarlaEnv(log_dir='{}'.format(args.path), server_port=args.port)
     total_samples = 0
     while total_samples < args.n_samples:
         traj_length = collect_trajectory(env, args.path, args.behavior)

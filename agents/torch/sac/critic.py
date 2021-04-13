@@ -68,7 +68,7 @@ class MemoryCritic(nn.Module):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
-        self.memory_size = memory_size
+        self.memory_size = int(memory_size)
 
         self.memory = {
             'obs': torch.zeros((0, obs_dim)).cpu(),
@@ -80,6 +80,14 @@ class MemoryCritic(nn.Module):
         self.kdtree = FLANN()
 
     def update(self, obs, action, reward, q_target):
+        # check if state-action is in memory already
+        query = torch.cat([obs.cpu(), action.cpu()], dim=1).reshape(-1, self.obs_dim + self.action_dim)
+        state_action = torch.cat([self.memory['obs'], self.memory['action']], dim=1).reshape(-1, self.obs_dim + self.action_dim)
+        import ipdb; ipdb.set_trace()
+        if len(state_action) > 0 and (state_action == query).all(dim=1).any():
+            print('huh')
+            import ipdb; ipdb.set_trace()
+            
         self.memory['obs'] = torch.cat([self.memory['obs'], obs.cpu()], dim=0)
         self.memory['action'] = torch.cat([self.memory['action'], action.cpu()], dim=0)
         self.memory['reward'] = torch.cat([self.memory['reward'], reward.cpu()], dim=0)

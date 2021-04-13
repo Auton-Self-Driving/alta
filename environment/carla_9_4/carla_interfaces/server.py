@@ -1,4 +1,5 @@
 import os
+import sys
 import signal
 import subprocess
 import traceback
@@ -91,7 +92,9 @@ class CarlaServer():
 
 
 if __name__ == "__main__":
-    server = CarlaServer(config=DEFAULT_ENV)
+    config = DEFAULT_ENV.copy()
+    config['carla_gpu'] = sys.argv[1]
+    server = CarlaServer(config=config)
     server.start()
     time.sleep(10)
     try:

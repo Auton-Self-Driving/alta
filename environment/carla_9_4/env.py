@@ -26,8 +26,8 @@ import matplotlib.pyplot as plt
 # st = ipdb.set_trace
 
 # ALTA imports
-sys.path.append("/home/swapnil/important_things/auton/alta/agents/tf")
-sys.path.append("/home/swapnil/important_things/auton/alta")
+# sys.path.append("/home/swapnil/important_things/auton/alta/agents/tf")
+# sys.path.append("/home/swapnil/important_things/auton/alta")
 # sys.path.append("./../")
 import ae.util as util
 from ae.util import *
@@ -1562,22 +1562,22 @@ class CarlaEnv(gym.Env):
             #     else:
             #         stacked_observation = np.stack(list(self.top_rgb_stacked_observation_queue.queue), axis=2)
             #     visual_observations.append(stacked_observation)
-            # if "sensor.camera.semantic_segmentation/front" in carla_obs:
-            #     for _ in range(self.frame_stack_size):
-            #         self._add_to_stacked_queue(self.front_sem_stacked_observation_queue, carla_obs["sensor.camera.semantic_segmentation/front"]["image"])
-            #     if not self.config['single_channel_image']:
-            #         stacked_observation = np.concatenate(list(self.front_sem_stacked_observation_queue.queue), axis=2)
-            #     else:
-            #         stacked_observation = np.stack(list(self.front_sem_stacked_observation_queue.queue), axis=2)
-            #     visual_observations.append(stacked_observation)
-            if "sensor.camera.rgb/front" in carla_obs:
+            if "sensor.camera.semantic_segmentation/front" in carla_obs:
                 for _ in range(self.frame_stack_size):
-                    self._add_to_stacked_queue(self.front_rgb_stacked_observation_queue, carla_obs["sensor.camera.rgb/front"]["image"])
+                    self._add_to_stacked_queue(self.front_sem_stacked_observation_queue, carla_obs["sensor.camera.semantic_segmentation/front"]["image"])
                 if not self.config['single_channel_image']:
-                    stacked_observation = np.concatenate(list(self.front_rgb_stacked_observation_queue.queue), axis=2)
+                    stacked_observation = np.concatenate(list(self.front_sem_stacked_observation_queue.queue), axis=2)
                 else:
-                    stacked_observation = np.stack(list(self.front_rgb_stacked_observation_queue.queue), axis=2)
+                    stacked_observation = np.stack(list(self.front_sem_stacked_observation_queue.queue), axis=2)
                 visual_observations.append(stacked_observation)
+            # if "sensor.camera.rgb/front" in carla_obs:
+            #     for _ in range(self.frame_stack_size):
+            #         self._add_to_stacked_queue(self.front_rgb_stacked_observation_queue, carla_obs["sensor.camera.rgb/front"]["image"])
+            #     if not self.config['single_channel_image']:
+            #         stacked_observation = np.concatenate(list(self.front_rgb_stacked_observation_queue.queue), axis=2)
+            #     else:
+            #         stacked_observation = np.stack(list(self.front_rgb_stacked_observation_queue.queue), axis=2)
+            #     visual_observations.append(stacked_observation)
             # if self.config["semantic"]:
                 # semantic_image = image[:,:,0]
                 # rv_semantic_image = rv_image[:,:,0]

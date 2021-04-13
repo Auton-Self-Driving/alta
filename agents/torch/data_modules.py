@@ -36,7 +36,7 @@ class OfflineCarlaDataset(Dataset):
         for trajectory_path in trajectory_paths:
             samples = []
             json_paths = sorted(glob.glob('{}/measurements/*.json'.format(trajectory_path)))
-            image_paths = sorted(glob.glob('{}/rgb/*.png'.format(trajectory_path)))
+            image_paths = sorted(glob.glob('{}/segmentation/*.png'.format(trajectory_path)))
             traj_length = min(len(json_paths), len(image_paths))
 
             for i in range(traj_length):
@@ -92,8 +92,8 @@ class OfflineCarlaDataset(Dataset):
         terminal = torch.Tensor([self.terminals[idx]])
 
         if self.use_images:
-            image = torch.cat([preprocess_rgb(cv2.imread(path)) for path in image_paths], dim=0)
-            next_image = torch.cat([preprocess_rgb(cv2.imread(path)) for path in next_image_paths], dim=0)
+            image = torch.cat([preprocess_topdown(cv2.imread(path)) for path in image_paths], dim=0)
+            next_image = torch.cat([preprocess_topdown(cv2.imread(path)) for path in next_image_paths], dim=0)
             return (image, mlp_features), action, reward, (next_image, next_mlp_features), terminal
         else:
             return mlp_features.flatten(), action, reward, next_mlp_features.flatten(), terminal
@@ -243,12 +243,13 @@ class RepLearningDataset(Dataset):
         self.frame_stack = frame_stack
 
         self.obs, self.rewards = [], []
+        self.actions = []
 
         for trajectory_path in trajectory_paths:
             samples = []
             json_paths = sorted(glob.glob('{}/measurements/*.json'.format(trajectory_path)))
             rgb_paths = sorted(glob.glob('{}/rgb/*.png'.format(trajectory_path)))
-            seg_paths = sorted(glob.glob('{}/segmentation/*.png'.format(trajectory_path)))
+            seg_paths = sorted(glob.glob('{}/rgb/*.png'.format(trajectory_path)))
             traj_length = min(len(json_paths), len(rgb_paths), len(seg_paths))
 
             for i in range(traj_length):
@@ -275,9 +276,11 @@ class RepLearningDataset(Dataset):
 
                 obs = rgb_buffer[:], seg_buffer[:], samples[i]['obs']
                 reward = samples[i]['reward']
+                action = samples[i]['action']
 
                 self.obs.append(obs)
                 self.rewards.append(reward)
+                self.actions.append(action)
 
         print('Number of samples: {}'.format(len(self)))
 
@@ -286,10 +289,11 @@ class RepLearningDataset(Dataset):
 
         mlp_features = torch.FloatTensor(mlp_features).clamp(-4, 4)
         reward = torch.FloatTensor([self.rewards[idx]])
+        action = torch.FloatTensor([self.actions[idx]])
 
         rgb = torch.cat([preprocess_rgb(cv2.imread(path)) for path in rgb_paths], dim=0)
         seg = torch.cat([preprocess_rgb(cv2.imread(path)) for path in seg_paths], dim=0)
-        return rgb, seg, mlp_features, reward
+        return rgb, seg, mlp_features, reward, action
 
     def __len__(self):
         return len(self.rewards)

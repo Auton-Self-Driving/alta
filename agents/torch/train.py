@@ -23,7 +23,6 @@ import hydra
 from data_modules import OfflineCarlaDataModule, OnlineCarlaDataModule
 from agents.torch.bc import BC, ImageBC
 from agents.torch.sac import SAC, ImageSAC
-from agents.torch.tabular import DiscreteModel
 from environment.carla_9_4.env import CarlaEnv
 
 
@@ -87,7 +86,7 @@ def main(cfg):
 
     # Loading encoder
     # from agents.torch.representation import IA
-    # affordances = IA.load_from_checkpoint('/home/brian/temp/encoder/2021-04-06_14-02-48/checkpoints/epoch=5-step=16949.ckpt', obs_dim=8, action_dim=2)
+    # affordances = IA.load_from_checkpoint('/home/scratch/brianyan/outputs/bc_embedding/2021-04-08_18-48-03/checkpoints/epoch=3-step=45295.ckpt', obs_dim=8, action_dim=2)
     # encoder = affordances.encoder.eval().cuda()
 
     # Loading agent and environment
@@ -109,18 +108,17 @@ def main(cfg):
 
     cfg.trainer.gpus = str(cfg.trainer.gpus) # str denotes gpu id, not quantity
 
-    '''
-    offline_data_module = OfflineCarlaDataModule(cfg.data_module)
-    offline_data_module.setup(None)
+    # offline_data_module = OfflineCarlaDataModule(cfg.data_module)
+    # offline_data_module.setup(None)
 
     # Offline training
-    if cfg.train_offline:
-        trainer = pl.Trainer(**cfg.trainer, 
-            logger=logger,
-            callbacks=callbacks,
-            max_epochs=cfg.offline_epochs)
-        trainer.fit(agent, offline_data_module)
-    '''
+    # if cfg.train_offline:
+    #     trainer = pl.Trainer(**cfg.trainer, 
+    #         logger=logger,
+    #         callbacks=callbacks,
+    #         max_epochs=cfg.offline_epochs)
+    #     trainer.fit(agent, offline_data_module)
+
 
     # Online training
     if cfg.train_online:

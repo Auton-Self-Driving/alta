@@ -79,7 +79,7 @@ class VanillaCNN(nn.Module):
     def __init__(self, output_size, frame_stack=1):
         super().__init__()
         self.cnn = nn.Sequential(
-            nn.Conv2d(3 * frame_stack, 16, kernel_size=5, stride=3),
+            nn.Conv2d(5 * frame_stack, 16, kernel_size=5, stride=3),
             nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=5, stride=3),

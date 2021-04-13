@@ -1,5 +1,5 @@
 defaults:
-  - algo: sac
+  - algo: image_sac
 
 exp_name: ???
 checkpoint_freq: 1
@@ -19,7 +19,7 @@ data_module:
       # - '/home/scratch/brianyan/static_data_town03_v2'
       # - '/home/scratch/brianyan/static_data_town04_v2'
       # - '/home/scratch/brianyan/static_data_town05_v2'
-      - '/home/brian/alta/agents/torch/sample_data'
+      # - '/home/brian/alta/agents/torch/sample_data'
     train_val_split: 0.9
     use_images: false
     frame_stack: 1
@@ -30,7 +30,7 @@ data_module:
 environment:
     sample_npc: false
     scenarios: 'no_crash_empty'
-    input_type: 'wp_obs_info_speed_steer_ldist_goal_light' # 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
+    input_type: 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light' # 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
     sensors:
         sensor.camera.semantic_segmentation/top:
             name: 'sensor.camera.semantic_segmentation/top'
@@ -84,4 +84,4 @@ trainer:
 
 hydra:
     run:
-        dir: /home/brian/temp/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
+        dir: /home/scratch/brianyan/outputs/${exp_name}/${now:%Y-%m-%d_%H-%M-%S}
