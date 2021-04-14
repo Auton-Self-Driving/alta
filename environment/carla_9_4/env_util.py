@@ -195,6 +195,10 @@ def get_world_coords_from_latlong(latitude, longitude, altitude, world_map):
 
     return enu_to_carla_rot@enu
 
+def get_speed_from_velocity(velocity):
+    speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
+    return speed
+
 def convert_route_from_GPS_world(route, world_map):
 
     # Example route input

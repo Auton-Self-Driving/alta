@@ -41,7 +41,7 @@ class GlobalPlanner():
         self.last_waypoint = None
         self._min_distance = self._hop_resolution * self.MIN_DISTANCE_PERCENTAGE
 
-    def _trace_route(self, map, start_transform, destination_transform):
+    def trace_route(self, map, start_transform, destination_transform):
         """
         This method sets up a global router and returns the optimal route
         from start_waypoint to end_waypoint

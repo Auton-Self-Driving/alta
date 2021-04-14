@@ -28,10 +28,10 @@ import py_trees
 from py_trees.blackboard import Blackboard
 
 import carla
-from agents.navigation.basic_agent import BasicAgent, LocalPlanner
-from agents.navigation.local_planner import RoadOption
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent, LocalPlanner
+from environment.carla_9_4.agents.navigation.local_planner import RoadOption
+from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
+from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.actorcontrols.actor_control import ActorControl
@@ -2438,6 +2438,7 @@ class ScenarioTriggerer(AtomicBehavior):
             # Already done, if needed
             condition3 = bool(self._repeat or black_var_name not in self._triggered_scenarios)
 
+            # print(2441, condition1, condition2, condition3)
             if condition1 and condition2 and condition3:
                 _ = blackboard.set(black_var_name, True)
                 self._triggered_scenarios.append(black_var_name)

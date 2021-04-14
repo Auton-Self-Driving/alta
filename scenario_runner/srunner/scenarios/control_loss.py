@@ -55,6 +55,7 @@ class ControlLoss(BasicScenario):
         self._ego_vehicle_max_throttle = 1.0
         self._ego_vehicle_target_velocity = 15
         self._map = CarlaDataProvider.get_map()
+        # self._map = world.get_map()
         # Timeout of scenario in seconds
         self.timeout = timeout
         # The reference trigger for the control loss
