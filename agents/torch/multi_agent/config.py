@@ -96,7 +96,7 @@ DPPO_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0m56hupdFL',
+    'save_suffix': 'DEBUG',
     'checkpoint': '',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
@@ -118,7 +118,7 @@ PPO_CONFIG = {
     'standard': False,
     # 'focal_loss': [.5, .5],
     'focal_loss': False,
-    'glb_update_freq': 5600,
+    'glb_update_freq': 1000,
     'optim_epochs': 10,
 }
 
@@ -233,9 +233,9 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_envs': 4,
-    'num_agents': 8,
+    'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:1',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -293,7 +293,9 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    'scenarios' : 'navigation',
+    # 'scenarios' : 'navigation',
+    'scenarios' : 'challenge_train_scenario',
+    'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 600,
     'enable_lane_invasion_sensor' : True,

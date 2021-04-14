@@ -1,7 +1,7 @@
 [submodule "AdelaiDet"]
 	path = AdelaiDet
 	url = https://github.com/aim-uofa/AdelaiDet
-[submodule "agents/tf/leaderboard"]
+[submodule "leaderboard"]
 	path = leaderboard
 	url = https://github.com/carla-simulator/leaderboard.git
 [submodule "detectron2"]
