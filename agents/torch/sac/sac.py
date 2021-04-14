@@ -204,8 +204,8 @@ class SAC(pl.LightningModule):
         """
         QF Loss
         """
-        q1_pred = self.qf1(obs, actions)
-        q2_pred = self.qf2(obs, actions)
+        q1_pred = self.qf1.forward_factored(obs, actions)
+        q2_pred = self.qf2.forward_factored(obs, actions)
 
         next_dist = self.policy(next_obs)
         new_next_actions = next_dist.rsample()
@@ -213,9 +213,9 @@ class SAC(pl.LightningModule):
 
         if not self.max_q_backup:
             target_q_values = torch.min(
-                self.target_qf1(next_obs, new_next_actions),
-                self.target_qf2(next_obs, new_next_actions),
-            )
+                torch.stack([self.target_qf1.forward_factored(next_obs, new_next_actions),
+                self.target_qf2.forward_factored(next_obs, new_next_actions),
+                ], dim=1), dim=1).values
             
             if not self.deterministic_backup:
                 target_q_values = target_q_values - alpha * new_log_pi

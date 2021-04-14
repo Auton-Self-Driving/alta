@@ -85,9 +85,9 @@ DEFAULT_ENV = {
     "binarized_image": False,
     "single_channel_image": False,
     "noise_dim" : 1,
-    "const_collision_penalty": 250,
+    "const_collision_penalty": 1,
     "collision_penalty_speed_coeff": 0,
-    "const_light_penalty": 250,
+    "const_light_penalty": 1,
     "light_penalty_speed_coeff": 0,
     "terminate_on_light" : True,
     "enable_brake": True,
@@ -319,7 +319,7 @@ class ConfigManager(object):
                                         "sensor.camera.semantic_segmentation/front": {'x':2.0, 'z':1.4, 'pitch':0.0, \
                                                                     'sensor_x_res':'112', 'sensor_y_res':'112', 'fov':'90', \
                                                                     'sensor_tick': '0.0', 'num_classes': 5} }
-            self.config["scenarios"] = "no_crash_dense"
+            self.config["scenarios"] = "no_crash_empty"
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
@@ -331,7 +331,7 @@ class ConfigManager(object):
             self.config["enable_lane_invasion_sensor"] = True
             # self.config["traffic_light_proximity_threshold"] = 15
             # self.config["min_dist_from_red_light"] = 6
-            self.config["sample_npc"] = True
+            self.config["sample_npc"] = False
         elif algo == 'SAC':
             self.config["algo"] = "SAC"
             self.config["reward_function"] = "simple2"

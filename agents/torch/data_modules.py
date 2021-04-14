@@ -160,7 +160,13 @@ class OnlineCarlaDataset(IterableDataset):
             obs = self.env.reset()
             while num_steps < size:
                 action = np.random.uniform(-1., 1., (2,))
-                next_obs, reward, done, _ = self.env.step(action)
+                next_obs, reward, done, info = self.env.step(action)
+                # reward = np.array([
+                #     info['reward_dict']['dist_to_trajectory'],
+                #     info['reward_dict']['speed'] + info['reward_dict']['acceleration'],
+                #     info['reward_dict']['collision'],
+                #     info['reward_dict']['light']
+                # ])
 
                 experience = Experience(obs, action, reward, next_obs, done)
                 self.replay_buffer.append(experience)
@@ -174,7 +180,7 @@ class OnlineCarlaDataset(IterableDataset):
                 for batch in dataloader:
                     obs = batch[0].numpy().flatten()
                     action = batch[1].numpy().flatten()
-                    reward = batch[2].item()
+                    reward = batch[2].numpy().flatten()
                     next_obs = batch[3].numpy().flatten()
                     done = batch[4].item()
 

@@ -111,3 +111,29 @@ class MemoryCritic(nn.Module):
         Qs = self.memory['Q'][neighbors].squeeze(-1)
         weights = F.softmax(torch.tensor(dists), dim=1)
         return (weights * Qs).sum(dim=1).cuda()
+
+
+class FactoredCritic(nn.Module):
+    def __init__(self, obs_dim, action_dim, hidden_dim, hidden_depth):
+        super().__init__()
+
+        self.trajectory_Q = Critic(obs_dim, action_dim, hidden_dim, hidden_depth)
+        self.speed_Q = Critic(obs_dim, action_dim, hidden_dim, hidden_depth)
+        self.light_Q = Critic(obs_dim, action_dim, hidden_dim, hidden_depth)
+        self.collision_Q = Critic(obs_dim, action_dim, hidden_dim, hidden_depth)
+
+    def forward(self, obs, action):
+        assert obs.size(0) == action.size(0)
+
+        weighted_Qs = self.forward_factored(obs, action) * torch.tensor([1., 1., 250., 250.])[None].cuda()
+        return weighted_Qs.sum(dim=1)
+
+    def forward_factored(self, obs, action):
+        assert obs.size(0) == action.size(0)
+
+        return torch.cat([
+            self.trajectory_Q.forward(obs, action),
+            self.speed_Q.forward(obs, action),
+            self.light_Q.forward(obs, action),
+            self.collision_Q.forward(obs, action)
+        ], dim=1)

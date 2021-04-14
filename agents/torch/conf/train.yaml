@@ -10,7 +10,7 @@ server_port: 2000
 
 data_module:
     batch_size: 32
-    buffer_size: 1e6
+    buffer_size: 1e5
     num_workers: 4
     dataset_paths: 
       # - '/home/brian/ml-multiple-futures-prediction/multiple_futures_prediction/carla_data/autopilot_5hz_data'
@@ -20,6 +20,7 @@ data_module:
       # - '/home/scratch/brianyan/static_data_town04_v2'
       # - '/home/scratch/brianyan/static_data_town05_v2'
       # - '/home/brian/alta/agents/torch/sample_data'
+      - '/home/scratch/brianyan/offline_data'
     train_val_split: 0.9
     use_images: false
     frame_stack: 1
@@ -30,7 +31,7 @@ data_module:
 environment:
     sample_npc: false
     scenarios: 'no_crash_empty'
-    input_type: 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light' # 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
+    input_type: 'wp_obs_info_speed_steer_ldist_goal_light' # 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
     sensors:
         sensor.camera.semantic_segmentation/top:
             name: 'sensor.camera.semantic_segmentation/top'
@@ -63,8 +64,8 @@ environment:
             num_classes: 5
         lane_invasion_sensor:
         collision_sensor:
-    const_collision_penalty: 250
-    const_light_penalty: 250
+    # const_collision_penalty: 250
+    # const_light_penalty: 250
     verbose: 0
 
 eval_freq: 1

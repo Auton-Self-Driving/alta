@@ -485,11 +485,21 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['num_steps'] = self.num_steps
             self.episode_measurements['total_steps'] = self.total_steps
 
-            reward += compute_reward(name=self.config['reward_function'],
+            curr_reward, reward_dict = compute_reward(name=self.config['reward_function'],
                                 prev_measurement=self.prev_measurement,
                                 cur_measurement=self.episode_measurements,
                                 config=self.config,
                                 verbose=self.config["verbose"])
+
+            # self.episode_measurements['reward_dict'] = curr_reward_dict
+            reward += np.array([
+                reward_dict['dist_to_trajectory'],
+                reward_dict['speed'] + reward_dict['acceleration'],
+                reward_dict['collision'],
+                reward_dict['light']
+            ])
+            # print(curr_reward_dict)
+
             # True/False, did we collide in this step
             obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
 
@@ -2421,7 +2431,7 @@ def plot_episode_info(path,
 #     plt.close()
 
 if __name__ == "__main__":
-    env = CarlaEnv(log_dir = "/home/brian/temp/")
+    env = CarlaEnv(log_dir = "/home/scratch/brianyan/outputs/")
     env.reset()
     for i in range(10000):
 
