@@ -517,6 +517,7 @@ class Carla910Interface_Leaderboard:
         if 'challenge' in self.config["scenarios"]:
             # print(213, len(self.wps_list))
             _, self.route, self._global_plan_world_coord = interpolate_trajectory(self.world, self.wps_list)
+            # print('self.route', self.route)
             CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
             # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
             self.dense_waypoints = self._global_plan_world_coord
@@ -606,7 +607,10 @@ class Carla910Interface_Leaderboard:
         distance_to_goal_trajec, \
         self.next_waypoints, \
         self.next_wp_angles, \
-        self.next_wp_vectors = self.global_planner.get_next_orientation_new(ego_vehicle_transform)
+        self.next_wp_vectors, \
+        self.next_road_opts = self.global_planner.get_next_orientation_new(ego_vehicle_transform, append_road_opt=True)
+
+        # print('self.next_road_opts', self.next_road_opts)
 
         ep_measurements = {
             'next_orientation' : next_orientation,
@@ -616,7 +620,8 @@ class Carla910Interface_Leaderboard:
             'dist_to_goal' : ego_vehicle_transform.location.distance(self.destination_transform.location),
             'ego_vehicle_location' : ego_vehicle_transform,
             'ego_vehicle_velocity' : ego_vehicle_velocity,
-            'location' : location
+            'location' : location,
+            'next_road_opts': self.next_road_opts,
         }
 
         obs = {**control, **ep_measurements, **sensor_readings}

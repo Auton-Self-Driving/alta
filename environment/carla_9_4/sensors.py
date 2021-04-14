@@ -126,7 +126,7 @@ class CollisionSensor(object):
             self.actor_id = event.other_actor.id
             self.actor_type = actor_type
             self.num_collisions += 1
-        # print("actor type:{}".format(actor_type))
+        print("actor type:{}".format(actor_type))
         #print('Collision with %r, id = %d' % (actor_type, event.other_actor.id))
         #impulse = event.normal_impulse
         #intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
@@ -164,7 +164,15 @@ class LaneInvasionSensor(object):
 
         lane_types = set(x.type for x in event.crossed_lane_markings)
         if carla.libcarla.LaneMarkingType.NONE in lane_types:
+            # self.num_laneintersections += 1
             self.out_of_road = True
+        # elif carla.libcarla.LaneMarkingType.SolidSolid in lane_types:
+        #     self.num_laneintersections += 1
+        # elif carla.libcarla.LaneMarkingType.Solid in lane_types:
+        #     self.num_laneintersections += 1
+        # elif carla.libcarla.LaneMarkingType.BrokenSolid in lane_types:
+        #     self.num_laneintersections += 1
+        # print(lane_types)
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
 
@@ -253,3 +261,5 @@ class CameraSensor(object):
         array = array[:, :, :3]
         array = array[:, :, ::-1]
         return array
+
+

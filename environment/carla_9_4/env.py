@@ -51,6 +51,7 @@ from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
+from environment.carla_9_4.agents.navigation.local_planner import RoadOption
 from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements, ConfigManager
 
 from environment.carla_9_4.carla_interfaces.carla_interface import Carla910Interface, Carla910Interface_Leaderboard
@@ -472,8 +473,12 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['collision_actor_id'] = carla_obs['collision_sensor']['collision_actor_id']
             self.episode_measurements['collision_actor_type'] = carla_obs['collision_sensor']['collision_actor_type']
             if self.config["enable_lane_invasion_sensor"]:
-                self.episode_measurements['num_laneintersections'] = carla_obs['lane_invasion_sensor']['num_lane_intersections']
-                self.episode_measurements['out_of_road'] = int(carla_obs['lane_invasion_sensor']['out_of_road'])
+                self.episode_measurements['num_laneintersections'] = carla_obs['lane_invasion_sensor']['num_lane_intersections'] and \
+                    RoadOption.CHANGELANELEFT not in set(carla_obs['next_road_opts']) and \
+                    RoadOption.CHANGELANERIGHT not in set(carla_obs['next_road_opts'])
+                self.episode_measurements['out_of_road'] = int(carla_obs['lane_invasion_sensor']['out_of_road']) and \
+                    RoadOption.CHANGELANELEFT not in set(carla_obs['next_road_opts']) and \
+                    RoadOption.CHANGELANERIGHT not in set(carla_obs['next_road_opts'])
 
             self.episode_measurements['distance_to_goal'] = carla_obs['dist_to_goal']
             if self.episode_measurements['min_distance_to_goal'] >= carla_obs['dist_to_goal']:
@@ -943,6 +948,7 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['traffic_light_orientation'] = -1
 
         if traffic_actor is not None:
+            # print(traffic_actor.state)
             if traffic_actor.state == carla.TrafficLightState.Red:
                 self.episode_measurements['red_light_dist'] = dist
 
@@ -1995,7 +2001,6 @@ class CarlaEnv(gym.Env):
         if self.config["enable_lane_invasion_sensor"]:
             self.episode_measurements['num_laneintersections'] = carla_obs['lane_invasion_sensor']['num_lane_intersections']
             self.episode_measurements['out_of_road'] = int(carla_obs['lane_invasion_sensor']['out_of_road'])
-
         self.episode_measurements['distance_to_goal'] = carla_obs['dist_to_goal']
         self.episode_measurements['min_distance_to_goal'] = 1000000.0
         self.episode_measurements['speed'] = util.get_speed_from_velocity(carla_obs['ego_vehicle_velocity'])
@@ -2182,7 +2187,7 @@ class CarlaEnv(gym.Env):
 
         # Episode termination conditions
         success = self.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
-        offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"] # Unused
+        # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"] # Unused
         static = self.episode_measurements["static_steps"] > self.config["max_static_steps"]
         collision = self.episode_measurements["is_collision"]
         runover_light = self.episode_measurements["runover_light"]
@@ -2249,10 +2254,12 @@ class CarlaEnv(gym.Env):
         if self.config["verbose"]:
             print("Termination State: {}".format(termination_state))
 
+
         self.episode_measurements['termination_state'] = termination_state
         self.episode_measurements['termination_state_code'] = termination_state_code
 
         done = success or collision or runover_light or offlane or static or maxStepsTaken
+        if done: print("Termination State: {}".format(termination_state))
         return done
 
     def printInfo(self):
