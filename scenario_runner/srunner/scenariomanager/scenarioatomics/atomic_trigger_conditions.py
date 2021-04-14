@@ -26,8 +26,8 @@ import math
 import py_trees
 import carla
 
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from environment.carla_9_4.agents.navigation.global_route_planner import GlobalRoutePlanner
+from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 
 from srunner.scenariomanager.scenarioatomics.atomic_behaviors import calculate_distance
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
@@ -741,6 +741,7 @@ class InTriggerDistanceToLocationAlongRoute(AtomicCondition):
         new_status = py_trees.common.Status.RUNNING
 
         current_location = CarlaDataProvider.get_location(self._actor)
+        # print(744, current_location)
 
         if current_location is None:
             return new_status
@@ -754,7 +755,7 @@ class InTriggerDistanceToLocationAlongRoute(AtomicCondition):
                 actor_distance < self._location_distance) or \
                     self._location_distance < 1.0:
                 new_status = py_trees.common.Status.SUCCESS
-
+        # print(757, actor_distance)
         return new_status
 
 

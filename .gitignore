@@ -147,3 +147,5 @@ AdelaiDet_model/*
 **/video_logs
 **/saved_ckpts
 **/saved_logs
+# tensorboard logs
+**/tensorboard_logs

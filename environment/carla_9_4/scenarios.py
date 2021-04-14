@@ -4,9 +4,12 @@ import os
 import glob
 import sys
 
+# CARLA_9_4_PATH = "/home/swapnil/carla910"#os.environ.get("CARLA_9_4_PATH")
+# if CARLA_9_4_PATH == None:
+#     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+# user_paths = os.environ['PYTHONPATH'].split(os.pathsep)
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
-if CARLA_9_4_PATH == None:
-    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
 
 try:
     sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
@@ -15,6 +18,17 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
+
+# sys.path.append("/home/swapnil/carla910/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg")
+# print(sys.path)
+# CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+# sys.path.append('../../')
+# print(CARLA_9_4_PATH)
+
+if CARLA_9_4_PATH == None:
+    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+import carla
 
 from carla.libcarla import Transform
 from carla.libcarla import Location
@@ -677,10 +691,10 @@ def paths_straight_Town01_test():
            WAYPOINT_DICT_Town01[102]
        ]
     ]
-    
+
     return paths[0:1]
 def paths_straight_Town01_dynamic():
-    
+
     paths = [
         [
             WAYPOINT_DICT_Town01[84],
@@ -691,20 +705,20 @@ def paths_straight_Town01_dynamic():
         #     WAYPOINT_DICT_Town01[140]
         # ]
     ]
-    
+
     return paths
 
-def paths_straight_crowded(): 
+def paths_straight_crowded():
     paths = [
         [
             WAYPOINT_DICT_Town01[113],
             WAYPOINT_DICT_Town01[119]
         ]
     ]
-    
+
     return paths
 
-def paths_long_straight(): 
+def paths_long_straight():
     paths = [
         [
             WAYPOINT_DICT_Town01[96],
@@ -739,17 +753,17 @@ def paths_long_straight_junction():
     return paths
 
 def paths_crowded():
-    
+
     paths = [
         [
             WAYPOINT_DICT_Town01[15],
             WAYPOINT_DICT_Town01[53]
         ]
     ]
-    
+
     return paths
 
-def paths_curved_town03(): 
+def paths_curved_town03():
     # paths = [
     #     [
     #         WAYPOINT_DICT_Town03[247],
@@ -771,7 +785,7 @@ def paths_curved_town03():
     return paths
 
 def benchmark_paths_straight_Town01():
-    
+
     paths = [
        [
            WAYPOINT_DICT_Town01[36],
@@ -981,11 +995,11 @@ def benchmark_paths_straight_Town02():
            WAYPOINT_DICT_Town02[68]
        ]
     ]
-    
+
     return paths
 
 def benchmark_paths_turn_Town01():
-    
+
     paths = [
        [
            WAYPOINT_DICT_Town01[138],
@@ -1088,11 +1102,11 @@ def benchmark_paths_turn_Town01():
            WAYPOINT_DICT_Town01[17]
        ]
     ]
-    
+
     return paths
 
 def benchmark_paths_turn_Town02():
-    
+
     paths = [
        [
            WAYPOINT_DICT_Town02[37],
@@ -1195,7 +1209,7 @@ def benchmark_paths_turn_Town02():
            WAYPOINT_DICT_Town02[11]
        ]
     ]
-    
+
     return paths
 
 def benchmark_paths_navigation_Town01():
@@ -1310,12 +1324,12 @@ def benchmark_paths_navigation_Town01():
            WAYPOINT_DICT_Town01[81]
        ]
     ]
-    
+
     # return paths[0:5]
     return paths
 
 def benchmark_paths_navigation_Town02():
-    
+
     paths = [
        [
            WAYPOINT_DICT_Town02[19],
@@ -1418,7 +1432,7 @@ def benchmark_paths_navigation_Town02():
            WAYPOINT_DICT_Town02[54]
        ]
     ]
-    
+
     return paths
 
 def paths_t_junction_Town01():
@@ -1432,13 +1446,13 @@ def paths_t_junction_Town01():
             WAYPOINT_DICT_Town01[17],
             # WAYPOINT_DICT_Town01[46]
             WAYPOINT_DICT_Town01[44]
-        ] 
+        ]
     ]
-    
+
     return paths
 
 def paths_left_Town01_train():
-    
+
     paths = [
         [
             WAYPOINT_DICT_Town01[85],
@@ -1480,7 +1494,7 @@ def paths_left_Town01_train():
     return paths
 
 def paths_left_Town01_test():
-    
+
     paths = [
         [
             WAYPOINT_DICT_Town01[85],
@@ -1522,7 +1536,7 @@ def paths_left_Town01_test():
     return paths
 
 def paths_right_Town01_train_():
-    
+
     paths = [
         [
             WAYPOINT_DICT_Town01[42],
@@ -1584,7 +1598,7 @@ def paths_right_Town01_train():
 
 
 def paths_right_Town01_test():
-    
+
     paths = [
         # [
         #     WAYPOINT_DICT_Town01[42],
@@ -1628,7 +1642,7 @@ def paths_right_Town01_test():
 '''
 Deprecated
 def paths_left_and_right_train():
-    
+
     # # Old longer paths
     # paths = [
     #     # left
@@ -1657,7 +1671,7 @@ def paths_left_and_right_train():
     return paths
 
 def paths_left_and_right_test():
-    
+
     # Old longer paths
     # paths = [
     #     # left
@@ -1684,7 +1698,7 @@ def paths_left_and_right_test():
             # Destination is mid of 84 and 86
             # 84: Transform(Location(x=1.5099804401397705, y=308.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
             # 86: Transform(Location(x=1.5099804401397705, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672)),
-            
+
         ]
     ]
     return paths
@@ -1703,7 +1717,7 @@ def get_straight_dynamic_path(unseen=False, town="Town01", index=0):
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
 
-def get_long_straight_path(unseen=False, town='Town01', index=0): 
+def get_long_straight_path(unseen=False, town='Town01', index=0):
     if town == "Town01":
         return paths_long_straight()[index]
     else:
@@ -1722,42 +1736,42 @@ def get_straight_crowded_path(unseen=False, town="Town01", index=0):
     return random.choice(paths_straight_crowded())
 
 def get_curved_town03_path(unseen=False, town="Town03", index=0):
-    if town != 'Town03': 
+    if town != 'Town03':
         print('Error: must be Town03')
         return -1
     return random.choice(paths_curved_town03())
 
-def get_crowded_npcs(num_npcs): 
+def get_crowded_npcs(num_npcs):
     npc_list = [
         WAYPOINT_DICT_Town01[50],
-        WAYPOINT_DICT_Town01[51], 
+        WAYPOINT_DICT_Town01[51],
         WAYPOINT_DICT_Town01[52],
-        WAYPOINT_DICT_Town01[16], 
+        WAYPOINT_DICT_Town01[16],
         WAYPOINT_DICT_Town01[17],
-        WAYPOINT_DICT_Town01[18], 
+        WAYPOINT_DICT_Town01[18],
         WAYPOINT_DICT_Town01[46],
-        WAYPOINT_DICT_Town01[47], 
-        WAYPOINT_DICT_Town01[48], 
-        WAYPOINT_DICT_Town01[49], 
+        WAYPOINT_DICT_Town01[47],
+        WAYPOINT_DICT_Town01[48],
+        WAYPOINT_DICT_Town01[49],
     ]
     random.shuffle(npc_list)
     return npc_list[:num_npcs]
 
-def get_long_straight_npcs(): 
+def get_long_straight_npcs():
     # npc_list = [
     #     WAYPOINT_DICT_Town01[15],
     #     WAYPOINT_DICT_Town01[16],
     #     WAYPOINT_DICT_Town01[17],
     #     WAYPOINT_DICT_Town01[18],
-    #     WAYPOINT_DICT_Town01[19], 
+    #     WAYPOINT_DICT_Town01[19],
     #     WAYPOINT_DICT_Town01[20],
-    #     WAYPOINT_DICT_Town01[22], 
+    #     WAYPOINT_DICT_Town01[22],
     #     WAYPOINT_DICT_Town01[23],
-    #     WAYPOINT_DICT_Town01[24], 
-    #     WAYPOINT_DICT_Town01[25], 
-    #     WAYPOINT_DICT_Town01[26], 
+    #     WAYPOINT_DICT_Town01[24],
+    #     WAYPOINT_DICT_Town01[25],
+    #     WAYPOINT_DICT_Town01[26],
     #     WAYPOINT_DICT_Town01[27],
-    #     WAYPOINT_DICT_Town01[28], 
+    #     WAYPOINT_DICT_Town01[28],
     #     WAYPOINT_DICT_Town01[29],
     #     WAYPOINT_DICT_Town01[140],
     #     WAYPOINT_DICT_Town01[118],
@@ -1768,15 +1782,15 @@ def get_long_straight_npcs():
         WAYPOINT_DICT_Town01[15],
         Transform(Location(x=92.11000061035156, y=50.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
         Transform(Location(x=92.11000061035156, y=70.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
-        WAYPOINT_DICT_Town01[19], 
-        WAYPOINT_DICT_Town01[22], 
-        WAYPOINT_DICT_Town01[24], 
+        WAYPOINT_DICT_Town01[19],
+        WAYPOINT_DICT_Town01[22],
+        WAYPOINT_DICT_Town01[24],
         Transform(Location(x=92.11000061035156, y=125.95999908447266, z=1.32), Rotation(yaw=-90.00029754638672)),
-        WAYPOINT_DICT_Town01[26], 
+        WAYPOINT_DICT_Town01[26],
         WAYPOINT_DICT_Town01[28],
-        Transform(Location(x=92.1099853515625, y=200.88999938964844, z=1.32), Rotation(yaw=-90.00029754638672)), 
+        Transform(Location(x=92.1099853515625, y=200.88999938964844, z=1.32), Rotation(yaw=-90.00029754638672)),
         WAYPOINT_DICT_Town01[140],
-        WAYPOINT_DICT_Town01[118], 
+        WAYPOINT_DICT_Town01[118],
         Transform(Location(x=92.10997772216797, y=270.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
         # Transform(Location(x=92.10997772216797, y=290.2099914550781, z=1.32), Rotation(yaw=-90.00029754638672)),
 
@@ -1802,97 +1816,97 @@ def get_long_straight_npcs():
     random.shuffle(npc_list)
     return npc_list
 
-def get_straight_crowded_npcs(num_npcs): 
+def get_straight_crowded_npcs(num_npcs):
     npc_list = [
         WAYPOINT_DICT_Town01[101],
-        WAYPOINT_DICT_Town01[102], 
+        WAYPOINT_DICT_Town01[102],
         WAYPOINT_DICT_Town01[103],
-        WAYPOINT_DICT_Town01[104], 
+        WAYPOINT_DICT_Town01[104],
         WAYPOINT_DICT_Town01[105],
-        WAYPOINT_DICT_Town01[106], 
+        WAYPOINT_DICT_Town01[106],
         WAYPOINT_DICT_Town01[107],
-        WAYPOINT_DICT_Town01[108], 
-        WAYPOINT_DICT_Town01[109], 
-        WAYPOINT_DICT_Town01[110], 
+        WAYPOINT_DICT_Town01[108],
+        WAYPOINT_DICT_Town01[109],
+        WAYPOINT_DICT_Town01[110],
         WAYPOINT_DICT_Town01[111],
-        WAYPOINT_DICT_Town01[112], 
+        WAYPOINT_DICT_Town01[112],
         #WAYPOINT_DICT_Town01[113],
-        WAYPOINT_DICT_Town01[114], 
+        WAYPOINT_DICT_Town01[114],
         WAYPOINT_DICT_Town01[115],
-        WAYPOINT_DICT_Town01[116], 
+        WAYPOINT_DICT_Town01[116],
         WAYPOINT_DICT_Town01[117],
-        WAYPOINT_DICT_Town01[118], 
-        #WAYPOINT_DICT_Town01[119], 
-        WAYPOINT_DICT_Town01[120], 
-        WAYPOINT_DICT_Town01[121], 
-        WAYPOINT_DICT_Town01[122], 
+        WAYPOINT_DICT_Town01[118],
+        #WAYPOINT_DICT_Town01[119],
+        WAYPOINT_DICT_Town01[120],
+        WAYPOINT_DICT_Town01[121],
+        WAYPOINT_DICT_Town01[122],
     ]
     random.shuffle(npc_list)
     return npc_list[:num_npcs]
 
 '''
 todo: this was only for points inside the circle
-do it for points outside as well 
+do it for points outside as well
 '''
-def get_curved_town03_npcs(num_npcs): 
+def get_curved_town03_npcs(num_npcs):
     npc_list = [
         WAYPOINT_DICT_Town03[257],
-        WAYPOINT_DICT_Town03[85], 
+        WAYPOINT_DICT_Town03[85],
         WAYPOINT_DICT_Town03[86],
-        WAYPOINT_DICT_Town03[228], 
+        WAYPOINT_DICT_Town03[228],
         WAYPOINT_DICT_Town03[229],
         # WAYPOINT_DICT_Town03[232],
-        WAYPOINT_DICT_Town03[136], 
+        WAYPOINT_DICT_Town03[136],
         WAYPOINT_DICT_Town03[233],
-        WAYPOINT_DICT_Town03[230], 
-        WAYPOINT_DICT_Town03[231], 
-        WAYPOINT_DICT_Town03[245], 
-        WAYPOINT_DICT_Town03[246], 
-        WAYPOINT_DICT_Town03[243], 
-        WAYPOINT_DICT_Town03[136], 
-        WAYPOINT_DICT_Town03[244],
-        WAYPOINT_DICT_Town03[187], 
-        WAYPOINT_DICT_Town03[188], 
-        WAYPOINT_DICT_Town03[218],
-        WAYPOINT_DICT_Town03[219], 
-        WAYPOINT_DICT_Town03[122],
-        WAYPOINT_DICT_Town03[123], 
-        WAYPOINT_DICT_Town03[0],
-        WAYPOINT_DICT_Town03[7], 
-        WAYPOINT_DICT_Town03[221],
-        WAYPOINT_DICT_Town03[220], 
-        WAYPOINT_DICT_Town03[248], 
-        WAYPOINT_DICT_Town03[121], 
-        WAYPOINT_DICT_Town03[120], 
-        WAYPOINT_DICT_Town03[149], 
-        WAYPOINT_DICT_Town03[146],
-        WAYPOINT_DICT_Town03[250], 
-        WAYPOINT_DICT_Town03[249], 
-        WAYPOINT_DICT_Town03[1],
-        WAYPOINT_DICT_Town03[2], 
+        WAYPOINT_DICT_Town03[230],
+        WAYPOINT_DICT_Town03[231],
+        WAYPOINT_DICT_Town03[245],
+        WAYPOINT_DICT_Town03[246],
         WAYPOINT_DICT_Town03[243],
-        WAYPOINT_DICT_Town03[244], 
+        WAYPOINT_DICT_Town03[136],
+        WAYPOINT_DICT_Town03[244],
+        WAYPOINT_DICT_Town03[187],
+        WAYPOINT_DICT_Town03[188],
+        WAYPOINT_DICT_Town03[218],
+        WAYPOINT_DICT_Town03[219],
+        WAYPOINT_DICT_Town03[122],
+        WAYPOINT_DICT_Town03[123],
+        WAYPOINT_DICT_Town03[0],
+        WAYPOINT_DICT_Town03[7],
+        WAYPOINT_DICT_Town03[221],
+        WAYPOINT_DICT_Town03[220],
+        WAYPOINT_DICT_Town03[248],
+        WAYPOINT_DICT_Town03[121],
+        WAYPOINT_DICT_Town03[120],
+        WAYPOINT_DICT_Town03[149],
+        WAYPOINT_DICT_Town03[146],
+        WAYPOINT_DICT_Town03[250],
+        WAYPOINT_DICT_Town03[249],
+        WAYPOINT_DICT_Town03[1],
+        WAYPOINT_DICT_Town03[2],
+        WAYPOINT_DICT_Town03[243],
+        WAYPOINT_DICT_Town03[244],
         WAYPOINT_DICT_Town03[211],
-        WAYPOINT_DICT_Town03[210], 
+        WAYPOINT_DICT_Town03[210],
         WAYPOINT_DICT_Town03[113],
-        WAYPOINT_DICT_Town03[112], 
-        WAYPOINT_DICT_Town03[118], 
-        WAYPOINT_DICT_Town03[114], 
-        WAYPOINT_DICT_Town03[212], 
-        WAYPOINT_DICT_Town03[213], 
+        WAYPOINT_DICT_Town03[112],
+        WAYPOINT_DICT_Town03[118],
+        WAYPOINT_DICT_Town03[114],
+        WAYPOINT_DICT_Town03[212],
+        WAYPOINT_DICT_Town03[213],
         WAYPOINT_DICT_Town03[42],
-        WAYPOINT_DICT_Town03[41], 
-        WAYPOINT_DICT_Town03[40], 
-        WAYPOINT_DICT_Town03[39], 
+        WAYPOINT_DICT_Town03[41],
+        WAYPOINT_DICT_Town03[40],
+        WAYPOINT_DICT_Town03[39],
         WAYPOINT_DICT_Town03[8],
-        WAYPOINT_DICT_Town03[85], 
+        WAYPOINT_DICT_Town03[85],
         WAYPOINT_DICT_Town03[257],
-        WAYPOINT_DICT_Town03[162], 
+        WAYPOINT_DICT_Town03[162],
         WAYPOINT_DICT_Town03[163],
-        WAYPOINT_DICT_Town03[47], 
+        WAYPOINT_DICT_Town03[47],
         WAYPOINT_DICT_Town03[46],
-        WAYPOINT_DICT_Town03[145], 
-        WAYPOINT_DICT_Town03[84], 
+        WAYPOINT_DICT_Town03[145],
+        WAYPOINT_DICT_Town03[84],
     ]
     random.shuffle(npc_list)
     # return npc_list[:num_npcs]
@@ -1943,7 +1957,7 @@ def get_curved_path(unseen=False, town="Town01", index=0):
         if town == "Town01":
             return random.choice(benchmark_paths_turn_Town01())
         elif town == "Town02":
-            return random.choice(benchmark_paths_turn_Town02()) 
+            return random.choice(benchmark_paths_turn_Town02())
     else:
         if town == "Town01":
             return benchmark_paths_turn_Town01()[index]
@@ -2053,7 +2067,7 @@ def get_t_junction_path(unseen=False, town="Town01", index=0):
             return paths_t_junction_Town01()[index%2]
         else:
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
-        
+
 
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"
@@ -2075,7 +2089,7 @@ def get_right_turn(unseen = False):
         return random.choice(paths_right_Town01_test())
     else:
         return random.choice(paths_right_Town01_train())
-    
+
 def get_left_turn(unseen = False):
     if unseen:
         return random.choice(paths_left_Town01_test())
@@ -2094,6 +2108,95 @@ def get_test_route():
 
     source_transform = Transform(Location(x=271.0400085449219, y=129.489990234375, z=1.32), Rotation(yaw=179.999755859375)),
     return route
+
+import xml.etree.ElementTree as ET
+
+def get_leaderboard_route(unseen=False, curr_town=None, index=0, max_idx=None, avail_map_list=None, mode='train'):
+    try:
+        xml_file = {
+                'train': '../../leaderboard/data/routes_training.xml',
+                'test': '../../leaderboard/data/routes_testing.xml'
+            }[mode]
+        _route_tree = ET.parse(xml_file)
+    except FileNotFoundError as e:
+        # print('try another xml_file location')
+        xml_file = {
+                'train': '../../../leaderboard/data/routes_training.xml',
+                'test': '../../../leaderboard/data/routes_testing.xml'
+            }[mode]
+        _route_tree = ET.parse(xml_file)
+
+
+    _routes = _route_tree.findall('route')
+    # print(2119, index, max_idx)
+    if not max_idx or index > max_idx: # have had enough with previous town
+        _town = random.choice(_routes).attrib['town']
+        if avail_map_list and _town not in avail_map_list:
+            _town = curr_town
+    else:
+        _town = curr_town
+
+    _route_in_this_town = []
+    for _r in _routes:
+        if _r.attrib['town'] == _town:
+            _route_in_this_town.append(_r)
+
+    if not unseen:
+        _route = random.choice(_route_in_this_town)
+    else:
+        _route = _route_in_this_town[index % len(_route_in_this_town)]
+
+    _wps = _route.findall('waypoint')
+    # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
+    _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+        Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+    _wp_list = [_src.location]
+    for _wp in _wps[1:-1]:
+        _wp_loc = Transform(Location(x=float(_wp.attrib['x']), y=float(_wp.attrib['y']), z=float(_wp.attrib['z']) + .5))
+        _wp_list.append(_wp_loc.location)
+    _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
+    _wp_list.append(_dst.location)
+    # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+    #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+    # _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+    #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
+    # print(_src, _dst)
+    # print(2149, curr_town, _town)
+    return _src, _dst, _wp_list, _town
+
+# def get_leaderboard_route(unseen=False, town="Town01", index=0, mode='train'):
+#     xml_file = {
+#             'train': '../../leaderboard/data/routes_training.xml',
+#             'test': '../../leaderboard/data/routes_testing.xml'
+#         }[mode]
+
+#     _route_tree = ET.parse(xml_file)
+#     _routes = _route_tree.findall('route')
+#     _route_in_this_town = []
+#     for _r in _routes:
+#         if _r.attrib['town'] == town:
+#             _route_in_this_town.append(_r)
+
+#     if not unseen:
+#         _route = random.choice(_route_in_this_town)
+#     else:
+#         _route = _route_in_this_town[index % len(_route_in_this_town)]
+#     _wps = _route.findall('waypoint')
+#     # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
+#     _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+#         Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+#     _wp_list = [_src.location]
+#     for _wp in _wps[1:-1]:
+#         _wp_loc = Transform(Location(x=float(_wp.attrib['x']), y=float(_wp.attrib['y']), z=float(_wp.attrib['z']) + .5))
+#         _wp_list.append(_wp_loc.location)
+#     _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
+#     _wp_list.append(_dst.location)
+#     # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+#     #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
+#     # _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
+#     #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
+#     # print(_src, _dst)
+#     return _src, _dst, _wp_list
 
 '''
 # Deprecated Helper functions

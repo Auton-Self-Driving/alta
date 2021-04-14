@@ -22,6 +22,18 @@ import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.dashcam import Visualizer
 
+# Leaerboard Import
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../leaderboard'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../scenario_runner'))
+from leaderboard.utils.route_manipulation import interpolate_trajectory
+from leaderboard.utils.route_parser import RouteParser, TRIGGER_THRESHOLD, TRIGGER_ANGLE_THRESHOLD
+from leaderboard.scenarios.route_scenario import (
+    scenario_sampling, build_scenario_instances, convert_transform_to_location, Trigger
+)
+from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+from environment.carla_9_4.agents.navigation.local_planner import RoadOption
+
 
 # import ipdb
 # st = ipdb.set_trace
@@ -60,6 +72,8 @@ class CarlaEnv(gym.Env):
         self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
         # if 'num_agents' in self.config and self.config['algo'] == 'A2C':
+        if 'challenge' in self.config["scenarios"]:
+            assert self.config['num_agents'] == 1, 'Multi agent in one env under challenge scenarios not supported'
         if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
         self.ego_vehicle_list = [None] * self.config['num_agents']
         self.ego_agent_list = [None] * self.config['num_agents']
@@ -110,35 +124,42 @@ class CarlaEnv(gym.Env):
         # Create new client
         self.client =  self._spawn_client()
         print("server_version", self.client.get_server_version())
-
+        self.avail_map = {name[-6:]: name for name in self.client.get_available_maps()}
+        print('self.avail_map:', self.avail_map)
+        self._set_world_and_map(self.config["city_name"])
+        self.world_annotations = RouteParser.parse_annotations_file(
+            '../../../leaderboard/data/all_towns_traffic_scenarios_public.json')
+        # print(self.world_annotations)
         # Commenting load_world, assuming default is set as Town01 in CARLA binary config
         # since sometimes, it causes timeout issues in the beginning
         # print(self.client.get_available_maps())
-        self._world = self.client.load_world('/Game/Carla/Maps/' + self.config['city_name'])
-
+        # self._world = self.client.load_world('/Game/Carla/Maps/' + self.config['city_name'])
         # time.sleep(600)
-        self._world = self.client.get_world()
+        # self._world = self.client.get_world()
 
-        settings = self._world.get_settings()
-        if(self.config['sync_mode']):
-            settings.synchronous_mode = True
+        # settings = self._world.get_settings()
+        # if(self.config['sync_mode']):
+        #     settings.synchronous_mode = True
 
-        if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
-            settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
+        # if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
+        #     settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
 
         # We want to enable rendering
-        settings.no_rendering_mode = False
+        # settings.no_rendering_mode = False
 
-        self._world.apply_settings(settings)
-
+        # self._world.apply_settings(settings)
         time.sleep(20)
 
-        self._map = self._world.get_map()
-        self.blueprint_library = self._world.get_blueprint_library()
-        self.spawn_points = self._world.get_map().get_spawn_points()
+        # self._map = self._world.get_map()
+        # self.blueprint_library = self._world.get_blueprint_library()
+        # self.spawn_points = self._world.get_map().get_spawn_points()
 
-        self.tm = self.client.get_trafficmanager(random.randint(10000, 60000))
+        self.tm_port = random.randint(10000, 60000)
+        self.tm = self.client.get_trafficmanager(self.tm_port)
         self.tm.set_synchronous_mode(True)
+
+        CarlaDataProvider.set_client(self.client)
+        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
 
         if self.config["testing"]:
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
@@ -258,8 +279,8 @@ class CarlaEnv(gym.Env):
                                     # shape=(1, 12296), dtype=np.float32)
                                     # shape=(1, 20488), dtype=np.float32)
 
-        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
-        self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
+        # self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+        # self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -274,6 +295,30 @@ class CarlaEnv(gym.Env):
         client.set_timeout(self.config["client_timeout_seconds"])
         return client
 
+    def _set_world_and_map(self, town_name):
+        # Get the world
+        self.curr_town = town_name
+        self._world = self.client.load_world(self.curr_town)
+        settings = self._world.get_settings()
+        if(self.config['sync_mode']):
+            settings.synchronous_mode = True
+        if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
+            settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
+        # Enable rendering
+        settings.no_rendering_mode = False
+        self._world.apply_settings(settings)
+        # Sleep to allow for settings to update
+        time.sleep(5)
+        # Retrieve map
+        self._map = self._world.get_map()
+        # Get blueprints
+        self.blueprint_library = self._world.get_blueprint_library()
+        self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+        self.spawn_points = self._world.get_map().get_spawn_points()
+        # Get traffic lights
+        self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
+        self.scenario_index = 0
+        CarlaDataProvider.set_world(self._world)
 
     def create_observations(self, agent, obs):
         obs['observation'] = np.array([agent.episode_measurements['next_orientation']])
@@ -623,18 +668,29 @@ class CarlaEnv(gym.Env):
                 # if not agent.unseen:
                 #     agent.total_num_steps +=1
             ########################################################################################
+            CarlaDataProvider.on_carla_tick()
             self.world_frame = self._world.tick()
             ########################################################################################
             for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
+                if 'challenge' in self.config['scenarios']:
+                    agent.running.scenario.scenario_tree.tick_once()
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
                 agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
                 if self.config["enable_lane_invasion_sensor"]:
-                    agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
-                    agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
+                    if 'challenge' in self.config['scenarios']:
+                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections and \
+                            RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                            RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                        agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road) and \
+                            RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                            RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                    else:
+                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                        agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
                     # if agent.episode_measurements['num_laneintersections'] > 0:
                     #     agent.episode_measurements['offlane_steps'] += 1
                     # else:
@@ -645,13 +701,13 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['min_distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
-                next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-                    agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
-                    agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
+                # next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+                #     agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
+                #     agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
 
-                agent.episode_measurements['next_orientation'] = next_orientation
-                agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
-                agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
+                # agent.episode_measurements['next_orientation'] = next_orientation
+                # agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
+                # agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
 
                 self._get_ego_input(agent)
 
@@ -950,6 +1006,7 @@ class CarlaEnv(gym.Env):
         self.destination_transform = self.spawn_points[destination_idx]
 
     def _set_scenario(self, unseen=False, town="Town01", index=0):
+        _upd_town = self.curr_town
         if self.config["scenarios"] == "straight":
             # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
@@ -988,14 +1045,19 @@ class CarlaEnv(gym.Env):
             self.source_transform = self.spawn_points[source_idx]
             self.destination_transform = self.spawn_points[destination_idx]
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "challenge_train_scenario":
+            self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
+                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
+                avail_map_list=self.avail_map.keys(), mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
-            route = scenarios.get_test_route()
-
-            self.scenario_route = convert_route_from_GPS_world(route, self._map)
-            self.source_transform = self.scenario_route[0]
-            self.destination_transform = self.scenario_route[-1]
+            self.source_transform, self.destination_transform, self.wps_list, _upd_town  = scenarios.get_leaderboard_route(
+                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
+                avail_map_list=self.avail_map.keys(), mode='test')
         else:
             raise ValueError("Scenarios Config not set!")
+
+        if _upd_town != self.curr_town: # switch to a new town
+            self._set_world_and_map(_upd_town)
 
 
     def get_control(self, agent, action):
@@ -1190,9 +1252,11 @@ class CarlaEnv(gym.Env):
             agent.image_data = None
             agent.source_transform = agent.vehicle_actor.source_transform
             agent.destination_transform = agent.vehicle_actor.destination_transform
-            agent.scenario_route = None
-            agent.global_planner = None
-            agent.trace_route = None
+            # agent.scenario_route = None
+            agent.global_planner = agent.vehicle_actor.global_planner
+            if 'challenge' in self.config['scenarios']:
+                agent.running = agent.vehicle_actor.running
+            # agent.trace_route = None
             agent.episode_num = 0
             agent.validation_episode_num = 0
             agent.semantic_image = None
@@ -1302,24 +1366,29 @@ class CarlaEnv(gym.Env):
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
 
-        agent.global_planner = planner.GlobalPlanner()
+        # agent.global_planner = planner.GlobalPlanner()
 
-        if self.config["use_route_to_plan"]:
-            agent.trace_route = []
-            for idx in range(len(self.scenario_route) - 1):
-                source = self.scenario_route[idx]
-                destination = self.scenario_route[idx + 1]
-                trace_route = agent.global_planner._trace_route(self._map,
-                                source, destination)
-                agent.trace_route.extend(trace_route)
+        # if self.config["use_route_to_plan"]:
+        #     agent.trace_route = []
+        #     for idx in range(len(self.scenario_route) - 1):
+        #         source = self.scenario_route[idx]
+        #         destination = self.scenario_route[idx + 1]
+        #         trace_route = agent.global_planner._trace_route(self._map,
+        #                         source, destination)
+        #         agent.trace_route.extend(trace_route)
+        # else:
+        #     agent.trace_route  = agent.global_planner._trace_route(self._map,
+        #                         agent.source_transform, agent.destination_transform)
+        # agent.global_planner.set_global_plan(agent.trace_route)
+
+        if 'challenge' in self.config['scenarios']:
+            next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+                agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
+                agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
         else:
-            agent.trace_route  = agent.global_planner._trace_route(self._map,
-                                agent.source_transform, agent.destination_transform)
-        agent.global_planner.set_global_plan(agent.trace_route)
-
-        next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-            agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
-            agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
+            next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+                agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
+                agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
 
         agent.episode_measurements['next_orientation'] = next_orientation
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
@@ -1388,7 +1457,7 @@ class CarlaEnv(gym.Env):
         return agent.observation
 
     def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
-        if not idx_list: idx_list = [0] * self.config['num_agents']
+        # if not idx_list: idx_list = [0] * self.config['num_agents']
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
@@ -1414,16 +1483,20 @@ class CarlaEnv(gym.Env):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
 
-                if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
+                # if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
+                if self.config["use_scenarios"]:
                     if self.config["updated_scenarios"]:
-                        self._set_updated_scenario(unseen=use_idx, index=idx_list[rk], town=self.config["city_name"])
+                        self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
                     else:
-                        self._set_scenario(unseen=use_idx, index=idx_list[rk], town=self.config["city_name"])
+                        self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
                 else:
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
-                self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
-
+                # self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
+                try:
+                    self.vehicle_actor = CarlaDataProvider.request_new_actor(self.config['vehicle_type'], self.source_transform, 'hero')
+                except:
+                    self.vehicle_actor = None
 
                 if self.vehicle_actor is not None:
                     break
@@ -1435,6 +1508,7 @@ class CarlaEnv(gym.Env):
                     # time.sleep(.04)
 
             if self.vehicle_actor is not None:
+                self.scenario_index += 1
                 # print(self.vehicle_actor)
                 self.ego_vehicle_list[rk] = self.vehicle_actor
                 self.vehicle_actor.source_transform = self.source_transform
@@ -1444,6 +1518,32 @@ class CarlaEnv(gym.Env):
                     print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
                     print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
                 self.curr_num_agents += 1
+
+                self.vehicle_actor.global_planner = planner.GlobalPlanner()
+
+                if 'challenge' in self.config["scenarios"]:
+                    # print(213, len(self.wps_list))
+                    _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+                    # print('self.route', self.route)
+                    CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
+                    # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
+                    self.dense_waypoints = self._global_plan_world_coord
+
+                    potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
+                        self.curr_town, self.route, self.world_annotations)
+                    # Sample the scenarios to be used for this route instance.
+                    self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
+                    # print(236, self.sampled_scenarios_definitions)
+                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=0)
+                    # print(244, self.scenarios)
+                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=0)
+                else:
+                    self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
+                                            self.source_transform, self.destination_transform)
+                    # print(self.dense_waypoints)
+
+                self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
+
             else:
                 raise Exception("Failed in spawning vehicle actor.")
 

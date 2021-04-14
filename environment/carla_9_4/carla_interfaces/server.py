@@ -26,7 +26,7 @@ class CarlaServer():
         self.carla_env = os.environ.copy()
         if self.carla_gpu is not None:
             self.carla_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
-            del carla_env['CUDA_VISIBLE_DEVICES']
+            del self.carla_env['CUDA_VISIBLE_DEVICES']
             print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
 
         if not self.render_server:
@@ -36,6 +36,7 @@ class CarlaServer():
         self.launch_command = [
                 self.server_binary, "-carla-rpc-port={}".format(self.server_port)
         ]
+        self.start()
 
 
         print('Waiting for server to finish setting up')
@@ -69,14 +70,14 @@ class CarlaServer():
         server_start_retries = 0
 
         while ((not server_started) and server_start_retries < self.config['server_retries']):
-            server_started = self._attempt_server_launch
+            server_started = self._attempt_server_launch()
             server_start_retries += 1
 
         # Max retry attempts exceeded
         if(not server_started):
             raise Exception("Failed to start CARLA server. Check configuration and try again.")
 
-        time.sleep(120)
+        # time.sleep(12)
 
     def __del__(self):
         self.close()
