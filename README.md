@@ -132,11 +132,11 @@ cd alta
 git checkout master
 ```
 
-* Install conda environment 'carla9.4_py35' from environment.yml file.
+* Install conda environment 'carla9.10_py37' from environment.yml file.
 
 ```
 cd $HOME/projects/alta
-conda env create -f environment.yml
+conda env create -f carla910_environment.yml
 conda activate carla9.10_py37
 ```
 
