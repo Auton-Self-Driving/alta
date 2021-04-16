@@ -125,7 +125,7 @@ class FactoredCritic(nn.Module):
     def forward(self, obs, action):
         assert obs.size(0) == action.size(0)
 
-        weighted_Qs = self.forward_factored(obs, action) * torch.tensor([1., 1., 250., 250.])[None].cuda()
+        weighted_Qs = self.forward_factored(obs, action) # * torch.tensor([1., 1., 250., 250.])[None].cuda()
         return weighted_Qs.sum(dim=1)
 
     def forward_factored(self, obs, action):

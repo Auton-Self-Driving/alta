@@ -147,7 +147,7 @@ class OnlineCarlaDataset(IterableDataset):
     def __init__(self, agent, env, cfg):
         self.agent = agent
         self.env = env
-        self.replay_buffer = PERBuffer(buffer_size=int(cfg.buffer_size))
+        self.replay_buffer = PERBuffer(int(cfg.buffer_size))
         self.cfg = cfg
 
     def populate(self, size, data_module=None):
@@ -208,6 +208,7 @@ class OnlineCarlaDataset(IterableDataset):
             if num_steps % self.cfg.train_every_n_steps == 0:
                 # Sample from replay buffer for training step
                 batch, indices, weights = self.replay_buffer.sample(self.cfg.batch_size)
+                # batch = self.replay_buffer.sample(self.cfg.batch_size)
                 for idx, _ in enumerate(batch[0]):
                     yield (batch[0][idx], batch[1][idx], batch[2][idx], batch[3][idx], batch[4][idx]), indices[idx], weights[idx]
 

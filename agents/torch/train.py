@@ -111,7 +111,7 @@ def main(cfg):
     # offline_data_module = OfflineCarlaDataModule(cfg.data_module)
     # offline_data_module.setup(None)
 
-    # Offline training
+    # # Offline training
     # if cfg.train_offline:
     #     trainer = pl.Trainer(**cfg.trainer, 
     #         logger=logger,
@@ -132,8 +132,6 @@ def main(cfg):
         if cfg.train_offline:
             trainer.current_epoch = cfg.offline_epochs
         trainer.fit(agent, online_data_module)
-
-    # env.close()
 
 
 if __name__ == '__main__':

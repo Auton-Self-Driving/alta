@@ -498,6 +498,7 @@ class CarlaEnv(gym.Env):
                 reward_dict['collision'],
                 reward_dict['light']
             ])
+            # reward += curr_reward
             # print(curr_reward_dict)
 
             # True/False, did we collide in this step
