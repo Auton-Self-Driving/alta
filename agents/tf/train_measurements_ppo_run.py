@@ -37,7 +37,7 @@ def find_ext_format(MODEL_PATH):
             ext = '.pkl'
         elif fname.endswith('.zip'):
             ext = '.zip'
-        
+
         if ext is not None:
             break
     return ext
@@ -123,7 +123,7 @@ def run_ppo(args, prefix, config):
 
     if SCRATCH_DIR[-1] != '/':
         SCRATCH_DIR += '/'
-    
+
     POLICY_PLOTS = ALTA_LOGS + 'policy_plots/'
     if not os.path.exists(ALTA_LOGS):
         os.makedirs(ALTA_LOGS)
@@ -141,7 +141,7 @@ def run_ppo(args, prefix, config):
     TB_LOGS_DIR = ALTA_LOGS+ 'tb/'
 
     MAX_TRIALS = 5
-    
+
     def get_latest_model(log_dir=MODEL_PATH, ext='*.zip', sep='_'):
         list_of_files = glob.glob(os.path.join(log_dir, ext))
         latest_file = max(list_of_files, key=os.path.getctime)
@@ -156,7 +156,7 @@ def run_ppo(args, prefix, config):
         ind = int(latest_file.split(sep1)[1].split(sep2)[0])
         return ind, latest_file
 
-    
+
     for i in range(MAX_TRIALS):
         try:
             # Create the environment
@@ -277,12 +277,12 @@ def run_ppo(args, prefix, config):
                 IMAGES_PATH = SCRATCH_DIR+'images/'
                 VIDEO_PATH = SCRATCH_DIR+'videos/'
                 vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, VIDEO_FRAME_SKIP, videos=config.config["videos"])
-                
+
                 # env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
                 env = launch_server(config, vis_wrapper, ALTA_LOGS, logger=logger)
 
                 dummy_env = DummyVecEnv([lambda: env])
-                
+
                 if args.network == "1_layer":
                     policy = Policy_1_layer
                 elif args.network == "2_layer":
@@ -298,7 +298,7 @@ def run_ppo(args, prefix, config):
                     env.close()
                     print("exiting")
                     return
-                
+
                 if not args.enable_search and any(fname.endswith('.pkl') or fname.endswith('.zip') for fname in os.listdir(MODEL_PATH)):
                     ext = find_ext_format(MODEL_PATH)
                     with open(ALTA_LOGS + "seed.txt", "r") as f:
@@ -326,9 +326,9 @@ def run_ppo(args, prefix, config):
                         f.write(str(millis))
                     if args.agent_model_path is None:
                         model = PPO(policy=policy, env=dummy_env, n_steps=args.n_steps, nminibatches=args.no_minibatches, verbose=1, learning_rate=args.lr,
-                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip, seed=millis)
+                            tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, ent_coef=args.ent_coef, noptepochs=args.no_epochs, cliprange=args.clip)
                     else:
-                        model = PPO.load(args.agent_model_path, env=dummy_env, seed=millis)
+                        model = PPO.load(args.agent_model_path, env=dummy_env)
                         print("Loading pretrained agent from: {}".format(args.agent_model_path))
                     if not args.enable_search:
                         best_model = model.learn(args.timesteps, 0, env, tb_log_name="PPO2", save_file=SAVE_PATH, reset_num_timesteps=True, policy_plots=False, validation_interval=args.validation_interval)
@@ -406,4 +406,4 @@ def run_ppo(args, prefix, config):
                 f.write(traceback.format_exc())
         finally:
             env.close()
-            time.sleep(120)
+            time.sleep(20)

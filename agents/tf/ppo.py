@@ -112,7 +112,7 @@ def plot_policy_and_value_fns(model, ind, path):
         stoch_actions.append(act)
         var_actions.append(logstd)
         values.append(value)
-        
+
     det_actions = np.array(det_actions).reshape((-1, 2))
     stoch_actions = np.array(stoch_actions).reshape((-1, 2))
     var_actions = np.exp(np.array(var_actions).reshape((-1, 2)))
@@ -127,21 +127,21 @@ def plot_policy_and_value_fns(model, ind, path):
     axs[0, 1].plot(observations, det_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[0, 1].set_xlabel('Waypoint orientation')
     axs[0, 1].set_ylabel('Deterministic - Target Speed')
-    
+
     axs[1, 0].plot(observations, var_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 0].set_xlabel('Waypoint orientation')
     axs[1, 0].set_ylabel('Std Deviation - Steer')
     axs[1, 1].plot(observations, var_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[1, 1].set_xlabel('Waypoint orientation')
     axs[1, 1].set_ylabel('Std Deviation - Target Speed')
-    
+
     axs[2, 0].plot(observations, stoch_actions[:, 0], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 0].set_xlabel('Waypoint orientation')
     axs[2, 0].set_ylabel('Stochastic - Steer')
     axs[2, 1].plot(observations, stoch_actions[:, 1], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     axs[2, 1].set_xlabel('Waypoint orientation')
     axs[2, 1].set_ylabel('Stochastic - Target Speed')
-    
+
     axs[0,0].grid(True)
     axs[0,1].grid(True)
     axs[1,0].grid(True)
@@ -152,12 +152,12 @@ def plot_policy_and_value_fns(model, ind, path):
     plt.grid(True)
     plt.savefig(path + 'policy_{}.png'.format(ind))
     plt.close()
-    
+
     plt.figure()
     plt.plot(observations, values, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     plt.xlabel('Waypoint orientation')
     plt.ylabel('Value')
-    fig.suptitle('Valuex plots for {} model'.format(ind))  
+    fig.suptitle('Valuex plots for {} model'.format(ind))
     plt.savefig(path + 'value_{}.png'.format(ind))
 
 def plot_test_results(total_successes, total_rewards, total_updates, path):
@@ -170,16 +170,16 @@ def plot_test_results(total_successes, total_rewards, total_updates, path):
     ax2.plot(np.array(total_updates) / 1000, np.array(total_rewards), color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
     ax2.set_xlabel('Total Reward')
     ax2.set_ylabel('Timesteps (k)')
-    
+
     ax1.grid(True)
     ax2.grid(True)
-    
+
     plt.grid(True)
     plt.savefig(path + 'test_results.png')
     plt.close()
 
 class OverideRunner(Runner):
-    
+
     def run(self, logger=None):
         """
         Run a learning step of the model
@@ -220,7 +220,7 @@ class OverideRunner(Runner):
                 tspeed_std = np.exp(logstd[0][1])
 
                 total_steps = infos[0]['total_steps']
-            
+
                 # logger.log_scalar('train/steer_mean', steer_mean, total_steps)
                 # logger.log_scalar('train/steer_std', steer_std, total_steps)
                 # logger.log_scalar('train/tspeed_mean', tspeed_mean, total_steps)
@@ -280,14 +280,14 @@ def test(model, env, dump_results=False, path='.', model_step=None):
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
-        
+
         while not done:
             actions = model.predict(obs, deterministic=True)[0]
             info = env.step(actions)
             reward += info[1][0][0]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
-        
+
         total_reward += reward
         if info[3]['termination_state'] == 'success':
             success_episodes += 1
@@ -354,7 +354,7 @@ def get_best_model(env, total_rewards, total_successes, model_file_names, path):
     print("No of successes in best model: {}".format(total_successes[ind]))
     print("Max no of successes: {}".format(m))
     best_model = PPO.load(model_file_names[ind], DummyVecEnv([lambda: env]))
-    
+
     with open(path + "best_model.txt", "w") as f:
         f.write("Best model: {}\n".format(path))
         f.write("Best model appears at index: {}\n".format(ind))
@@ -362,12 +362,12 @@ def get_best_model(env, total_rewards, total_successes, model_file_names, path):
         f.write("Max no of successes: {}\n".format(m))
         f.write("Rewards at intermediate training: {}\n".format(total_rewards))
         f.write("Total success episodes: {}\n".format(total_successes))
-        
+
     return best_model
 
 class PPO(PPO2):
     """A modification to the PPO algorithm to save models more often"""
-    
+
     def learn(self, total_timesteps, trained_timesteps, env, callback=None, seed=None, log_interval=1, tb_log_name="PPO2",
               reset_num_timesteps=True, save_file="default", policy_plots=False, vae=None, train_vae=False, validation_interval=40000,
               disable_greedy_best=False):
@@ -379,7 +379,7 @@ class PPO(PPO2):
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
-            self._setup_learn()
+            self._setup_learn(0)
 
             runner = OverideRunner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
             self.episode_reward = np.zeros((self.n_envs,))
@@ -388,7 +388,7 @@ class PPO(PPO2):
             t_first_start = time.time()
 
             nupdates = total_timesteps // self.n_batch
-            
+
             print("No of updates: {}".format(nupdates))
             print("Total timesteps : {}".format(total_timesteps))
             print("Batch size: {}".format(self.n_batch))
@@ -474,7 +474,7 @@ class PPO(PPO2):
                         if not os.path.exists(base_path):
                             os.makedirs(base_path)
                         vae.save(os.path.join(base_path, 'ae_' + str(update * self.n_batch)))
-                    
+
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
@@ -509,7 +509,7 @@ class PPO(PPO2):
                 return get_best_model(env, total_rewards, total_successes, model_file_names, save_file.split('models')[0])
             else:
                 return self
-        
+
     def predict(self, observation, state=None, mask=None, deterministic=False):
         if state is None:
             state = self.initial_state
@@ -647,8 +647,8 @@ class PPO(PPO2):
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "n_envs": self.n_envs,
-            "n_cpu_tf_sess": self.n_cpu_tf_sess,
-            "seed": self.seed,
+            # "n_cpu_tf_sess": self.n_cpu_tf_sess,
+            # "seed": self.seed,
             "_vectorize_action": self._vectorize_action,
             "policy_kwargs": self.policy_kwargs,
             # "all_params": self.all_params
@@ -661,7 +661,8 @@ class PPO(PPO2):
             model_path = save_path.rsplit('/', 1)[0]
             self.saver.save(self.sess, os.path.join(model_path, 'policy-model-ckpt-{}'.format(pid)))
 
-        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
+        # self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
+        self._save_to_file(save_path, data=data, params=params_to_save)
 
     def load_optimizer_state(self, load_path, data, pid=None):
         if pid is not None:
