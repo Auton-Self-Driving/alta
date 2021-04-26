@@ -77,9 +77,9 @@ from environment.carla_9_4.env_util import (
 
 class CarlaEnv(gym.Env):
     def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
+        self.carla_interface = None
         self.config = DEFAULT_ENV
-        self.PPO_config = ConfigManager()
-        self._update_config(self.PPO_config.config)
+        self._update_config(config)
 
         if 'challenge' in self.config["scenarios"]:
             self.carla_interface = Carla910Interface_Leaderboard(config, log_dir)
@@ -203,7 +203,6 @@ class CarlaEnv(gym.Env):
         # else:
         #     self._map = self._world.get_map()
 
-
         ################################################
         # Creating Action and State spaces
         ################################################
@@ -323,6 +322,9 @@ class CarlaEnv(gym.Env):
                                         shape=(1, num_cams*(int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
                                         # shape=(1, 12296), dtype=np.float32)
                                         # shape=(1, 20488), dtype=np.float32)
+
+
+        print(self.observation_space)
 
         ################################################
         # Misc (need to check about these later)
@@ -613,6 +615,7 @@ class CarlaEnv(gym.Env):
 
         # # obs['image'] = sensor_image
         # # obs['rv_image'] = rv_sensor_image
+
         # ###############################################################################
 
         # obs['speed'] = np.expand_dims(
@@ -657,6 +660,7 @@ class CarlaEnv(gym.Env):
                     # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
                     # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
                     self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+<<<<<<< Updated upstream
             # if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
             #     self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
             #     self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
@@ -672,6 +676,23 @@ class CarlaEnv(gym.Env):
             #     self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
             #     self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
             #     self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
+=======
+            if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
+                # self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
+                # self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
+>>>>>>> Stashed changes
 
                 if self.config["scenarios"] == "straight_dynamic":
                     self._update_straight_dynamic_obs()
@@ -2262,10 +2283,11 @@ class CarlaEnv(gym.Env):
     def close(self):
 
         try:
-            self.destroy_all_existing_actors()
+            if self.carla_interface is not None:
+                self.carla_interface.close()
 
-            if not self.CarlaServer is None:
-                self.CarlaServer.close()
+            # if not self.CarlaServer is None:
+            #     self.CarlaServer.close()
 
         except Exception as e:
                 print("********** Exception in closing env **********")

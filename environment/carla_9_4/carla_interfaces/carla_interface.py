@@ -31,7 +31,7 @@ class Carla910Interface():
         self.config = config
 
         # Instantiate and start server
-        # self.server = CarlaServer(config)
+        self.server = CarlaServer(config)
 
         self.client = None
 
@@ -41,7 +41,7 @@ class Carla910Interface():
 
     def setup(self):
         # Start the carla server and get a client
-        # self.server.start()
+        self.server.start()
         self.client = self._spawn_client()
 
         # Get the world
@@ -86,7 +86,7 @@ class Carla910Interface():
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         #TODO switch back to getting port from server
-        port_number = 2000#self.server.server_port
+        port_number = self.server.server_port
         client = carla.Client(hostname, port_number)
         client.set_timeout(self.config["client_timeout_seconds"])
 
@@ -156,12 +156,6 @@ class Carla910Interface():
         else:
             raise ValueError("Scenarios Config not set!")
 
-    def check_subset(self, pt):
-        for spawn_pt in self.spawn_points:
-            if pt.location.distance(spawn_pt.location)<1:
-                return True
-        return False
-
     def reset(self, unseen = False, index = 0):
         ### Delete old actors
         self.actor_fleet.destroy_actors()
@@ -179,10 +173,6 @@ class Carla910Interface():
                 self._set_updated_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
             else:
                 self._set_scenario(unseen=unseen, index=self.scenario_index, town=self.config["city_name"])
-                if self.check_subset(self.source_transform):
-                    print("Valid start point")
-                else:
-                    print("Invalid start point")
         else:
             self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -297,9 +287,13 @@ class Carla910Interface():
     def get_map(self):
         return self.map
 
-    def destroy_all_actors(self):
-        # raise NotImplementedError()
-        pass
+
+    def close(self):
+        self.actor_fleet.destroy_actors()
+
+        if self.server is not None:
+            self.server.close()
+
 
 
 class Carla910Interface_Leaderboard:

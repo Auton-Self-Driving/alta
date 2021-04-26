@@ -8,7 +8,7 @@ from environment.carla_9_4.config import DEFAULT_ENV
 
 class CarlaServer():
     def __init__(self, config=None):
-        print("Launching CARLA server...")
+        # print("Launching CARLA server...")
         # Save config parameters
         self.config = config
         self.server_port = config['server_port']
@@ -27,7 +27,6 @@ class CarlaServer():
         if self.carla_gpu is not None:
             self.carla_env["SDL_HINT_CUDA_DEVICE"] = self.carla_gpu
             del self.carla_env['CUDA_VISIBLE_DEVICES']
-            print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
 
         if not self.render_server:
             os.environ["SDL_VIDEODRIVER"] = "offscreen"
@@ -39,11 +38,9 @@ class CarlaServer():
         self.start()
 
 
-        print('Waiting for server to finish setting up')
-        time.sleep(20)
-
     def _attempt_server_launch(self):
         # Try to launch
+        print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
         try:
             self.server_process = subprocess.Popen(self.launch_command,
                 preexec_fn=os.setsid, env=self.carla_env)
@@ -57,6 +54,10 @@ class CarlaServer():
         if self.server_process:
             print("Launched server at port:", self.server_port)
             return True
+
+        print('Waiting for server to finish setting up')
+        time.sleep(20)
+
 
         return False
 
