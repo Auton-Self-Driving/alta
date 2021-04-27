@@ -34,7 +34,7 @@ class ReplayBuffer:
 
 
 class PERBuffer(ReplayBuffer):
-    def __init__(self, buffer_size, prob_alpha=0.6, beta_start=0.4, beta_frames=100000):
+    def __init__(self, buffer_size, prob_alpha=0.6, beta_start=0.4, beta_frames=100000, priority_append=True):
         super().__init__(capacity=buffer_size)
         self.beta_start = beta_start
         self.beta = beta_start
@@ -44,6 +44,7 @@ class PERBuffer(ReplayBuffer):
         self.pos = 0
         self.buffer = []
         self.priorities = np.zeros((buffer_size, ), dtype=np.float32)
+        self.priority_append = priority_append
 
     def update_beta(self, step):
         """
@@ -70,16 +71,26 @@ class PERBuffer(ReplayBuffer):
         # what is the max priority for new sample
         max_prio = self.priorities.max() if self.buffer else 1.0
 
-        if len(self.buffer) < self.capacity:
-            self.buffer.append(exp)
+        if self.priority_append:
+            if len(self.buffer) < self.capacity:
+                self.buffer.append(exp)
+                self.priorities[self.pos] = max_prio
+                self.pos = (self.pos + 1) % self.capacity
+            else:
+                self.pos = np.argmin(self.priorities)
+                self.buffer[self.pos] = exp
+                self.priorities[self.pos] = max_prio
         else:
-            self.buffer[self.pos] = exp
+            if len(self.buffer) < self.capacity:
+                self.buffer.append(exp)
+            else:
+                self.buffer[self.pos] = exp
 
-        # the priority for the latest sample is set to max priority so it will be resampled soon
-        self.priorities[self.pos] = max_prio
+            # the priority for the latest sample is set to max priority so it will be resampled soon
+            self.priorities[self.pos] = max_prio
 
-        # update position, loop back if it reaches the end
-        self.pos = (self.pos + 1) % self.capacity
+            # update position, loop back if it reaches the end
+            self.pos = (self.pos + 1) % self.capacity
 
     def sample(self, batch_size=32):
         """

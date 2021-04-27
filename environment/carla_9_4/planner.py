@@ -275,7 +275,7 @@ class GlobalPlanner():
         if len(next_waypoints_angles) > 0:
             angle = np.mean(next_waypoints_angles_array)
         else:
-            print("No next waypoint found!")
+            # print("No next waypoint found!")
             dist_to_goal = 0
             angle = 0
 
@@ -294,7 +294,7 @@ class GlobalPlanner():
             # Reached near last waypoint
             # use second_last_waypoint
             
-            print("Needed to use second_last_waypoint")
+            # print("Needed to use second_last_waypoint")
             if self.second_last_waypoint is not None and self.last_waypoint is not None:
                 self.dist_to_trajectory = self.getPointToLineDistance(
                                         vehicle_transform,

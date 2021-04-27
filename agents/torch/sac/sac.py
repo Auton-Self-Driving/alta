@@ -205,25 +205,25 @@ class SAC(pl.LightningModule):
         """
         QF Loss
         """
-        # q1_pred = self.qf1.forward_factored(obs, actions)
-        # q2_pred = self.qf2.forward_factored(obs, actions)
+        q1_pred = self.qf1.forward_factored(obs, actions)
+        q2_pred = self.qf2.forward_factored(obs, actions)
 
-        q1_pred = self.qf1.forward(obs, actions)
-        q2_pred = self.qf2.forward(obs, actions)
+        # q1_pred = self.qf1.forward(obs, actions)
+        # q2_pred = self.qf2.forward(obs, actions)
 
         next_dist = self.policy(next_obs)
         new_next_actions = next_dist.rsample()
         new_log_pi = next_dist.log_prob(new_next_actions).sum(-1, keepdim=True)
 
         if not self.max_q_backup:
-            # target_q_values = torch.min(
-            #     torch.stack([self.target_qf1.forward_factored(next_obs, new_next_actions),
-            #     self.target_qf2.forward_factored(next_obs, new_next_actions),
-            #     ], dim=1), dim=1).values
             target_q_values = torch.min(
-                self.target_qf1.forward(next_obs, new_next_actions),
-                self.target_qf2.forward(next_obs, new_next_actions),
-            )
+                torch.stack([self.target_qf1.forward_factored(next_obs, new_next_actions),
+                self.target_qf2.forward_factored(next_obs, new_next_actions),
+                ], dim=1), dim=1).values
+            # target_q_values = torch.min(
+            #     self.target_qf1.forward(next_obs, new_next_actions),
+            #     self.target_qf2.forward(next_obs, new_next_actions),
+            # )
             
             if not self.deterministic_backup:
                 target_q_values = target_q_values - alpha * new_log_pi
@@ -241,15 +241,15 @@ class SAC(pl.LightningModule):
         # self.qf1.update(obs, actions, rewards, q_target)
         # self.qf2.update(obs, actions, rewards, q_target)
 
-        # trajectory_loss = self.qf_criterion(q1_pred[:,0], q_target[:,0])
-        # speed_loss = self.qf_criterion(q1_pred[:,1], q_target[:,1])
-        # light_loss = self.qf_criterion(q1_pred[:,2], q_target[:,2])
-        # collision_loss = self.qf_criterion(q1_pred[:,3], q_target[:,3])
+        trajectory_loss = self.qf_criterion(q1_pred[:,0], q_target[:,0])
+        speed_loss = self.qf_criterion(q1_pred[:,1], q_target[:,1])
+        light_loss = self.qf_criterion(q1_pred[:,2], q_target[:,2])
+        collision_loss = self.qf_criterion(q1_pred[:,3], q_target[:,3])
 
-        # self.log('factored/trajectory_loss', trajectory_loss)
-        # self.log('factored/speed_loss', speed_loss)
-        # self.log('factored/light_loss', light_loss)
-        # self.log('factored/collision_loss', collision_loss)
+        self.log('factored/trajectory_loss', trajectory_loss)
+        self.log('factored/speed_loss', speed_loss)
+        self.log('factored/light_loss', light_loss)
+        self.log('factored/collision_loss', collision_loss)
 
         qf1_loss = self.qf_criterion(q1_pred, q_target)
         qf2_loss = self.qf_criterion(q2_pred, q_target)

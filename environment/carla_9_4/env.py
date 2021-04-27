@@ -754,11 +754,18 @@ class CarlaEnv(gym.Env):
             if self.config["scenarios"] == "straight_dynamic":
                 self._update_straight_dynamic_obs()
 
-            reward += compute_reward(name=self.config['reward_function'],
+            _reward, _reward_dict = compute_reward(name=self.config['reward_function'],
                                 prev_measurement=self.prev_measurement,
                                 cur_measurement=self.episode_measurements,
                                 config=self.config,
                                 verbose=self.config["verbose"])
+            
+            reward += np.array([
+                _reward_dict['dist_to_trajectory'],
+                _reward_dict['speed'],
+                _reward_dict['collision'],
+                _reward_dict['light']
+            ])
             
             obs_collision = self.episode_measurements['num_collisions'] - self.prev_measurement['num_collisions'] > 0
 

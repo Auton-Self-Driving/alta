@@ -297,7 +297,15 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     #     current["offlane_steps"] += 1
     if current["speed"] <= config["zero_speed_threshold"]:
         current["static_steps"] += 1
-    return clipped_reward
+
+    reward_dict = {
+        'dist_to_trajectory': dist_to_trajectory_reward,
+        'speed': speed_reward + acceleration_reward,
+        'collision': collision_reward,
+        'light': light_reward,
+        'total': clipped_reward
+    }
+    return clipped_reward, reward_dict
 
 def _check_if_signal_crossed(prev, current):
 

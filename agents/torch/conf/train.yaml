@@ -10,7 +10,7 @@ server_port: 2000
 
 data_module:
     batch_size: 32
-    buffer_size: 1e5
+    buffer_size: 1e4
     num_workers: 4
     dataset_paths: 
       # - '/home/brian/ml-multiple-futures-prediction/multiple_futures_prediction/carla_data/autopilot_5hz_data'
@@ -25,18 +25,18 @@ data_module:
     use_images: false
     frame_stack: 1
     populate_size: 1000
-    epoch_size: 100
+    epoch_size: 2000
     train_every_n_steps: 2
 
 environment:
-    sample_npc: false
-    num_npc: 60
+    sample_npc: true
+    # num_npc: 60
     scenarios: 'no_crash_dense'
     input_type: 'wp_obs_info_speed_steer_ldist_goal_light' # 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light'
-    const_collision_penalty: 250
-    const_light_penalty: 250
+    const_collision_penalty: 50
+    const_light_penalty: 50
     frame_skip: 2
-    verbose: 1
+    verbose: 0
 
 eval_freq: 1
 eval_length: 2000
