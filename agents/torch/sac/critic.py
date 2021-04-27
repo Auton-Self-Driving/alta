@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 # from sklearn.neighbors import KDTree
-from pyflann import FLANN
+# from pyflann import FLANN
 
 from .utils import mlp, weight_init
 

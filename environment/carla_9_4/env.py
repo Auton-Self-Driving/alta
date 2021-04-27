@@ -557,8 +557,8 @@ class CarlaEnv(gym.Env):
         # branch_idx = 1
 
         self.episode_measurements['render_image'] = carla_obs['sensor.camera.rgb/front']['image']
-        self.episode_measurements['segmentation_image'] = carla_obs['sensor.camera.semantic_segmentation/front']['image']
-        self.episode_measurements['topdown_image'] = carla_obs['sensor.camera.semantic_segmentation/top']['image']
+        # self.episode_measurements['segmentation_image'] = carla_obs['sensor.camera.semantic_segmentation/front']['image']
+        # self.episode_measurements['topdown_image'] = carla_obs['sensor.camera.semantic_segmentation/top']['image']
 
         # # Read in preprocessed image
         # sensor_image = carla_obs['sensor.camera.rgb/top']
@@ -641,73 +641,73 @@ class CarlaEnv(gym.Env):
         done = np.expand_dims(np.array([done]), axis=0)
 
         if self.config["train_config"] == "PPO":
-            # Save videos now only for validation runs
-            if self.config["videos"] and self.unseen:
-                if self.vis_wrapper is not None:
-                    # TODO: Check and uncomment when running with VAE
-                    # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
-                    #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
-                    #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
-                    # else:
-                    #     # Saving image logic for Auto-Encoder training
-                    #     # path = os.path.join(self.log_dir, "ae_images")
-                    #     # if not os.path.exists(path):
-                    #     #     os.makedirs(path)
-                    #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
+            # # Save videos now only for validation runs
+            # if self.config["videos"] and self.unseen:
+            #     if self.vis_wrapper is not None:
+            #         # TODO: Check and uncomment when running with VAE
+            #         # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal']:
+            #         #     # self.vis_wrapper.save_semantic_image(obs['semantic_image'], self.num_steps)
+            #         #     self.vis_wrapper.save_pil_image(convert_to_rgb(obs['semantic_image'], reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+            #         # else:
+            #         #     # Saving image logic for Auto-Encoder training
+            #         #     # path = os.path.join(self.log_dir, "ae_images")
+            #         #     # if not os.path.exists(path):
+            #         #     #     os.makedirs(path)
+            #         #     # np.savez_compressed(os.path.join(path, format(self.total_steps, '08d')), img=convert_to_one_hot(reduce_classes(obs['image'][:, :, 0]), num_classes=5))
 
-                    # Logic for combined videos
-                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
-                    # self.vis_wrapper.save_image(temp_image, self.num_steps)
+            #         # Logic for combined videos
+            #         # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(reduce_classes(obs['image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
+            #         # self.vis_wrapper.save_image(temp_image, self.num_steps)
 
-                    if self.config["semantic"]:
-                        self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
-                    else:
-                        self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
-                if self.vis_wrapper_vae is not None:
+            #         if self.config["semantic"]:
+            #             self.vis_wrapper.save_pil_image(convert_to_rgb(reduce_classes(obs['rv_image'][:, :, 0], binarized_image=self.config['binarized_image']), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+            #         else:
+            #             self.vis_wrapper.save_pil_image(obs['image'], self.num_steps, self.episode_measurements)
+            #     if self.vis_wrapper_vae is not None:
 
-                    # Logic for combined videos
-                    # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
-                    # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
-                    self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
-            if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
-                self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
-                self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
+            #         # Logic for combined videos
+            #         # temp_image = np.hstack((front_image, rgb_image, convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8)))
+            #         # self.vis_wrapper_vae.save_image(temp_image, self.num_steps)
+            #         self.vis_wrapper_vae.save_pil_image(convert_to_rgb(convert_from_one_hot(self.vae.decode(visual_observation)[0, :, :, -5:]), reduced_classes=True, binarized_image=self.config['binarized_image']).astype(np.uint8), self.num_steps, self.episode_measurements)
+            # if not self.unseen and self.logger is not None and self.total_steps % self.config["log_freq"] == 0:
+            #     self.logger.log_scalar('timesteps/train/orientation', self.episode_measurements['next_orientation'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/orientation_old', next_orientation_old, self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/c_throttle', control.throttle, self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/c_speed', self.episode_measurements['speed'] * 3.6, self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/c_steer', control.steer, self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/c_brake', self.episode_measurements['control_brake'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/c_speed_target', self.episode_measurements['target_speed'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/reward_dist_to_trajectory', self.episode_measurements['dist_to_trajectory_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/reward_speed', self.episode_measurements['speed_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/steer_reward', self.episode_measurements['steer_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/reward_step', self.episode_measurements['step_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/reward_collision', self.episode_measurements['collision_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/reward_light', self.episode_measurements['light_reward'], self.total_steps)
+            #     self.logger.log_scalar('timesteps/train/obstacle_visible', self.episode_measurements['obstacle_visible'], self.total_steps)
 
-                if self.config["scenarios"] == "straight_dynamic":
-                    self._update_straight_dynamic_obs()
-                    # car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
-                    # location = self.vehicle_actor.get_location()
-                    # distance_to_car = location.distance(car_spawn_point.location)
+            #     if self.config["scenarios"] == "straight_dynamic":
+            #         self._update_straight_dynamic_obs()
+            #         # car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
+            #         # location = self.vehicle_actor.get_location()
+            #         # distance_to_car = location.distance(car_spawn_point.location)
 
-                    # self.episode_measurements['obstacle_dist'] = distance_to_car
+            #         # self.episode_measurements['obstacle_dist'] = distance_to_car
 
-                    if self.episode_measurements['obstacle_dist'] < 10:
-                        speed_near_car = self.episode_measurements['speed'] * 3.6
-                        target_speed_near_car = self.episode_measurements['target_speed']
-                    else:
-                        speed_near_car = -10
-                        target_speed_near_car = -10
+            #         if self.episode_measurements['obstacle_dist'] < 10:
+            #             speed_near_car = self.episode_measurements['speed'] * 3.6
+            #             target_speed_near_car = self.episode_measurements['target_speed']
+            #         else:
+            #             speed_near_car = -10
+            #             target_speed_near_car = -10
 
-                    self.logger.log_scalar('timesteps/train/near_car_speed', speed_near_car, self.total_steps)
-                    self.logger.log_scalar('timesteps/train/near_car_target_speed', target_speed_near_car, self.total_steps)
-                    self.logger.log_scalar('timesteps/train/obstacle_dist', self.episode_measurements['obstacle_dist'], self.total_steps)
+            #         self.logger.log_scalar('timesteps/train/near_car_speed', speed_near_car, self.total_steps)
+            #         self.logger.log_scalar('timesteps/train/near_car_target_speed', target_speed_near_car, self.total_steps)
+            #         self.logger.log_scalar('timesteps/train/obstacle_dist', self.episode_measurements['obstacle_dist'], self.total_steps)
 
-                    # if distance_to_car < 20:
-                    #     self.episode_measurements['obstacle_visible'] = True
-                    # else:
-                    #     self.episode_measurements['obstacle_visible'] = False
+            #         # if distance_to_car < 20:
+            #         #     self.episode_measurements['obstacle_visible'] = True
+            #         # else:
+            #         #     self.episode_measurements['obstacle_visible'] = False
 
             if done:
 
@@ -715,101 +715,101 @@ class CarlaEnv(gym.Env):
                 if not self.unseen:
                     self.episode_num += 1
 
-                    # Commenting out plots for all episodes
-                    if self.episode_num % 100 == 0:
-                        path = self.log_dir + 'train_episode_info_plots/'
-                        plotname = 'TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps)
-                        plot_episode_info(path,
-                            self.target_speeds_array,
-                            self.speeds_array,
-                            self.throttles_array,
-                            self.steers_array,
-                            # self.brakes_array,
-                            self.wp_orientation_array,
-                            self.obstacle_dist_array,
-                            self.step_reward_array,
-                            self.collision_reward_array,
-                            self.dist_to_trajectory_reward_array,
-                            self.red_light_dist_array,
-                            plotname)
+                    # # Commenting out plots for all episodes
+                    # if self.episode_num % 100 == 0:
+                    #     path = self.log_dir + 'train_episode_info_plots/'
+                    #     plotname = 'TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps)
+                    #     plot_episode_info(path,
+                    #         self.target_speeds_array,
+                    #         self.speeds_array,
+                    #         self.throttles_array,
+                    #         self.steers_array,
+                    #         # self.brakes_array,
+                    #         self.wp_orientation_array,
+                    #         self.obstacle_dist_array,
+                    #         self.step_reward_array,
+                    #         self.collision_reward_array,
+                    #         self.dist_to_trajectory_reward_array,
+                    #         self.red_light_dist_array,
+                    #         plotname)
 
                 # Validation runs
                 else:
                     self.validation_episode_num += 1
-                    plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
-                    self.episode_measurements['val_ep_idx'] = plotname
-                    if self.config["testing"]:
-                        path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
-                    else:
-                        path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
-                    plot_episode_info(path,
-                        self.target_speeds_array,
-                        self.speeds_array,
-                        self.throttles_array,
-                        self.steers_array,
-                        # self.brakes_array,
-                        self.wp_orientation_array,
-                        self.obstacle_dist_array,
-                        self.step_reward_array,
-                        self.collision_reward_array,
-                        self.dist_to_trajectory_reward_array,
-                        self.red_light_dist_array,
-                        plotname)
+                    # plotname = 'ValEp_' + str(self.validation_episode_num) + '_TrainEp_' + str(self.episode_num) + '_step_' + str(self.total_steps) + "_ind_" + str(self.index)
+                    # self.episode_measurements['val_ep_idx'] = plotname
+                    # if self.config["testing"]:
+                    #     path = self.log_dir + 'test_episode_info_plots_{}/'.format(self.config['city_name'])
+                    # else:
+                    #     path = self.log_dir + 'val_episode_info_plots_{}/'.format(self.config['city_name'])
+                    # plot_episode_info(path,
+                    #     self.target_speeds_array,
+                    #     self.speeds_array,
+                    #     self.throttles_array,
+                    #     self.steers_array,
+                    #     # self.brakes_array,
+                    #     self.wp_orientation_array,
+                    #     self.obstacle_dist_array,
+                    #     self.step_reward_array,
+                    #     self.collision_reward_array,
+                    #     self.dist_to_trajectory_reward_array,
+                    #     self.red_light_dist_array,
+                    #     plotname)
 
-                    if self.config["testing"]:
-                        np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
-                                            target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
-                                            input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
-                                            obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
-                                            wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
-                                            dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
-                                            step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
-                                            dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
+                    # if self.config["testing"]:
+                    #     np.savez_compressed(os.path.join(path, 'test_stats_{}.npz'.format(self.validation_episode_num)),
+                    #                         target_speed=self.target_speeds_array, current_speed=self.speeds_array, steer=self.steers_array,
+                    #                         input_steer=self.input_steer_array, throttle=self.throttles_array, brake=self.brakes_array,
+                    #                         obstacle_dist=self.obstacle_dist_array, obstacle_speed=self.obstacle_speed_array,
+                    #                         wp_orientation=self.wp_orientation_array, red_light_dist=self.red_light_dist_array,
+                    #                         dist_to_trajectory=self.dist_to_trajectory_array, dist_to_goal=self.dist_to_target_array,
+                    #                         step_reward=self.step_reward_array, collision_reward=self.collision_reward_array,
+                    #                         dist_to_trajectory_reward=self.dist_to_trajectory_reward_array, speed_reward=self.speed_reward_array)
 
                 self.episode_measurements["episode_num"] = self.episode_num
 
-                if self.logger is not None:
+                # if self.logger is not None:
 
-                    if not self.unseen and self.episode_num % 100 == 0:
-                        self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
-                        # self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
-                        self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
-                        self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
-                        # self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
-                        self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
+                #     if not self.unseen and self.episode_num % 100 == 0:
+                #         self.logger.log_scalar('episodes/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.episode_num)
+                #         # self.logger.log_scalar('episodes/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.episode_num)
+                #         self.logger.log_scalar('episodes/train/reward', self.episode_measurements['total_reward'], self.episode_num)
+                #         self.logger.log_scalar('timesteps/train/dist_to_target', self.episode_measurements['distance_to_goal'], self.total_steps)
+                #         # self.logger.log_scalar('timesteps/train/diff_dist_to_target', (self.episode_measurements['distance_to_goal'] - self.episode_measurements['min_distance_to_goal']), self.total_steps)
+                #         self.logger.log_scalar('timesteps/train/reward', self.episode_measurements['total_reward'], self.total_steps)
 
-                        # Termination logs
-                        self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
-                        if self.config["enable_lane_invasion_sensor"]:
-                            self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
-                            self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
-                        self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
-                        success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
-                        self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
-                        static = 1 if self.episode_measurements['termination_state'] == 'static' else 0
-                        self.logger.log_scalar('episodes/train/term_static', static, self.episode_num)
-                        max_steps = 1 if self.episode_measurements['termination_state'] == 'max_steps' else 0
-                        self.logger.log_scalar('episodes/train/term_max_steps', max_steps, self.episode_num)
-                        # self.logger.log_scalar('episodes/train/reward_collision', self.episode_measurements['collision_reward'], self.episode_num)
-                        # self.logger.log_scalar('episodes/train/obstacle_dist', self.episode_measurements['obstacle_dist'], self.episode_num)
+                #         # Termination logs
+                #         self.logger.log_scalar('episodes/train/term_obstacle', self.episode_measurements['obs_collision'], self.episode_num)
+                #         if self.config["enable_lane_invasion_sensor"]:
+                #             self.logger.log_scalar('episodes/train/term_out_of_road', self.episode_measurements['out_of_road'], self.episode_num)
+                #             self.logger.log_scalar('episodes/train/term_lane_change', self.episode_measurements['lane_change'], self.episode_num)
+                #         self.logger.log_scalar('episodes/train/term_runover_light', self.episode_measurements['runover_light'], self.episode_num)
+                #         success = 1 if self.episode_measurements['termination_state'] == 'success' else 0
+                #         self.logger.log_scalar('episodes/train/term_success', success, self.episode_num)
+                #         static = 1 if self.episode_measurements['termination_state'] == 'static' else 0
+                #         self.logger.log_scalar('episodes/train/term_static', static, self.episode_num)
+                #         max_steps = 1 if self.episode_measurements['termination_state'] == 'max_steps' else 0
+                #         self.logger.log_scalar('episodes/train/term_max_steps', max_steps, self.episode_num)
+                #         # self.logger.log_scalar('episodes/train/reward_collision', self.episode_measurements['collision_reward'], self.episode_num)
+                #         # self.logger.log_scalar('episodes/train/obstacle_dist', self.episode_measurements['obstacle_dist'], self.episode_num)
 
 
-                    elif self.unseen:
+                #     elif self.unseen:
 
-                        self.logger.log_scalar('test/dist_to_target_' + str(self.index), self.episode_measurements['distance_to_goal'], self.total_steps)
-                        self.logger.log_scalar('test/reward_' + str(self.index), self.episode_measurements['total_reward'], self.total_steps)
+                #         self.logger.log_scalar('test/dist_to_target_' + str(self.index), self.episode_measurements['distance_to_goal'], self.total_steps)
+                #         self.logger.log_scalar('test/reward_' + str(self.index), self.episode_measurements['total_reward'], self.total_steps)
 
-                        # self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
-                        # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
+                #         # self.logger.log_scalar('test/reward_collision_' + str(self.index), self.episode_measurements['collision_reward'], self.total_steps)
+                #         # self.logger.log_scalar('test/out_of_road_' + str(self.index), self.episode_measurements['out_of_road'], self.total_steps)
 
-                # Save videos now only for validation runs
-                if self.config["videos"] and self.unseen:
-                    if self.vis_wrapper is not None:
-                        self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                        self.vis_wrapper.remove_images()
-                    if self.vis_wrapper_vae is not None:
-                        self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
-                        self.vis_wrapper_vae.remove_images()
+                # # Save videos now only for validation runs
+                # if self.config["videos"] and self.unseen:
+                #     if self.vis_wrapper is not None:
+                #         self.vis_wrapper.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                #         self.vis_wrapper.remove_images()
+                #     if self.vis_wrapper_vae is not None:
+                #         self.vis_wrapper_vae.generate_video(self.validation_episode_num, self.total_steps, self.index)
+                #         self.vis_wrapper_vae.remove_images()
 
         # if self.config["input_type"] == 'vae':
         #     return gym_obs, reward, done, self.episode_measurements
@@ -2432,14 +2432,15 @@ def plot_episode_info(path,
 #     plt.close()
 
 if __name__ == "__main__":
-    env = CarlaEnv(log_dir = "/home/scratch/brianyan/outputs/")
-    env.reset()
-    for i in range(10000):
+    env = CarlaEnv(server_port=15063, log_dir = "/home/scratch/brianyan/outputs/")
 
-        obs, reward, done, info = env.step(np.array([0,1.0]))
+    # env.reset()
+    # for i in range(1000000000):
 
-        print(reward, done)
+    #     obs, reward, done, info = env.step(np.array([0,1.0]))
 
-        if(done):
-            env.reset()
+    #     print(i, reward, done)
+
+    #     if(done):
+    #         env.reset()
 

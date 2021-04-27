@@ -55,7 +55,7 @@ class ActorManager910():
         # tm is valid for carla0.9.10. If using carla0.9.6, this has to be commented out
         # This is for autopilot purpose on npcs
         # push it to spawn_npc() function?
-        self.tm = client.get_trafficmanager(4051)
+        self.tm = client.get_trafficmanager(4054)
         self.tm.set_synchronous_mode(True)
 
         self.actor_list = []

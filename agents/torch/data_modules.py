@@ -214,6 +214,8 @@ class OnlineCarlaDataset(IterableDataset):
 
             num_steps += 1
             if num_steps >= self.cfg.epoch_size:
+                # maybe this is a fix to the stoppage bug?
+                self.env.reset()
                 break
 
     def __iter__(self):
