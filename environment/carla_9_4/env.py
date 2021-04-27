@@ -27,10 +27,10 @@ from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.agents.navigation.roaming_agent import RoamingAgent
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
-from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements
+from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_measurements, ConfigManager
 import scipy.misc
 from scipy.misc import imsave
-from agents.tf.ae.util import *
+from ae.util import *
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -49,9 +49,13 @@ import psutil
 from environment.carla_9_4.env_util import check_if_vehicle_in_same_lane
 
 class CarlaEnv(gym.Env):
-    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None):
+    def __init__(self, config=DEFAULT_ENV, vis_wrapper=None, vis_wrapper_vae=None, logger=None, log_dir=None, **kwargs):
         self.config = DEFAULT_ENV
         self._update_config(config)
+        ppo_config = ConfigManager().config
+        self._update_config(ppo_config)
+        self._update_config(kwargs)
+
         self.CarlaServer = None
         self.episode_measurements = episode_measurements
         self.episode_id = None
@@ -122,7 +126,7 @@ class CarlaEnv(gym.Env):
                 error = e
                 serverStartRetries += 1
         
-        time.sleep(120)
+        time.sleep(5)
 
         # Create new client
         self.client =  self._spawn_client()
@@ -148,7 +152,7 @@ class CarlaEnv(gym.Env):
 
         self._world.apply_settings(settings)
 
-        time.sleep(20)
+        time.sleep(5)
 
         self._map = self._world.get_map()
         self.blueprint_library = self._world.get_blueprint_library()
@@ -158,7 +162,7 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
-            np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
+            # np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         # TODO: Verify the limits and bounds of observation spaces
@@ -802,9 +806,13 @@ class CarlaEnv(gym.Env):
         
         # Read in preprocessed image
         sensor_image = self._read_data(self.camera_queue, world_frame)
+        self.episode_measurements['sensor_image'] = sensor_image
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
         visual_observation = None
+
+        transform = self.vehicle_actor.get_transform()
+        self._world.get_spectator().set_transform(transform)
 
         if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
                                          'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
@@ -2005,6 +2013,9 @@ class CarlaEnv(gym.Env):
     def printInfo(self):
         print("Vehicle transform:{0}".format(self.vehicle_actor.get_transform()))
         print("Vehicle velocity:{0}".format(self.vehicle_actor.get_velocity()))
+
+    def render(self, mode='rgb_array'):
+        return self.episode_measurements['sensor_image'].copy()
 
     def close(self):
 

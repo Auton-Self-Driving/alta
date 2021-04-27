@@ -137,7 +137,8 @@ DEFAULT_ENV = {
     "test_comparison": False,
     "test_with_automatic_control": False,
     "updated_scenarios": False,
-    "sample_npc": True
+    "sample_npc": True,
+    "algo": "PPO"
 }
 
 episode_measurements = {
@@ -267,7 +268,7 @@ def get_discrete_actions():
 DISCRETE_ACTIONS = get_discrete_actions()
 
 class ConfigManager(object):
-    def __init__(self, algo='DDPG'):
+    def __init__(self, algo='PPO'):
         self.config = {}
 
         self._initialize_config(algo)
@@ -304,15 +305,15 @@ class ConfigManager(object):
             self.config["preprocess_crop_image"] = True
             self.config["framestack"] = 1
             self.config["grayscale"] = False
-            self.config["semantic"] = True
+            self.config["semantic"] = False
             self.config["scenarios"] = "navigation"
             self.config["videos"] = False
             self.config["x_res"] = 80
             self.config["y_res"] = 160
-            self.config["input_type"] = "wp"
+            self.config["input_type"] = "wp_obs_info_speed_steer_ldist_goal_light"
             self.config["city_name"] = "Town01"
             self.config["verbose"] = False
-            self.config["carla_gpu"] = "1"
+            self.config["carla_gpu"] = "0"
             self.config["disable_two_wheeler"] = True
             self.config["enable_lane_invasion_sensor"] = True
             # self.config["traffic_light_proximity_threshold"] = 15
