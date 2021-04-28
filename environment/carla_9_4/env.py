@@ -1050,6 +1050,9 @@ class CarlaEnv(gym.Env):
                                            'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                             'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
+            if self.config["use_images"]:
+                image = self.episode_measurements['sensor_image'].reshape(1,-1)
+                observation = np.concatenate([image, observation], axis=1)
             return observation, reward, done, self.episode_measurements
         else:
             return obs, reward, done, self.episode_measurements
@@ -1651,6 +1654,8 @@ class CarlaEnv(gym.Env):
         # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
         # front_image = self._read_data(self.front_camera_queue, world_frame)
 
+        self.episode_measurements['sensor_image'] = image
+
         self.global_planner = planner.GlobalPlanner()
         self.trace_route  = self.global_planner._trace_route(self._map,
                                 self.source_transform, self.destination_transform)
@@ -1767,6 +1772,9 @@ class CarlaEnv(gym.Env):
                                            'wp_angles_vecs_obs_info_speed_steer_ldist_light']:
         
             observation = np.expand_dims(obs['observation'], axis = 0)
+            if self.config["use_images"]:
+                image = self.episode_measurements['sensor_image'].reshape(1,-1)
+                observation = np.concatenate([image, observation], axis=1)
             return observation
         else:
             return obs
