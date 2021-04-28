@@ -72,8 +72,8 @@ class CarlaEnv(gym.Env):
         self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
         # if 'num_agents' in self.config and self.config['algo'] == 'A2C':
-        if 'challenge' in self.config["scenarios"]:
-            assert self.config['num_agents'] == 1, 'Multi agent in one env under challenge scenarios not supported'
+        # if 'challenge' in self.config["scenarios"]:
+        #     assert self.config['num_agents'] == 1, 'Multi agent in one env under challenge scenarios not supported'
         if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
         self.ego_vehicle_list = [None] * self.config['num_agents']
         self.ego_agent_list = [None] * self.config['num_agents']
@@ -1058,7 +1058,8 @@ class CarlaEnv(gym.Env):
 
         if _upd_town != self.curr_town: # switch to a new town
             self._set_world_and_map(_upd_town)
-
+            if self.config['num_agents'] != 1: 
+                self.reset(rank_list=list(range(self.num_agents)), reset_npc=True)
 
     def get_control(self, agent, action):
         """ Get Control object for Carla from action
