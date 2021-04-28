@@ -647,6 +647,7 @@ class DPPO_Worker_Agent(object):
             self.local_env.ego_vehicle_list[i],
             glb_policy=self.local_policy, rank=i) for i in self.rank_list]
         self.local_env.reset_vehicle_agent(self.agent_list)
+        self.curr_town = self.local_env.curr_town
         self.local_env.step()
 
         avg_t_action, avg_t_step  = [], []
@@ -794,8 +795,22 @@ class DPPO_Worker_Agent(object):
                         self.local_env.ego_vehicle_list[rk],
                         glb_policy=self.local_policy, rank=rk,
                         memory=self.agent_list[rk].memory)
-                self.local_env.reset_vehicle_agent(
-                    [self.agent_list[rk] for rk in respawn_rank_list])
+                    if self.curr_town != self.local_env.curr_town: 
+                        break
+                if self.curr_town != self.local_env.curr_town:
+                    self.curr_town = self.local_env.curr_town
+                    # print('[662 PPO]', self.curr_town)
+                    self.local_env.reset(rank_list=self.rank_list)
+                    for rk in self.rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            self.local_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                    self.local_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in self.rank_list])
+                    self.local_env.scenario_index = 0
+                else:
+                    self.local_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in respawn_rank_list])
                 self.local_env.step()
 
     def test(self, videos=False):

@@ -1056,10 +1056,13 @@ class CarlaEnv(gym.Env):
         else:
             raise ValueError("Scenarios Config not set!")
 
-        if _upd_town != self.curr_town: # switch to a new town
-            self._set_world_and_map(_upd_town)
-            if self.config['num_agents'] != 1: 
-                self.reset(rank_list=list(range(self.num_agents)), reset_npc=True)
+        # if _upd_town != self.curr_town: # switch to a new town
+        #     print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+        #     if self.config['num_agents'] != 1:
+        #         # self.reset_env()
+        #         self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+        #     self._set_world_and_map(_upd_town)
+        return _upd_town
 
     def get_control(self, agent, action):
         """ Get Control object for Carla from action
@@ -1187,6 +1190,15 @@ class CarlaEnv(gym.Env):
         return self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list, reset_npc=reset_npc)
         # else:
         #     return self._reset(unseen, index)
+
+    def reset_env(self,):
+        self.destroy_all_existing_npc_actors()
+        self.destroy_all_existing_ego_agents()
+        self.ego_vehicle_list = [None] * self.config['num_agents']
+        self.ego_agent_list = [None] * self.config['num_agents']
+        self.curr_num_agents = 0
+        self.world_frame = 0
+        self.last_npc_reset_frame = 0
 
     def destroy_all_existing_npc_actors(self):
         # Delete all existing actors
@@ -1489,7 +1501,7 @@ class CarlaEnv(gym.Env):
                     if self.config["updated_scenarios"]:
                         self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
                     else:
-                        self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
+                        _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
                 else:
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -1500,6 +1512,17 @@ class CarlaEnv(gym.Env):
                     self.vehicle_actor = None
 
                 if self.vehicle_actor is not None:
+                    if _upd_town != self.curr_town: # switch to a new town
+                        print('[1511] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+                        # if self.config['num_agents'] != 1:
+                        #     for rk in range(self.config['num_agents']):
+                        #         if self.ego_agent_list[rk] is not None:
+                        #             print(self.ego_agent_list[rk], self.ego_agent_list[rk].rank)
+                        #             self.ego_agent_list[rk].done = True
+                            # self.reset_env()
+                        # self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+                        self.reset_env()
+                        self._set_world_and_map(_upd_town)
                     break
                 else:
                     print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
@@ -1806,4 +1829,4 @@ class CarlaEnv(gym.Env):
 if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     env = CarlaEnv()
-    env.reset()
+    env.reset_env()

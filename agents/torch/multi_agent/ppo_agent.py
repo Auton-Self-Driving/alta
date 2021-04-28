@@ -494,6 +494,8 @@ class PPO_Collective_Agent(object):
             self.glb_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
+        self.curr_town = self.glb_env.curr_town
+        # print('[498 PPO]', self.curr_town)
         self.glb_env.step()
 
         avg_t_action, avg_t_step  = [], []
@@ -653,8 +655,22 @@ class PPO_Collective_Agent(object):
                         self.glb_env.ego_vehicle_list[rk],
                         glb_policy=self.glb_policy, rank=rk,
                         memory=self.agent_list[rk].memory)
-                self.glb_env.reset_vehicle_agent(
-                    [self.agent_list[rk] for rk in respawn_rank_list])
+                    if self.curr_town != self.glb_env.curr_town: 
+                        break
+                if self.curr_town != self.glb_env.curr_town:
+                    self.curr_town = self.glb_env.curr_town
+                    # print('[662 PPO]', self.curr_town)
+                    self.glb_env.reset(rank_list=self.rank_list)
+                    for rk in self.rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            self.glb_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                    self.glb_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in self.rank_list])
+                    self.glb_env.scenario_index = 0
+                else:
+                    self.glb_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
     def test(self, videos=False):
@@ -1048,6 +1064,8 @@ class MultiPPO_Collective_Agent(object):
             env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list[env_id]]
         env.reset_vehicle_agent(self.agent_list[env_id])
+        self.curr_town = env.curr_town
+        print('[1052 MultiPPO]', self.curr_town)
         env.step()
 
         avg_t_action, avg_t_step  = [], []
@@ -1219,6 +1237,20 @@ class MultiPPO_Collective_Agent(object):
                         memory=self.agent_list[env_id][rk].memory)
                 env.reset_vehicle_agent(
                     [self.agent_list[env_id][rk] for rk in respawn_rank_list])
+                if self.curr_town != env.curr_town:
+                    self.curr_town = env.curr_town
+                    # print('[662 PPO]', self.curr_town)
+                    env.reset(rank_list=self.rank_list)
+                    for rk in self.rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                    env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in self.rank_list])
+                    env.scenario_index = 0
+                else:
+                    env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in respawn_rank_list])
                 env.step()
 
     def learn(self):
