@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0m1kupdstdoffchallenge',
+    'save_suffix': 'O10mL10mG0m1kupdstdoff',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -100,8 +100,8 @@ DPPO_CONFIG = {
 
 PPO_CONFIG = {
     'save_suffix': 'O10mL10mG0m1kupdstdoffchallenge',
-    # 'checkpoint': '',
-    'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2500000_Apr291005PM53.pth',
+    'checkpoint': '',
+    # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2500000_Apr291005PM53.pth',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',
@@ -232,7 +232,10 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptMultiPPO4x8_O10mL10mG0m56hupdFLreal_2100000_Mar260256PM52.pth',
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdstdoffFL_8055683_Apr061158PM56.pth',
     # 'checkpoint': './ckptDPPO1x5x8_O10mL10mG0m1kupdstdoff_9858694_Apr100115AM38.pth',
-    'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdstdoffFL_9791650_Apr070641AM30.pth',
+    # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdstdoffFL_9791650_Apr070641AM30.pth',
+    # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_3200000_May040920PM31.pth',
+    # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2800000_May031252PM39.pth',
+    'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2600000_May030330AM55.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -265,7 +268,7 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
     'num_envs': 4,
-    'num_agents': 1,
+    'num_agents': 8,
     'max_num_steps': 16000000,
     'device': 'cuda:3',
     'log_dir': '../../../../alta-logs/',
@@ -325,8 +328,8 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    # 'scenarios' : 'navigation',
-    'scenarios' : 'challenge_train_scenario',
+    'scenarios' : 'navigation',
+    # 'scenarios' : 'challenge_train_scenario',
     'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 600,

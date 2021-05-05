@@ -31,7 +31,7 @@ class SIG:
 
 
 class _DPPO_Individual_Agent(Agent):
-    def __init__(self, vehicle, glb_policy, timestamp=-1, 
+    def __init__(self, vehicle, glb_policy, timestamp=-1,
         rank=None, memory=None, **kwargs):
         """A local individual Distributed PPO agent.
         Args:
@@ -270,7 +270,7 @@ class DPPO_Server_Agent(object):
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
                 dist.isend(
-                    [self.glb_num_steps, self.glb_num_episodes, 
+                    [self.glb_num_steps, self.glb_num_episodes,
                     self.glb_policy_timestamp],
                     self.glb_policy.parameters(),
                     dst=sender, tag=SIG.PARAM
@@ -286,7 +286,7 @@ class DPPO_Server_Agent(object):
                             self.rank, self.glb_num_episodes, self.glb_num_steps,
                         ))
                         self.num_steps_since_update = 0
-                        print('TIMESTAMPS:', self.memory['timestamps'])
+                        print('TIMESTAMPS:', self.glb_policy_timestamp, self.memory['timestamps'])
                         self._update()
                         self.glb_policy_timestamp += 1
 
@@ -336,7 +336,7 @@ class DPPO_Server_Agent(object):
             batch_old_logprobs.append(_logprob)
         # print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
         upgrade = []
-        for r, s, a, prob, ts in zip(batch_rewards, batch_old_states, 
+        for r, s, a, prob, ts in zip(batch_rewards, batch_old_states,
             batch_old_actions, batch_old_logprobs, self.memory['timestamps']):
             r = torch.tensor(r, dtype=torch.float32).to(self.device)
             r = (r - r.mean()) / (r.std() + 1e-5)
@@ -362,15 +362,13 @@ class DPPO_Server_Agent(object):
             self.glb_optimizer.zero_grad()
             loss = loss.mean()
             loss.backward()
-            if self.grad_clip is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    self.glb_policy.parameters(), self.grad_clip)
-            param_grad = [item.grad for item in self.local_policy.parameters()]
+            param_grad = [item.grad for item in self.glb_policy.parameters()]
             vec_grad = parameters_to_vector(param_grad).detach()
             upgrade.append((self.glb_policy_timestamp, ts, loss.item(), vec_grad))
-            print(self.glb_policy_timestamp, ts, loss.item(), torch.norm(vec_grad))
-        cos_mat = [[F.cosine_similarity(i[-1],j[-1], dim=0) for x in upgrade] for j in upgrade]
-        print(cos_mat)
+            print(self.glb_policy_timestamp, ts, '{:.4f}, {:.4f}'.format(loss.item(), torch.norm(vec_grad).item()))
+        for i in range(len(upgrade)):
+            cos_mat = [float('{:.2f}'.format(F.cosine_similarity(upgrade[i][-1], j[-1], dim=0))) for j in upgrade[:i + 1]]
+            print(cos_mat)
         with open('grad_viz/{}.pkl'.format(self.glb_policy_timestamp), 'wb') as f:
             pickle.dump(upgrade, f)
 
@@ -425,77 +423,6 @@ class DPPO_Server_Agent(object):
 
         self.reset_memory()
 
-    # def _update(self):
-    #     rewards = []
-    #     old_states = []
-    #     old_actions = []
-    #     old_logprobs = []
-    #     # Monte Carlo estimate of rewards
-    #     discounted_reward = 0
-    #     for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'],
-    #         self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
-    #         agent_rewards = deque()
-    #         for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
-    #             if is_terminal:
-    #                 discounted_reward = 0
-    #             discounted_reward = reward + (self.gamma * discounted_reward)
-    #             agent_rewards.appendleft(discounted_reward)
-    #         rewards.extend(list(agent_rewards))
-    #         old_states.extend(_state)
-    #         old_actions.extend(_action)
-    #         old_logprobs.extend(_logprob)
-    #     # print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
-
-    #     # Normalizing the rewards:
-    #     # rewards = torch.tensor(rewards).to(device)
-    #     rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
-    #     rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
-    #     # print('rewards', rewards, rewards.shape)
-
-    #     # convert list to tensor
-    #     # print(old_states)
-    #     old_states = torch.tensor(old_states, dtype=torch.float32,
-    #         device=self.device).squeeze().detach()
-    #     # print(old_states.shape)
-    #     old_actions = torch.tensor(old_actions, dtype=torch.float32,
-    #         device=self.device).squeeze().detach()
-    #     old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
-    #         device=self.device).squeeze().detach()
-
-    #     # Optimize policy for K epochs:
-    #     for _ in range(self.optim_epochs):
-    #         # Evaluating old actions and values:
-    #         # print(old_states.shape)
-    #         logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-    #             old_states, old_actions)
-
-    #         # Finding the ratio (pi_theta / pi_theta__old):
-    #         ratios = torch.exp(logprobs - old_logprobs.detach())
-    #         # Finding Surrogate Loss:
-    #         # print('state_values', state_values.shape)
-    #         advantages = rewards - state_values.detach()
-    #         if self.focal_loss:
-    #             _al, _ga = self.focal_loss # assume a [alpha, gamma] list
-    #             _p = torch.exp(logprobs)
-    #             _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
-    #                 (_p * _ga * logprobs + _p - 1)
-    #             advantages = advantages * _focal_loss
-    #         surr1 = ratios * advantages
-    #         surr2 = torch.clamp(ratios, 1 - self.eps_clip,
-    #             1 + self.eps_clip) * advantages
-    #         loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
-    #             rewards) - 0.01 * dist_entropy
-
-    #         # take gradient step
-    #         self.glb_optimizer.zero_grad()
-    #         loss = loss.mean()
-    #         loss.backward()
-    #         if self.grad_clip is not None:
-    #             torch.nn.utils.clip_grad_norm_(
-    #                 self.glb_policy.parameters(), self.grad_clip)
-    #         self.glb_optimizer.step()
-
-    #     self.reset_memory()
 
     def test(self, videos=False):
         raise NotImplementedError
@@ -752,7 +679,7 @@ class DPPO_Worker_Agent(object):
 
     def update_parameters(self):
         self.vprint('rank', self.rank, 'update_parameters')
-        # overhead = [self.rank, self.num_steps_since_update, 
+        # overhead = [self.rank, self.num_steps_since_update,
         #     self.num_eps_since_update, SIG.PARAM_REQ]
         overhead = [self.rank, self.num_steps_since_update,
             self.num_eps_since_update, self.local_policy_timestamp, SIG.PARAM_REQ]
@@ -775,7 +702,7 @@ class DPPO_Worker_Agent(object):
         self.local_env.reset(rank_list=self.rank_list)
         self.local_env.spawn_npc_vehicles(51 - self.num_agents)
         self.agent_list = [_DPPO_Individual_Agent(
-            self.local_env.ego_vehicle_list[i],
+            self.local_env.ego_vehicle_list[i], timestamp=0,
             glb_policy=self.local_policy, rank=i) for i in self.rank_list]
         self.local_env.reset_vehicle_agent(self.agent_list)
         self.curr_town = self.local_env.curr_town
@@ -928,7 +855,7 @@ class DPPO_Worker_Agent(object):
                     for rk in self.rank_list:
                         self.agent_list[rk] = _DPPO_Individual_Agent(
                             self.local_env.ego_vehicle_list[rk],
-                            glb_policy=self.local_policy, 
+                            glb_policy=self.local_policy,
                             timestamp=self.local_policy_timestamp,
                             rank=rk, memory=None)
                     self.local_env.reset_vehicle_agent(
@@ -938,7 +865,7 @@ class DPPO_Worker_Agent(object):
                     for rk in respawn_rank_list:
                         self.agent_list[rk] = _DPPO_Individual_Agent(
                             self.local_env.ego_vehicle_list[rk],
-                            glb_policy=self.local_policy, 
+                            glb_policy=self.local_policy,
                             timestamp=self.local_policy_timestamp,
                             rank=rk, memory=self.agent_list[rk].memory)
                     self.local_env.reset_vehicle_agent(
