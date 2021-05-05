@@ -239,7 +239,7 @@ class DPPO_Server_Agent(object):
                 # num_steps_added, 'buffer_len', buffer_len, signal)
             if signal == SIG.GRAD_PUSH:
                 total_len = (self.N_S + self.N_A + 3) * buffer_len
-                _, vec_mem = dist.recv(self.recv_info_len, total_len, 
+                _, vec_mem = dist.recv(self.recv_info_len, total_len,
                     src=sender, tag=SIG.GRAD, device='cpu')
                 # disintegrate them into memories derived from buffer_len
                 _action = vec_mem[:self.N_A * buffer_len]
@@ -790,25 +790,23 @@ class DPPO_Worker_Agent(object):
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.local_env.reset(rank_list=respawn_rank_list)
                 # update agent list
-                for rk in respawn_rank_list:
-                    self.agent_list[rk] = _DPPO_Individual_Agent(
-                        self.local_env.ego_vehicle_list[rk],
-                        glb_policy=self.local_policy, rank=rk,
-                        memory=self.agent_list[rk].memory)
-                    if self.curr_town != self.local_env.curr_town: 
-                        break
                 if self.curr_town != self.local_env.curr_town:
                     self.curr_town = self.local_env.curr_town
                     # print('[662 PPO]', self.curr_town)
                     self.local_env.reset(rank_list=self.rank_list)
                     for rk in self.rank_list:
-                        self.agent_list[rk] = _PPO_Individual_Agent(
+                        self.agent_list[rk] = _DPPO_Individual_Agent(
                             self.local_env.ego_vehicle_list[rk],
-                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                            glb_policy=self.local_policy, rank=rk, memory=None)
                     self.local_env.reset_vehicle_agent(
                         [self.agent_list[rk] for rk in self.rank_list])
                     self.local_env.scenario_index = 0
                 else:
+                    for rk in respawn_rank_list:
+                        self.agent_list[rk] = _DPPO_Individual_Agent(
+                            self.local_env.ego_vehicle_list[rk],
+                            glb_policy=self.local_policy, rank=rk,
+                            memory=self.agent_list[rk].memory)
                     self.local_env.reset_vehicle_agent(
                         [self.agent_list[rk] for rk in respawn_rank_list])
                 self.local_env.step()

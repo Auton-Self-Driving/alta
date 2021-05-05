@@ -76,19 +76,20 @@ SAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0m1kupdstdoff',
+    'save_suffix': 'O10mL10mG0m1kupdstdoffchallenge',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
     'focal_loss': False,
     'standard': False,
-    'num_workers': 14,
+    'num_workers': 10,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 5,
-    'device_list': ['cuda:3'],
+    # 'device_list': ['cuda:1'],
     # 'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
+    'device_list': ['cuda:1', 'cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:0', 'cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
@@ -98,8 +99,9 @@ DPPO_CONFIG = {
 }
 
 PPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0m1kupd',
-    'checkpoint': '',
+    'save_suffix': 'O10mL10mG0m1kupdstdoffchallenge',
+    # 'checkpoint': '',
+    'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2500000_Apr291005PM53.pth',
     # 'checkpoint': './ckptPPOx6_5900000_Jan310143PM47.pth',
     # 'checkpoint': './ckptPPOx8_6000000_Feb010801AM56.pth',
     # 'checkpoint': './ckptPPOx6_tanh_300000_Feb040728PM49.pth',

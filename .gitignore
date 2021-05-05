@@ -149,3 +149,7 @@ AdelaiDet_model/*
 **/saved_logs
 # tensorboard logs
 **/tensorboard_logs
+
+# misc
+source_py35
+agents/tf/RUN.sh

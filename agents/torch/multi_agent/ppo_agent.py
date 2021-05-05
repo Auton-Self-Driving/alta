@@ -650,13 +650,6 @@ class PPO_Collective_Agent(object):
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.glb_env.reset(rank_list=respawn_rank_list)
                 # update agent list
-                for rk in respawn_rank_list:
-                    self.agent_list[rk] = _PPO_Individual_Agent(
-                        self.glb_env.ego_vehicle_list[rk],
-                        glb_policy=self.glb_policy, rank=rk,
-                        memory=self.agent_list[rk].memory)
-                    if self.curr_town != self.glb_env.curr_town: 
-                        break
                 if self.curr_town != self.glb_env.curr_town:
                     self.curr_town = self.glb_env.curr_town
                     # print('[662 PPO]', self.curr_town)
@@ -669,6 +662,11 @@ class PPO_Collective_Agent(object):
                         [self.agent_list[rk] for rk in self.rank_list])
                     self.glb_env.scenario_index = 0
                 else:
+                    for rk in respawn_rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            self.glb_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk,
+                            memory=self.agent_list[rk].memory)
                     self.glb_env.reset_vehicle_agent(
                         [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
@@ -1064,8 +1062,8 @@ class MultiPPO_Collective_Agent(object):
             env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list[env_id]]
         env.reset_vehicle_agent(self.agent_list[env_id])
-        self.curr_town = env.curr_town
-        print('[1052 MultiPPO]', self.curr_town)
+        curr_town = env.curr_town
+        # print('[1052 MultiPPO]', self.curr_town)
         env.step()
 
         avg_t_action, avg_t_step  = [], []
@@ -1229,28 +1227,26 @@ class MultiPPO_Collective_Agent(object):
                 if agent.done: respawn_rank_list.append(rk)
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 env.reset(rank_list=respawn_rank_list)
-                # update agent list
-                for rk in respawn_rank_list:
-                    self.agent_list[env_id][rk] = _PPO_Individual_Agent(
-                        env.ego_vehicle_list[rk],
-                        glb_policy=self.glb_policy, rank=rk,
-                        memory=self.agent_list[env_id][rk].memory)
-                env.reset_vehicle_agent(
-                    [self.agent_list[env_id][rk] for rk in respawn_rank_list])
-                if self.curr_town != env.curr_town:
-                    self.curr_town = env.curr_town
+                if curr_town != env.curr_town:
+                    curr_town = env.curr_town
                     # print('[662 PPO]', self.curr_town)
                     env.reset(rank_list=self.rank_list)
                     for rk in self.rank_list:
-                        self.agent_list[rk] = _PPO_Individual_Agent(
+                        self.agent_list[env_id][rk] = _PPO_Individual_Agent(
                             env.ego_vehicle_list[rk],
                             glb_policy=self.glb_policy, rank=rk, memory=None)
                     env.reset_vehicle_agent(
-                        [self.agent_list[rk] for rk in self.rank_list])
+                        [self.agent_list[env_id][rk] for rk in self.rank_list])
                     env.scenario_index = 0
                 else:
+                    # update agent list
+                    for rk in respawn_rank_list:
+                        self.agent_list[env_id][rk] = _PPO_Individual_Agent(
+                            env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk,
+                            memory=self.agent_list[env_id][rk].memory)
                     env.reset_vehicle_agent(
-                        [self.agent_list[rk] for rk in respawn_rank_list])
+                        [self.agent_list[env_id][rk] for rk in respawn_rank_list])
                 env.step()
 
     def learn(self):
