@@ -26,7 +26,8 @@ res = {'log_time': time.strftime('%b%d%I%M%p%S')}
 def launch_server(rank, resources):
     os.environ['RANK'] = str(rank)
 
-    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
+    # device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
+    device = ENV_CONFIG['device']
 
     # overriding carla device
     ENV_CONFIG['device'] = device
@@ -72,7 +73,7 @@ def launch_server(rank, resources):
 def launch_worker(rank, resources):
     os.environ['RANK'] = str(rank)
 
-    device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
+    device = DPPO_CONFIG['device_list'][(int(rank) - 1) % len(DPPO_CONFIG['device_list'])]
 
     # overriding carla device
     ENV_CONFIG['device'] = device
