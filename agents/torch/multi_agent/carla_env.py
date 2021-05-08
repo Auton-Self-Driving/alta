@@ -56,6 +56,153 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
+import detectron2
+from detectron2 import model_zoo
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+from detectron2.utils.visualizer import Visualizer
+from detectron2.data import MetadataCatalog, DatasetCatalog
+
+def get_front_car_distance(depth, outputs):
+    """
+    input: detectron2 one batch output
+    return: depth location of a car if there is one. -1 if there isn't 
+            Detectron2 Instance object of the car in front
+    """
+    #boxes that are cars
+    idx_class = outputs["instances"].to("cpu").pred_classes == 2
+    # print(outputs["instances"].pred_classes)
+    outputs["instances"] = outputs["instances"][idx_class]
+    # print(len(outputs["instances"]))
+    if len(outputs["instances"]) > 0:
+        boxes = outputs["instances"].to("cpu").pred_boxes
+        boxes = boxes.tensor.numpy()
+        #find boxes that intersect the center axis
+        idx_center = (boxes[:, 0] < 360) & (boxes[:, 2] > 240)
+        boxes = boxes[idx_center]
+        outputs["instances"] = outputs["instances"][idx_center]
+        if len(boxes) > 0:
+            #get the box that is closest to you in y direction
+            idx_proximity = np.argmin(boxes[:, 3])
+            outputs["instances"] = outputs["instances"][[idx_proximity]]
+            box = boxes[idx_proximity, :]
+            xmin, ymin, xmax, ymax = box
+            car_x = int((xmin + xmax)/2)
+            car_y = int((ymin + ymax)/2)
+            car_d = depth[car_y, car_x]
+            car_d = 1000 * (car_d[0] + car_d[1] * 256 + car_d[2] * 256 * 256) / (256 * 256 * 256 - 1)
+            print(car_d)
+            return car_d, outputs
+    print('no car')
+    return -1, outputs
+
+from collections import deque
+class PIDLongitudinalController:
+    """
+    PIDLongitudinalController implements longitudinal control using a PID.
+    """
+
+    def __init__(self, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
+        """
+        :param vehicle: actor to apply to local planner logic onto
+        :param K_P: Proportional term
+        :param K_D: Differential term
+        :param K_I: Integral term
+        :param dt: time differential in seconds
+        """
+        self._K_P = K_P
+        self._K_D = K_D
+        self._K_I = K_I
+        self._dt = dt
+        self._e_buffer = deque(maxlen=30)
+
+    def pid_control(self, target_speed, current_speed, enable_brake=False):
+        """
+        Estimate the throttle of the vehicle based on the PID equations
+        :param target_speed:  target speed in Km/h
+        :param current_speed: current speed of the vehicle in Km/h
+        :return: throttle control in the range [0, 1]
+        """
+        _e = (target_speed - current_speed)
+        self._e_buffer.append(_e)
+
+        if len(self._e_buffer) >= 2:
+            _de = (self._e_buffer[-1] - self._e_buffer[-2]) / self._dt
+            _ie = sum(self._e_buffer) * self._dt
+        else:
+            _de = 0.0
+            _ie = 0.0
+
+        if enable_brake:
+            throttle_min_clip = -1.0
+        else:
+            throttle_min_clip = 0.0
+
+        return np.clip((self._K_P * _e) + (self._K_D * _de / self._dt) + (self._K_I * _ie * self._dt),
+            throttle_min_clip, 1.0)
+
+class PIDLateralController:
+    """
+    PIDLateralController implements lateral control using a PID.
+    """
+    def __init__(self, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
+        """
+        :param K_P: Proportional term
+        :param K_D: Differential term
+        :param K_I: Integral term
+        :param dt: time differential in seconds
+        """
+        self._K_P = K_P
+        self._K_D = K_D
+        self._K_I = K_I
+        self._dt = dt
+        self._e_buffer = deque(maxlen=10)
+
+    def pid_control(self, target_transform, vehicle_transform):
+        """
+        Estimate the steering angle of the vehicle based on the PID equations
+        :param target_transform: target waypoint's transform (waypoint.transform)
+        :param vehicle_transform: current transform of the vehicle
+        :return: steering control in the range [-1, 1]
+        """
+        v_begin = vehicle_transform.location
+        v_end = v_begin + carla.Location(x=math.cos(math.radians(vehicle_transform.rotation.yaw)),
+                                         y=math.sin(math.radians(vehicle_transform.rotation.yaw)))
+
+        v_vec = np.array([v_end.x - v_begin.x, v_end.y - v_begin.y, 0.0])
+        w_vec = np.array([target_transform.location.x -
+                          v_begin.x, target_transform.location.y -
+                          v_begin.y, 0.0])
+        _dot = math.acos(np.clip(np.dot(w_vec, v_vec) /
+            (np.linalg.norm(w_vec) * np.linalg.norm(v_vec)), -1.0, 1.0))
+
+        _cross = np.cross(v_vec, w_vec)
+        if _cross[2] < 0:
+            _dot *= -1.0
+
+        self._e_buffer.append(_dot)
+        if len(self._e_buffer) >= 2:
+            _de = (self._e_buffer[-1] - self._e_buffer[-2]) / self._dt
+            _ie = sum(self._e_buffer) * self._dt
+        else:
+            _de = 0.0
+            _ie = 0.0
+
+        return np.clip((self._K_P * _dot) + (self._K_D * _de /
+            self._dt) + (self._K_I * _ie * self._dt), -1.0, 1.0)
+
+
+class PIDController:
+    def __init__(self, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
+        self.longitudinal = PIDLongitudinalController(K_P, K_D, K_I, dt)
+        self.lateral = PIDLateralController(K_P, K_D, K_I, dt)
+
+    def pid_control(self, target_transform, vehicle_transform, target_speed, current_speed, enable_brake=False):
+        """ Retrun [steer, throttle] pair
+        """
+        steer = self.lateral.pid_control(target_transform, vehicle_transform)
+        throttle = self.longitudinal.pid_control(target_speed, current_speed, enable_brake)
+        return [steer, throttle]
 
 class CarlaEnv(gym.Env):
     def __init__(self, config, logger=None, env_rank=0):
@@ -91,10 +238,15 @@ class CarlaEnv(gym.Env):
         self.total_collisions = 0
         self.total_distance = 0
         self.traffic_light_violations = 0
+        # self.args_longitudinal_dict = {
+        #     'K_P': 0.1,
+        #     'K_D': 0.0005,
+        #     'K_I': 0.4,
+        #     'dt': 1/10.0}
         self.args_longitudinal_dict = {
-            'K_P': 0.1,
-            'K_D': 0.0005,
-            'K_I': 0.4,
+            'K_P': 1,
+            'K_D': 1,
+            'K_I': 0.1,
             'dt': 1/10.0}
         self.actor_list = []
 
@@ -107,6 +259,17 @@ class CarlaEnv(gym.Env):
             K_D=self.args_longitudinal_dict['K_D'],
             K_I=self.args_longitudinal_dict['K_I'],
             dt=self.args_longitudinal_dict['dt'])
+
+        # self.controller = PIDController()
+
+        cfg = get_cfg()
+        # add project-specific config (e.g., TensorMask) here if you're not running a model in detectron2's core library
+        cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5  # set threshold for this model
+        # Find a model from detectron2's model zoo. You can use the https://dl.fbaipublicfiles... url as well
+        cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+        self.predictor = DefaultPredictor(cfg)
+
 
         # Start Carla Server
         serverStarted = False
@@ -169,7 +332,7 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
         # TODO: Verify the limits and bounds of observation spaces
-        if self.config["action_type"] == 'merged_gas':
+        if self.config["action_type"] in ['merged_gas', 'kdc']:
             # Streer, Throttle
             self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
         elif self.config["action_type"] == 'merged_speed':
@@ -190,7 +353,8 @@ class CarlaEnv(gym.Env):
             # Discrete actions
             self.action_space = Discrete(len(self.config['discrete_actions']))
 
-        if self.config["input_type"] == 'wp':
+        # if self.config["input_type"] == 'wp':
+        if self.config["input_type"] in ['wp', 'kdc']:
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
 
         elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
@@ -395,7 +559,7 @@ class CarlaEnv(gym.Env):
             light = agent.episode_measurements['red_light_dist']
 
             # normalization
-
+            # if obstacle_dist != -1 and obstacle_dist < 15: agent.target_speed = 0
             if obstacle_dist != -1:
                 obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
             else:
@@ -410,6 +574,7 @@ class CarlaEnv(gym.Env):
                 light /= self.config['traffic_light_proximity_threshold']
             else:
                 light = self.config['default_obs_traffic_val']
+
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
 
@@ -708,7 +873,7 @@ class CarlaEnv(gym.Env):
                 # agent.episode_measurements['next_orientation'] = next_orientation
                 # agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
                 # agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
-
+                # agent.target_speed = 20
                 self._get_ego_input(agent)
 
                 agent.step_reward = compute_reward(name=self.config['reward_function'],
@@ -883,9 +1048,23 @@ class CarlaEnv(gym.Env):
         #     print('obstacle actor {}, dist: {}'.format(target_vehicle, distance))
 
     def _update_obs_detector_via_sensor(self, agent):
+        # found_obstacle = False
+        # if hasattr(agent, 'depth_image'):
+        #     # depth = (agent.depth_image[0] + agent.depth_image[1] * 256 + agent.depth_image[2] * 256 * 256) / (256 * 256 * 256 - 1)
+        #     # depth = depth * 1000
+        #     # print(agent.rgb_image.shape)
+        #     outputs = self.predictor(agent.rgb_image)
+        #     distance, outputs = get_front_car_distance(agent.depth_image, outputs)
+        #     if distance != -1:
+        #         found_obstacle = True
+        #         agent.episode_measurements['obstacle_visible'] = True
+        #         agent.episode_measurements['obstacle_dist'] = distance
+        #         agent.episode_measurements['obstacle_speed'] = 0
+        #         agent.episode_measurements['obstacle_init_dist'] = 100
+        #         agent.episode_measurements['obstacle_init_id'] = 100
+
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
-
         found_obstacle = False
         same_lane = True
         if agent.obstacle_sensor.frame == self.world_frame:
@@ -923,7 +1102,6 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane, found_obstacle))
 
         if not found_obstacle:
-        # if not found_obstacle:
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
@@ -984,6 +1162,7 @@ class CarlaEnv(gym.Env):
             # print('[agent {} init {}] traffic light info'.format(
             #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
+        # if found_redlight: agent.target_speed = 0
         agent.episode_measurements['dist_to_light'] = dist
         # print('[agent {} init {}] traffic light info'.format(
         #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
@@ -1168,6 +1347,19 @@ class CarlaEnv(gym.Env):
             target_speed = -1
             agent.episode_measurements["target_speed"] = target_speed
             return action
+        elif self.config["action_type"] == "kdc":
+            curr_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            target_speed = agent.target_speed
+            # print(agent.target_speed)
+            # print(agent.next_waypoints, agent.next_waypoints[0], type(agent.next_waypoints))
+            target_tsfm = agent.next_waypoints[0].transform
+            curr_tsfm = agent.vehicle_actor.get_transform()
+            # print(target_tsfm, curr_tsfm)
+            steer, throttle = self.controller.pid_control(target_tsfm, curr_tsfm, target_speed, curr_speed, enable_brake=True)
+            brake = 0
+            if throttle < 0:
+                throttle = 0.0
+                brake = abs(throttle)
 
         agent.episode_measurements["target_speed"] = target_speed
 
@@ -1302,6 +1494,8 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_init_id'] = -1
 
             agent.rv_camera_queue = queue.Queue()
+            agent.depth_camera_queue = queue.Queue()
+            agent.rgb_camera_queue = queue.Queue()
 
             agent.actor_list = []
             agent.target_speeds_array = []
@@ -1334,12 +1528,50 @@ class CarlaEnv(gym.Env):
             rv_camera.set_attribute('fov', '90')
 
             # Orientation for forward-facing camera
-            rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            # rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            rv_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
             agent.rv_camera_actor = self._world.spawn_actor(rv_camera, rv_camera_transform, attach_to=agent.vehicle_actor)
             agent.actor_list.append(agent.rv_camera_actor)
 
             agent.rv_camera_actor.listen(agent.rv_camera_queue.put)
+
+            depth_camera = self.blueprint_library.find('sensor.camera.depth')
+            # depth_camera.set_attribute('image_size_x', '480')
+            # depth_camera.set_attribute('image_size_y', '640')
+            depth_camera.set_attribute('image_size_x', '1')
+            depth_camera.set_attribute('image_size_y', '1')
+            depth_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+            # depth_camera.set_attribute('fov', '120')
+            depth_camera.set_attribute('fov', '90')
+
+            # Orientation for forward-facing camera
+            depth_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            # rv_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+
+            agent.depth_camera_actor = self._world.spawn_actor(depth_camera, depth_camera_transform, attach_to=agent.vehicle_actor)
+            agent.actor_list.append(agent.depth_camera_actor)
+
+            agent.depth_camera_actor.listen(agent.depth_camera_queue.put)
+
+
+            rgb_camera = self.blueprint_library.find(sensor)
+            # rgb_camera.set_attribute('image_size_x', '480')
+            # rgb_camera.set_attribute('image_size_y', '640')
+            rgb_camera.set_attribute('image_size_x', '1')
+            rgb_camera.set_attribute('image_size_y', '1')
+            rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+            # rgb_camera.set_attribute('fov', '120')
+            rgb_camera.set_attribute('fov', '90')
+
+            # Orientation for forward-facing camera
+            rgb_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            # rv_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
+
+            agent.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=agent.vehicle_actor)
+            agent.actor_list.append(agent.rgb_camera_actor)
+
+            agent.rgb_camera_actor.listen(agent.rgb_camera_queue.put)
 
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)
@@ -1378,6 +1610,8 @@ class CarlaEnv(gym.Env):
 
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
+        rgb_image = self._read_data(agent.rgb_camera_queue, self.world_frame)[:, :, ::-1]
+        depth_image = self._read_data(agent.depth_camera_queue, self.world_frame)
 
         # agent.global_planner = planner.GlobalPlanner()
 
@@ -1411,6 +1645,14 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         obs = {}
+
+        obs['rv_image'] = agent.rv_image = rv_image
+        obs['rgb_image'] = agent.rgb_image = rgb_image
+        # self.save_rgb_image(agent, rgb_image[:, :, ::-1], save_folder='~/Desktop/rgb_iamge')
+        obs['depth_image'] = agent.depth_image = depth_image
+        # self.save_rgb_image(agent, depth_image[:, :, ::-1], save_folder='~/Desktop/depth_iamge')
+        # self.save_rgb_image(agent, rv_image)
+
         # self._update_env_obs(front_rgb_image=rgb_image)
         self._update_env_obs(agent)
 
@@ -1424,9 +1666,6 @@ class CarlaEnv(gym.Env):
 
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs(agent)
-
-        obs['rv_image'] = agent.rv_image = rv_image
-        # self.save_rgb_image(agent, rv_image)
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([agent.episode_measurements['distance_to_goal']])

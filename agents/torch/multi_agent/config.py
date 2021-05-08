@@ -279,8 +279,8 @@ ENV_CONFIG = {
     'render_res_x' : 800,
     # Y Rendering Resolution
     'render_res_y' : 800,
-    'sensor_x_res' : '1',
-    'sensor_y_res' : '1',
+    'sensor_x_res' : '400',
+    'sensor_y_res' : '800',
     # Input X Res (Default set to Atari)
     'x_res': 84,
     # Input Y Res (Default set to Atari)
@@ -318,7 +318,8 @@ ENV_CONFIG = {
     'target_speed': 20,
     'sensors': ['sensor.camera.rgb', 'sensor.camera.semantic_segmentation'],
     # 'action_type': 'discrete',
-    'action_type': 'merged_speed_scaled_tanh',
+    # 'action_type': 'merged_speed_scaled_tanh',
+    'action_type': 'kdc',
     # 'action_type': 'merged_speed',
     'sensor_tick': '0.0',
     'dist_for_success' : 10.0,
