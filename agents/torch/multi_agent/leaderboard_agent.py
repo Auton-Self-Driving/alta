@@ -3,12 +3,13 @@
 import os
 import carla
 import torch
+import pyproj
 
 from collections import deque
 import numpy as np
 
-from agents.navigation.basic_agent import BasicAgent
-import environment.carla_9_4.planner as planner
+from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
+from environment.carla_9_4.planner import GlobalPlanner
 from network import PPOActorCritic_Continuous
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -24,6 +25,21 @@ def get_entry_point():
 
 ENV_CONFIG.update(TEST_CONFIG)
 N_S, N_A = 11, 2
+
+def _latlon_to_ecef(lat,lon,alt):
+    # Projections
+    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
+    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+
+    # Transform from lat/lon to ecef
+    x,y,z= pyproj.transform(p1=lla,
+        p2 = ecef,
+        x = lon,
+        y = lat,
+        z = alt,
+        radians=False)
+
+    return x, y, z
 
 def get_world_coords_from_latlong(latitude, longitude, altitude, world_map):
     origin_latlong = world_map.transform_to_geolocation(carla.Location())
@@ -126,8 +142,8 @@ class PPOAgent(AutonomousAgent):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.glb_policy = PPOActorCritic_Continuous(11, 2).to(ENV_CONFIG['device'])
-        _ckpt = torch.load(TEST_CONFIG['checkpoint'], map_location='cpu')
+        self.glb_policy = PPOActorCritic_Continuous(8, 2).to(ENV_CONFIG['device'])
+        _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
         self.glb_policy.load_state_dict(_ckpt['glb_policy'])
         self.target_speed = 20
         self.args_longitudinal_dict = {
@@ -149,6 +165,7 @@ class PPOAgent(AutonomousAgent):
         self.track = Track.MAP
         self._route_assigned = False
         self._agent = None
+        self.previous_steer = 0
 
 
     def _configure_planner(self, map_string):
@@ -157,17 +174,26 @@ class PPOAgent(AutonomousAgent):
         # Instantiate the global planner
         self.scenario_route = convert_route_from_GPS_world(self._global_plan, self._map)
 
-        self.global_planner = planner.GlobalPlanner()
+        self.global_planner = GlobalPlanner()
         self.trace_route = []
         for idx in range(len(self.scenario_route) - 1):
             source = self.scenario_route[idx]
             destination = self.scenario_route[idx+1]
-            trace_route = self.global_planner._trace_route(self._map,
+            trace_route = self.global_planner.trace_route(self._map,
                             source, destination)
             self.trace_route.extend(trace_route)
 
         self.global_planner.set_global_plan(self.trace_route)
 
+    def _get_vehicle_transform(self, gnss_reading, imu_reading):
+        # Convert to x,y,z
+        #world_coords = get_world_coords_from_latlong(gnss_reading.latitude, gnss_reading.longitude, gnss_reading.altitude)
+        world_coords = get_world_coords_from_latlong(gnss_reading[0], gnss_reading[1], gnss_reading[2], self._map)
+
+        x,y,z = world_coords[0][0], world_coords[1][0], world_coords[2][0]
+
+        # Construct transform
+        return carla.Transform(carla.Location(x = x, y = y, z = z), carla.Rotation(yaw = imu_reading[-1]))
 
     def sensors(self):
         sensors = [{'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
@@ -187,6 +213,10 @@ class PPOAgent(AutonomousAgent):
         mean_angle, ldist, distance_to_goal_trajec, _, _, _ = self.global_planner.get_next_orientation_new(vehicle_transform)
         return mean_angle, ldist, distance_to_goal_trajec
 
+    def cosine_between_velocities(self, v1, v2):
+        return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / \
+            (self.get_speed_from_velocity(v1) * self.get_speed_from_velocity(v2) + 1e-6)
+
     def preprocess_inputs(self, input_data):
         input_data['IMU'][1][-1] = (input_data['IMU'][1][-1]*(180/np.pi))
         if input_data['IMU'][1][-1]>180:
@@ -204,25 +234,28 @@ class PPOAgent(AutonomousAgent):
         lights_list = actor_list.filter("*traffic_light*")
 
         # obstacles
-        vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
+        vehicle_state, vehicle = self._agent._is_vehicle_hazard(vehicle_list)
         if vehicle_state:
-            processed_input['obstacle_dist'] = vehicle.get_location().distance(self._agent.get_location()) / 15
+            _dist = vehicle.get_location().distance(self._agent._vehicle.get_location())
+            processed_input['obstacle_dist'] = _dist / 15
+            print('obstacle', _dist)
             # if hasattr(vehicle, 'get_velocity'):
-            cos = self.cosine_between_obs(vehicle.get_velocity(), self._agent._vehicle.get_velocity())
+            cos = self.cosine_between_velocities(vehicle.get_velocity(), self._agent._vehicle.get_velocity())
             if cos < 0: cos = 0.
-            processed_input['obstacle_speed'] = self.get_speed_from_velocity(vehicle.get_velocity()) * cos
+            processed_input['obstacle_speed'] = self.get_speed_from_velocity(vehicle.get_velocity()) * cos / 20
             # cos = self.cosine_between_velocities(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
             # print('API test COS', cos)
         else:
-            processed_input['obstacle_dist'] = -1
-            processed_input['obstacle_speed'] = -1
+            processed_input['obstacle_dist'] = 1
+            processed_input['obstacle_speed'] = 1
         # traffic light
         light_state, traffic_light = self._agent._is_light_red(lights_list)
         if light_state:
-            light_dist = traffic_light.get_location().distance(self._agent.get_location())
+            light_dist = traffic_light.get_location().distance(self._agent._vehicle.get_location())
+            print('red light', light_dist)
             processed_input['light_dist'] = light_dist / 15
         else:
-            processed_input['light_dist'] = -1
+            processed_input['light_dist'] = 1
 
 
         vehicle_transform = self._get_vehicle_transform(input_data["GPS"][1], input_data['IMU'][1])
@@ -243,12 +276,13 @@ class PPOAgent(AutonomousAgent):
         ldist = inputs['ldist']
         distance_to_goal_trajec = inputs['distance_to_goal_trajec']        
 
-        obstacle_dist = 0
-        obstacle_speed = 0
-
         steer = inputs['steer']
-        speed = inputs['speed']
+        speed = inputs['speed'] / 10
+        # print(speed)
         light = inputs['light_dist']
+
+        obstacle_dist = inputs['obstacle_dist']
+        obstacle_speed = inputs['obstacle_speed']
 
         state = np.concatenate((np.array([mean_angle]), \
             np.array([obstacle_dist]), \
@@ -259,8 +293,10 @@ class PPOAgent(AutonomousAgent):
             np.array([distance_to_goal_trajec]), \
             np.array([light])))
 
-        state_tensor = torch.from_numpy(state).to(torch.float).to(self.device)
-        action, _ = self.global_policy.act(state_tensor, deterministic=True)
+        state_tensor = torch.from_numpy(state).to(torch.float).to(ENV_CONFIG['device'])
+        action, _ = self.glb_policy.act(state_tensor, deterministic=True)
+
+        self.previous_steer = action[0]
 
         return action
 
@@ -277,11 +313,13 @@ class PPOAgent(AutonomousAgent):
         """
         steer = np.clip(float(action[0]), -1.0, 1.0)
         target_speed = (action[1] * 1.5) + 1
-        target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
+        # print('action[1]', action[1], 'target_speed', target_speed)
+        target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
 
         # TODO: Need to replace this once we get to know how to extract agent's current velocity from IMU/speedometer sensors
         #current_speed = self.get_speed_from_velocity(input_data['SPEED'][1]['speed']) * 3.6
-        current_speed = input_data['SPEED'][1]['speed']*  3.6
+        # current_speed = input_data['SPEED'][1]['speed'] *  3.6
+        current_speed = input_data['SPEED'][1]['speed'] * 3.6
 
         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=True)
         if gas < 0:
@@ -317,16 +355,17 @@ class PPOAgent(AutonomousAgent):
                     hero_actor = actor
                     break
             if hero_actor:
+                # self._agent = BasicAgent(hero_actor)
                 self._agent = BasicAgent(hero_actor, proximity_threshold=15.)
 
 
         preprocess_inputs = self.preprocess_inputs(input_data)
-        print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'], 
-            preprocess_inputs['steer'], preprocess_inputs['speed']])
+        # print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'], 
+            # preprocess_inputs['steer'], preprocess_inputs['speed']])
         # if(self.ctr%200==0):
         #     st()
         action = self.get_action(preprocess_inputs)
-        print(action[0])
-        control = self.get_control(input_data, action[0])
+        # print(action[0])
+        control = self.get_control(input_data, action)
         return control
 

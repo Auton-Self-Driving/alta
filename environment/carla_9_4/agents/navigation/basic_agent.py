@@ -23,7 +23,7 @@ class BasicAgent(Agent):
     target destination. This agent respects traffic lights and other vehicles.
     """
 
-    def __init__(self, vehicle, proximity_threshold=10.0, target_speed=20):
+    def __init__(self, vehicle, proximity_threshold=15.0, target_speed=20):
         """
 
         :param vehicle: actor to apply to local planner logic onto

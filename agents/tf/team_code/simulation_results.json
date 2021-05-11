@@ -10,6 +10,13 @@
     "eligible": "",
     "entry_status": "",
     "labels": [],
-    "sensors": [],
+    "sensors": [
+        "carla_camera",
+        "carla_camera",
+        "carla_gnss",
+        "carla_imu",
+        "carla_opendrive_map",
+        "carla_speedometer"
+    ],
     "values": []
 }
