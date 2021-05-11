@@ -270,7 +270,7 @@ ENV_CONFIG = {
     'num_envs': 4,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:3',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
