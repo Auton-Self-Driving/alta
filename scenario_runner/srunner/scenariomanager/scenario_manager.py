@@ -119,7 +119,7 @@ class ScenarioManager(object):
         self.start_system_time = time.time()
         start_game_time = GameTime.get_time()
 
-        self._watchdog.start()
+        # self._watchdog.start()
         self._running = True
 
         while self._running:
@@ -132,7 +132,7 @@ class ScenarioManager(object):
             if timestamp:
                 self._tick_scenario(timestamp)
 
-        self._watchdog.stop()
+        # self._watchdog.stop()
 
         self.cleanup()
 
@@ -155,7 +155,7 @@ class ScenarioManager(object):
         if self._timestamp_last_run < timestamp.elapsed_seconds and self._running:
             self._timestamp_last_run = timestamp.elapsed_seconds
 
-            self._watchdog.update()
+            # self._watchdog.update()
 
             if self._debug_mode:
                 print("\n--------- Tick ---------\n")
@@ -190,6 +190,7 @@ class ScenarioManager(object):
            bool:  False if watchdog exception occured, True otherwise
         """
         return self._watchdog.get_status()
+        # return True
 
     def stop_scenario(self):
         """
