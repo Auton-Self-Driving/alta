@@ -11,7 +11,8 @@ export PYTHONPATH=$PYTHONPATH:$ALTA
 export PYTHONPATH=$PYTHONPATH:$ALTA/AdelaiDet
 
 export SCENARIOS=$LEADERBOARD_ROOT/data/all_towns_traffic_scenarios_public.json
-export ROUTES=$LEADERBOARD_ROOT/data/routes_devtest.xml
+# export ROUTES=$LEADERBOARD_ROOT/data/routes_devtest.xml
+export ROUTES=$LEADERBOARD_ROOT/data/routes_testing.xml
 export REPETITIONS=1
 # export CHALLENGE_TRACK_CODENAME=MAP
 export CHALLENGE_TRACK_CODENAME=MAP

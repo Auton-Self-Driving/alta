@@ -4,6 +4,7 @@ import os
 import carla
 import torch
 import pyproj
+import time
 
 from collections import deque
 import numpy as np
@@ -16,6 +17,8 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 
 from config import ENV_CONFIG, TEST_CONFIG
+
+from environment.carla_9_4.dashcam import Visualizer
 
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
@@ -136,12 +139,20 @@ class PIDLongitudinalController():
         return np.clip((self._K_P * _e) + (self._K_D * _de / self._dt) + (self._K_I * _ie * self._dt), throttle_min_clip, 1.0)
 
 
+episode = -1
+savetime = lambda: time.strftime('%b%d%I%M%p%S')
+vid_log_dir = '{}/{}_{}'.format('./video_logs',
+    'LDB_test', savetime())
+sub_folder = None
+videos = True
+
+
 class PPOAgent(AutonomousAgent):
     _agent = None
     _route_assigned = False
-    
+        
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        global episode, savetime, videos, sub_folder, vid_log_dir
         self.glb_policy = PPOActorCritic_Continuous(8, 2).to(ENV_CONFIG['device'])
         _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
         self.glb_policy.load_state_dict(_ckpt['glb_policy'])
@@ -156,17 +167,33 @@ class PPOAgent(AutonomousAgent):
             K_D=self.args_longitudinal_dict['K_D'], 
             K_I=self.args_longitudinal_dict['K_I'], 
             dt=self.args_longitudinal_dict['dt'],)
-        self.ctr = 0
+        if videos: 
+            self.viz = Visualizer(images_path=vid_log_dir, video_path=vid_log_dir)
+        # have to put init at last since it will call self.setup first
+        super().__init__(*args, **kwargs)
+
 
     def setup(self, path_to_conf_file):
         """
         Setup the agent parameters
         """
+        global episode, savetime, videos, sub_folder, vid_log_dir
         self.track = Track.MAP
         self._route_assigned = False
         self._agent = None
         self.previous_steer = 0
+        self.steps = 0
+        if videos and episode >= 0:
+            self.viz.generate_video(sub_folder)
+            self.viz.remove_images(sub_folder)
+        episode += 1
+        sub_folder ='ep{}'.format(episode)
 
+    def _preprocess_image(self, image):
+        #array = np.reshape(array, (image.shape[0], image.shape[1], 4))
+        image = image[:, :, :3]     # BGR
+        image = image[:, :, ::-1]   # RGB
+        return image
 
     def _configure_planner(self, map_string):
         self._map = carla.Map("map", map_string)
@@ -199,7 +226,7 @@ class PPOAgent(AutonomousAgent):
         sensors = [{'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
             'width': 128, 'height': 128, 'fov': 100, 'id': 'Center'},
             {'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-            'width': 512, 'height': 512, 'fov': 100, 'id': 'Center_high_res'},
+            'width': 800, 'height': 400, 'fov': 100, 'id': 'Center_high_res'},
             {'type': 'sensor.other.gnss', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'id': 'GPS'},
             {'type': 'sensor.other.imu', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0,
              'yaw': -90.0, 'id': 'IMU'}, 
@@ -267,6 +294,7 @@ class PPOAgent(AutonomousAgent):
         processed_input['distance_to_goal_trajec'] = processed_input['distance_to_goal_trajec'] / 500 # to match env.py preproc
         
         processed_input['steer'] = self.previous_steer
+        # processed_input['speed'] = input_data['SPEED'][1]['speed'] * 3.6
         processed_input['speed'] = input_data['SPEED'][1]['speed']
 
         return processed_input
@@ -317,9 +345,9 @@ class PPOAgent(AutonomousAgent):
         target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
 
         # TODO: Need to replace this once we get to know how to extract agent's current velocity from IMU/speedometer sensors
-        #current_speed = self.get_speed_from_velocity(input_data['SPEED'][1]['speed']) * 3.6
-        # current_speed = input_data['SPEED'][1]['speed'] *  3.6
-        current_speed = input_data['SPEED'][1]['speed'] * 3.6
+        # current_speed = self.get_speed_from_velocity(input_data['SPEED'][1]['speed']) * 3.6
+        current_speed = input_data['SPEED'][1]['speed'] *  3.6
+        # current_speed = input_data['SPEED'][1]['speed']
 
         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=True)
         if gas < 0:
@@ -347,7 +375,8 @@ class PPOAgent(AutonomousAgent):
         return control
 
     def run_step(self, input_data, timestamp):
-        self.ctr += 1
+        global episode, savetime, videos, sub_folder, vid_log_dir
+        self.steps += 1
         if not self._agent:
             hero_actor = None
             for actor in CarlaDataProvider.get_world().get_actors():
@@ -360,6 +389,9 @@ class PPOAgent(AutonomousAgent):
 
 
         preprocess_inputs = self.preprocess_inputs(input_data)
+        if videos: 
+            high_res_rgb = self._preprocess_image(input_data['Center_high_res'][1])
+            self.viz.save_image(high_res_rgb, sub_folder=sub_folder)
         # print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'], 
             # preprocess_inputs['steer'], preprocess_inputs['speed']])
         # if(self.ctr%200==0):
