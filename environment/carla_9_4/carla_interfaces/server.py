@@ -35,7 +35,7 @@ class CarlaServer():
         self.launch_command = [
                 self.server_binary, "-carla-rpc-port={}".format(self.server_port)
         ]
-        self.start()
+        # self.start()
 
 
     def _attempt_server_launch(self):
