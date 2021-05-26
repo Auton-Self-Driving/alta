@@ -6,6 +6,8 @@ import random
 import time
 from environment.carla_9_4.config import DEFAULT_ENV
 
+from tqdm import tqdm
+
 class CarlaServer():
     def __init__(self, config=None):
         # print("Launching CARLA server...")
@@ -39,6 +41,8 @@ class CarlaServer():
 
 
     def _attempt_server_launch(self):
+
+        # import ipdb; ipdb.set_trace()
         # Try to launch
         print("Attempting to start carla on GPU {0}".format(self.carla_gpu))
         try:
@@ -53,10 +57,14 @@ class CarlaServer():
         # Return true if success
         if self.server_process:
             print("Launched server at port:", self.server_port)
+
+            print('Waiting 60s for server to finish setting up')
+            for _ in tqdm(range(20)):
+                time.sleep(1)
+
             return True
 
-        print('Waiting for server to finish setting up')
-        time.sleep(20)
+
 
 
         return False

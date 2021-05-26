@@ -70,7 +70,7 @@ DEFAULT_ENV = {
     "preprocess_crop_image": False,
     "scenarios" : "straight",
     "semantic" : False,
-    "client_timeout_seconds" : 600,
+    "client_timeout_seconds" : 10,
     "enable_lane_invasion_sensor" : True,
     "carla_gpu": "0",
     "render_server": True,

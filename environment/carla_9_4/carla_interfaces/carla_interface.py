@@ -1,7 +1,7 @@
 import environment.carla_9_4.scenarios as scenarios
 from environment.carla_9_4.carla_interfaces.server import CarlaServer
 from environment.carla_9_4 import planner
-from environment.carla_9_4.carla_interfaces.actor_manager import ActorManager910
+from environment.carla_9_4.carla_interfaces.actor_manager import ActorManager910, ActorManager910_Leaderboard
 from abc import ABC
 import time
 import random
@@ -85,7 +85,6 @@ class Carla910Interface():
         print("server_version", self.client.get_server_version())
 
     def _spawn_client(self, hostname='localhost', port_number=None):
-        #TODO switch back to getting port from server
         port_number = self.server.server_port
         client = carla.Client(hostname, port_number)
         client.set_timeout(self.config["client_timeout_seconds"])
@@ -358,7 +357,7 @@ class Carla910Interface_Leaderboard:
         self.spawn_points = self.world.get_map().get_spawn_points()
 
         # Instantiate a vehicle manager to handle other actors
-        self.actor_fleet = ActorManager910(self.config, self.client, self.log_dir)
+        self.actor_fleet = ActorManager910_Leaderboard(self.config, self.client, self.log_dir)
 
         # Get traffic lights
         self.traffic_actors = self.world.get_actors().filter("*traffic_light*")
@@ -436,11 +435,11 @@ class Carla910Interface_Leaderboard:
             self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "challenge_train_scenario":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
-                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"], 
+                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
                 avail_map_list=self.avail_map.keys(), mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town  = scenarios.get_leaderboard_route(
-                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"], 
+                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
                 avail_map_list=self.avail_map.keys(), mode='test')
             # route = scenarios.get_test_route()
 
@@ -449,7 +448,7 @@ class Carla910Interface_Leaderboard:
             # self.destination_transform = self.scenario_route[-1]
         else:
             raise ValueError("Scenarios Config not set!")
-        
+
         if _upd_town != town: # switch to a new town
             self._set_world_and_map(_upd_town)
             # self.reset()
