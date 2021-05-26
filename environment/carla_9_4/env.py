@@ -32,15 +32,6 @@ sys.path.append("/home/swapnil/important_things/auton/alta")
 import ae.util as util
 from ae.util import *
 
-# import yaml
-# import pickle
-# from scipy.interpolate import interp1d
-# import torch
-# from detectron2.config import CfgNode
-# from detectron2.checkpoint import DetectionCheckpointer
-# from detectron2.engine.defaults import DefaultPredictor
-# from AdelaiDet.tools.train_net import Trainer
-
 # Carla imports
 import environment.carla_9_4.scenarios as scenarios
 from environment.carla_9_4.carla_interfaces.server import CarlaServer
@@ -56,6 +47,7 @@ from environment.carla_9_4.config import DEFAULT_ENV, DISCRETE_ACTIONS, episode_
 from environment.carla_9_4.carla_interfaces.carla_interface import Carla910Interface, Carla910Interface_Leaderboard
 
 from environment.carla_9_4 import env_util as util
+
 
 try:
     import carla
@@ -90,25 +82,9 @@ class CarlaEnv(gym.Env):
         # Elements connected to car
         ################################################
 
-        # self.vehicle_actor = None
-        #TODO Move to actor manager
-        # self.target_speed = self.config['target_speed']
-        # self.args_longitudinal_dict = {
-        #     'K_P': 0.1,
-        #     'K_D': 0.0005,
-        #     'K_I': 0.4,
-        #     'dt': 1/10.0}
-        # self.controller = controller.PIDLongitudinalController(K_P=self.args_longitudinal_dict['K_P'], K_D=self.args_longitudinal_dict['K_D'], K_I=self.args_longitudinal_dict['K_I'], dt=self.args_longitudinal_dict['dt'])
-        # self.camera_queue = queue.Queue()
-        # self.rgb_camera_queue = queue.Queue()
-        # self.front_camera_queue = queue.Queue()
-        # self.rv_camera_queue = queue.Queue()
-
         # Queue for stacked frames and measurements
         # Need to add flags for bev(Bird Eye View) and rv(Range View)
         self.frame_stack_size = self.config['frame_stack_size']
-        # self.bev_stack_size = self.config['frame_stack_size']
-        # self.rv_stack_size = self.config['frame_stack_size']
 
         self.top_rgb_stacked_observation_queue = queue.Queue(maxsize=self.frame_stack_size)
         self.top_sem_stacked_observation_queue = queue.Queue(maxsize=self.frame_stack_size)
@@ -121,18 +97,6 @@ class CarlaEnv(gym.Env):
             self.im_channels = 1
         else:
             self.im_channels = 3
-
-
-        ################################################
-        # Elements outside of car
-        ################################################
-        # self.weather = None
-        # # self.actor_list = []
-        # self.source_transform = None
-        # self.destination_transform = None
-        # self.scenario_route = None
-        # self.global_planner = None
-        # self.trace_route = None
 
         ################################################
         # Episode information and initialization
@@ -194,15 +158,6 @@ class CarlaEnv(gym.Env):
         self.vis_wrapper = vis_wrapper
         self.vis_wrapper_vae = vis_wrapper_vae
 
-        #******************************************************************************************************************
-        # TODO: Move this to carla interface
-        # if self.config["use_offline_map"]:
-        #     with open(self.config["map_path"], 'r') as f:
-        #         map_content = f.read()
-        #         self._map = carla.Map(self.config["city_name"], map_content)
-        # else:
-        #     self._map = self._world.get_map()
-
         ################################################
         # Creating Action and State spaces
         ################################################
@@ -228,7 +183,6 @@ class CarlaEnv(gym.Env):
             elif self.config["action_type"] == 'control':
                 # Discrete actions
                 self.action_space = Discrete(len(DISCRETE_ACTIONS))
-
 
             if self.config["input_type"] == 'wp':
                 self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
@@ -342,22 +296,6 @@ class CarlaEnv(gym.Env):
         self.image_data = None
         self.expert_agent = False
 
-        # traffic lights detection model
-        # print(os.getcwd())
-
-        # with open('../../AdelaiDet_model/config.yaml', 'r') as f:
-        #     cfg = yaml.load(f, Loader=yaml.FullLoader)
-        #     model = Trainer.build_model(CfgNode(cfg))
-        #     ckpt = torch.load('../../AdelaiDet_model/state_dict.pth', map_location=torch.device('cuda'))
-        #     # ckpt = DetectionCheckpointer(model)
-        #     # loaded = ckpt._load_file('../../AdelaiDet_model/model_final.pth')
-        # #with open('../../AdelaiDet_model/interpolator.pkl', 'rb') as f:
-        # #    self.dist_interpolator = pickle.load(f)
-        # self.dist_interpolator = lambda area: 804 / (area + 1e-6) + 0.378
-        # self.traffic_light_detector = DefaultPredictor(CfgNode(cfg))
-        # # self.traffic_light_detector.model.load_state_dict(loaded['model']) # OpenCV BGR format image input expected
-        # self.traffic_light_detector.model.load_state_dict(ckpt) # OpenCV BGR format image input expected
-
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -371,10 +309,6 @@ class CarlaEnv(gym.Env):
         else:
             self._step_test_comparison(action)
             return None
-        # except Exception:
-        #     print("Error during step, terminating episode early", traceback.format_exc())
-        #     raise
-        #     # self.reset()
 
     def get_action_for_test_comparison(self):
         for ind, agent in enumerate(self.vehicle_agent_list):
@@ -415,12 +349,6 @@ class CarlaEnv(gym.Env):
 
             self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
-        # obs = {}
-        # sensor_image = self._read_data(self.camera_queue, world_frame)
-
-        # obs['image'] = sensor_image
-        # self.vis_wrapper.save_image(obs['image'], self.num_steps)
-
         return None, None, None, self.episode_measurements
 
     def _step(self, action):
@@ -430,13 +358,10 @@ class CarlaEnv(gym.Env):
 
 
         for _ in range(self.config["frame_skip"]):
-            #TODO Replace following with this
             carla_obs = self.carla_interface.step(action)
 
             # if we are, use loop over # of frames to skip
             if self.config["use_pid_in_frame_skip"]:
-                # compute control using PID for each timestep
-                # control = self.get_control(action)
 
                 #Print actions
                 if self.config['verbose']:
@@ -544,87 +469,6 @@ class CarlaEnv(gym.Env):
         self.total_reward += reward
         self.episode_measurements['reward'] = reward
         self.episode_measurements['total_reward'] = self.total_reward
-
-        # obs = {}
-        # #TODO: Get branch_idx from planner and set accordingly.
-        # branch_idx = 1
-
-
-        # # Read in preprocessed image
-        # sensor_image = carla_obs['sensor.camera.rgb/top']
-        # front_image = carla_obs['sensor.camera.rgb/front']
-        # rv_sensor_image = carla_obs['sensor.camera.rgb/front']
-        # # rgb_image = self._read_data(self.rgb_camera_queue, world_frame)
-        # # front_image = self._read_data(self.front_camera_queue, world_frame)
-        # visual_observation = None
-
-        # if self.config["input_type"] in ['vae', 'wp_vae', 'wp_vae_speed_steer_goal',
-        #                                  'wp_vae_speed_steer_ldist_goal_light', 'wp_vae_obs_info_speed_steer_ldist_goal_light',
-        #                                  'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
-
-        #     if self.config["semantic"]:
-        #         # semantic_image = sensor_image[:,:,0]
-        #         # rv_semantic_image = rv_sensor_image[:,:,0]
-
-        #         # semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
-        #         # rv_semantic_image = reduce_classes(rv_semantic_image, binarized_image=self.config['binarized_image'])
-
-        #         # obs['semantic_image'] = semantic_image
-        #         # obs['rv_semantic_image'] = rv_semantic_image
-
-        #         # if not self.config['single_channel_image']:
-        #         #     if self.config['binarized_image']:
-        #         #         semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
-        #         #         rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=2)
-        #         #     else:
-        #         #         semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
-        #         #         rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=5)
-
-        #         self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
-        #         self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_semantic_image)
-        #     else:
-        #         self._add_to_stacked_queue(self.stacked_observation_queue, sensor_image)
-        #         self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_sensor_image)
-
-
-        #     if not self.config['single_channel_image']:
-        #         stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
-        #         rv_stacked_observation = np.concatenate(list(self.rv_stacked_observation_queue.queue), axis=2)
-        #     else:
-        #         stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
-        #         rv_stacked_observation = np.stack(list(self.rv_stacked_observation_queue.queue), axis=2)
-
-        #     if 'vae' in self.config["input_type"]:
-        #         visual_observation = self.vae_observation(stacked_observation)
-        #         rv_visual_observation = self.vae_observation(rv_stacked_observation)
-        #         visual_observation = visual_observation / self.config["vae_encoding_norm_factor"]
-        #         rv_visual_observation = rv_visual_observation / self.config["vae_encoding_norm_factor"]
-        #     else:
-        #         visual_observation = stacked_observation
-        #         rv_visual_observation = rv_stacked_observation
-
-
-        # ################################################################################
-        # #TODO these are saved for visualization - if required, check carla_obs for the images
-
-        # # if self.config["input_type"] == "ae_train":
-        # #     semantic_image = sensor_image[:,:,0]
-        # #     rv_semantic_image = rv_sensor_image[:,:,0]
-        # #     obs['semantic_image'] = semantic_image
-        # #     obs['rv_semantic_image'] = rv_semantic_image
-
-        # # obs['image'] = sensor_image
-        # # obs['rv_image'] = rv_sensor_image
-
-        # ###############################################################################
-
-        # obs['speed'] = np.expand_dims(
-        #     np.array([self.episode_measurements['speed']]), axis=0)  # * 3.6 / 30
-        # obs['dist_to_target'] = np.array(
-        #     [self.episode_measurements['distance_to_goal']])
-
-        # # Update observation input in obs dictionary
-        # self.create_observations(obs)
 
         gym_obs = self.create_observations(carla_obs)
 
@@ -950,8 +794,6 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['obstacle_speed'] = -1
 
     def _update_traffic_light_states(self):
-        # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
-        #TODO Check with Vinay for how to make this a LOT nicer
         ego_vehicle = self.carla_interface.get_ego_vehicle()
         traffic_actors = self.carla_interface.get_traffic_actors()
         traffic_actor, dist, traffic_light_orientation = ego_vehicle.find_nearest_traffic_light(traffic_actors)
@@ -987,14 +829,13 @@ class CarlaEnv(gym.Env):
     def _update_traffic_light_states_nonprivilege(self, front_rgb_image):
         front_rgb_image = front_rgb_image[:, :, ::-1] # RGB -> GBR
         res = self.traffic_light_detector(front_rgb_image)
-        # print(res, flush=True)
-        #TODO Check with Vinay for how to make this a LOT nicer
+
         ego_vehicle = self.carla_interface.get_ego_vehicle()
         traffic_actor, dist, traffic_light_orientation = ego_vehicle.find_nearest_traffic_light(self.traffic_actors)
 
         if len(res['instances']) == 0: # no lights
             pass
-        # elif res['instances'].scores[0].item() > .5:
+
         else:
             area = res['instances'].pred_boxes[0].area().item()
             color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
@@ -1031,110 +872,6 @@ class CarlaEnv(gym.Env):
             self.episode_measurements['nearest_traffic_actor_state'] = None
 
         self.episode_measurements['dist_to_light'] = dist
-        # if len(res['instances']) == 0: # no lights
-        #     color, dist, traffic_light_orientation = None, -1, None
-        # else:
-        #     area = res['instances'].pred_boxes[0].area().item()
-        #     color = res['instances'].pred_classes[0].item() # 0: Green, 1: Red
-
-        #     # traffic_light_orientation = dist = 500 / (area + 1e-6)
-
-        #     traffic_actor, dist, traffic_light_orientation = self.vehicle_agent.find_nearest_traffic_light(self.traffic_actors)
-
-        # if traffic_light_orientation is not None:
-        #     self.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
-        # else:
-        #     self.episode_measurements['traffic_light_orientation'] = -1
-
-        # if color is not None:
-        #     if color == 1: # red
-        #         self.episode_measurements['red_light_dist'] = dist
-
-        #         if self.episode_measurements['initial_dist_to_red_light'] == -1:
-        #         # if self.episode_measurements['initial_dist_to_red_light'] == -1 \
-        #             # or (self.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != self.episode_measurements['nearest_traffic_actor_id']):
-        #             self.episode_measurements['initial_dist_to_red_light'] = dist
-
-        #     else:
-        #         self.episode_measurements['red_light_dist'] = -1
-        #         self.episode_measurements['initial_dist_to_red_light'] = -1
-
-        #     # self.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
-        #     # self.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
-        # else:
-        #     self.episode_measurements['red_light_dist'] = -1
-        #     self.episode_measurements['initial_dist_to_red_light'] = -1
-        #     self.episode_measurements['nearest_traffic_actor_id'] = -1
-        #     self.episode_measurements['nearest_traffic_actor_state'] = None
-
-        # self.episode_measurements['dist_to_light'] = dist
-
-
-
-
-    # def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
-    #     if self.config["scenarios"] == "straight":
-    #         source_idx, destination_idx = scenarios.get_straight_path_updated(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "curved":
-    #         source_idx, destination_idx = scenarios.get_curved_path_updated(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
-    #         source_idx, destination_idx = scenarios.get_navigation_path_updated(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     else:
-    #         raise ValueError("Scenarios Config not set!")
-
-    #     self.source_transform = self.spawn_points[source_idx]
-    #     self.destination_transform = self.spawn_points[destination_idx]
-
-    # def _set_scenario(self, unseen=False, town="Town01", index=0):
-    #     if self.config["scenarios"] == "straight":
-    #         # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
-    #         self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "long_straight":
-    #         self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
-    #         self.config["num_episodes"] = 2
-    #     elif self.config["scenarios"] == "long_straight_junction":
-    #         self.source_transform, self.destination_transform = scenarios.get_long_straight_junction_path(unseen, town, index)
-    #         self.config["num_episodes"] = 3
-    #     elif self.config["scenarios"] == "straight_dynamic":
-    #         self.source_transform, self.destination_transform = scenarios.get_straight_dynamic_path(unseen, town)
-    #     elif self.config["scenarios"] == "crowded":
-    #         self.source_transform, self.destination_transform = scenarios.get_crowded_path(unseen, town, index)
-    #     elif self.config["scenarios"] == "straight_crowded":
-    #         self.source_transform, self.destination_transform = scenarios.get_straight_crowded_path(unseen, town, index)
-    #     elif self.config["scenarios"] == "town3":
-    #         self.source_transform, self.destination_transform = scenarios.get_curved_town03_path(unseen, town, index)
-    #     elif self.config["scenarios"] == "left_right_curved":
-    #         self.source_transform, self.destination_transform = scenarios.get_left_right_randomly(unseen)
-    #     elif self.config["scenarios"] == "right_curved":
-    #         self.source_transform, self.destination_transform = scenarios.get_right_turn(unseen)
-    #     elif self.config["scenarios"] == "left_curved":
-    #         self.source_transform, self.destination_transform = scenarios.get_left_turn(unseen)
-    #     elif self.config["scenarios"] == "t_junction":
-    #         self.source_transform, self.destination_transform = scenarios.get_t_junction_path(unseen, town, index)
-    #     elif self.config["scenarios"] == "curved":
-    #         # self.source_transform, self.destination_transform = scenarios.get_fixed_long_curved_path_Town01()
-    #         self.source_transform, self.destination_transform = scenarios.get_curved_path(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "navigation" or self.config["scenarios"] == "dynamic_navigation":
-    #         self.source_transform, self.destination_transform = scenarios.get_navigation_path(unseen, town, index)
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "no_crash_empty" or self.config["scenarios"] == "no_crash_regular" or self.config["scenarios"] == "no_crash_dense":
-    #         source_idx, destination_idx = scenarios.get_no_crash_path(unseen, town, index)
-    #         self.source_transform = self.spawn_points[source_idx]
-    #         self.destination_transform = self.spawn_points[destination_idx]
-    #         self.config["num_episodes"] = 25
-    #     elif self.config["scenarios"] == "challenge_test_scenario":
-    #         route = scenarios.get_test_route()
-
-    #         self.scenario_route = convert_route_from_GPS_world(route, self._map)
-    #         self.source_transform = self.scenario_route[0]
-    #         self.destination_transform = self.scenario_route[-1]
-    #     else:
-    #         raise ValueError("Scenarios Config not set!")
 
     def set_vae(self, vae):
         self.vae = vae
@@ -1145,118 +882,6 @@ class CarlaEnv(gym.Env):
         ob = self.vae.encode(observation_image)
         return ob
 
-    # TODO MOVE THIS OUT OF HERE
-    # def get_control(self, action):
-    #     """ Get Control object for Carla from action
-    #     Input:
-    #         - action: tuple containing (steer, throttle, brake) in [-1, 1]
-    #     Output:
-    #         - control: Control object for Carla
-    #     """
-    #     if self.config["action_type"] != "control":
-    #         action = action.flatten()
-
-    #     if self.config["action_type"] is "sep_gas":
-    #         steer = float(action[0])
-    #         throttle = float(action[1])
-    #         brake = float(action[2])
-    #     elif self.config["action_type"] is "merged_gas":
-    #         steer = float(action[0])
-    #         gas = float(action[1])
-    #         # gas = gas + 0.25
-    #         gas = np.clip(gas, 0.0, 0.7)
-    #         if gas < 0:
-    #             throttle = 0.0
-    #             brake = abs(gas)
-    #         else:
-    #             throttle = gas
-    #             brake = 0.0
-    #     elif self.config["action_type"] == "steer_only":
-    #         steer = np.clip(float(action[0]), -1.0, 1.0)
-    #         target_speed = float(20.0)
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         throttle = self.controller.pid_control(target_speed, current_speed)
-    #         brake = float(0.0)
-    #     elif self.config["action_type"] == "throttle_only":
-    #         steer = float(0.0)
-    #         target_speed = float(np.clip(action[0], 0, self.target_speed))
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         throttle = self.controller.pid_control(target_speed, current_speed)
-    #         brake = float(0.0)
-    #     elif self.config["action_type"] == "merged_speed":
-    #         # steer = float(action[0])
-    #         steer = np.clip(float(action[0]), -1.0, 1.0)
-    #         target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         throttle = self.controller.pid_control(target_speed, current_speed)
-    #         brake = float(0.0)
-    #     elif self.config["action_type"] == "merged_speed_tanh":
-    #         # steer = float(action[0])
-    #         steer = np.clip(float(action[0]), -1.0, 1.0)
-    #         target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-    #         if gas < 0:
-    #             throttle = 0.0
-    #             brake = abs(gas)
-    #         else:
-    #             throttle = gas
-    #             brake = 0.0
-    #     elif self.config["action_type"] == "merged_speed_scaled_tanh":
-    #         steer = np.clip(float(action[0]), -1.0, 1.0)
-    #         target_speed = (action[1] * 1.5) + 1
-    #         target_speed = float(np.clip(target_speed * 10, 0, self.target_speed))
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-    #         if gas < 0:
-    #             throttle = 0.0
-    #             brake = abs(gas)
-    #         else:
-    #             throttle = gas
-    #             brake = 0.0
-    #     elif self.config["action_type"] == "merged_speed_pid_test":
-    #         # steer = float(action[0])
-    #         steer = (float(action[0]))
-    #         target_speed = float(action[1])
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-    #         if gas < 0:
-    #             throttle = 0.0
-    #             brake = abs(gas)
-    #         else:
-    #             throttle = gas
-    #             brake = 0.0
-    #     elif self.config["action_type"] == "discrete":
-    #         # Discrete actions
-    #         # No need to clip actions in case of discrete state-space
-    #         # since it is chosen to be in range.
-    #         discrete_actions = DISCRETE_ACTIONS[int(action)]
-    #         target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
-    #         current_speed = util.get_speed_from_velocity(self.vehicle_actor.get_velocity()) * 3.6
-    #         gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-    #         if gas < 0:
-    #             throttle = 0.0
-    #             brake = abs(gas)
-    #         else:
-    #             throttle = gas
-    #             brake = 0.0
-    #     elif self.config["action_type"] == "control":
-    #         target_speed = -1
-    #         self.episode_measurements["target_speed"] = target_speed
-    #         return action
-
-    #     self.episode_measurements["target_speed"] = target_speed
-
-    #     control = carla.VehicleControl(
-    #         throttle=throttle,
-    #         steer=steer,
-    #         brake=brake,
-    #         hand_brake=False,
-    #         reverse=False,
-    #         manual_gear_shift=False,
-    #         gear=0)
-
-    #     return control
     def create_observations_scalar(self):
         # Creates the state space apart from the image/image encodings
         obs_output = np.array([self.episode_measurements['next_orientation']])
@@ -1595,43 +1220,6 @@ class CarlaEnv(gym.Env):
                 else:
                     stacked_observation = np.stack(list(self.front_rgb_stacked_observation_queue.queue), axis=2)
                 visual_observations.append(stacked_observation)
-            # if self.config["semantic"]:
-                # semantic_image = image[:,:,0]
-                # rv_semantic_image = rv_image[:,:,0]
-
-                # semantic_image = reduce_classes(semantic_image, binarized_image=self.config['binarized_image'])
-                # rv_semantic_image = reduce_classes(rv_semantic_image, binarized_image=self.config['binarized_image'])
-                # obs['semantic_image'] = semantic_image
-                # obs['rv_semantic_image'] = rv_semantic_image
-
-                # if not self.config['single_channel_image']:
-                #     if self.config['binarized_image']:
-                #         semantic_image = convert_to_one_hot(semantic_image, num_classes=2)
-                #         rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=2)
-                #     else:
-                #         semantic_image = convert_to_one_hot(semantic_image, num_classes=5)
-                #         rv_semantic_image = convert_to_one_hot(rv_semantic_image, num_classes=5)
-
-            #     for _ in range(self.rv_stack_size):
-            #         self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_semantic_image)
-
-            #     for _ in range(self.config['frame_stack_size']):
-            #         # Update stacked frames and measurements
-            #         self._add_to_stacked_queue(self.stacked_observation_queue, semantic_image)
-            # else:
-            #     for _ in range(self.rv_stack_size):
-            #         self._add_to_stacked_queue(self.rv_stacked_observation_queue, rv_rgb_image)
-
-            #     for _ in range(self.config['frame_stack_size']):
-            #         # Update stacked frames and measurements
-            #         self._add_to_stacked_queue(self.stacked_observation_queue, rgb_image)
-
-            # if not self.config['single_channel_image']:
-            #     stacked_observation = np.concatenate(list(self.stacked_observation_queue.queue), axis=2)
-            #     rv_stacked_observation = np.concatenate(list(self.rv_stacked_observation_queue.queue), axis=2)
-            # else:
-            #     stacked_observation = np.stack(list(self.stacked_observation_queue.queue), axis=2)
-            #     rv_stacked_observation = np.stack(list(self.rv_stacked_observation_queue.queue), axis=2)
 
             if 'vae' in self.config["input_type"]:
                 visual_observations = [self.vae_observation(elt) for elt in visual_observations]
@@ -1742,7 +1330,7 @@ class CarlaEnv(gym.Env):
 
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
-            # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
+
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
@@ -1760,7 +1348,6 @@ class CarlaEnv(gym.Env):
             if count <= 0:
                 break
 
-        # TODO: Generalize this code to attach 'n' different sensors to the vehicle
         # Attach a sensor to the vehicle
         sensor = self.config['sensors'][0]
 
@@ -1793,9 +1380,6 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['distance_to_goal'] = [vehicle.get_location().distance(self.goal_destination_list[ind].location) for ind, vehicle in enumerate(self.actor_list)]
         self.episode_measurements['speed'] = [util.get_speed_from_velocity(vehicle.get_velocity()) for vehicle in self.actor_list]
 
-        # obs = {}
-        # image = self._read_data(self.camera_queue, world_frame)
-        # obs['image'] = image
 
         self.prev_measurement = copy.deepcopy(self.episode_measurements)
 
@@ -1805,30 +1389,6 @@ class CarlaEnv(gym.Env):
     # @profile
     def _reset(self, unseen=False, index=0, expert_agent=False):
         self.clear_episode_measurements()
-
-        ################################################
-        # Elements connected to car
-        ################################################
-        # self.vehicle_actor = None
-
-        # self.camera_queue.queue.clear()
-        # self.rgb_camera_queue.queue.clear()
-        # self.front_camera_queue.queue.clear()
-        # self.rv_camera_queue.queue.clear()
-        # self.stacked_observation_queue.queue.clear()
-
-
-        ################################################
-        # Elements outside of car
-        ################################################
-        # Currently scenarios are defined only for Town01
-        # if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
-        #     if self.config["updated_scenarios"]:
-        #         self._set_updated_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
-        #     else:
-        #         self._set_scenario(unseen=unseen, index=self.index, town=self.config["city_name"])
-        # else:
-        #     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
 
         ################################################
@@ -1840,172 +1400,12 @@ class CarlaEnv(gym.Env):
         self.total_reward = 0 # Episode level total reward
         self.unseen = unseen
 
-        # if self.config["scenarios"] in ["long_straight", "long_straight_junction"] and not self.unseen:
-        #     # Way to test two scenarios with and without dynamic actors
-        #     # in training run in long_straight scenario
-        #     self.index = (self.index + 1) % self.config["num_episodes"]
-        # else:
-        #     self.index = index
-
-        # # Destroy
-        # self.destroy_all_existing_actors()
-
-
-        # self.expert_agent = expert_agent
-
-
-        ################################################
-        # Spawn ego vehicle/agent
-        ################################################
-
-        # try:
-        #     vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
-        #     # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
-        # except Exception as e:
-        #     print("Error during vehicle creation: {}".format(traceback.format_exc()))
-
-
-        # # Spawning vehicle actor with retry logic as it fails to spawn sometimes
-        # NUM_RETRIES = 5
-        # for _ in range(NUM_RETRIES):
-        #     self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
-        #     if self.vehicle_actor is not None:
-        #         break
-        #     else:
-        #         print("Unable to spawn vehicle actor at {0}, {1}.".format(self.source_transform.location.x, self.source_transform.location.y))
-        #         print("Number of existing actors, {0}".format(len(self.actor_list)))
-        #         self.destroy_all_existing_actors()
-        #         time.sleep(120)
-
-        # if self.vehicle_actor is not None:
-        #     self.actor_list.append(self.vehicle_actor)
-        #     self.location = self.vehicle_actor.get_location()
-        # else:
-        #     raise Exception("Failed in spawning vehicle actor.")
-
-        # # Agent uses proximity_threshold to detect traffic lights.
-        # # Hence we use traffic_light_proximity_threshold while creating an Agent.
-        # self.vehicle_agent = Agent(self.vehicle_actor, self.config['traffic_light_proximity_threshold'])
-
-        ################################################
-        # Spawn other actors
-        ################################################
-
-        #TODO Do we need to handle these if/else cases
-        # spawn_vehicles = False
-        # if self.config["scenarios"] == "long_straight":
-        #     if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 1):
-        #         spawn_vehicles = True
-        # elif self.config["scenarios"] == "long_straight_junction":
-        #     if self.config["num_npc"] > 0 and (self.index % self.config["num_episodes"] == 0):
-        #         spawn_vehicles = True
-        # else:
-        #     if self.config["num_npc"] > 0:
-        #         spawn_vehicles = True
-
-        # if spawn_vehicles:
-        #     if self.config["sample_npc"]:
-        #         self.spawn_npc(np.random.randint(low=self.config["num_npc_lower_threshold"],
-        #             high=self.config["num_npc_upper_threshold"]), unseen)
-        #     else:
-        #         self.spawn_npc(self.config["num_npc"], unseen)
-
-        ################################################
-        # Spawn the sensors (treated as actors too)
-        ################################################
-
-        #TODO: Generalize this code to attach 'n' different sensors to the vehicle
-        #Attach a sensor to the vehicle
-        # if self.config["semantic"]:
-        #     sensor = self.config['sensors'][1]
-        # else:
-        #     sensor = self.config['sensors'][0]
-
-        # camera = self.blueprint_library.find(sensor)
-        # camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # camera.set_attribute('fov', '120')
-        # camera.set_attribute('fov', '90')
-
-        # # front_seg_cam = self.blueprint_library.find(sensor)
-        # # front_seg_cam.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # # front_seg_cam.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # # front_seg_cam.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # # camera.set_attribute('fov', '120')
-        # # front_seg_cam.set_attribute('fov', '90')
-
-        # # Orientation for top-down (BEV) facing camera
-        # bev_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-
-
-        # self.camera_actor = self._world.spawn_actor(camera, bev_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.camera_actor)
-
-        # self.camera_actor.listen(self.camera_queue.put)
-
-        # rgb_camera = self.blueprint_library.find(self.config['sensors'][0])
-        # rgb_camera.set_attribute('image_size_x', '512')
-        # rgb_camera.set_attribute('image_size_y', '512')
-        # rgb_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # rgb_camera.set_attribute('fov', '90')
-        # # Additional front-view/range-view(rv) camera
-        # rv_camera = self.blueprint_library.find(sensor)
-        # rv_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-        # rv_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-        # rv_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # camera.set_attribute('fov', '120')
-        # rv_camera.set_attribute('fov', '90')
-
-        # # Orientation for forward-facing camera
-        # rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
-
-        # self.rv_camera_actor = self._world.spawn_actor(rv_camera, rv_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.rv_camera_actor)
-
-        # self.rv_camera_actor.listen(self.rv_camera_queue.put)
-
-        # # # rgb_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        # # rgb_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-        # rgb_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
-        # self.rgb_camera_actor = self._world.spawn_actor(rgb_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.rgb_camera_actor)
-
-        # self.rgb_camera_actor.listen(self.rgb_camera_queue.put)
-
-
-        # front_camera = self.blueprint_library.find(self.config['sensors'][1])
-        # front_camera.set_attribute('image_size_x', '512')
-        # front_camera.set_attribute('image_size_y', '512')
-        # front_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-        # # front_camera.set_attribute('fov', '120')
-        # front_camera.set_attribute('fov', '90')
-
-        # # # front_camera_transform = carla.Transform(carla.Location(x=5.0, z=20.0), carla.Rotation(pitch=270.0))
-        # # front_camera_transform = carla.Transform(carla.Location(x=1.6, z=1.7), carla.Rotation(pitch=8.0))
-        # self.front_camera_actor = self._world.spawn_actor(front_camera, rgb_camera_transform, attach_to=self.vehicle_actor)
-        # self.actor_list.append(self.front_camera_actor)
-
-        # self.front_camera_actor.listen(self.front_camera_queue.put)
-
-        # self.collision_sensor = sensors.CollisionSensor(self.vehicle_actor)
-        # self.actor_list.append(self.collision_sensor.sensor)
-
-        # if self.config["enable_lane_invasion_sensor"]:
-        #     self.lane_invasion_sensor = sensors.LaneInvasionSensor(self.vehicle_actor)
-        #     self.actor_list.append(self.lane_invasion_sensor.sensor)
-
         carla_obs = self.carla_interface.reset()
-
-        #TODO ensure we don't need to write self.location
-        # self.location = self.carla_interface.actor_fleet.ego_vehicle._vehicle.get_location()
-
 
         ################################################
         # Episode information(again)
         ################################################
         # Set state variables for reward calculation
-        # sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings()
 
         self.episode_measurements['num_collisions'] = carla_obs['collision_sensor']['num_collisions']
         self.episode_measurements['collision_actor_id'] = carla_obs['collision_sensor']['collision_actor_id']
@@ -2021,41 +1421,12 @@ class CarlaEnv(gym.Env):
         self.episode_measurements['total_steps'] = self.total_steps
         self.episode_measurements['initial_dist_to_red_light'] = -1
 
-        # time.sleep(1)
 
         # TODO: fix bug with no sensor_image. empty image for now
         # x_res = int(self.config["sensor_x_res"])
         # y_res = int(self.config["sensor_y_res"])
         #sensor_image = np.zeros(shape=(x_res, y_res, self.im_channels))
         # TODO: Change this to return the full measurement vector (like the step function)
-
-
-        ################################################
-        # Starting episode
-        ################################################
-
-
-        # sensor_readings = self.actor_fleet.sensor_manager.get_sensor_readings(world_frame)
-        #gym_obs expected type is dictionary
-        ################################################
-        # Setting the planner and obtaining the route
-        ################################################
-        # self.global_planner = planner.GlobalPlanner()
-
-
-        #TODO Handle this in the leaderboard interface - This if condition is only for planning with leaderboard
-        # if self.config["use_route_to_plan"]:
-        #     self.trace_route = []
-        #     for idx in range(len(self.scenario_route) - 1):
-        #         source = self.scenario_route[idx]
-        #         destination = self.scenario_route[idx+1]
-        #         trace_route = self.global_planner._trace_route(self._map,
-        #                         source, destination)
-        #         self.trace_route.extend(trace_route)
-        # else:
-        #     self.trace_route  = self.global_planner._trace_route(self._map,
-        #                         self.source_transform, self.destination_transform)
-        # self.global_planner.set_global_plan(self.trace_route)
 
 
         #TODO Expert agent is not taken care of
@@ -2086,7 +1457,6 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         # self._update_env_obs(front_rgb_image=rgb_image)
-        #TODO Move this to actor_manager
         self._update_env_obs()
 
         if self.config["scenarios"] == "straight_dynamic":
@@ -2111,11 +1481,6 @@ class CarlaEnv(gym.Env):
         self.speed_reward_array = []
         self.dist_to_target_array = []
         self.red_light_dist_array = []
-
-        ################################################
-        # Preprocessing the images(stacking etc etc...)
-        ################################################
-        # Processed observation to pass to agent from gym environment
 
         return self.create_observations(carla_obs)
 
@@ -2173,11 +1538,6 @@ class CarlaEnv(gym.Env):
         array = np.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
         array = array[:, :, ::-1]
-
-        # if(self.config['preprocess_crop_image']):
-        #     array = array[200:500, 300:500]
-        # array = cv2.resize(array, (self.config["x_res"], self.config["y_res"]), interpolation=cv2.INTER_NEAREST)
-        # array = cv2.resize(array, (64, 64), interpolation=cv2.INTER_AREA)
 
         return array
 
@@ -2283,9 +1643,6 @@ class CarlaEnv(gym.Env):
             if self.carla_interface is not None:
                 self.carla_interface.close()
 
-            # if not self.CarlaServer is None:
-            #     self.CarlaServer.close()
-
         except Exception as e:
                 print("********** Exception in closing env **********")
                 print(e)
@@ -2384,54 +1741,6 @@ def plot_episode_info(path,
     plt.grid(True)
     plt.savefig(path + '{}.png'.format(episode_num))
     plt.close()
-
-# Used for plotting debugging related plots
-# def plot_episode_info(path,
-#                 target_speeds_array,
-#                 speeds_array,
-#                 throttles_array,
-#                 steers_array,
-#                 brakes_array,
-#                 dist_to_target_array,
-#                 step_reward_array,
-#                 collision_reward_array,
-#                 dist_to_trajectory_reward_array,
-#                 speed_reward_array,
-#                 episode_num):
-
-#     if not os.path.exists(path):
-#         os.makedirs(path)
-
-
-#     target_speeds_array = np.array(target_speeds_array)
-#     speeds_array = np.array(speeds_array)
-#     throttles_array = np.array(throttles_array)
-#     steers_array = np.array(steers_array)
-#     brakes_array = np.array(brakes_array)
-#     step_reward_array = np.array(step_reward_array)
-#     collision_reward_array = np.array(collision_reward_array)
-#     dist_to_target_array = np.array(dist_to_target_array)
-#     dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
-#     speed_reward_array = np.array(speed_reward_array)
-
-#     target_speeds_array = target_speeds_array[-50:]
-#     speeds_array = speeds_array[-50:]
-
-#     observations = np.arange(len(target_speeds_array))
-#     fig, axs = plt.subplots(1, 1, figsize=(12, 12))
-#     fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
-
-#     axs.plot(observations, target_speeds_array, linestyle='-', linewidth=2, markersize=8, label='target')
-#     axs.set_xlabel('Timesteps')
-#     axs.set_ylabel('Target and Actual Speed')
-
-#     axs.plot(observations, speeds_array, linestyle='-', linewidth=2, markersize=8, label='actual')
-
-#     axs.grid(True)
-
-#     plt.grid(True)
-#     plt.savefig(path + 'episode_info_{}.png'.format(episode_num))
-#     plt.close()
 
 if __name__ == "__main__":
     env = CarlaEnv(log_dir = "/home/swapnil/temp_dir")
