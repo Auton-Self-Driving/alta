@@ -76,7 +76,7 @@ SAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'O10mL10mG0m1kupdstdoff',
+    'save_suffix': 'O10mL10mG0m1kupdhybrid',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'eps_clip': .2,

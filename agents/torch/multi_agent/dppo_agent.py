@@ -3,13 +3,14 @@ import time
 import pickle
 import copy
 import torch
-from threading import Thread, Lock
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import torch.nn.functional as F
 import numpy as np
 import dist_utils as dist
 
+from threading import Thread, Lock
+from collections import Counter
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from collections import deque, defaultdict
 from network import PPOActorCritic_Continuous
@@ -157,6 +158,9 @@ class DPPO_Server_Agent(object):
         self.tbwriter = None
         self.resumed = False
         self.reset_memory()
+        # for Hessian 
+        self.old_policy_dict = {}
+        self.timestamp_counter = Counter()
 
     def reset_memory(self):
         self.memory = {
@@ -275,6 +279,12 @@ class DPPO_Server_Agent(object):
                     self.glb_policy.parameters(),
                     dst=sender, tag=SIG.PARAM
                 ).wait()
+                with self.server_lock:
+                    self.timestamp_counter[self.glb_policy_timestamp] += 1
+                    if self.glb_policy_timestamp not in self.old_policy_dict:
+                        self.old_policy_dict[self.glb_policy_timestamp] = \
+                            self.glb_policy.clone()
+
             else:
                 raise ValueError('signal not seen')
             with self.server_lock:
@@ -307,7 +317,89 @@ class DPPO_Server_Agent(object):
         for t in thread_list: t.start()
         for t in thread_list: t.join()
 
+
     def _update(self):
+        rewards = []
+        old_states = []
+        old_actions = []
+        old_logprobs = []
+        batch_rewards = []
+        batch_old_states = []
+        batch_old_actions = []
+        batch_old_logprobs = []
+        # Monte Carlo estimate of rewards
+        discounted_reward = 0
+        for _action, _state, _logprob, _reward, _done in zip(self.memory['actions'],
+            self.memory['states'], self.memory['logprobs'], self.memory['rewards'], self.memory['dones']):
+            agent_rewards = deque()
+            for reward, is_terminal in zip(reversed(_reward), reversed(_done)):
+                if is_terminal:
+                    discounted_reward = 0
+                discounted_reward = reward + (self.gamma * discounted_reward)
+                agent_rewards.appendleft(discounted_reward)
+            batch_rewards.append(list(agent_rewards))
+            batch_old_states.append(_state)
+            batch_old_actions.append(_action)
+            batch_old_logprobs.append(_logprob)
+
+
+        # Optimize policy for K epochs:
+        for _ in range(self.optim_epochs):
+            # Evaluating old actions and values:
+            self.glb_optimizer.zero_grad()
+            for r, s, a, prob, ts in zip(batch_rewards, batch_old_states,
+                batch_old_actions, batch_old_logprobs, self.memory['timestamps']):
+                r = torch.tensor(r, dtype=torch.float32).to(self.device)
+                r = (r - r.mean()) / (r.std() + 1e-5)
+
+                s = torch.tensor(s, dtype=torch.float32,
+                    device=self.device).squeeze().detach()
+                a = torch.tensor(a, dtype=torch.float32,
+                    device=self.device).squeeze().detach()
+                prob = torch.tensor(prob, dtype=torch.float32,
+                    device=self.device).squeeze().detach()
+
+                logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                    s, a)
+                ratios = torch.exp(logprobs - prob.detach())
+                advantages = r - state_values.detach()
+                surr1 = ratios * advantages
+                surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                    1 + self.eps_clip) * advantages
+                loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                    r) - 0.01 * dist_entropy
+                loss = loss.mean() / 2
+                loss.backward()
+
+                # old gradients
+                logprobs, state_values, dist_entropy = \
+                    self.old_policy_dict[ts].evaluate(s, a)
+                ratios = torch.exp(logprobs - prob.detach())
+                advantages = r - state_values.detach()
+                surr1 = ratios * advantages
+                surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                    1 + self.eps_clip) * advantages
+                loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                    r) - 0.01 * dist_entropy
+                loss = loss.mean() / 2
+                loss.backward()
+
+            if self.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    self.glb_policy.parameters(), self.grad_clip)
+            self.glb_optimizer.step()
+
+            print(self.timestamp_counter)
+            for ts in self.memory['timestamps']:
+                self.timestamp_counter[ts] -= 1
+                if self.timestamp_counter[ts] == 0:
+                    # purge old policy
+                    self.timestamp_counter.pop(ts)
+                    self.old_policy_dict.pop(ts)
+
+        self.reset_memory()
+
+    def _update_orig(self):
         rewards = []
         old_states = []
         old_actions = []
@@ -335,42 +427,42 @@ class DPPO_Server_Agent(object):
             batch_old_actions.append(_action)
             batch_old_logprobs.append(_logprob)
         # print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
-        upgrade = []
-        for r, s, a, prob, ts in zip(batch_rewards, batch_old_states,
-            batch_old_actions, batch_old_logprobs, self.memory['timestamps']):
-            r = torch.tensor(r, dtype=torch.float32).to(self.device)
-            r = (r - r.mean()) / (r.std() + 1e-5)
+        # upgrade = []
+        # for r, s, a, prob, ts in zip(batch_rewards, batch_old_states,
+        #     batch_old_actions, batch_old_logprobs, self.memory['timestamps']):
+        #     r = torch.tensor(r, dtype=torch.float32).to(self.device)
+        #     r = (r - r.mean()) / (r.std() + 1e-5)
 
-            s = torch.tensor(s, dtype=torch.float32,
-                device=self.device).squeeze().detach()
-            a = torch.tensor(a, dtype=torch.float32,
-                device=self.device).squeeze().detach()
-            prob = torch.tensor(prob, dtype=torch.float32,
-                device=self.device).squeeze().detach()
+        #     s = torch.tensor(s, dtype=torch.float32,
+        #         device=self.device).squeeze().detach()
+        #     a = torch.tensor(a, dtype=torch.float32,
+        #         device=self.device).squeeze().detach()
+        #     prob = torch.tensor(prob, dtype=torch.float32,
+        #         device=self.device).squeeze().detach()
 
-            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-                s, a)
-            ratios = torch.exp(logprobs - prob.detach())
-            advantages = r - state_values.detach()
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
-                1 + self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
-                r) - 0.01 * dist_entropy
+        #     logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+        #         s, a)
+        #     ratios = torch.exp(logprobs - prob.detach())
+        #     advantages = r - state_values.detach()
+        #     surr1 = ratios * advantages
+        #     surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+        #         1 + self.eps_clip) * advantages
+        #     loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+        #         r) - 0.01 * dist_entropy
 
-            # take gradient step
-            self.glb_optimizer.zero_grad()
-            loss = loss.mean()
-            loss.backward()
-            param_grad = [item.grad for item in self.glb_policy.parameters()]
-            vec_grad = parameters_to_vector(param_grad).detach()
-            upgrade.append((self.glb_policy_timestamp, ts, loss.item(), vec_grad))
-            print(self.glb_policy_timestamp, ts, '{:.4f}, {:.4f}'.format(loss.item(), torch.norm(vec_grad).item()))
-        for i in range(len(upgrade)):
-            cos_mat = [float('{:.2f}'.format(F.cosine_similarity(upgrade[i][-1], j[-1], dim=0))) for j in upgrade[:i + 1]]
-            print(cos_mat)
-        with open('grad_viz/{}.pkl'.format(self.glb_policy_timestamp), 'wb') as f:
-            pickle.dump(upgrade, f)
+        #     # take gradient step
+        #     self.glb_optimizer.zero_grad()
+        #     loss = loss.mean()
+        #     loss.backward()
+            # param_grad = [item.grad for item in self.glb_policy.parameters()]
+            # vec_grad = parameters_to_vector(param_grad).detach()
+            # upgrade.append((self.glb_policy_timestamp, ts, loss.item(), vec_grad))
+            # print(self.glb_policy_timestamp, ts, '{:.4f}, {:.4f}'.format(loss.item(), torch.norm(vec_grad).item()))
+        # for i in range(len(upgrade)):
+        #     cos_mat = [float('{:.2f}'.format(F.cosine_similarity(upgrade[i][-1], j[-1], dim=0))) for j in upgrade[:i + 1]]
+        #     print(cos_mat)
+        # with open('grad_viz/{}.pkl'.format(self.glb_policy_timestamp), 'wb') as f:
+        #     pickle.dump(upgrade, f)
 
         # Normalizing the rewards:
         # rewards = torch.tensor(rewards).to(device)
