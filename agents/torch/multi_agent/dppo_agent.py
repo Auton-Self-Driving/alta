@@ -10,7 +10,7 @@ import numpy as np
 import dist_utils as dist
 
 from threading import Thread, Lock
-from collections import Counter
+from collections import Counter, OrderedDict
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from collections import deque, defaultdict
 from network import PPOActorCritic_Continuous
@@ -158,8 +158,8 @@ class DPPO_Server_Agent(object):
         self.tbwriter = None
         self.resumed = False
         self.reset_memory()
-        # for Hessian 
-        self.old_policy_dict = {}
+        # for Hessian
+        self.old_policy_dict = OrderedDict()
         self.timestamp_counter = Counter()
 
     def reset_memory(self):
@@ -273,17 +273,20 @@ class DPPO_Server_Agent(object):
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
-                dist.isend(
-                    [self.glb_num_steps, self.glb_num_episodes,
-                    self.glb_policy_timestamp],
-                    self.glb_policy.parameters(),
-                    dst=sender, tag=SIG.PARAM
-                ).wait()
                 with self.server_lock:
+                    dist.isend(
+                        [self.glb_num_steps, self.glb_num_episodes,
+                        self.glb_policy_timestamp],
+                        self.glb_policy.parameters(),
+                        dst=sender, tag=SIG.PARAM
+                    ).wait()
                     self.timestamp_counter[self.glb_policy_timestamp] += 1
                     if self.glb_policy_timestamp not in self.old_policy_dict:
                         self.old_policy_dict[self.glb_policy_timestamp] = \
-                            self.glb_policy.clone()
+                            copy.deepcopy(self.glb_policy)
+                    # print(self.timestamp_counter)
+                    print('server {}, sent to {}, timestamp {}'.format(
+                        self.rank, sender, self.glb_policy_timestamp))
 
             else:
                 raise ValueError('signal not seen')
@@ -296,7 +299,7 @@ class DPPO_Server_Agent(object):
                             self.rank, self.glb_num_episodes, self.glb_num_steps,
                         ))
                         self.num_steps_since_update = 0
-                        print('TIMESTAMPS:', self.glb_policy_timestamp, self.memory['timestamps'])
+                        # print('TIMESTAMPS:', self.glb_policy_timestamp, self.memory['timestamps'])
                         self._update()
                         self.glb_policy_timestamp += 1
 
@@ -369,7 +372,8 @@ class DPPO_Server_Agent(object):
                 loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
                     r) - 0.01 * dist_entropy
                 loss = loss.mean() / 2
-                loss.backward()
+                if not torch.any(torch.isnan(loss)):
+                    loss.backward()
 
                 # old gradients
                 logprobs, state_values, dist_entropy = \
@@ -382,20 +386,23 @@ class DPPO_Server_Agent(object):
                 loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
                     r) - 0.01 * dist_entropy
                 loss = loss.mean() / 2
-                loss.backward()
+                if not torch.any(torch.isnan(loss)):
+                    loss.backward()
 
             if self.grad_clip is not None:
                 torch.nn.utils.clip_grad_norm_(
                     self.glb_policy.parameters(), self.grad_clip)
             self.glb_optimizer.step()
 
-            print(self.timestamp_counter)
-            for ts in self.memory['timestamps']:
-                self.timestamp_counter[ts] -= 1
-                if self.timestamp_counter[ts] == 0:
-                    # purge old policy
-                    self.timestamp_counter.pop(ts)
-                    self.old_policy_dict.pop(ts)
+        # print(self.timestamp_counter)
+        # if len(self.old_policy_dict) > 100:
+            # self.old_policy_dict.popitem(last=False)
+        # for ts in self.memory['timestamps']:
+            # self.timestamp_counter[ts] -= 1
+            # if self.timestamp_counter[ts] == 0:
+                # purge old policy
+            #     self.timestamp_counter.pop(ts)
+            #     self.old_policy_dict.pop(ts)
 
         self.reset_memory()
 
