@@ -59,6 +59,8 @@ sac_agent = SAC_Collective_Agent(
     batch_size=SAC_CONFIG['batch_size'],
     q_update_freq=SAC_CONFIG['q_update_freq'],
     target_update_freq=SAC_CONFIG['target_update_freq'],
+    explore_before=SAC_CONFIG['explore_before'],
+    train_after=SAC_CONFIG['train_after'],
     num_agents=ENV_CONFIG['num_agents'],
     max_glb_num_steps=ENV_CONFIG['max_num_steps'],
     save_suffix=SAC_CONFIG['save_suffix'],
@@ -69,8 +71,8 @@ if SAC_CONFIG['checkpoint']:
     ckpt = torch.load(SAC_CONFIG['checkpoint'], map_location='cpu')
     sac_agent.resume(ckpt)
 
-sac_agent.tb_write_config('env_config',ENV_CONFIG)
-sac_agent.tb_write_config('ppo_config',SAC_CONFIG)
+sac_agent.tb_write_config('env_config', ENV_CONFIG)
+sac_agent.tb_write_config('sac_config', SAC_CONFIG)
 print('>>>SAC_CONFIG:{}\n>>>ENV_CONFIG:{}'.format(SAC_CONFIG, ENV_CONFIG))
 sac_agent.learn()
 env.close()

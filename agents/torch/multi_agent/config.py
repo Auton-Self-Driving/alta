@@ -72,7 +72,9 @@ SAC_CONFIG = {
     'tau': .01,
     'batch_size': 512,
     'q_update_freq': 25,
-    'target_update_freq': 1,
+    'target_update_freq': 2000,
+    'explore_before': 100000,
+    'train_after': 100000,
 }
 
 DPPO_CONFIG = {

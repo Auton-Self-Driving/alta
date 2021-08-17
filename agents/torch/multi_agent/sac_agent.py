@@ -93,8 +93,9 @@ class SAC_Collective_Agent(object):
     def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer,
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, buffer, num_agents=1, tau=0.01, batch_size=512,
-        max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
-        target_update_freq=1, save_freq=100000, save_suffix='', verbose=False):
+        max_glb_num_steps=1000000, gamma=.99, q_update_freq=1, 
+        explore_before=10000, train_after=10000, target_update_freq=1,
+        save_freq=100000, save_suffix='', verbose=False):
         """An synchronous SAC agent.
         Args:
             glb_env: the global environment
@@ -115,6 +116,8 @@ class SAC_Collective_Agent(object):
             gamma: reward discount factor
             q_update_freq: update frequency of q networks
                 (update q networks every N steps)
+            explore_before: randomly take actions before this timestep
+            train_after: start training (updating) after this timestep
             target_update_freq: update frequency of target q networks
                 (update target and policy every N q-updates)
             save_freq: checkpoint saving frequency
@@ -143,6 +146,8 @@ class SAC_Collective_Agent(object):
         self.tau = tau
         self.q_update_freq = q_update_freq
         self.target_update_freq = target_update_freq
+        self.explore_before = explore_before
+        self.train_after = train_after
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
@@ -163,6 +168,8 @@ class SAC_Collective_Agent(object):
         self.glb_num_episodes = 1
         self.num_steps_since_update = 0
         self.glb_num_steps = 0
+        # not resumed after resuming training
+        self.glb_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
 
@@ -257,7 +264,10 @@ class SAC_Collective_Agent(object):
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
-                action = agent.select_action()
+                if self.glb_num_steps_nonresumed < self.explore_before:
+                    action = self.glb_env.action_space.sample()
+                else:
+                    action = agent.select_action()
                 agent.prev_state = agent.observation
                 agent.action = action
             te_action = time.time()
@@ -367,9 +377,11 @@ class SAC_Collective_Agent(object):
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
                 self.glb_num_steps += 1
+                self.glb_num_steps_nonresumed += 1
 
                 if self.num_steps_since_update >= self.q_update_freq and \
-                    len(self.buffer) > self.batch_size:
+                    len(self.buffer) > self.batch_size and \
+                    self.glb_num_steps_nonresumed > self.train_after:
                     # do the learning
                     # print('updating policy...')
                     self._update()
