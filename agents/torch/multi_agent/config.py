@@ -59,7 +59,7 @@ A2C_CONFIG = {
 }
 
 SAC_CONFIG = {
-    'save_suffix': '',
+    'save_suffix': 'Expl10kTrain10kTarget1',
     'checkpoint': '',
     # 'checkpoint': './ckptSACx6_3300000_Feb010608AM57.pth',
     # 'checkpoint': './ckptSACx8_3300000_Feb010609AM48.pth',
@@ -72,9 +72,9 @@ SAC_CONFIG = {
     'tau': .01,
     'batch_size': 512,
     'q_update_freq': 25,
-    'target_update_freq': 2000,
-    'explore_before': 100000,
-    'train_after': 100000,
+    'target_update_freq': 1,
+    'explore_before': 10000,
+    'train_after': 10000,
 }
 
 DPPO_CONFIG = {
@@ -129,7 +129,7 @@ PPO_CONFIG = {
 }
 
 TEST_CONFIG = {
-    'PPO': True, # else SAC, currently only support those two
+    'PPO': False, # else SAC, currently only support those two
     # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
     # 'checkpoint': './ckptPPOx1_obsfix90km_300000_Feb060938PM56.pth',
     # 'checkpoint': './ckptPPOx8_obsfix_600000_Feb061128PM06.pth',
@@ -218,7 +218,7 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdhybrid_10083630_Jun141047AM11.pth',
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdhybrid_10800973_Jun141228PM45.pth',
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdhybrid_9062321_Jun140829AM28.pth',
-    'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdhybrid_15997926_Jun150237AM21.pth',
+    # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m1kupdhybrid_15997926_Jun150237AM21.pth',
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m9kupdstdoff_12410117_Mar260317AM13.pth',
     # 'checkpoint': './ckptDPPO1x10x8_O10mL10mG0m9kupd_12100000_Mar260317AM49.pth',
     # 'checkpoint': './ckptMultiPPO4x8_O10mL10mG0m56hupdstdoff_1600000_Mar260205AM28.pth',
@@ -244,8 +244,11 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_2600000_May030330AM55.pth',
     # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_3700000_May110549AM12.pth',
     # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_3500000_May100916PM54.pth',
+    # 'checkpoint': './ckptSACx4_5100000_Aug091026AM45.pth',
+    # 'checkpoint': './ckptSACx4_7000000_Aug120927PM48.pth',
+    'checkpoint': './ckptSACx8_Expl10kTrain10kTarget1_600000_Aug181153AM03.pth',
     'num_agents': 1,
-    'num_npc': 70,
+    'num_npc': 0,
     'sample_npc': False,
     # 'scenarios' : 'navigation',
     'scenarios' : 'no_crash_dense',
@@ -275,7 +278,7 @@ TEST_CONFIG = {
 
 ENV_CONFIG = {
     # 'algo': 'Multi-Agent',
-    'num_envs': 4,
+    'num_envs': 1,
     'num_agents': 8,
     'max_num_steps': 16000000,
     'device': 'cuda:3',

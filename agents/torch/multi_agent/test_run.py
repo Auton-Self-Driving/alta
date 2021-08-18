@@ -77,7 +77,7 @@ else:
 
     ckpt = torch.load(TEST_CONFIG['checkpoint'], map_location='cpu')
     sac_agent.load(ckpt)
-    sac_agent.test()
+    sac_agent.test(videos=TEST_CONFIG['videos'])
 
 env.close()
 
