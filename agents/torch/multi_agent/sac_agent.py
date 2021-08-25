@@ -185,8 +185,8 @@ class DSAC_Server_Agent(object):
         self.server_lock = Lock()
         self.server_save_lock = Lock()
         self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'DSACx{}{}'.format(self.num_agents,
-            self.save_suffix)
+        self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
+            self.num_workers, self.num_agents, self.save_suffix)
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
@@ -464,8 +464,8 @@ class DSAC_Worker_Agent(object):
         self.server_lock = Lock()
         self.server_save_lock = Lock()
         self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'DSACx{}{}'.format(self.num_agents,
-            self.save_suffix)
+        self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
+            self.num_workers, self.num_agents, self.save_suffix)
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
