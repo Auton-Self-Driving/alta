@@ -4,7 +4,6 @@ import pickle
 import copy
 import torch
 import torch.multiprocessing as mp
-import torch.distributed as dist
 import torch.nn.functional as F
 import numpy as np
 import dist_utils as dist
@@ -978,11 +977,13 @@ class DPPO_Worker_Agent(object):
         raise NotImplementedError
 
     def load(self, checkpoint):
+        raise NotImplementedError
         self.local_policy.load_state_dict(checkpoint['local_policy'])
         # self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):
+        raise NotImplementedError
         if strict:
             assert self.num_agents == \
                 checkpoint['num_agents'], '{} != {}'.format(

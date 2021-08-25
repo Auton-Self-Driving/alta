@@ -136,6 +136,8 @@ class PolicyNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions,
         hidden_size=64, init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(PolicyNetwork, self).__init__()
+        self.N_S = num_inputs
+        self.N_A = num_actions
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
         # self.action_range = action_range
