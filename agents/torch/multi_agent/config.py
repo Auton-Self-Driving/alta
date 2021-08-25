@@ -83,7 +83,7 @@ DSAC_CONFIG = {
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
-    'num_workers': 2,
+    'num_workers': 10,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 5,
     'device_list': ['cuda:1', 'cuda:2'],
@@ -94,8 +94,8 @@ DSAC_CONFIG = {
     'q_update_freq': 25,
     'buffer_update_freq': 25,
     'target_update_freq': 1,
-    'explore_before': 10000,
-    'train_after': 10000,
+    'explore_before': 1000000,
+    'train_after': 1000000,
 }
 
 DPPO_CONFIG = {
@@ -267,9 +267,10 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx1_O10mL10mG0m1kupdstdoffchallenge_3500000_May100916PM54.pth',
     # 'checkpoint': './ckptSACx4_5100000_Aug091026AM45.pth',
     # 'checkpoint': './ckptSACx4_7000000_Aug120927PM48.pth',
-    'checkpoint': './ckptSACx8_Expl10kTrain10kTarget1_600000_Aug181153AM03.pth',
+    # 'checkpoint': './ckptSACx8_Expl10kTrain10kTarget1_600000_Aug181153AM03.pth',
+    'checkpoint': './ckptSACx8_Expl10kTrain10kTarget1_6000000_Aug240325PM20.pth',
     'num_agents': 1,
-    'num_npc': 0,
+    'num_npc': 70,
     'sample_npc': False,
     # 'scenarios' : 'navigation',
     'scenarios' : 'no_crash_dense',

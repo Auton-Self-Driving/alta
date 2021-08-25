@@ -111,7 +111,7 @@ class _SAC_Individual_Agent(Agent):
 class DSAC_Server_Agent(object):
     def __init__(self, glb_q1, q1_optimizer, glb_q2, q2_optimizer,
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
-        target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01, 
+        target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01,
         batch_size=512, max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
         train_after=10000, target_update_freq=1,
         save_freq=100000, save_suffix='', log_time='TEST', verbose=False):
@@ -146,6 +146,7 @@ class DSAC_Server_Agent(object):
         """
         super().__init__()
         self.glb_q1 = glb_q1
+        self.glb_policy = glb_policy
         self.N_S = self.glb_policy.N_S
         self.N_A = self.glb_policy.N_A
         self.q1_optimizer = q1_optimizer
@@ -153,7 +154,6 @@ class DSAC_Server_Agent(object):
         self.glb_q2 = glb_q2
         self.q2_optimizer = q2_optimizer
         self.target_q2 = copy.deepcopy(self.glb_q2)
-        self.glb_policy = glb_policy
         self.policy_optimizer = policy_optimizer
         self.buffer = VanillaReplayBuffer(buffer_len)
         self.log_alpha = log_alpha
@@ -185,7 +185,7 @@ class DSAC_Server_Agent(object):
         self.server_lock = Lock()
         self.server_save_lock = Lock()
         self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
+        self.run_name = 'DSAC{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
@@ -197,10 +197,12 @@ class DSAC_Server_Agent(object):
         self.num_steps_since_update = 0
         self.glb_num_steps = 0
         self.glb_policy_timestamp = 0
+        self.last_save_steps = 0
         # not resumed after resuming training
         self.glb_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
+        self.resumed = False
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -285,6 +287,7 @@ class DSAC_Server_Agent(object):
                 total_len = (2 * self.N_S + self.N_A + 2) * buffer_len
                 _, vec_buf = dist.recv(self.recv_info_len, total_len,
                     src=sender, tag=SIG.EXP, device='cpu')
+                vec_buf = vec_buf.reshape(buffer_len, -1)
                 with self.server_lock:
                     # disintegrate them into buffer items derived from buffer_len
                     for _buf in vec_buf:
@@ -293,7 +296,7 @@ class DSAC_Server_Agent(object):
                         _reward = _buf[-self.N_S - 2:-self.N_S - 1]
                         _next_state = _buf[-self.N_S - 1:-1]
                         _done = _buf[-1:]
-                        self.buffer.append(_state, _action, _reward, 
+                        self.buffer.append(_state, _action, _reward,
                             _next_state, _done)
                     self.glb_num_steps += num_steps_added
                     self.num_steps_since_update += num_steps_added
@@ -309,13 +312,15 @@ class DSAC_Server_Agent(object):
                         self.glb_policy.parameters(),
                         dst=sender, tag=SIG.PARAM
                     ).wait()
-                    print('server {}, sent to {}, timestamp {}'.format(
-                        self.rank, sender, self.glb_policy_timestamp))
+                    # print('server {}, sent to {}, timestamp {}'.format(
+                    #     self.rank, sender, self.glb_policy_timestamp))
 
             else:
                 raise ValueError('signal not seen')
             with self.server_lock:
-                if self.num_steps_since_update >= self.glb_update_freq:
+                if self.num_steps_since_update >= self.q_update_freq and \
+                    self.glb_num_steps >= self.train_after and \
+                    len(self.buffer) > self.batch_size:
                     if self.resumed:
                         self.resumed = False
                     else:
@@ -423,9 +428,9 @@ class DSAC_Server_Agent(object):
 
 
 class DSAC_Worker_Agent(object):
-    def __init__(self, glb_env, glb_policy, num_agents=1, 
+    def __init__(self, glb_env, glb_policy, num_agents=1,
         max_glb_num_steps=1000000, explore_before=10000,
-        buffer_update_freq=1, save_suffix='', log_time='TEST', 
+        buffer_update_freq=1, save_suffix='', log_time='TEST',
         verbose=False):
         """An asynchronous Distributed SAC Worker (Agent).
         Args:
@@ -443,6 +448,9 @@ class DSAC_Worker_Agent(object):
         super().__init__()
         self.glb_env = glb_env
         self.glb_policy = glb_policy
+        self.N_S = self.glb_policy.N_S
+        self.N_A = self.glb_policy.N_A
+        self.model_len = len(parameters_to_vector(glb_policy.parameters()))
         self.buffer = []
         self.max_glb_num_steps = max_glb_num_steps
         self.buffer_update_freq = buffer_update_freq
@@ -460,11 +468,12 @@ class DSAC_Worker_Agent(object):
         self.server_group, self.worker_group = comm_vars[4:]
         self.num_servers = len(self.server_list)
         self.num_workers = len(self.worker_list)
+        self.server_rank = (self.rank - self.num_servers) % self.num_servers
         self.recv_info_len = 3
         self.server_lock = Lock()
         self.server_save_lock = Lock()
         self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
+        self.run_name = 'DSAC{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
@@ -474,12 +483,15 @@ class DSAC_Worker_Agent(object):
         self.num_q_upd_since_target_upd = 0
         self.glb_num_episodes = 1
         self.num_steps_since_update = 0
+        self.num_eps_since_update = 0
         self.glb_num_steps = 0
         self.glb_policy_timestamp = 0
+        self.local_policy_timestamp = 0
         # not resumed after resuming training
         self.glb_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
+        self.resumed = False
 
     def tb_write_config(self, tag, config):
         if self.tbwriter is None:
@@ -500,7 +512,7 @@ class DSAC_Worker_Agent(object):
         raise NotImplementedError
 
     def _update_buffer(self):
-        exp_buf = torch.stack(self.buffer)
+        exp_buf = torch.cat(self.buffer)
         overhead = [self.rank, self.num_steps_since_update,
             len(exp_buf), self.local_policy_timestamp, SIG.EXP_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
@@ -520,7 +532,7 @@ class DSAC_Worker_Agent(object):
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         glb_stats, vec_param = dist.recv(self.recv_info_len, self.model_len,
             src=self.server_rank, tag=SIG.PARAM, device=self.device)
-        vector_to_parameters(vec_param, self.local_policy.parameters())
+        vector_to_parameters(vec_param, self.glb_policy.parameters())
         return glb_stats
 
     def _buffer_to_tensor(self, prev_state, action, reward, obs, done):
@@ -579,7 +591,7 @@ class DSAC_Worker_Agent(object):
                 self.buffer.append(
                     self._buffer_to_tensor(
                     agent.prev_state, agent.action,
-                    agent.step_reward, agent.observation, 
+                    agent.step_reward, agent.observation,
                     agent.done,)
                 )
 
@@ -588,21 +600,12 @@ class DSAC_Worker_Agent(object):
                 self.glb_num_steps += 1
                 self.glb_num_steps_nonresumed += 1
 
-                if self.num_steps_since_update >= self.buffer_update_freq:
-                    # do the learning
-                    # print('updating policy...')
-                    self._update_buffer()
-                    self.num_steps_since_update = 0
-
-            # respawn dead agents
-            respawn_rank_list = []
-            for rk, agent in enumerate(self.agent_list):
-                if agent.done: 
+                if agent.done:
                     print('[{}]'.format(self.time()) + \
                         '[{}][rank {}]'.format(self.run_name, self.rank) + \
                         '[local ep {}][local step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        self.local_num_episodes, self.local_num_steps, rk,
+                        self.glb_num_episodes, self.glb_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
@@ -679,7 +682,21 @@ class DSAC_Worker_Agent(object):
                     self.tbwriter.add_scalar('rank_{}/recent/collision_rate'.format(self.rank),
                         self.recorder['recent']['collision_rate'].summary(),
                         self.glb_num_episodes)
-                    respawn_rank_list.append(rk)
+                    self.recorder.summary_all()
+                    self.glb_num_episodes += 1
+                    self.num_eps_since_update += 1
+
+                if self.num_steps_since_update >= self.buffer_update_freq:
+                    # do the learning
+                    # print('updating policy...')
+                    self._update_buffer()
+                    self.num_steps_since_update = 0
+                    self.num_eps_since_update = 0
+
+            # respawn dead agents
+            respawn_rank_list = []
+            for rk, agent in enumerate(self.agent_list):
+                if agent.done: respawn_rank_list.append(rk)
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
                 self.glb_env.reset(rank_list=respawn_rank_list)
                 # update agent list

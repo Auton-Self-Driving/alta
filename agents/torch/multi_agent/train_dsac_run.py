@@ -68,6 +68,7 @@ def launch_server(rank, resources):
         alpha_optimizer=alpha_optimizer,
         target_entropy=target_entropy,
         num_agents=ENV_CONFIG['num_agents'],
+        max_glb_num_steps=ENV_CONFIG['max_num_steps'],
         buffer_len=DSAC_CONFIG['buffer_len'],
         num_threads=DSAC_CONFIG['num_threads_per_server'],
         tau=DSAC_CONFIG['tau'],
@@ -75,7 +76,6 @@ def launch_server(rank, resources):
         q_update_freq=DSAC_CONFIG['q_update_freq'],
         target_update_freq=DSAC_CONFIG['target_update_freq'],
         train_after=DSAC_CONFIG['train_after'],
-        max_glb_num_steps=DSAC_CONFIG['max_num_steps'],
         save_suffix=DSAC_CONFIG['save_suffix'],
         log_time=resources['log_time'],
         verbose=ENV_CONFIG['verbose'])
