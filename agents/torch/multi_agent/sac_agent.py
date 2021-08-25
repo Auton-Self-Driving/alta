@@ -109,7 +109,7 @@ class _SAC_Individual_Agent(Agent):
 
 
 class DSAC_Server_Agent(object):
-    def __init__(self, glb_env, glb_q1, q1_optimizer, glb_q2, q2_optimizer,
+    def __init__(self, glb_q1, q1_optimizer, glb_q2, q2_optimizer,
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01, 
         batch_size=512, max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,

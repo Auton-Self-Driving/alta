@@ -77,6 +77,27 @@ SAC_CONFIG = {
     'train_after': 10000,
 }
 
+DSAC_CONFIG = {
+    'save_suffix': 'sanity',
+    'checkpoint': '',
+    'policy_lr': 4e-4,
+    'q_lr': 4e-4,
+    'alpha_lr': 4e-5,
+    'num_workers': 2,
+    'num_servers': 1, # currently only support 1 server
+    'num_threads_per_server': 5,
+    'device_list': ['cuda:1', 'cuda:2'],
+    'buffer_len': 1000000,
+    'target_entropy': -2.,
+    'tau': .01,
+    'batch_size': 512,
+    'q_update_freq': 25,
+    'buffer_update_freq': 25,
+    'target_update_freq': 1,
+    'explore_before': 10000,
+    'train_after': 10000,
+}
+
 DPPO_CONFIG = {
     'save_suffix': 'O10mL10mG0m1kupdhybrid',
     'checkpoint': '',
