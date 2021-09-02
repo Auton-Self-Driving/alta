@@ -171,8 +171,8 @@ class PolicyNetwork(nn.Module):
         action = torch.tanh(z)
 
         log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
-        log_pi = dist.log_prob(z) - torch.log(1 - action.pow(2) + epsilon)
         log_pi = log_pi.sum(1, keepdim=True)
+
         return action, log_pi
         # return z, log_pi
 

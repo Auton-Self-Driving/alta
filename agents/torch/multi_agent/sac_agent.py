@@ -190,6 +190,7 @@ class DSAC_Server_Agent(object):
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, log_time)
         self.num_q_upd_since_target_upd = 0
@@ -333,10 +334,11 @@ class DSAC_Server_Agent(object):
                         self.glb_policy_timestamp += 1
 
             # save checkpoint
-            with self.server_save_lock:
-                if self.glb_num_steps - self.last_save_steps >= self.save_freq:
-                    self.last_save_steps = self.glb_num_steps
-                    self.save()
+            if self.glb_num_steps >= self.train_after:
+                with self.server_save_lock:
+                    if self.glb_num_steps - self.last_save_steps >= self.save_freq:
+                        self.last_save_steps = self.glb_num_steps
+                        self.save()
 
     def learn(self):
         thread_list = []
@@ -481,6 +483,8 @@ class DSAC_Worker_Agent(object):
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, log_time)
         self.num_q_upd_since_target_upd = 0
+        self.local_num_episodes = 1
+        self.local_num_steps = 0
         self.glb_num_episodes = 1
         self.num_steps_since_update = 0
         self.num_eps_since_update = 0
@@ -488,7 +492,7 @@ class DSAC_Worker_Agent(object):
         self.glb_policy_timestamp = 0
         self.local_policy_timestamp = 0
         # not resumed after resuming training
-        self.glb_num_steps_nonresumed = 0
+        self.local_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
@@ -563,11 +567,11 @@ class DSAC_Worker_Agent(object):
 
         avg_t_action, avg_t_step  = [], []
 
-        while self.glb_num_steps < self.max_glb_num_steps + 1:
+        while self.local_num_steps < self.max_glb_num_steps + 1:
             # take action
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
-                if self.glb_num_steps_nonresumed < self.explore_before:
+                if self.glb_num_steps < self.explore_before:
                     action = self.glb_env.action_space.sample()
                 else:
                     action = agent.select_action()
@@ -597,15 +601,15 @@ class DSAC_Worker_Agent(object):
 
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
-                self.glb_num_steps += 1
-                self.glb_num_steps_nonresumed += 1
+                self.local_num_steps += 1
+                self.local_num_steps_nonresumed += 1
 
                 if agent.done:
                     print('[{}]'.format(self.time()) + \
                         '[{}][rank {}]'.format(self.run_name, self.rank) + \
                         '[local ep {}][local step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
-                        self.glb_num_episodes, self.glb_num_steps, rk,
+                        self.local_num_episodes, self.local_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
@@ -642,48 +646,48 @@ class DSAC_Worker_Agent(object):
                         obs_collision_int)
                     # tensorboard
                     self.tbwriter.add_scalar('rank_{}/episode/reward'.format(self.rank),
-                        agent.episode_reward, self.glb_num_episodes)
+                        agent.episode_reward, self.local_num_episodes)
                     self.tbwriter.add_scalar('episode/dist_to_target',
                         agent.episode_measurements['distance_to_goal_trajec'],
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/num_collisions'.format(self.rank),
                         agent.episode_measurements['num_collisions'],
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/success_rate'.format(self.rank),
                         self.recorder['train']['success_rate'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/collision_rate'.format(self.rank),
                         self.recorder['train']['collision_rate'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/avg_reward'.format(self.rank),
                         self.recorder['train']['avg_reward'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/max_reward'.format(self.rank),
                         self.recorder['train']['max_reward'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/episode/dist_to_target'.format(self.rank),
                         self.recorder['episode']['dist_to_target'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/avg_reward'.format(self.rank),
                         self.recorder['recent']['avg_reward'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/max_reward'.format(self.rank),
                         self.recorder['recent']['max_reward'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rrank_{}/ecent/min_reward'.format(self.rank),
                         self.recorder['recent']['min_reward'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/avg_dist_to_target'.format(self.rank),
                         self.recorder['recent']['avg_dist_to_trgt'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/success_rate'.format(self.rank),
                         self.recorder['recent']['success_rate'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/collision_rate'.format(self.rank),
                         self.recorder['recent']['collision_rate'].summary(),
-                        self.glb_num_episodes)
+                        self.local_num_episodes)
                     self.recorder.summary_all()
-                    self.glb_num_episodes += 1
+                    self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 
                 if self.num_steps_since_update >= self.buffer_update_freq:
@@ -1023,7 +1027,8 @@ class SAC_Collective_Agent(object):
                     self.num_steps_since_update = 0
 
                 # save checkpoint
-                if self.glb_num_steps % self.save_freq == 0:
+                if self.glb_num_steps % self.save_freq == 0 and \
+                    self.glb_num_steps_nonresumed > self.train_after:
                     self.save()
 
             # respawn dead agents
