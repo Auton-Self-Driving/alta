@@ -48,14 +48,14 @@ def test(model, env, model_step):
         obs[:] = env.reset(unseen=True, index=ind)
         done = False
         reward = 0
-        
+
         while not done:
             action, _states = model.predict(obs, deterministic=True)
             info = env.step(action)
             reward += info[1]
             done = info[2]
             obs = np.expand_dims(info[0], axis=0)
-        
+
         total_reward += reward
         if info[3]['termination_state'] == 'success':
             success_episodes += 1
@@ -92,19 +92,19 @@ def run_sac(args, prefix, base_prefix, config):
     IMAGES_PATH = ALTA_LOGS+'images/'
     VIDEO_PATH = ALTA_LOGS+'videos/'
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
-    
+
     # config = ConfigManager(algo="PPO")
     logger = tf_log.Logger(TB_LOGS_DIR)
-    
+
     RETRIES_ON_ERROR = 5
     serverStartRetries = 0
     serverStarted = False
     while ((not serverStarted) and serverStartRetries < RETRIES_ON_ERROR):
         try:
 
-            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
+            env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger, log_dir=ALTA_LOGS)
             serverStarted = True
-        
+
         except Exception as identifier:
             print(prefix, identifier)
             traceback.print_exc()
@@ -135,7 +135,7 @@ def run_sac(args, prefix, base_prefix, config):
 
             model = MY_SAC(policy=policy, env=dummy_env, learning_rate=args.lr,buffer_size=args.buffer_size,batch_size=512,learning_starts=5000,
                 tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=False, verbose=1)
-            
+
             model.learn(env, args.timesteps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
             model.save(SAVE_PATH)
 
@@ -150,7 +150,7 @@ def run_sac(args, prefix, base_prefix, config):
             env.close()
 
 if __name__ == '__main__':
-    
+
     # register_policy('CustomWPPolicy', CustomWPPolicy)
     steps = 1000000
 
@@ -158,12 +158,12 @@ if __name__ == '__main__':
     IMAGES_PATH = ALTA_LOGS+'images/'
     VIDEO_PATH = ALTA_LOGS+'videos/'
     vis_wrapper = vis_module.vis(IMAGES_PATH, VIDEO_PATH, FRAME_SKIP)
-    
+
     config = ConfigManager(algo="PPO")
     logger = tf_log.Logger(TB_LOGS_DIR)
     env = CarlaEnv(config=config.config, vis_wrapper=vis_wrapper, logger=logger)
     dummy_env = DummyVecEnv([lambda: env])
-    
+
     if TEST:
         model = MY_SAC.load(MODEL_PATH, env)
         test(model, env, model_step=0)
@@ -171,8 +171,8 @@ if __name__ == '__main__':
 
         model = MY_SAC(policy=My_MlpPolicy, env=dummy_env, learning_rate=3e-4,buffer_size=1000000,batch_size=256,
             tensorboard_log=TB_LOGS_DIR, full_tensorboard_log=True, verbose=1)
-        
+
         model.learn(env, steps, 0, tb_log_name="SAC", save_file=SAVE_PATH, reset_num_timesteps=True)
         model.save(SAVE_PATH)
     env.close()
-    
+
