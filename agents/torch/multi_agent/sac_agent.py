@@ -278,7 +278,7 @@ class DSAC_Server_Agent(object):
 
     def listen(self):
         while self.glb_num_steps < self.max_glb_num_steps + 1:
-            sender, num_steps_added, buffer_len, timestamp, signal = dist.recv(
+            sender, num_steps_added, buffer_len, num_eps_added, signal = dist.recv(
                 self.recv_info_len, tag=SIG.QUERY)
             self.vprint('server', self.rank, 'QUERY', sender,
                 num_steps_added, 'buffer_len', buffer_len, signal)
@@ -301,7 +301,7 @@ class DSAC_Server_Agent(object):
                             _next_state, _done)
                     self.glb_num_steps += num_steps_added
                     self.num_steps_since_update += num_steps_added
-                    self.glb_num_episodes += 1
+                    self.glb_num_episodes += num_eps_added
                 # print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
@@ -325,10 +325,10 @@ class DSAC_Server_Agent(object):
                     if self.resumed:
                         self.resumed = False
                     else:
-                        print('[server rank {}][glb ep {}][glb step {}] updating ...'.format(
-                            self.rank, self.glb_num_episodes, self.glb_num_steps,
-                        ))
-                        self.num_steps_since_update = 0
+                        # print('[server rank {}][glb ep {}][glb step {}] updating ...'.format(
+                        #     self.rank, self.glb_num_episodes, self.glb_num_steps,
+                        # ))
+                        self.num_steps_since_update -= self.q_update_freq
                         # print('TIMESTAMPS:', self.glb_policy_timestamp, self.memory['timestamps'])
                         self._update()
                         self.glb_policy_timestamp += 1
@@ -518,7 +518,7 @@ class DSAC_Worker_Agent(object):
     def _update_buffer(self):
         exp_buf = torch.cat(self.buffer)
         overhead = [self.rank, self.num_steps_since_update,
-            len(exp_buf), self.local_policy_timestamp, SIG.EXP_PUSH]
+            len(exp_buf), self.num_eps_since_update, SIG.EXP_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, exp_buf, dst=self.server_rank, tag=SIG.EXP).wait()
         # reset buffer
@@ -532,7 +532,7 @@ class DSAC_Worker_Agent(object):
         # overhead = [self.rank, self.num_steps_since_update,
         #     self.num_eps_since_update, SIG.PARAM_REQ]
         overhead = [self.rank, self.num_steps_since_update,
-            self.num_eps_since_update, self.local_policy_timestamp, SIG.PARAM_REQ]
+            self.num_steps_since_update, self.local_policy_timestamp, SIG.PARAM_REQ]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         glb_stats, vec_param = dist.recv(self.recv_info_len, self.model_len,
             src=self.server_rank, tag=SIG.PARAM, device=self.device)
