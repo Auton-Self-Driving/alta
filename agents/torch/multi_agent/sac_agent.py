@@ -67,12 +67,13 @@ class VanillaReplayBuffer(object):
 
 
 class _SAC_Individual_Agent(Agent):
-    def __init__(self, vehicle, glb_policy, rank=None, **kwargs):
+    def __init__(self, vehicle, glb_policy, rank=None, memory=None, **kwargs):
         """A local individual SAC agent.
         Args:
             vehicle: ego-vehicle in env (e.g. env.vehicle_actor)
             glb_policy: policy network for selecting action
             rank: an integer for identification of this local agent
+            memory: SAC memory
             **kwargs: include proximity_threshold=10.0,
                 traffic_light_proximity_threshold=10.0,
                 vehicle_proximity_threshold=15.0
@@ -80,6 +81,10 @@ class _SAC_Individual_Agent(Agent):
         super().__init__(vehicle, **kwargs)
         self.device = next(glb_policy.parameters()).device
         self.glb_policy = glb_policy
+        if memory is not None:
+            self.memory = memory
+        else:
+            self.reset_memory()
         self.rank = rank
         self.done = False
         self.action = None
@@ -106,6 +111,14 @@ class _SAC_Individual_Agent(Agent):
         action = action.cpu().detach().squeeze(0).numpy()
         # return self.glb_policy.rescale_action(action)
         return action
+
+    def reset_memory(self):
+        self.memory = {
+            'prev_state': [],
+            'action': [],
+            'reward': [],
+            'obs': [],
+            'done': [],}
 
 
 class DSAC_Server_Agent(object):
@@ -431,9 +444,9 @@ class DSAC_Server_Agent(object):
 
 class DSAC_Worker_Agent(object):
     def __init__(self, glb_env, glb_policy, num_agents=1,
-        max_glb_num_steps=1000000, explore_before=10000,
+        max_glb_num_steps=1000000, explore_before=10000, gamma=.99,
         buffer_update_freq=1, save_suffix='', log_time='TEST',
-        verbose=False):
+        standard=True, verbose=False):
         """An asynchronous Distributed SAC Worker (Agent).
         Args:
             glb_env: environment for this worker
@@ -445,6 +458,8 @@ class DSAC_Worker_Agent(object):
             buffer_update_freq: buffer sync frequency
             save_suffix: checkpoint saving suffix
             log_time: set a unified time accross severs & workers
+            standard: whether doing standard SAC, i.e. calculating rewards
+                myopically. False if using PPO style traj reward calc
             verbose: if print some debug information
         """
         super().__init__()
@@ -457,11 +472,13 @@ class DSAC_Worker_Agent(object):
         self.max_glb_num_steps = max_glb_num_steps
         self.buffer_update_freq = buffer_update_freq
         self.explore_before = explore_before
+        self.gamma = gamma
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.res_queue = [[] for _ in self.rank_list]
         self.agent_list = None
         self.device = next(glb_policy.parameters()).device
+        self.standard = standard
         self.verbose = verbose
         ################################################################
         comm_vars = dist.init_param_server_comm()
@@ -527,6 +544,31 @@ class DSAC_Worker_Agent(object):
         self.glb_num_steps, self.glb_num_episodes, \
             self.local_policy_timestamp = self.update_parameters()
 
+    def _update_buffer_nonstandard(self, agent):
+        mem = agent.memory
+        discounted_reward = 0
+        for reward, is_terminal in zip(reversed(mem['reward']), reversed(mem['done'])):
+            agent_rewards = deque()
+            if is_terminal:
+                discounted_reward = 0
+            discounted_reward = reward + (self.gamma * discounted_reward)
+            agent_rewards.appendleft(discounted_reward)
+
+        _prev_states = torch.tensor(mem['prev_state'], dtype=torch.float).reshape(-1, self.N_S)
+        _actions = torch.tensor(mem['action'], dtype=torch.float).reshape(-1, self.N_A)
+        _rewards = torch.tensor(list(agent_rewards), dtype=torch.float).reshape(-1, 1)
+        _obs = torch.tensor(mem['obs'], dtype=torch.float).reshape(-1, self.N_S)
+        _dones = torch.tensor(mem['done'], dtype=torch.float).reshape(-1, self.N_S)
+
+        exp_buf = torch.hstack([_prev_states, _actions, _rewards, _obs, _dones])
+        overhead = [self.rank, self.num_steps_since_update,
+            len(exp_buf), self.num_eps_since_update, SIG.EXP_PUSH]
+        dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
+        dist.isend(overhead, exp_buf, dst=self.server_rank, tag=SIG.EXP).wait()
+        # update parameters
+        self.glb_num_steps, self.glb_num_episodes, \
+            self.local_policy_timestamp = self.update_parameters()
+
     def update_parameters(self):
         self.vprint('rank', self.rank, 'update_parameters')
         # overhead = [self.rank, self.num_steps_since_update,
@@ -579,6 +621,7 @@ class DSAC_Worker_Agent(object):
                 agent.action = action
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list])
+
             # get new observation
             ts_step = time.time()
             self.glb_env.step()
@@ -591,13 +634,21 @@ class DSAC_Worker_Agent(object):
                 np.mean(avg_t_step)))
 
             for rk, agent in enumerate(self.agent_list):
-                # push into the buffer
-                self.buffer.append(
-                    self._buffer_to_tensor(
-                    agent.prev_state, agent.action,
-                    agent.step_reward, agent.observation,
-                    agent.done,)
-                )
+                if not self.standard:
+                    # update memory
+                    agent.memory['prev_state'].append(agent.prev_state.tolist())
+                    agent.memory['action'].append(action.tolist())
+                    agent.memory['reward'].append(agent.step_reward)
+                    agent.memory['obs'].append(agent.observation.tolist())
+                    agent.memory['done'].append(agent.done)
+                else:
+                    # push into the buffer
+                    self.buffer.append(
+                        self._buffer_to_tensor(
+                        agent.prev_state, agent.action,
+                        agent.step_reward, agent.observation,
+                        agent.done,)
+                    )
 
                 agent.num_total_steps += 1
                 self.num_steps_since_update += 1
@@ -690,12 +741,23 @@ class DSAC_Worker_Agent(object):
                     self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 
+                    if not self.standard:
+                        # do the learning in a non-standard way
+                        self._update_buffer_nonstandard(agent)
+                        self.num_steps_since_update = 0
+                        self.num_eps_since_update = 0
+
                 if self.num_steps_since_update >= self.buffer_update_freq:
-                    # do the learning
-                    # print('updating policy...')
-                    self._update_buffer()
-                    self.num_steps_since_update = 0
-                    self.num_eps_since_update = 0
+                    if self.standard:
+                        # do the learning in a standard myopic SAC way
+                        # print('updating policy (standard)...')
+                        self._update_buffer()
+                        self.num_steps_since_update = 0
+                        self.num_eps_since_update = 0
+                    else:
+                        # not learning, only syncing
+                        self.glb_num_steps, self.glb_num_episodes, \
+                            self.local_policy_timestamp = self.update_parameters()
 
             # respawn dead agents
             respawn_rank_list = []

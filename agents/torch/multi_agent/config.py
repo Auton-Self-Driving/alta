@@ -79,7 +79,7 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Expl1MTrain1MTarget1Q1ClipRwdSucss1k',
+    'save_suffix': 'Expl10kTrain10kT1Q25B25stdoff_sanity',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
@@ -87,17 +87,18 @@ DSAC_CONFIG = {
     'num_workers': 8,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 4,
-    'device_list': ['cuda:1', 'cuda:2', 'cuda:3'],
+    'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2'],
     'buffer_len': 1000000,
     'target_entropy': -1.,
     'tau': .01,
     'batch_size': 512,
-    'q_update_freq': 1,
-    'buffer_update_freq': 512,
+    'q_update_freq': 25,
+    'buffer_update_freq': 25,
     'target_update_freq': 1,
-    'explore_before': 1000000,
-    'train_after': 1000000,
+    'explore_before': 10000,
+    'train_after': 10000,
+    'standard': False,
 }
 
 DPPO_CONFIG = {

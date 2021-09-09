@@ -116,6 +116,7 @@ def launch_worker(rank, resources):
         buffer_update_freq=DSAC_CONFIG['buffer_update_freq'],
         save_suffix=DSAC_CONFIG['save_suffix'],
         log_time=resources['log_time'],
+        standard=DSAC_CONFIG['standard'],
         verbose=ENV_CONFIG['verbose'],
     )
     worker_agent.learn()
