@@ -505,6 +505,7 @@ class DSAC_Worker_Agent(object):
         self.glb_num_episodes = 1
         self.num_steps_since_update = 0
         self.num_eps_since_update = 0
+        self.num_steps_since_sync = 0
         self.glb_num_steps = 0
         self.glb_policy_timestamp = 0
         self.local_policy_timestamp = 0
@@ -547,8 +548,8 @@ class DSAC_Worker_Agent(object):
     def _update_buffer_nonstandard(self, agent):
         mem = agent.memory
         discounted_reward = 0
+        agent_rewards = deque()
         for reward, is_terminal in zip(reversed(mem['reward']), reversed(mem['done'])):
-            agent_rewards = deque()
             if is_terminal:
                 discounted_reward = 0
             discounted_reward = reward + (self.gamma * discounted_reward)
@@ -557,10 +558,14 @@ class DSAC_Worker_Agent(object):
         _prev_states = torch.tensor(mem['prev_state'], dtype=torch.float).reshape(-1, self.N_S)
         _actions = torch.tensor(mem['action'], dtype=torch.float).reshape(-1, self.N_A)
         _rewards = torch.tensor(list(agent_rewards), dtype=torch.float).reshape(-1, 1)
+        # _rewards = torch.tensor(mem['reward'], dtype=torch.float).reshape(-1, 1) # sanity check
         _obs = torch.tensor(mem['obs'], dtype=torch.float).reshape(-1, self.N_S)
-        _dones = torch.tensor(mem['done'], dtype=torch.float).reshape(-1, self.N_S)
+        _dones = torch.tensor(mem['done'], dtype=torch.float).reshape(-1, 1)
+        # print(_prev_states.shape, _actions.shape, _rewards.shape, _obs.shape, _dones.shape, flush=True)
+        # print(mem['reward'], agent_rewards, flush=True)
 
-        exp_buf = torch.hstack([_prev_states, _actions, _rewards, _obs, _dones])
+        exp_buf = torch.cat([_prev_states, _actions, _rewards, _obs, _dones], dim=-1)
+        exp_buf = exp_buf.reshape(-1) # vectorize from 2d [n_ts, ...] to 1-d
         overhead = [self.rank, self.num_steps_since_update,
             len(exp_buf), self.num_eps_since_update, SIG.EXP_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
@@ -568,6 +573,8 @@ class DSAC_Worker_Agent(object):
         # update parameters
         self.glb_num_steps, self.glb_num_episodes, \
             self.local_policy_timestamp = self.update_parameters()
+
+        agent.reset_memory()
 
     def update_parameters(self):
         self.vprint('rank', self.rank, 'update_parameters')
@@ -638,6 +645,8 @@ class DSAC_Worker_Agent(object):
                     # update memory
                     agent.memory['prev_state'].append(agent.prev_state.tolist())
                     agent.memory['action'].append(action.tolist())
+                    # agent.memory['reward'].append(agent.step_reward)
+                    # print(agent.step_reward, agent.curr_reward, flush=True)
                     agent.memory['reward'].append(agent.step_reward)
                     agent.memory['obs'].append(agent.observation.tolist())
                     agent.memory['done'].append(agent.done)
@@ -654,6 +663,7 @@ class DSAC_Worker_Agent(object):
                 self.num_steps_since_update += 1
                 self.local_num_steps += 1
                 self.local_num_steps_nonresumed += 1
+                self.num_steps_since_sync += 1
 
                 if agent.done:
                     print('[{}]'.format(self.time()) + \
@@ -742,10 +752,12 @@ class DSAC_Worker_Agent(object):
                     self.num_eps_since_update += 1
 
                     if not self.standard:
+                    # if not self.standard and agent.termination_state != 'static':
                         # do the learning in a non-standard way
                         self._update_buffer_nonstandard(agent)
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
+                        self.num_steps_since_sync = 0
 
                 if self.num_steps_since_update >= self.buffer_update_freq:
                     if self.standard:
@@ -754,10 +766,13 @@ class DSAC_Worker_Agent(object):
                         self._update_buffer()
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
-                    else:
-                        # not learning, only syncing
-                        self.glb_num_steps, self.glb_num_episodes, \
-                            self.local_policy_timestamp = self.update_parameters()
+                        self.num_steps_since_sync = 0
+
+                if self.num_steps_since_sync >= self.buffer_update_freq:
+                    # not learning, only syncing
+                    self.glb_num_steps, self.glb_num_episodes, \
+                        self.local_policy_timestamp = self.update_parameters()
+                    self.num_steps_since_sync = 0
 
             # respawn dead agents
             respawn_rank_list = []
