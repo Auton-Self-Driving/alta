@@ -79,8 +79,8 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Expl10kTrain10kT1Q1B25stdoffCliprwdNorm10',
-    'checkpoint': './ckptDSAC1x4x8_Expl10kTrain10kT1Q1B25stdoffNorm1000_1417235_Sep101228PM52.pth',
+    'save_suffix': 'Explauto10kTrain10kT1Q1B25',
+    'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
@@ -99,8 +99,9 @@ DSAC_CONFIG = {
     'buffer_update_freq': 25,
     'target_update_freq': 1,
     'explore_before': 10000,
+    'explore_mode': 'autopilot',
     'train_after': 10000,
-    'standard': False,
+    'standard': True,
 }
 
 DPPO_CONFIG = {
@@ -302,7 +303,7 @@ TEST_CONFIG = {
     'city_name' : 'Town02',
     'num_episodes' : 25,
     'testing' : False, # spawn point pending bugs in env line#142
-    'enable_static' : False,
+    'enable_static_termination' : False,
     'enable_obstacle_sensor': True,
     'obs_cosine_velocity': True,
     'check_obs_same_lane': False,
@@ -414,6 +415,7 @@ ENV_CONFIG = {
     'collision_penalty_speed_coeff': 250,
     'const_light_penalty': 250,
     'light_penalty_speed_coeff': 250,
+    'static_penalty': 250,
     'terminate_on_light' : False,
     'enable_brake': True,
     # 'log_freq': 1,
@@ -440,11 +442,11 @@ ENV_CONFIG = {
        189, 192, 190, 187, 142, 232,   9, 127, 206, 169,  23, 208,  94,
        218,  83, 155,  65, 254, 249,  92, 240,  85, 100,  58,  22,   8,
        225,  31, 229, 250, 110, 177, 199, 184, 144],
-    'test_fixed_spawn_points' : False,
+    'test_fixed_spawn_points': False,
     'train_fixed_spawn_points': False,
-    'testing' : False,
-    'disable_collision' : False,
-    'enable_static' : True,
+    'testing': False,
+    'disable_collision': False,
+    'enable_static_termination': True,
     'enable_obstacle_sensor': True,
     'obs_cosine_velocity': True,
     'check_obs_same_lane': False,
@@ -457,7 +459,7 @@ ENV_CONFIG = {
     'min_dist_from_red_light' : 0,
     'clip_reward' : False,
     'default_obs_traffic_val': 1,
-    'reward_normalize_factor': 1000,
+    'reward_normalize_factor': 1,
     'success_reward': 0,
     'constant_positive_reward': 0,
     'frame_stack_size' : 1,

@@ -271,6 +271,11 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         collision_reward = 0
     current["collision_reward"] = collision_reward
 
+    # static penalty
+    static_reward = 0
+    if config['enable_static_termination'] and current['static_steps'] > config['max_static_steps']:
+        static_reward = -1 * config['static_penalty']
+
     # # New sidewalk intersection
     # if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
     #     lane_intersection_reward = -1
@@ -278,7 +283,7 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     #     lane_intersection_reward = 0
     # current["lane_intersection_reward"] = lane_intersection_reward
 
-    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward + static_reward
 
     # Adding constant positive reward to make dist_to_trajectory_reward positive
     reward += config["constant_positive_reward"]

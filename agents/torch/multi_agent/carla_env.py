@@ -96,6 +96,11 @@ class CarlaEnv(gym.Env):
             'K_D': 0.0005,
             'K_I': 0.4,
             'dt': 1/10.0}
+        self.args_lateral_dict={
+            'K_P': 1.95,
+            'K_D': 0.01,
+            'K_I': 1.4,
+            'dt': 1.0/10.0}
         self.actor_list = []
 
         # Queue for stacked frames and measurements
@@ -107,6 +112,12 @@ class CarlaEnv(gym.Env):
             K_D=self.args_longitudinal_dict['K_D'],
             K_I=self.args_longitudinal_dict['K_I'],
             dt=self.args_longitudinal_dict['dt'])
+        self.steer_controller = controller.PIDLateralController(
+            K_P=self.args_lateral_dict['K_P'],
+            K_D=self.args_lateral_dict['K_D'],
+            K_I=self.args_lateral_dict['K_I'],
+            dt=self.args_lateral_dict['dt'])  
+        )
 
         # Start Carla Server
         serverStarted = False
@@ -1132,6 +1143,21 @@ class CarlaEnv(gym.Env):
             # target_speed = (action[1] * 1.5) + 1.5
             target_speed = (action[1] * 1.5) + 1
             target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
+
+            ##################################
+            # if use autopilot
+            if hasattr(agent, 'autopilot') and agent.autopilot:
+                if agent.episode_measurements['red_light_dist'] == -1 or \
+                    agent.episode_measurements['obstacle_dist'] == -1:
+                    target_speed = 0
+                else:
+                    target_speed = self.target_speed
+                steer = self.steer_controller.pid_control(
+                    agent.next_waypoints[0], agent.vehicle_actor.get_transform())
+                steer = np.clip(steer, -1., 1.)
+                #!!! modify agent.action
+                agent.action = np.array([steer, (target_speed - 1) / 1.5])
+
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
@@ -1726,7 +1752,6 @@ class CarlaEnv(gym.Env):
                     print("difference in frames, self.world_frame={0}, data_frame={1}".format(self.world_frame, data.frame))
 
     def _compute_done_condition(self, agent):
-
         # Episode termination conditions
         success = agent.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         static = agent.episode_measurements["static_steps"] > self.config["max_static_steps"]
@@ -1742,7 +1767,7 @@ class CarlaEnv(gym.Env):
         obstacle_ahead = agent.episode_measurements['obstacle_dist'] != -1 and agent.prev_measurement['obstacle_dist'] != -1
         red_light = agent.episode_measurements['red_light_dist'] != -1 and agent.prev_measurement['red_light_dist'] != -1
 
-        if not self.config["enable_static"]:
+        if not self.config["enable_static_termination"]:
             static = False
         if self.config["disable_collision"]:
             collision = False

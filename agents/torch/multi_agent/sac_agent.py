@@ -95,6 +95,7 @@ class _SAC_Individual_Agent(Agent):
         self.episode_reward = 0
         self.curr_reward = 0
         self.step_reward = 0
+        self.autopilot = False
         self.observation = None
         self.termination_state = None
 
@@ -444,16 +445,18 @@ class DSAC_Server_Agent(object):
 
 class DSAC_Worker_Agent(object):
     def __init__(self, glb_env, glb_policy, num_agents=1,
-        max_glb_num_steps=1000000, explore_before=10000, gamma=.99,
-        buffer_update_freq=1, save_suffix='', log_time='TEST',
-        standard=True, verbose=False):
+        max_glb_num_steps=1000000, explore_before=10000, 
+        explore_mode='autopilot', gamma=.99, buffer_update_freq=1, 
+        save_suffix='', log_time='TEST', standard=True, 
+        verbose=False):
         """An asynchronous Distributed SAC Worker (Agent).
         Args:
             glb_env: environment for this worker
             glb_policy: global policy net for all SAC agents
             num_agents: number of SAC agents
             max_glb_num_steps: max number of global steps
-            explore_before: randomly take actions before this timestep
+            explore_before: take certain actions before this timestep
+            explore_mode: whether taking random action or invoke autopilot
             train_after: start training (updating) after this timestep
             buffer_update_freq: buffer sync frequency
             save_suffix: checkpoint saving suffix
@@ -472,6 +475,7 @@ class DSAC_Worker_Agent(object):
         self.max_glb_num_steps = max_glb_num_steps
         self.buffer_update_freq = buffer_update_freq
         self.explore_before = explore_before
+        self.explore_mode = explore_mode
         self.gamma = gamma
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
@@ -621,7 +625,14 @@ class DSAC_Worker_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 if self.glb_num_steps < self.explore_before:
-                    action = self.glb_env.action_space.sample()
+                    if self.explore_mode == 'random':
+                        action = self.glb_env.action_space.sample()
+                    elif self.explore_mode == 'autopilot':
+                        # NOTE: even if curr_step > explore_before,
+                        # autopilot flag will continue to the end of the episode
+                        agent.autopilot = True
+                    else:
+                        raise ValueError('unknown option')
                 else:
                     action = agent.select_action()
                 agent.prev_state = agent.observation
@@ -644,7 +655,8 @@ class DSAC_Worker_Agent(object):
                 if not self.standard:
                     # update memory
                     agent.memory['prev_state'].append(agent.prev_state.tolist())
-                    agent.memory['action'].append(action.tolist())
+                    # action can be changed in env if using autopilot
+                    agent.memory['action'].append(agent.action.tolist())
                     # agent.memory['reward'].append(agent.step_reward)
                     # print(agent.step_reward, agent.curr_reward, flush=True)
                     agent.memory['reward'].append(agent.step_reward)
@@ -1000,7 +1012,8 @@ class SAC_Collective_Agent(object):
                 np.mean(avg_t_step)))
 
             for rk, agent in enumerate(self.agent_list):
-                # push into the buffer
+                # push into the buffer, agent.action can be changed in env
+                # if autopilot is enabled
                 self.buffer.append(agent.prev_state, agent.action,
                     agent.step_reward, agent.observation, int(agent.done))
 

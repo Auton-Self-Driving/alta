@@ -113,6 +113,7 @@ def launch_worker(rank, resources):
         num_agents=ENV_CONFIG['num_agents'],
         max_glb_num_steps=ENV_CONFIG['max_num_steps'],
         explore_before=DSAC_CONFIG['explore_before'],
+        explore_mode=DSAC_CONFIG['explore_mode'],
         buffer_update_freq=DSAC_CONFIG['buffer_update_freq'],
         save_suffix=DSAC_CONFIG['save_suffix'],
         log_time=resources['log_time'],
