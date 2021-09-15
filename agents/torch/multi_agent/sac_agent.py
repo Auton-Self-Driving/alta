@@ -633,6 +633,7 @@ class DSAC_Worker_Agent(object):
                         # autopilot flag will continue to the end of the episode
                         # !!! the prev action will be overwritten
                         agent.autopilot = True
+                        # print(rk, agent.autopilot, flush=True)
                 else:
                     action = agent.select_action()
                 agent.prev_state = agent.observation

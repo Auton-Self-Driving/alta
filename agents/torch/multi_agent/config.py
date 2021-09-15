@@ -79,7 +79,7 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Explauto10kTrain10kT1Q1B25',
+    'save_suffix': 'Explauto1MTrain10kT1Q1B25',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
@@ -87,8 +87,8 @@ DSAC_CONFIG = {
     'num_workers': 4,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 4,
-    'device_list': ['cuda:2'],
-    # 'device_list': ['cuda:0', 'cuda:1'],
+    # 'device_list': ['cuda:2'],
+    'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2'],
     'buffer_len': 1000000,
@@ -98,7 +98,7 @@ DSAC_CONFIG = {
     'q_update_freq': 1,
     'buffer_update_freq': 25,
     'target_update_freq': 1,
-    'explore_before': 10000,
+    'explore_before': 1000000,
     'explore_mode': 'autopilot',
     'train_after': 10000,
     'standard': True,
@@ -116,7 +116,7 @@ DPPO_CONFIG = {
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 5,
     # 'device_list': ['cuda:1'],
-    # 'device_list': ['cuda:0', 'cuda:1'],
+    'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
     'device_list': ['cuda:1', 'cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:3'],
@@ -328,7 +328,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:2',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -407,7 +407,7 @@ ENV_CONFIG = {
     'num_npc_upper_threshold' : 150,
     # 'num_npc_lower_threshold' : 100,
     # 'num_npc_upper_threshold' : 200,
-    'npc_reset_freq': 1,
+    'npc_reset_freq': 10000,
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,

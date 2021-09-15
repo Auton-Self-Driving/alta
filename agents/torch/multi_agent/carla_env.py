@@ -1155,7 +1155,7 @@ class CarlaEnv(gym.Env):
                     agent.next_waypoints[0], agent.vehicle_actor.get_transform())
                 steer = np.clip(steer, -1., 1.)
                 #!!! modify agent.action
-                agent.action = np.array([steer, (target_speed - 1) / 1.5])
+                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
 
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
             gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
