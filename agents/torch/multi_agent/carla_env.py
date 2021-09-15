@@ -107,16 +107,6 @@ class CarlaEnv(gym.Env):
         self.rv_stack_size = 1
 
         self.logger = logger
-        self.controller = controller.PIDLongitudinalController(
-            K_P=self.args_longitudinal_dict['K_P'],
-            K_D=self.args_longitudinal_dict['K_D'],
-            K_I=self.args_longitudinal_dict['K_I'],
-            dt=self.args_longitudinal_dict['dt'])
-        self.steer_controller = controller.PIDLateralController(
-            K_P=self.args_lateral_dict['K_P'],
-            K_D=self.args_lateral_dict['K_D'],
-            K_I=self.args_lateral_dict['K_I'],
-            dt=self.args_lateral_dict['dt'])
 
         # Start Carla Server
         serverStarted = False
@@ -1104,20 +1094,20 @@ class CarlaEnv(gym.Env):
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(20.0)
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
+            throttle = agent.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "throttle_only":
             steer = float(0.0)
             target_speed = float(np.clip(action[0], 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            throttle = self.controller.pid_control(target_speed, current_speed)
+            throttle = agent.controller.pid_control(target_speed, current_speed)
             brake = float(0.0)
         elif self.config["action_type"] == "merged_speed":
             # steer = float(action[0])
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -1129,7 +1119,7 @@ class CarlaEnv(gym.Env):
             steer = np.clip(float(action[0]), -1.0, 1.0)
             target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -1151,14 +1141,14 @@ class CarlaEnv(gym.Env):
                     target_speed = 0
                 else:
                     target_speed = self.target_speed
-                steer = self.steer_controller.pid_control(
+                steer = agent.steer_controller.pid_control(
                     agent.next_waypoints[0], agent.vehicle_actor.get_transform())
                 steer = np.clip(steer, -1., 1.)
                 #!!! modify agent.action
                 agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
 
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -1170,7 +1160,7 @@ class CarlaEnv(gym.Env):
             steer = (float(action[0]))
             target_speed = float(action[1])
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -1184,7 +1174,7 @@ class CarlaEnv(gym.Env):
             discrete_actions = self.config['discrete_actions'][int(action)]
             target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = self.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)
@@ -1347,6 +1337,19 @@ class CarlaEnv(gym.Env):
             agent.speed_reward_array = []
             agent.dist_to_target_array = []
             agent.red_light_dist_array = []
+
+            # reset controller
+            agent.controller = controller.PIDLongitudinalController(
+                K_P=self.args_longitudinal_dict['K_P'],
+                K_D=self.args_longitudinal_dict['K_D'],
+                K_I=self.args_longitudinal_dict['K_I'],
+                dt=self.args_longitudinal_dict['dt'])
+            agent.steer_controller = controller.PIDLateralController(
+                K_P=self.args_lateral_dict['K_P'],
+                K_D=self.args_lateral_dict['K_D'],
+                K_I=self.args_lateral_dict['K_I'],
+                dt=self.args_lateral_dict['dt'])
+
 
             if self.config["semantic"]:
                 sensor = self.config['sensors'][1]
