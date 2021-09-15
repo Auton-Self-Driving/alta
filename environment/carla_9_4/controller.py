@@ -1,5 +1,8 @@
-from collections import deque
+import carla
 import numpy as np
+import math
+
+from collections import deque
 
 class PIDLongitudinalController():
     """
@@ -37,12 +40,12 @@ class PIDLongitudinalController():
         else:
             _de = 0.0
             _ie = 0.0
-        
+
         if enable_brake:
             throttle_min_clip = -1.0
         else:
             throttle_min_clip = 0.0
-        
+
         return np.clip((self._K_P * _e) + (self._K_D * _de / self._dt) + (self._K_I * _ie * self._dt), throttle_min_clip, 1.0)
 
 class PIDLateralController():
@@ -50,7 +53,7 @@ class PIDLateralController():
     PIDLateralController implements lateral control using a PID.
     """
 
-    def __init__(self, vehicle, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
+    def __init__(self, K_P=1.0, K_D=0.0, K_I=0.0, dt=0.03):
         """
         :param vehicle: actor to apply to local planner logic onto
         :param K_P: Proportional term

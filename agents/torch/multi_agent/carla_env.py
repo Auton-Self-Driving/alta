@@ -116,8 +116,7 @@ class CarlaEnv(gym.Env):
             K_P=self.args_lateral_dict['K_P'],
             K_D=self.args_lateral_dict['K_D'],
             K_I=self.args_lateral_dict['K_I'],
-            dt=self.args_lateral_dict['dt'])  
-        )
+            dt=self.args_lateral_dict['dt'])
 
         # Start Carla Server
         serverStarted = False
@@ -1147,8 +1146,8 @@ class CarlaEnv(gym.Env):
             ##################################
             # if use autopilot
             if hasattr(agent, 'autopilot') and agent.autopilot:
-                if agent.episode_measurements['red_light_dist'] == -1 or \
-                    agent.episode_measurements['obstacle_dist'] == -1:
+                if agent.episode_measurements['red_light_dist'] != -1 or \
+                    agent.episode_measurements['obstacle_dist'] != -1:
                     target_speed = 0
                 else:
                     target_speed = self.target_speed

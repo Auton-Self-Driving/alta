@@ -445,9 +445,9 @@ class DSAC_Server_Agent(object):
 
 class DSAC_Worker_Agent(object):
     def __init__(self, glb_env, glb_policy, num_agents=1,
-        max_glb_num_steps=1000000, explore_before=10000, 
-        explore_mode='autopilot', gamma=.99, buffer_update_freq=1, 
-        save_suffix='', log_time='TEST', standard=True, 
+        max_glb_num_steps=1000000, explore_before=10000,
+        explore_mode='autopilot', gamma=.99, buffer_update_freq=1,
+        save_suffix='', log_time='TEST', standard=True,
         verbose=False):
         """An asynchronous Distributed SAC Worker (Agent).
         Args:
@@ -476,6 +476,8 @@ class DSAC_Worker_Agent(object):
         self.buffer_update_freq = buffer_update_freq
         self.explore_before = explore_before
         self.explore_mode = explore_mode
+        if explore_mode not in {'random', 'autopilot'}:
+            raise ValueError('unknown option')
         self.gamma = gamma
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
@@ -625,14 +627,12 @@ class DSAC_Worker_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 if self.glb_num_steps < self.explore_before:
-                    if self.explore_mode == 'random':
-                        action = self.glb_env.action_space.sample()
-                    elif self.explore_mode == 'autopilot':
+                    action = self.glb_env.action_space.sample()
+                    if self.explore_mode == 'autopilot':
                         # NOTE: even if curr_step > explore_before,
                         # autopilot flag will continue to the end of the episode
+                        # !!! the prev action will be overwritten
                         agent.autopilot = True
-                    else:
-                        raise ValueError('unknown option')
                 else:
                     action = agent.select_action()
                 agent.prev_state = agent.observation
