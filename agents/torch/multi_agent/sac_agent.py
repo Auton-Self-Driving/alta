@@ -127,7 +127,7 @@ class DSAC_Server_Agent(object):
         glb_policy, policy_optimizer, log_alpha, alpha_optimizer,
         target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01,
         batch_size=512, max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
-        train_after=10000, target_update_freq=1,
+        train_after=10000, target_update_freq=1, ent_autotune=False,
         save_freq=100000, save_suffix='', log_time='TEST', verbose=False):
         """An asynchronous Distributed SAC Server.
         Args:
@@ -152,6 +152,7 @@ class DSAC_Server_Agent(object):
             train_after: start training (updating) after this timestep
             target_update_freq: update frequency of target q networks
                 (update target and policy every N q-updates)
+            ent_autotune: if True, do not autotune entropy temp alpha
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
@@ -171,6 +172,7 @@ class DSAC_Server_Agent(object):
         self.policy_optimizer = policy_optimizer
         self.buffer = VanillaReplayBuffer(buffer_len)
         self.log_alpha = log_alpha
+        self.ent_autotune = ent_autotune
         self.alpha_optimizer = alpha_optimizer
         self.target_entropy = target_entropy
         self.batch_size = batch_size
@@ -246,7 +248,7 @@ class DSAC_Server_Agent(object):
         # print('173', next_actions.shape, next_log_pi.shape)
         next_q1 = self.target_q1(next_states, next_actions)
         next_q2 = self.target_q2(next_states, next_actions)
-        next_q_target = torch.min(next_q1, next_q2) - self.log_alpha * next_log_pi
+        next_q_target = torch.min(next_q1, next_q2) - self.log_alpha.exp() * next_log_pi
         expected_q = rewards + (1 - dones) * self.gamma * next_q_target
 
         # q loss
@@ -282,13 +284,21 @@ class DSAC_Server_Agent(object):
             # update target networks
             self.update_target_q()
 
-        # update alpha temperature
-        alpha_loss = (self.log_alpha * (-log_pi - \
-            self.target_entropy).detach()).mean()
-        self.alpha_optimizer.zero_grad()
-        alpha_loss.backward()
-        self.alpha_optimizer.step()
-        # print('self.log_alpha:', self.log_alpha)
+        # update alpha temperature if using autotune
+        if self.ent_autotune:
+            alpha_loss = (self.log_alpha * (-log_pi - \
+                self.target_entropy).detach()).mean()
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
+        # recording entropy stats
+        self.recorder['train']['entropy_temp'].record_value(
+            self.log_alpha.item())
+        self.tbwriter.add_scalar('server/entropy_temp',
+            self.recorder['train']['entropy_temp'].summary(),
+            self.glb_num_steps)
+        # print(self.recorder['train']['entropy_temp'].summary())
+        # print('self.log_alpha:', self.log_alpha, self.log_alpha.item())
 
     def listen(self):
         while self.glb_num_steps < self.max_glb_num_steps + 1:

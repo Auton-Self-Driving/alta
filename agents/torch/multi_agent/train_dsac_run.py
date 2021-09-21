@@ -4,6 +4,7 @@
 import os
 import time
 import random
+import math
 import torch
 import torch.multiprocessing as mp
 from threading import Thread
@@ -31,10 +32,11 @@ def launch_server(rank, resources):
 
     # overriding carla device
     ENV_CONFIG['device'] = device
-    tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
-    N_S = tmp_env.observation_space.shape[-1]
-    N_A = tmp_env.action_space.shape[-1]
-    tmp_env.close()
+    N_S, N_A = 8, 2
+    # tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
+    # N_S = tmp_env.observation_space.shape[-1]
+    # N_A = tmp_env.action_space.shape[-1]
+    # tmp_env.close()
     # print(N_S, N_A)
     # from IPython import embed; embed()
 
@@ -50,12 +52,14 @@ def launch_server(rank, resources):
     q2_optimizer = torch.optim.Adam(glb_q2.parameters(),
         lr=DSAC_CONFIG['q_lr'], betas=(0.92, 0.999))
 
-    log_alpha = torch.log(torch.tensor(1., dtype=torch.float,
-        device=ENV_CONFIG['device']))
+    # log_alpha = torch.log(torch.tensor(DSAC_CONFIG['alpha'], dtype=torch.float,
+    #     device=ENV_CONFIG['device']))
+    log_alpha = torch.tensor(DSAC_CONFIG['log_alpha'], dtype=torch.float,
+        device=ENV_CONFIG['device'])
     log_alpha.requires_grad = True
     alpha_optimizer = torch.optim.Adam((log_alpha,),
         lr=DSAC_CONFIG['alpha_lr'], betas=(0.92, 0.999))
-    target_entropy = DSAC_CONFIG['target_entropy']
+    target_entropy = math.exp(DSAC_CONFIG['log_target_entropy'])
 
     server_agent = DSAC_Server_Agent(
         glb_q1=glb_q1,
@@ -67,6 +71,7 @@ def launch_server(rank, resources):
         log_alpha=log_alpha,
         alpha_optimizer=alpha_optimizer,
         target_entropy=target_entropy,
+        ent_autotune=DSAC_CONFIG['ent_autotune'],
         num_agents=ENV_CONFIG['num_agents'],
         max_glb_num_steps=ENV_CONFIG['max_num_steps'],
         buffer_len=DSAC_CONFIG['buffer_len'],

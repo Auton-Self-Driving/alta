@@ -82,7 +82,7 @@ class Recorder:
         for g_name in self:
             for key in self[g_name]:
                 val = self[g_name][key].summary()
-                if type(val) == list: continue
+                if val is None or type(val) == list: continue
                 print('[{}/{} {:.2f}]'.format(g_name, key, val), end='')
         print()
 
@@ -134,6 +134,7 @@ class _PlainRec(_BaseRec):
         self.window.append(value)
 
     def summary(self):
+        if not self.window: return None
         return self.window[0] if self.win_size == 1 else self.window
 
 
@@ -205,6 +206,7 @@ GlobalRecorder.register_key('num_collisions', window_size='inf', mode='plain', g
 GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='plain', group='train')
 GlobalRecorder.register_key('success_rate', window_size='inf', mode='mean', group='train')
 GlobalRecorder.register_key('collision_rate', window_size='inf', mode='mean', group='train')
+GlobalRecorder.register_key('entropy_temp', window_size=1, mode='plain', group='train')
 GlobalRecorder.register_key('dist_to_target', window_size=1, mode='plain', group='episode')
 GlobalRecorder.register_key('avg_reward', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('max_reward', window_size=100, mode='max', group='recent')
