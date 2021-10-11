@@ -56,6 +56,22 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
+class DummyAgent:
+    def __init__(self, vehicle, rank=0):
+        self.rank = rank
+        self.done = False
+        self.action = None
+        self.id = vehicle.id
+        self.type_id = vehicle.type_id
+        self.vehicle_actor = vehicle
+        self.num_total_steps = 0
+        self.episode_reward = 0
+        self.curr_reward = 0
+        self.step_reward = 0
+        self.autopilot = False
+        self.observation = None
+        self.termination_state = None
+
 
 class CarlaEnv(gym.Env):
     def __init__(self, config, logger=None, env_rank=0):
@@ -611,11 +627,13 @@ class CarlaEnv(gym.Env):
             # elif self.config['algo'] == 'A2C':
                 # new_obs, reward, done, ep_info = self._step(action[0])
                 # return [new_obs], [reward], [done], [ep_info]
-            obs = self.list_step(action=action) # action here will be an action list
-            # else:
-            #     obs = self._step(action)
-            # obs is for stablebaseline
-            return obs
+            self.list_step(action=action) # action here will be an action list
+
+            if self.config['algo'] == 'stable_baseline_sac':
+                agt = self.ego_agent_list[0]
+                _rwd = agt.step_reward if hasattr(agt, 'step_reward') else 0
+                return agt.observation, _rwd, agt.done, agt.termination_state
+
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
@@ -769,10 +787,6 @@ class CarlaEnv(gym.Env):
             if agent.action is None:
                 self._get_ego_input(agent)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
-
-        if action is not None:  # for stablebaseline
-            return self.ego_agent_list[0].observations, self.ego_agent_list[0].step_reward, \
-                self.ego_agent_list[0].done, self.ego_agent_list[0].termination_state
 
 
     def _step_test_comparison(self, action):
@@ -1214,10 +1228,15 @@ class CarlaEnv(gym.Env):
 
 
     def reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
+        if not idx_list: idx_list = [0]
         # if self.config['test_comparison']:
         #     return self._reset_test_comparison(unseen, index)
         # elif self.config['algo'] == 'A2C':
-        return self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list, reset_npc=reset_npc)
+        self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list, reset_npc=reset_npc)
+        if self.config['algo'] == 'stable_baseline_sac':
+            self.reset_vehicle_agent([DummyAgent(self.ego_vehicle_list[0])])
+            obs, _, _, _ = self.step()
+            return obs
         # else:
         #     return self._reset(unseen, index)
 

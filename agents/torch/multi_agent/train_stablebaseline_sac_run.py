@@ -12,6 +12,7 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 ENV_CONFIG['num_agents'] = 1
+ENV_CONFIG['algo'] = 'stable_baseline_sac'
 
 env = CarlaEnv(ENV_CONFIG)
 
