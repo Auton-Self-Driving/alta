@@ -79,7 +79,7 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5',
+    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5NoGoal',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
@@ -363,7 +363,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -433,7 +433,8 @@ ENV_CONFIG = {
     'steer_penalty_coeff': 0,
     'vae_encoding_norm_factor' : 10,
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
+    # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
+    'input_type': 'wp_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': False,

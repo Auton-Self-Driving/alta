@@ -33,6 +33,7 @@ def launch_server(rank, resources):
     # overriding carla device
     ENV_CONFIG['device'] = device
     N_S, N_A = 8, 2
+    # N_S, N_A = 7, 2
     # tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
     # N_S = tmp_env.observation_space.shape[-1]
     # N_A = tmp_env.action_space.shape[-1]

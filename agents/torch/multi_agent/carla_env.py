@@ -221,7 +221,7 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
 
-        # elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+        # elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light': # steering clipped to 0.25
         #     self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.25, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.25, 1.0, 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
