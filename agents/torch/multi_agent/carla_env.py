@@ -603,6 +603,7 @@ class CarlaEnv(gym.Env):
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
     def step(self, action=None):
+        # action is for stablebaseline
         try:
             # if self.config['test_comparison']:
             #     self._step_test_comparison(action)
@@ -610,10 +611,11 @@ class CarlaEnv(gym.Env):
             # elif self.config['algo'] == 'A2C':
                 # new_obs, reward, done, ep_info = self._step(action[0])
                 # return [new_obs], [reward], [done], [ep_info]
-            self.list_step() # action here will be an action list
+            obs = self.list_step(action=action) # action here will be an action list
             # else:
             #     obs = self._step(action)
-            # return obs
+            # obs is for stablebaseline
+            return obs
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
@@ -631,11 +633,12 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['control_hand_brake'] = control.hand_brake
         return control
 
-    def list_step(self):
+    def list_step(self, action=None):
         # action_list here should be a list of action
         self.world_frame = None
 
         for rk, agent in enumerate(self.ego_agent_list):
+            if action is not None: agent.action = action # for stablebaseline
             if agent.action is None: continue
             agent.curr_reward = 0
             if not self.config["use_pid_in_frame_skip"]:
@@ -766,6 +769,11 @@ class CarlaEnv(gym.Env):
             if agent.action is None:
                 self._get_ego_input(agent)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
+
+        if action is not None:  # for stablebaseline
+            return self.ego_agent_list[0].observations, self.ego_agent_list[0].step_reward, \
+                self.ego_agent_list[0].done, self.ego_agent_list[0].termination_state
+
 
     def _step_test_comparison(self, action):
         pass
