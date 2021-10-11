@@ -33,6 +33,7 @@ from leaderboard.scenarios.route_scenario import (
 )
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from environment.carla_9_4.agents.navigation.local_planner import RoadOption
+from environment.carla_9_4.agents.navigation.agent import Agent
 
 
 # import ipdb
@@ -56,8 +57,9 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
-class DummyAgent:
-    def __init__(self, vehicle, rank=0):
+class DummyAgent(Agent):
+    def __init__(self, vehicle, rank=0, **kwargs):
+        super().__init__(vehicle, **kwargs)
         self.rank = rank
         self.done = False
         self.action = None
@@ -235,10 +237,8 @@ class CarlaEnv(gym.Env):
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
-            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0]]), dtype=np.float32)
-
-        # elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light': # steering clipped to 0.25
-        #     self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.25, -1.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.25, 1.0, 1.0, 1.0]]), dtype=np.float32)
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -1 * self.config['steering_scale'], -1.0, 0.0, 0.0]]),
+                high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
@@ -632,7 +632,7 @@ class CarlaEnv(gym.Env):
             if self.config['algo'] == 'stable_baseline_sac':
                 agt = self.ego_agent_list[0]
                 _rwd = agt.step_reward if hasattr(agt, 'step_reward') else 0
-                return agt.observation, _rwd, agt.done, agt.termination_state
+                return agt.observation, _rwd, agt.done, agt.episode_measurements
 
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
@@ -1228,7 +1228,7 @@ class CarlaEnv(gym.Env):
 
 
     def reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
-        if not idx_list: idx_list = [0]
+        if not rank_list: rank_list = [0]
         # if self.config['test_comparison']:
         #     return self._reset_test_comparison(unseen, index)
         # elif self.config['algo'] == 'A2C':
