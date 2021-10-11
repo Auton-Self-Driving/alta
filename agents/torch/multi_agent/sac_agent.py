@@ -286,7 +286,7 @@ class DSAC_Server_Agent(object):
 
         # update alpha temperature if using autotune
         if self.ent_autotune:
-            alpha_loss = (self.log_alpha * (-log_pi - \
+            alpha_loss = (self.log_alpha.exp() * (-log_pi - \
                 self.target_entropy).detach()).mean()
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
@@ -758,7 +758,7 @@ class DSAC_Worker_Agent(object):
                     self.tbwriter.add_scalar('rank_{}/recent/max_reward'.format(self.rank),
                         self.recorder['recent']['max_reward'].summary(),
                         self.local_num_episodes)
-                    self.tbwriter.add_scalar('rrank_{}/ecent/min_reward'.format(self.rank),
+                    self.tbwriter.add_scalar('rank_{}/ecent/min_reward'.format(self.rank),
                         self.recorder['recent']['min_reward'].summary(),
                         self.local_num_episodes)
                     self.tbwriter.add_scalar('rank_{}/recent/avg_dist_to_target'.format(self.rank),
