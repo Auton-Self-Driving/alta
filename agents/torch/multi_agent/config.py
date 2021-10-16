@@ -79,7 +79,7 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteerScale0d5',
+    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0SteerScale0d5NoGoal',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
@@ -327,7 +327,12 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPC_4100025_Sep291109AM31.pth',
     # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5_5200000_Oct061159AM49.pth',
     # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSpeedRwd10x_3300000_Oct061159AM47.pth',
-    'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5_16000000_Oct071214PM32.pth',
+    # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5_16000000_Oct071214PM32.pth',
+    # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5NoGoal_9800025_Oct111054PM25.pth',
+    # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteerScale0d5_15700025_Oct120317PM27.pth',
+    # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteerScale0d5_12700025_Oct120741AM51.pth',
+    # 'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteer0d5NoGoal_2700025_Oct110836AM21.pth',
+    'checkpoint': './ckptDSAC1x8x8_Explrand10kTrain10k1Q1B25Efixlog0NoNPCSteerScale0d5_5300000_Oct110205PM59.pth',
     'num_agents': 1,
     'num_npc': 0,
     'sample_npc': False,
@@ -359,11 +364,11 @@ TEST_CONFIG = {
 }
 
 ENV_CONFIG = {
-    # 'algo': 'Multi-Agent',
-   'num_envs': 1,
+    'algo': 'Multi-Agent',
+    'num_envs': 1,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -436,8 +441,8 @@ ENV_CONFIG = {
     'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light',
     'use_scenarios': True,
-    'num_npc' : 0,
-    'sample_npc': False,
+    'num_npc' : 200,
+    'sample_npc': True,
     'num_npc_lower_threshold' : 20,
     # 'num_npc_upper_threshold' : 80,
     # 'num_npc_lower_threshold' : 70,
