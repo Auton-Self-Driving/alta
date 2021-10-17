@@ -43,7 +43,8 @@ class VanillaReplayBuffer(object):
         self.buffer.append((state, action, reward, next_state, done))
 
     def sample(self, batch_size=None, fetch_all=False):
-        if batch_size is None: raise ValueError('batch size not set')
+        if batch_size is None and not fetch_all:
+            raise ValueError('batch size not set while not fetching all')
         state_batch = []
         action_batch = []
         reward_batch = []
@@ -129,7 +130,7 @@ class DSAC_Server_Agent(object):
         target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01,
         batch_size=512, max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
         train_after=10000, target_update_freq=1, ent_autotune=False,
-        save_freq=100000, save_suffix='', log_time='TEST', 
+        save_freq=100000, save_suffix='', log_time='TEST',
         verbose=False):
         """An asynchronous Distributed SAC Server.
         Args:
@@ -1169,8 +1170,8 @@ class SAC_Collective_Agent(object):
         while self.glb_num_episodes < self.glb_num_test_episodes + 1:
             # take action
             for rk, agent in enumerate(self.agent_list):
-                # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
                 action = agent.select_action(deterministic=True)
+                agent.prev_state = agent.observation
                 agent.action = action
             self.vprint('action chosen:', [a.action for a in self.agent_list])
             # get new observation
@@ -1241,8 +1242,10 @@ class SAC_Collective_Agent(object):
                 'next_states': next_states,
                 'dones': dones,
             }
-            torch.save(_buffer, 'SAC_testbuffer_{}'.format(self.savetime()))
-        
+            _fname = 'SAC_testbuffer_{}.pth'.format(self.savetime())
+            torch.save(_buffer, _fname)
+            print('buffer saved as [{}]'.format(_fname))
+
         print('[Finished]', term_stats)
 
     def update_target_q(self):
