@@ -366,6 +366,7 @@ TEST_CONFIG = {
     'test_verbose': True,
     # 'test_verbose': False,
     'videos': False,
+    'save_buffer': False,
 }
 
 ENV_CONFIG = {
@@ -405,7 +406,7 @@ ENV_CONFIG = {
     'framestack' : 1,
     ### 'grayscale' : False,
     'num_pedestrians' : 0,
-    'max_steps' : 10000,
+    'max_steps' : 5000,
     'next_command': None,
     'verbose': False,
     'weak_verbose': False,

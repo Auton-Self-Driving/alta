@@ -42,7 +42,8 @@ class VanillaReplayBuffer(object):
     def append(self, state, action, reward, next_state, done):
         self.buffer.append((state, action, reward, next_state, done))
 
-    def sample(self, batch_size, fetch_all=False):
+    def sample(self, batch_size=None, fetch_all=False):
+        if batch_size is None: raise ValueError('batch size not set')
         state_batch = []
         action_batch = []
         reward_batch = []
@@ -128,7 +129,8 @@ class DSAC_Server_Agent(object):
         target_entropy, num_threads=1, num_agents=1, buffer_len=100000, tau=0.01,
         batch_size=512, max_glb_num_steps=1000000, gamma=.99, q_update_freq=1,
         train_after=10000, target_update_freq=1, ent_autotune=False,
-        save_freq=100000, save_suffix='', log_time='TEST', verbose=False):
+        save_freq=100000, save_suffix='', log_time='TEST', 
+        verbose=False):
         """An asynchronous Distributed SAC Server.
         Args:
             glb_q1: the first global q_net
@@ -372,7 +374,7 @@ class DSAC_Server_Agent(object):
         for t in thread_list: t.start()
         for t in thread_list: t.join()
 
-    def test(self, videos=False):
+    def test(self, videos=False, save_buffer=False):
         raise NotImplementedError
 
     def update_target_q(self):
@@ -812,7 +814,7 @@ class DSAC_Worker_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
-    def test(self, videos=False):
+    def test(self, videos=False, save_buffer=False):
         raise NotImplementedError
 
     def save(self, filename=None):
@@ -1147,7 +1149,7 @@ class SAC_Collective_Agent(object):
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
-    def test(self, videos=False):
+    def test(self, videos=False, save_buffer=False):
         # initialize
         term_stats = defaultdict(int)
         idx_list = list(range(self.num_agents))
@@ -1175,6 +1177,9 @@ class SAC_Collective_Agent(object):
             self.glb_env.step()
 
             for rk, agent in enumerate(self.agent_list):
+                if save_buffer:
+                    self.buffer.append(agent.prev_state, agent.action,
+                        agent.step_reward, agent.observation, int(agent.done))
                 if videos:
                     sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
                     viz.save_image(agent.rv_image, sub_folder=sub_folder)
@@ -1220,6 +1225,24 @@ class SAC_Collective_Agent(object):
                 self.glb_env.reset_vehicle_agent(
                     [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
+
+        if save_buffer:
+            states, actions, rewards, next_states, dones = self.buffer.sample(fetch_all=True)
+            states = torch.stack(states).cpu()
+            actions = torch.stack(actions).cpu()
+            rewards = torch.stack(rewards).view(-1, 1).cpu()
+            next_states = torch.stack(next_states).cpu()
+            dones = torch.stack(dones).view(-1, 1).cpu()
+            # save the buffer on disk
+            _buffer = {
+                'states': states,
+                'actions': actions,
+                'rewards': rewards,
+                'next_states': next_states,
+                'dones': dones,
+            }
+            torch.save(_buffer, 'SAC_testbuffer_{}'.format(self.savetime()))
+        
         print('[Finished]', term_stats)
 
     def update_target_q(self):

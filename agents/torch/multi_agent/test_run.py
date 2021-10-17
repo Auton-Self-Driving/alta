@@ -50,7 +50,7 @@ else:
     q2_optimizer = torch.optim.Adam(glb_q2.parameters(),
         lr=1e-4, betas=(0.92, 0.999))
 
-    replay_buffer = VanillaReplayBuffer(maxlen=1)
+    replay_buffer = VanillaReplayBuffer(maxlen=None)
 
     log_alpha = torch.log(torch.tensor(1., dtype=torch.float,
         device=ENV_CONFIG['device']))
@@ -77,7 +77,8 @@ else:
 
     ckpt = torch.load(TEST_CONFIG['checkpoint'], map_location='cpu')
     sac_agent.load(ckpt)
-    sac_agent.test(videos=TEST_CONFIG['videos'])
+    sac_agent.test(videos=TEST_CONFIG['videos'], 
+        save_buffer=TEST_CONFIG['save_buffer'])
 
 env.close()
 
