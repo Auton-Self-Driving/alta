@@ -31,10 +31,11 @@ def launch_server(rank, resources):
 
     # overriding carla device
     ENV_CONFIG['device'] = device
-    tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
-    N_S = tmp_env.observation_space.shape[-1]
-    N_A = tmp_env.action_space.shape[-1]
-    tmp_env.close()
+    # tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
+    # N_S = tmp_env.observation_space.shape[-1]
+    # N_A = tmp_env.action_space.shape[-1]
+    # tmp_env.close()
+    N_S, N_A = 7, 2
     # print(N_S, N_A)
     # from IPython import embed; embed()
 
@@ -65,7 +66,8 @@ def launch_server(rank, resources):
     # resume if necessary
     if DPPO_CONFIG['checkpoint']:
         ckpt = torch.load(DPPO_CONFIG['checkpoint'], map_location='cpu')
-        server_agent.resume(ckpt)
+        _func = getattr(server_agent, DPPO_CONFIG['ckpt_mode'])
+        _func(ckpt)
 
     server_agent.learn()
 

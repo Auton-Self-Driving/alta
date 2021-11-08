@@ -244,11 +244,13 @@ class DPPO_Server_Agent(object):
             self.vprint('server', self.rank, 'QUERY', sender,
                 num_steps_added, 'buffer_len', buffer_len, signal)
             # print('server', self.rank, 'QUERY', sender,
-                # num_steps_added, 'buffer_len', buffer_len, signal)
+            #     num_steps_added, 'buffer_len', buffer_len, signal)
             if signal == SIG.GRAD_PUSH:
                 total_len = (self.N_S + self.N_A + 3) * buffer_len
+                # print(self.recv_info_len, total_len)
                 _, vec_mem = dist.recv(self.recv_info_len, total_len,
                     src=sender, tag=SIG.GRAD, device='cpu')
+                # print(_, len(vec_mem))
                 # disintegrate them into memories derived from buffer_len
                 _action = vec_mem[:self.N_A * buffer_len]
                 _action = _action.reshape(buffer_len, self.N_A).tolist()
@@ -279,13 +281,13 @@ class DPPO_Server_Agent(object):
                         self.glb_policy.parameters(),
                         dst=sender, tag=SIG.PARAM
                     ).wait()
-                    self.timestamp_counter[self.glb_policy_timestamp] += 1
-                    if self.glb_policy_timestamp not in self.old_policy_dict:
-                        self.old_policy_dict[self.glb_policy_timestamp] = \
-                            copy.deepcopy(self.glb_policy)
+                    # self.timestamp_counter[self.glb_policy_timestamp] += 1
+                    # if self.glb_policy_timestamp not in self.old_policy_dict:
+                    #     self.old_policy_dict[self.glb_policy_timestamp] = \
+                    #         copy.deepcopy(self.glb_policy)
                     # print(self.timestamp_counter)
-                    print('server {}, sent to {}, timestamp {}'.format(
-                        self.rank, sender, self.glb_policy_timestamp))
+                    # print('server {}, sent to {}, timestamp {}'.format(
+                    #     self.rank, sender, self.glb_policy_timestamp))
 
             else:
                 raise ValueError('signal not seen')
@@ -299,7 +301,7 @@ class DPPO_Server_Agent(object):
                         ))
                         self.num_steps_since_update = 0
                         # print('TIMESTAMPS:', self.glb_policy_timestamp, self.memory['timestamps'])
-                        self._update()
+                        self._update_orig()
                         self.glb_policy_timestamp += 1
 
             # save checkpoint
@@ -757,10 +759,12 @@ class DPPO_Worker_Agent(object):
         vec_mem.extend(np.array(mem['logprob']).flatten().tolist())
         vec_mem.extend(mem['reward'])
         vec_mem.extend(mem['done'])
-        # print(vec_mem, len(vec_mem), type(vec_mem))
+         #print(vec_mem, len(vec_mem), type(vec_mem))
+        # print(len(vec_mem), type(vec_mem))
         vec_mem = torch.tensor(vec_mem)
         overhead = [self.rank, agent.num_total_steps,
             len(mem['reward']), agent.timestamp, SIG.GRAD_PUSH]
+        # print(766, overhead)
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_mem, dst=self.server_rank, tag=SIG.GRAD).wait()
         agent.reset_memory()
@@ -977,13 +981,11 @@ class DPPO_Worker_Agent(object):
         raise NotImplementedError
 
     def load(self, checkpoint):
-        raise NotImplementedError
         self.local_policy.load_state_dict(checkpoint['local_policy'])
         # self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):
-        raise NotImplementedError
         if strict:
             assert self.num_agents == \
                 checkpoint['num_agents'], '{} != {}'.format(

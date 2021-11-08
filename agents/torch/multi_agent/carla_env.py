@@ -946,9 +946,11 @@ class CarlaEnv(gym.Env):
                 print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
                     agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                     agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane, found_obstacle))
+            # if only detect vehicular obstacle
+            if self.config['obs_sensor_vehicle_only'] and 'vehicle' not in obstacle_actor.type_id:
+                found_obstacle = False
 
         if not found_obstacle:
-        # if not found_obstacle:
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
@@ -1620,9 +1622,9 @@ class CarlaEnv(gym.Env):
                     # Sample the scenarios to be used for this route instance.
                     self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
                     # print(236, self.sampled_scenarios_definitions)
-                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=0)
+                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
                     # print(244, self.scenarios)
-                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=0)
+                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)

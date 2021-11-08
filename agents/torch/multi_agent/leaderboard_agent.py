@@ -27,7 +27,7 @@ def get_entry_point():
     return 'PPOAgent'
 
 ENV_CONFIG.update(TEST_CONFIG)
-N_S, N_A = 11, 2
+N_S, N_A = 7, 2
 
 def _latlon_to_ecef(lat,lon,alt):
     # Projections
@@ -130,12 +130,12 @@ class PIDLongitudinalController():
         else:
             _de = 0.0
             _ie = 0.0
-        
+
         if enable_brake:
             throttle_min_clip = -1.0
         else:
             throttle_min_clip = 0.0
-        
+
         return np.clip((self._K_P * _e) + (self._K_D * _de / self._dt) + (self._K_I * _ie * self._dt), throttle_min_clip, 1.0)
 
 
@@ -144,16 +144,16 @@ savetime = lambda: time.strftime('%b%d%I%M%p%S')
 vid_log_dir = '{}/{}_{}'.format('./video_logs',
     'LDB_test', savetime())
 sub_folder = None
-videos = True
+videos = False
 
 
 class PPOAgent(AutonomousAgent):
     _agent = None
     _route_assigned = False
-        
+
     def __init__(self, *args, **kwargs):
         global episode, savetime, videos, sub_folder, vid_log_dir
-        self.glb_policy = PPOActorCritic_Continuous(8, 2).to(ENV_CONFIG['device'])
+        self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
         _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
         self.glb_policy.load_state_dict(_ckpt['glb_policy'])
         self.target_speed = 20
@@ -161,13 +161,13 @@ class PPOAgent(AutonomousAgent):
             'K_P': 0.1,
             'K_D': 0.0005,
             'K_I': 0.4,
-            'dt': 1/10.0}        
+            'dt': 1/10.0}
         self.controller = PIDLongitudinalController(
-            K_P=self.args_longitudinal_dict['K_P'], 
-            K_D=self.args_longitudinal_dict['K_D'], 
-            K_I=self.args_longitudinal_dict['K_I'], 
+            K_P=self.args_longitudinal_dict['K_P'],
+            K_D=self.args_longitudinal_dict['K_D'],
+            K_I=self.args_longitudinal_dict['K_I'],
             dt=self.args_longitudinal_dict['dt'],)
-        if videos: 
+        if videos:
             self.viz = Visualizer(images_path=vid_log_dir, video_path=vid_log_dir)
         # have to put init at last since it will call self.setup first
         super().__init__(*args, **kwargs)
@@ -229,7 +229,7 @@ class PPOAgent(AutonomousAgent):
             'width': 800, 'height': 400, 'fov': 100, 'id': 'Center_high_res'},
             {'type': 'sensor.other.gnss', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'id': 'GPS'},
             {'type': 'sensor.other.imu', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': 0.0,
-             'yaw': -90.0, 'id': 'IMU'}, 
+             'yaw': -90.0, 'id': 'IMU'},
             {'type': 'sensor.opendrive_map', 'reading_frequency': 1, 'id': 'OpenDRIVE'},
            {'type': 'sensor.speedometer',  'reading_frequency': 20, 'id': 'SPEED'},
            ]
@@ -252,7 +252,7 @@ class PPOAgent(AutonomousAgent):
         # Configure planner when we first receive MAP info
         if not self._route_assigned:
             self._configure_planner(input_data['OpenDRIVE'][1]['opendrive'])
-            self._route_assigned = True   
+            self._route_assigned = True
 
         processed_input = {}
 
@@ -292,7 +292,7 @@ class PPOAgent(AutonomousAgent):
         # print("*"*50)
         processed_input["mean_angle"], processed_input['ldist'], processed_input['distance_to_goal_trajec'] = self.compute_wp_stats(vehicle_transform)
         processed_input['distance_to_goal_trajec'] = processed_input['distance_to_goal_trajec'] / 500 # to match env.py preproc
-        
+
         processed_input['steer'] = self.previous_steer
         # processed_input['speed'] = input_data['SPEED'][1]['speed'] * 3.6
         processed_input['speed'] = input_data['SPEED'][1]['speed']
@@ -302,7 +302,7 @@ class PPOAgent(AutonomousAgent):
     def get_action(self, inputs):
         mean_angle = inputs['mean_angle']
         ldist = inputs['ldist']
-        distance_to_goal_trajec = inputs['distance_to_goal_trajec']        
+        distance_to_goal_trajec = inputs['distance_to_goal_trajec']
 
         steer = inputs['steer']
         speed = inputs['speed'] / 10
@@ -318,7 +318,7 @@ class PPOAgent(AutonomousAgent):
             np.array([speed]), \
             np.array([steer]), \
             np.array([ldist]), \
-            np.array([distance_to_goal_trajec]), \
+            # np.array([distance_to_goal_trajec]), \
             np.array([light])))
 
         state_tensor = torch.from_numpy(state).to(torch.float).to(ENV_CONFIG['device'])
@@ -339,7 +339,7 @@ class PPOAgent(AutonomousAgent):
         Output:
             - control: Control object for Carla
         """
-        steer = np.clip(float(action[0]), -1.0, 1.0)
+        steer = np.clip(.5 * float(action[0]), -0.5, .5)
         target_speed = (action[1] * 1.5) + 1
         # print('action[1]', action[1], 'target_speed', target_speed)
         target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
@@ -389,10 +389,10 @@ class PPOAgent(AutonomousAgent):
 
 
         preprocess_inputs = self.preprocess_inputs(input_data)
-        if videos: 
+        if videos:
             high_res_rgb = self._preprocess_image(input_data['Center_high_res'][1])
             self.viz.save_image(high_res_rgb, sub_folder=sub_folder)
-        # print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'], 
+        # print([preprocess_inputs['mean_angle'], preprocess_inputs['ldist'], preprocess_inputs['distance_to_goal_trajec'],
             # preprocess_inputs['steer'], preprocess_inputs['speed']])
         # if(self.ctr%200==0):
         #     st()
