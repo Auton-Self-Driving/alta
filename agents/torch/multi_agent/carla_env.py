@@ -1541,6 +1541,8 @@ class CarlaEnv(gym.Env):
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
+        # print('[1544]', self.config['npc_reset_freq'], self.world_frame, self.last_npc_reset_frame)
+
         if reset_npc or (self.config['npc_reset_freq'] and self.world_frame - self.last_npc_reset_frame > self.config['npc_reset_freq']):
             self.destroy_all_existing_npc_actors()
 
@@ -1612,19 +1614,23 @@ class CarlaEnv(gym.Env):
                 if 'challenge' in self.config["scenarios"]:
                     # print(213, len(self.wps_list))
                     _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+
+                    # Print route in debug mode
+                    self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=50000.0)
                     # print('self.route', self.route)
                     CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
                     # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
                     self.dense_waypoints = self._global_plan_world_coord
 
-                    potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
-                        self.curr_town, self.route, self.world_annotations)
+                    # potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
+                    #     self.curr_town, self.route, self.world_annotations)
                     # Sample the scenarios to be used for this route instance.
-                    self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
+                    # self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
                     # print(236, self.sampled_scenarios_definitions)
-                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
+                    # self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
                     # print(244, self.scenarios)
-                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
+                    # self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
+                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)
@@ -1652,6 +1658,36 @@ class CarlaEnv(gym.Env):
                 high=self.config["num_npc_upper_threshold"]))
         else:
             self.spawn_npc(self.config["num_npc"])
+
+
+    def _draw_waypoints(self, world, waypoints, vertical_shift, persistency=-1):
+        """
+        Draw a list of waypoints at a certain height given in vertical_shift.
+        """
+        for w in waypoints:
+            wp = w[0].location + carla.Location(z=vertical_shift)
+
+            size = 0.2
+            if w[1] == RoadOption.LEFT:  # Yellow
+                color = carla.Color(255, 255, 0)
+            elif w[1] == RoadOption.RIGHT:  # Cyan
+                color = carla.Color(0, 255, 255)
+            elif w[1] == RoadOption.CHANGELANELEFT:  # Orange
+                color = carla.Color(255, 64, 0)
+            elif w[1] == RoadOption.CHANGELANERIGHT:  # Dark Cyan
+                color = carla.Color(0, 64, 255)
+            elif w[1] == RoadOption.STRAIGHT:  # Gray
+                color = carla.Color(128, 128, 128)
+            else:  # LANEFOLLOW
+                color = carla.Color(0, 255, 0) # Green
+                size = 0.1
+
+            world.debug.draw_point(wp, size=size, color=color, life_time=persistency)
+
+        world.debug.draw_point(waypoints[0][0].location + carla.Location(z=vertical_shift), size=0.2,
+                               color=carla.Color(0, 0, 255), life_time=persistency)
+        world.debug.draw_point(waypoints[-1][0].location + carla.Location(z=vertical_shift), size=0.2,
+                               color=carla.Color(255, 0, 0), life_time=persistency)
 
 
     def _reset_test_comparison(self, unseen=False, index=0):
