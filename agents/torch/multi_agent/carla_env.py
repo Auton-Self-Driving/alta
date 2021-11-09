@@ -697,8 +697,8 @@ class CarlaEnv(gym.Env):
             ########################################################################################
             for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
-                if 'challenge' in self.config['scenarios']:
-                    agent.running.scenario.scenario_tree.tick_once()
+                # if 'challenge' in self.config['scenarios']:
+                #     agent.running.scenario.scenario_tree.tick_once()
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
