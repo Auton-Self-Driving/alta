@@ -246,6 +246,10 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
 
+        elif self.config["input_type"] == 'wp_obs_moreinfo_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                             high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
@@ -1413,16 +1417,46 @@ class CarlaEnv(gym.Env):
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
             if self.config["enable_obstacle_sensor"]:
-                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
-                    distance=self.config['vehicle_proximity_threshold'],
-                    hit_radius=self.config['obs_sensor_hit_radius'],)
+                # agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
+                #     distance=self.config['vehicle_proximity_threshold'],
+                #     hit_radius=self.config['obs_sensor_hit_radius'],)
 
-                agent.actor_list.append(agent.obstacle_sensor.sensor)
+                # agent.actor_list.append(agent.obstacle_sensor.sensor)
+
+                obs_sensors = {
+                    'front': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],),
+                    'front_right': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=45.))),
+                    'back_right': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=135.))),
+                    'back_left': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=225.))),
+                    'front_left': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
+                }
+                agent.obstacle_sensor = {}
+                for orient, sensor in obs_sensors.items():
+                    agent.obstacle_sensor[orient] = sensor
+                    agent.actor_list.append(agent.obstacle_sensor[orient])
+
 
             # Set state variables for reward calculation
-            agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
-            agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
-            agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
+            # agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
+            # agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
+            # agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
+            agent.episode_measurements['num_collisions'] = 0
+            agent.episode_measurements['collision_actor_id'] = -1
+            agent.episode_measurements['collision_actor_type'] = None
             if self.config["enable_lane_invasion_sensor"]:
                 agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
                 agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
