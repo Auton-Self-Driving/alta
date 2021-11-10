@@ -35,7 +35,8 @@ def launch_server(rank, resources):
     # N_S = tmp_env.observation_space.shape[-1]
     # N_A = tmp_env.action_space.shape[-1]
     # tmp_env.close()
-    N_S, N_A = 7, 2
+    # N_S, N_A = 7, 2
+    N_S, N_A = 11, 2
     # print(N_S, N_A)
     # from IPython import embed; embed()
 

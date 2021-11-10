@@ -247,7 +247,7 @@ class CarlaEnv(gym.Env):
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
-            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -1., 0., -1., 0., 0.0, -self.config['steering_scale'], -1.0, 0.0]]), 
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -1., 0., -1., 0., 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
             high=np.array([[4.0, 1.0, 1.0, 1., 1., 1., 1., 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light':
@@ -490,7 +490,7 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
-        
+
         elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
             speed = agent.episode_measurements['speed'] / 10
             obstacle_dist = agent.episode_measurements['obstacle_dist']
@@ -540,7 +540,7 @@ class CarlaEnv(gym.Env):
             else:
                 light = self.config['default_obs_traffic_val']
 
-            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), 
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]),
             np.array([obstacle_dist_left]), np.array([obstacle_speed_left]), np.array([obstacle_dist_right]), np.array([obstacle_speed_right]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
         elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
@@ -756,8 +756,8 @@ class CarlaEnv(gym.Env):
             ########################################################################################
             for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
-                # if 'challenge' in self.config['scenarios']:
-                #     agent.running.scenario.scenario_tree.tick_once()
+                if 'challenge' in self.config['scenarios']:
+                    agent.running.scenario.scenario_tree.tick_once()
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
@@ -932,7 +932,7 @@ class CarlaEnv(gym.Env):
 
         min_obs_distance = 100000000
         found_obstacle = False
-        for target_vehicle in self._world.get_actors() + self.ego_vehicle_list:
+        for target_vehicle in self._world.get_actors():
             # do not account for the ego vehicle
             try:
                 if target_vehicle is None or hasattr(target_vehicle, 'done') and target_vehicle.done: continue
@@ -947,10 +947,10 @@ class CarlaEnv(gym.Env):
                                             agent.vehicle_actor.get_transform(),
                                             self.config['vehicle_proximity_threshold'])
 
-                
+
                 side_bool, side_dist, side_orient = self._is_in_neighboring_lane(
                     target_vehicle.get_transform(),
-                    agent.agent.vehicle_actor.get_transform(),
+                    agent.vehicle_actor.get_transform(),
                     self.config['vehicle_proximity_threshold'],
                 )
 
@@ -1161,7 +1161,8 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "challenge_train_scenario":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
-                avail_map_list=self.avail_map.keys(), mode='train')
+                # avail_map_list=self.avail_map.keys(), mode='train')
+                avail_map_list=['Town01', 'Town03'], mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town  = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
@@ -1169,12 +1170,12 @@ class CarlaEnv(gym.Env):
         else:
             raise ValueError("Scenarios Config not set!")
 
-        # if _upd_town != self.curr_town: # switch to a new town
-        #     print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
-        #     if self.config['num_agents'] != 1:
-        #         # self.reset_env()
-        #         self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
-        #     self._set_world_and_map(_upd_town)
+        if _upd_town != self.curr_town: # switch to a new town
+            print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+            if self.config['num_agents'] != 1:
+                # self.reset_env()
+                self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+            self._set_world_and_map(_upd_town)
         return _upd_town
 
     def get_control(self, agent, action):
@@ -1639,8 +1640,8 @@ class CarlaEnv(gym.Env):
                                         'wp_obs_bool_speed_steer_goal_light', 'wp_obs_info_speed_steer_ldist_goal_light',
                                         'wp_obs_info_speed_steer_ldist_goal', 'wp_obs_info_speed_steer_ldist_light',
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
-                                        'wp_angles_vecs_obs_info_speed_steer_ldist_light', 
-                                        'wp_obs_info_side_obs_info_speed_steer_ldist_light', 
+                                        'wp_angles_vecs_obs_info_speed_steer_ldist_light',
+                                        'wp_obs_info_side_obs_info_speed_steer_ldist_light',
                                         'wp_obs_more_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
@@ -1740,14 +1741,14 @@ class CarlaEnv(gym.Env):
                     # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
                     self.dense_waypoints = self._global_plan_world_coord
 
-                    # potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
-                    #     self.curr_town, self.route, self.world_annotations)
+                    potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
+                        self.curr_town, self.route, self.world_annotations)
                     # Sample the scenarios to be used for this route instance.
-                    # self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
+                    self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
                     # print(236, self.sampled_scenarios_definitions)
-                    # self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
+                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
                     # print(244, self.scenarios)
-                    # self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
+                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
                     self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
@@ -1852,7 +1853,7 @@ class CarlaEnv(gym.Env):
 
         # Check if ego vehicle and target vehicle are on the same road
         if(ego_road_id == target_road_id):
-            print(f"Ego: {ego_lane_id} Other: {target_lane_id}")
+        #     print(f"Ego: {ego_lane_id} Other: {target_lane_id}")
 
             # Check if ego vehicle and target vehicle are in neighboring lanes
             # If they are return true

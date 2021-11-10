@@ -20,6 +20,7 @@ export CHALLENGE_TRACK_CODENAME=MAP
 # export TEAM_AGENT=$ALTA/leaderboard/leaderboard/autoagents/npc_agent.py
 export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent.py
 export DEBUG_CHALLENGE=0
+export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52_devtest.json
 
 #python3 start_server.py &
 
@@ -35,5 +36,5 @@ python ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
 #--record=${RECORD_PATH} \
 #--resume=${RESUME}
 #--agent-config=${TEAM_CONFIG} \
-#--checkpoint=${CHECKPOINT_ENDPOINT} \
+-checkpoint=${CHECKPOINT_ENDPOINT} \
 
