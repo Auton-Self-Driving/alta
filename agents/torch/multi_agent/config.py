@@ -109,7 +109,7 @@ DSAC_CONFIG = {
 
 DPPO_CONFIG = {
     # 'save_suffix': 'LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTermRndTown',
-    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoal5Obs15dim',
+    'save_suffix': 'LdbWG1kSG1kSteerScale0d5NoGoalSideObs11dim',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     'ckpt_mode': 'load',
@@ -399,7 +399,7 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
-    'num_agents': 8,
+    'num_agents': 1,
     'max_num_steps': 16000000,
     'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
@@ -460,9 +460,9 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    'scenarios' : 'navigation',
-    # 'scenarios' : 'challenge_train_scenario',
-    'min_num_eps_before_switch_town': 10000,
+    # 'scenarios' : 'navigation',
+    'scenarios' : 'challenge_train_scenario',
+    'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
     'enable_lane_invasion_sensor' : True,
@@ -473,8 +473,8 @@ ENV_CONFIG = {
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light',
-    # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
+    'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
+    # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,
