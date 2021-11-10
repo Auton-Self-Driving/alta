@@ -1587,7 +1587,7 @@ class CarlaEnv(gym.Env):
                 agent.obstacle_sensor = {}
                 for orient, sensor in obs_sensors.items():
                     agent.obstacle_sensor[orient] = sensor
-                    agent.actor_list.append(agent.obstacle_sensor[orient])
+                    agent.actor_list.append(sensor.sensor)
 
             # Set state variables for reward calculation
             # agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
@@ -1805,7 +1805,7 @@ class CarlaEnv(gym.Env):
                     self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
                     # print(244, self.scenarios)
                     self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
-                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
+                    # self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)
