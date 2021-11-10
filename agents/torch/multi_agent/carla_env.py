@@ -424,7 +424,7 @@ class CarlaEnv(gym.Env):
             # normalization
 
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -452,7 +452,7 @@ class CarlaEnv(gym.Env):
             # normalization
 
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -475,7 +475,7 @@ class CarlaEnv(gym.Env):
             # normalization
 
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -505,18 +505,18 @@ class CarlaEnv(gym.Env):
 
             # normalization
 
-            if obstacle_dist <= self.config['vehicle_proximity_threshold']:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+            if obstacle_dist <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
-            if obstacle_dist_left <= self.config['vehicle_proximity_threshold']:
-                obstacle_dist_left = obstacle_dist_left / self.config['vehicle_proximity_threshold']
+            if obstacle_dist_left <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist_left = obstacle_dist_left / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist_left = self.config['default_obs_traffic_val']
 
-            if obstacle_dist_right <= self.config['vehicle_proximity_threshold']:
-                obstacle_dist_right = obstacle_dist_right / self.config['vehicle_proximity_threshold']
+            if obstacle_dist_right <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist_right = obstacle_dist_right / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist_right = self.config['default_obs_traffic_val']
 
@@ -545,12 +545,12 @@ class CarlaEnv(gym.Env):
 
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light':
             feat_list = [agent.episode_measurements['next_orientation']]
-            for suffix in agent.obstacle_sensor:
+            for suffix, sensor in agent.obstacle_sensor.items():
                 obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
                 obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
                 # normalization
-                if obstacle_dist <= self.config['vehicle_proximity_threshold']:
-                    obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
                 else:
                     obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -607,7 +607,7 @@ class CarlaEnv(gym.Env):
             # normalization
 
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -634,7 +634,7 @@ class CarlaEnv(gym.Env):
 
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -662,7 +662,7 @@ class CarlaEnv(gym.Env):
             light = agent.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -690,7 +690,7 @@ class CarlaEnv(gym.Env):
             light = agent.episode_measurements['red_light_dist']
             # normalization
             if obstacle_dist != -1:
-                obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
             else:
                 obstacle_dist = self.config['default_obs_traffic_val']
 
@@ -966,7 +966,7 @@ class CarlaEnv(gym.Env):
             try:
                 if target_vehicle is None or hasattr(target_vehicle, 'done') and target_vehicle.done: continue
                 if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
-                    # skip self
+                    # skip self and non-vehicular
                     continue
 
                 # if the object is not in our lane it's not an obstacle
@@ -974,13 +974,13 @@ class CarlaEnv(gym.Env):
                 # check front obstacle
                 d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                             agent.vehicle_actor.get_transform(),
-                                            self.config['vehicle_proximity_threshold'])
+                                            self.config['front_obs_proximity_threshold'])
 
 
                 side_bool, side_dist, side_orient = self._is_in_neighboring_lane(
                     target_vehicle.get_transform(),
                     agent.vehicle_actor.get_transform(),
-                    self.config['vehicle_proximity_threshold'],
+                    self.config['front_obs_proximity_threshold'],
                 )
 
                 if side_orient == -1: # left
@@ -1455,7 +1455,7 @@ class CarlaEnv(gym.Env):
             # set attributes
             agent._proximity_threshold = self.config['traffic_light_proximity_threshold']
             agent._traffic_light_proximity_threshold = self.config['traffic_light_proximity_threshold']
-            agent._vehicle_proximity_threshold = self.config['vehicle_proximity_threshold']
+            agent._front_obs_proximity_threshold = self.config['front_obs_proximity_threshold']
 
             agent.image_data = None
             agent.source_transform = agent.vehicle_actor.source_transform
@@ -1558,30 +1558,30 @@ class CarlaEnv(gym.Env):
 
             if self.config["enable_obstacle_sensor"]:
                 # agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
-                #     distance=self.config['vehicle_proximity_threshold'],
-                #     hit_radius=self.config['obs_sensor_hit_radius'],)
+                #     distance=self.config['front_obs_proximity_threshold'],
+                #     hit_radius=self.config['front_obs_sensor_hit_radius'],)
 
                 # agent.actor_list.append(agent.obstacle_sensor.sensor)
 
                 obs_sensors = {
                     'front': sensors.ObstacleSensor(agent.vehicle_actor,
-                        distance=self.config['vehicle_proximity_threshold'],
-                        hit_radius=self.config['obs_sensor_hit_radius'],),
+                        distance=self.config['front_obs_proximity_threshold'],
+                        hit_radius=self.config['front_obs_sensor_hit_radius'],),
                     'front_right': sensors.ObstacleSensor(agent.vehicle_actor,
-                        distance=self.config['vehicle_proximity_threshold'],
-                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        distance=self.config['side_obs_proximity_threshold'],
+                        hit_radius=self.config['side_obs_sensor_hit_radius'],
                         transform=carla.Transform(rotation=carla.Rotation(yaw=45.))),
                     'back_right': sensors.ObstacleSensor(agent.vehicle_actor,
-                        distance=self.config['vehicle_proximity_threshold'],
-                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        distance=self.config['side_obs_proximity_threshold'],
+                        hit_radius=self.config['side_obs_sensor_hit_radius'],
                         transform=carla.Transform(rotation=carla.Rotation(yaw=135.))),
                     'back_left': sensors.ObstacleSensor(agent.vehicle_actor,
-                        distance=self.config['vehicle_proximity_threshold'],
-                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        distance=self.config['side_obs_proximity_threshold'],
+                        hit_radius=self.config['side_obs_sensor_hit_radius'],
                         transform=carla.Transform(rotation=carla.Rotation(yaw=225.))),
                     'front_left': sensors.ObstacleSensor(agent.vehicle_actor,
-                        distance=self.config['vehicle_proximity_threshold'],
-                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        distance=self.config['side_obs_proximity_threshold'],
+                        hit_radius=self.config['side_obs_sensor_hit_radius'],
                         transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
                 }
                 agent.obstacle_sensor = {}

@@ -174,12 +174,14 @@ class LaneInvasionSensor(object):
 
 
 class ObstacleSensor(object):
-    def __init__(self, parent_actor, distance=15, hit_radius=.5, 
+    def __init__(self, parent_actor, distance=15, hit_radius=.5,
         transform=carla.Transform()):
         self.sensor = None
         self.frame = -1
         self._parent = parent_actor
         self.distance = -1
+        self.max_distance = distance
+        self.hit_radius = hit_radius
         self.out_of_road = False
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.obstacle')
