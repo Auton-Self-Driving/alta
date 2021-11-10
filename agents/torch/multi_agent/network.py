@@ -4,7 +4,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from torch.distributions import MultivariateNormal, Categorical, Normal
+from transformers import BertConfig, BertModel
 
 from agent_utils import set_init
 
@@ -51,11 +53,15 @@ class Basic_Discrete(nn.Module):
 
 
 class PPOActorCritic_Continuous(nn.Module):
-    def __init__(self, state_dim, action_dim, action_std=.5):
+    def __init__(self, state_dim, action_dim, action_std=.5, use_transformer=False):
         super(PPOActorCritic_Continuous, self).__init__()
         # action mean range -1 to 1
         self.N_S = state_dim
         self.N_A = action_dim
+        self.use_transformer = use_transformer
+        if self.use_transformer:
+            self.N_S = 128
+            self.transformer = TransformerAgent(self.N_S)
         self.actor =  nn.Sequential(
                 nn.Linear(state_dim, 64),
                 nn.Tanh(),
@@ -79,6 +85,8 @@ class PPOActorCritic_Continuous(nn.Module):
         raise NotImplementedError('please use act and eval instead')
 
     def act(self, state, deterministic=False):
+        if self.use_transformer:
+            state = self.transformer(state)
         device = next(self.actor.parameters()).device
         action_mean = self.actor(state.to(device))
         cov_mat = torch.diag(self.action_var).to(device)
@@ -93,6 +101,8 @@ class PPOActorCritic_Continuous(nn.Module):
         return action, action_logprob
 
     def evaluate(self, state, action):
+        if self.use_transformer:
+            state = self.transformer(state)
         device = next(self.actor.parameters()).device
         action_mean = self.actor(state.to(device))
         action_var = self.action_var.expand_as(action_mean)
@@ -180,6 +190,111 @@ class PolicyNetwork(nn.Module):
     #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\
     #         (self.action_range[1] + self.action_range[0]) / 2
 
+
+def positional_encoding(p, L=10):
+    return torch.stack([torch.sin(2**i * np.pi * p) for i in range(L)] + [torch.cos(2**i * np.pi * p) for i in range(L)], dim=-1)
+
+
+class TransformerAgent(nn.Module):
+    def __init__(self, embedding_size=128):
+        super().__init__()
+
+        self.embedding_size = embedding_size
+
+        config = BertConfig(
+            vocab_size=1, # we do our own embeddings
+            num_attention_heads=8,
+            hidden_size=self.embedding_size,
+            intermediate_size=1024,
+        )
+        self.model = BertModel(config)
+        # layer = nn.TransformerEncoderLayer(d_model=embedding_size, nhead=8, dim_feedforward=1024)
+        # self.model = nn.TransformerEncoder(layer, num_layers=6)
+
+        # self.predictor = nn.Sequential(
+        #     nn.Linear(embedding_size, 512),
+        #     nn.ReLU(),
+        #     nn.Linear(512, 2),
+        #     nn.Tanh()
+        # )
+
+        self.segment_embedding = nn.Embedding(3, embedding_size)
+
+        self.vehicle_encoder = nn.Sequential(
+            nn.Linear(2, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.embedding_size)
+        )
+
+        self.ego_encoder = nn.Sequential(
+            nn.Linear(5, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.embedding_size)
+        )
+
+        self.waypoint_encoder = nn.Linear(1, self.embedding_size)
+
+
+    def forward(self, obs_batch, return_encoding=False):
+        obs_batch = obs_batch.reshape(-1, 100, 8)
+
+        ego_indices = torch.where(obs_batch[:,:,0]==1)
+        vehicle_indices = torch.where(obs_batch[:,:,0]==2)
+        waypoint_indices = torch.where(obs_batch[:,:,0]==3)
+        padding_indices = torch.where(obs_batch[:,:,0]==0)
+
+        ego_features = obs_batch[ego_indices][:,1:]
+        vehicle_features = obs_batch[vehicle_indices][:,1:]
+        waypoint_features = obs_batch[waypoint_indices][:,1:]
+
+        # Separate positions and encoding features
+        ego_positions, ego_encodings = ego_features[:,:2], self.ego_encoder(ego_features[:,2:7])
+        vehicle_positions, vehicle_encodings = vehicle_features[:,:2], self.vehicle_encoder(vehicle_features[:,2:4])
+        waypoint_positions, waypoint_encodings = waypoint_features[:,:2], self.waypoint_encoder(waypoint_features[:,2:3])
+
+        ego_position_encodings = positional_encoding(ego_positions.view(-1,2), L=4).view(-1,16).repeat(1,8).view(len(ego_positions),self.embedding_size)
+        vehicle_position_encodings = positional_encoding(vehicle_positions.view(-1,2), L=4).view(-1,16).repeat(1,8).view(len(vehicle_positions),self.embedding_size)
+        waypoint_position_encodings = positional_encoding(waypoint_positions.view(-1,2), L=4).view(-1,16).repeat(1,8).view(len(waypoint_positions),self.embedding_size)
+
+        # Segment encoding (indicates token type, e.g. ego, vehicle, waypoint)
+        ego_segment_encodings = self.segment_embedding(torch.tensor([0]).to(ego_features.device))
+        vehicle_segment_encodings = self.segment_embedding(torch.tensor([1]).to(ego_features.device))
+        waypoint_segment_encodings = self.segment_embedding(torch.tensor([2]).to(ego_features.device))
+
+        # Construct tokens
+        ego_tokens = ego_encodings + ego_position_encodings + ego_segment_encodings
+        vehicle_tokens = vehicle_encodings + vehicle_position_encodings + vehicle_segment_encodings
+        waypoint_tokens = waypoint_encodings + waypoint_position_encodings + waypoint_segment_encodings
+
+        # Use token indices to construct token sequences in the original order
+        all_tokens = torch.zeros((obs_batch.shape[0], obs_batch.shape[1], self.embedding_size)).to(obs_batch.device)
+        masks = torch.ones((obs_batch.shape[0], obs_batch.shape[1])).to(obs_batch.device)
+
+        all_tokens[ego_indices] = ego_tokens
+        all_tokens[vehicle_indices] = vehicle_tokens
+        all_tokens[waypoint_indices] = waypoint_tokens
+        masks[padding_indices] = 0
+
+        all_tokens = all_tokens.permute(1,0,2)
+        output = self.model(
+            all_tokens,
+            src_key_padding_mask=masks.bool()
+        )
+
+        # hidden_state = output[0]
+        hidden_state = output[0][:,0] # hidden state of ego token only
+        return hidden_state
+        # pred_action = self.predictor(hidden_state)
+
+        # if return_encoding:
+        #     return pred_action, hidden_state
+        # else:
+        #     return pred_action
+
+    def predict(self, obs):
+        obs = torch.FloatTensor(obs).cuda()
+        action = self.forward(obs)
+        return action.detach().cpu().numpy().reshape(2)
 
 
 if __name__ == '__main__':

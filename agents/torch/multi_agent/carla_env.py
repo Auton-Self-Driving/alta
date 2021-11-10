@@ -57,6 +57,98 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
+    """
+    HELPERS
+    """
+            
+    TOKEN_TYPE = {
+        'EGO': 1,
+        'VEHICLE': 2,
+        'WAYPOINT': 3
+    }
+
+
+def flatten_obs(obs_dict):
+    obs_array = np.zeros((1, 100, 8))
+
+    # Three types of tokens -- ego, vehicle, and waypoint
+
+    # 1. EGO TOKEN
+    ego_tokens = []
+    for i in range(4):
+        ego_tokens.append(np.array([
+            TOKEN_TYPE['EGO'],
+            obs_dict['ego_features']['bounding_box'][i*2][0] / 25,
+            obs_dict['ego_features']['bounding_box'][i*2][1] / 25,
+            np.radians(obs_dict['ego_features']['theta']) / np.pi,
+            obs_dict['ego_features']['speed'] / 10.,
+            obs_dict['light'] / 10.,
+            obs_dict['dist_to_trajectory'],
+            obs_dict['next_orientation']
+        ]))
+
+    # 2. VEHICLE TOKENS
+    vehicle_tokens = []
+    for vehicle_idx in obs_dict['vehicle_features']:
+        for i in range(4):
+            vehicle_tokens.append(np.array([
+                TOKEN_TYPE['VEHICLE'],
+                obs_dict['vehicle_features'][vehicle_idx]['bounding_box'][i*2][0] / 25,
+                obs_dict['vehicle_features'][vehicle_idx]['bounding_box'][i*2][1] / 25,
+                np.radians(obs_dict['vehicle_features'][vehicle_idx]['theta']) / np.pi,
+                obs_dict['vehicle_features'][vehicle_idx]['speed'] / 10.
+            ]))
+
+    # 3. WAYPOINT TOKENS
+    waypoint_tokens = []
+    for waypoint_idx, waypoint in enumerate(obs_dict['next_waypoints']):
+        waypoint_token = np.array([
+            TOKEN_TYPE['WAYPOINT'],
+            waypoint[0] / 25,
+            waypoint[1] / 25,
+            waypoint_idx / len(obs_dict['next_waypoints'])
+        ])
+        waypoint_tokens.append(waypoint_token)
+
+    # Fill in obs array with tokens
+    tokens = ego_tokens + waypoint_tokens + vehicle_tokens
+    if len(tokens) > obs_array.shape[1]:
+        # too many tokens
+        tokens = tokens[:obs_array.shape[1]]
+        print('Got {} tokens, expecting {} tokens'.format(len(tokens), obs_array.shape[1]))
+    
+    for token_idx, token in enumerate(tokens):
+        obs_array[0,token_idx,:len(token)] = token
+
+    return obs_array
+
+def transform_to_pov(src, ref, theta):
+    """
+    Transforms src to ref frame
+    src and ref are tuples (x, y)
+    """
+    sx, sy = src
+    rx, ry = ref
+
+    x = sx - rx
+    y = sy - ry
+
+    theta = normalize_angle(theta)
+    theta = -theta # because we want to transform to 0 rotation offset
+    theta = np.radians(theta) # because np expects radians
+
+    rot_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    xy = np.array([[x],[y]])
+    xy = rot_matrix.dot(xy).flatten()
+
+    return xy[0], xy[1]
+
+
+def normalize_angle(theta):
+    theta = (theta + 360) % 360
+    theta = theta if theta <= 180 else theta-360
+    return theta
+
 class DummyAgent(Agent):
     def __init__(self, vehicle, rank=0, **kwargs):
         super().__init__(vehicle, **kwargs)
@@ -270,6 +362,11 @@ class CarlaEnv(gym.Env):
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     shape=(1, 400), dtype=np.float32)
+
+        elif self.config["input_type"] == 'transformer':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 100, 8), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_vae':
             self.observation_space = Box(low=np.finfo(np.float32).min,
@@ -705,6 +802,11 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config['input_type'] == 'transformer':
+            sym_dict = self.fetch_symbolic_dict(agent)
+            obs['observation'] = flatten_obs(sym_dict) # (1, 100, 8)
+
 
     def step(self, action=None):
         # action is for stablebaseline
@@ -1446,7 +1548,6 @@ class CarlaEnv(gym.Env):
         _filename = '{}/{:08d}.jpg'.format(_folder, agent.num_total_steps)
         plt.imsave(_filename, rgb_image)
 
-
     def reset_vehicle_agent(self, agent_list):
         # bind new agent
         for agent in agent_list:
@@ -1707,6 +1808,81 @@ class CarlaEnv(gym.Env):
         if self.config['verbose']: print('[agent {}] observation: {}'.format(agent.rank, agent.observation))
 
         return agent.observation
+
+    def fetch_actor_features(self, actor):
+        transform = actor.get_transform()
+        velocity = actor.get_velocity()
+        speed = np.linalg.norm([velocity.x, velocity.y, velocity.z])
+
+        bounding_box_loc = actor.bounding_box.get_world_vertices(transform)
+        bounding_box = [(loc.x, loc.y) for loc in bounding_box_loc]
+
+        return {
+            'x': transform.location.x,
+            'y': transform.location.y,
+            'theta': transform.rotation.yaw,
+            'speed': speed,
+            'bounding_box': bounding_box
+        }
+
+    def normalize_actor_features(self, actor_features, ref, theta):
+        """
+        Normalize actor feature dictionary to reference point
+        ref is a tuple (x, y, theta)
+        """
+        for i, (x,y) in enumerate(actor_features['bounding_box']):
+            x,y = transform_to_pov((x,y), ref, theta)
+            actor_features['bounding_box'][i] = (x,y)
+
+        x,y = transform_to_pov((actor_features['x'], actor_features['y']), ref, theta)
+        actor_features['x'], actor_features['y'] = x,y
+        actor_features['theta'] = normalize_angle(actor_features['theta'] - theta)
+
+    def fetch_symbolic_dict(self, ego_agent):
+        # get ego kinematics
+        ego_actor = ego_agent.vehicle_actor
+        ego_features = self.fetch_actor_features(ego_actor)
+
+        ref = ego_features['x'], ego_features['y']
+        theta = ego_features['theta']
+
+        self.normalize_actor_features(ego_features, ref, theta)
+
+        # get other entities
+        other_actors = self._world.get_actors().filter('*vehicle*')
+        vehicle_features = {actor.id: self.fetch_actor_features(actor) for actor in other_actors
+            if actor.get_transform().location.distance(ego_actor.get_transform().location) < 20
+            and actor.id != ego_actor.id
+        }
+
+        for vehicle_id in vehicle_features:
+            features = vehicle_features[vehicle_id]
+            self.normalize_actor_features(features, ref, theta)
+
+        # normalize waypoints
+        waypoints = ego_agent.episode_measurements['next_waypoints']
+        for i, (x,y,_) in enumerate(waypoints):
+            x,y = transform_to_pov((x,y), ref, theta)
+            waypoints[i] = (x,y)
+
+        features = {
+            'ego_features': ego_features,
+            'vehicle_features': vehicle_features,
+
+            'light': ego_agent.episode_measurements['red_light_dist'],
+
+            'next_waypoints': waypoints,
+            'next_orientation': ego_agent.episode_measurements['next_orientation'],
+            'dist_to_trajectory': ego_agent.episode_measurements['dist_to_trajectory'],
+
+            'obstacle_dist': ego_agent.episode_measurements['obstacle_dist'],
+            'obstacle_speed': ego_agent.episode_measurements['obstacle_speed'],
+
+            'x': ref[0],
+            'y': ref[1],
+            'theta': theta
+        }
+        return features
 
     def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
         # if not idx_list: idx_list = [0] * self.config['num_agents']
