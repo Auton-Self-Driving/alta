@@ -41,7 +41,8 @@ def launch_server(rank, resources):
     # print(N_S, N_A)
     # from IPython import embed; embed()
 
-    glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(device) # global network
+    glb_policy = PPOActorCritic_Continuous(N_S, N_A,
+        use_transformer=ENV_CONFIG['input_type']=='transformer').to(device) # global network
     # glb_policy.share_memory()
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
         lr=DPPO_CONFIG['policy_lr'], betas=(0.92, 0.999))

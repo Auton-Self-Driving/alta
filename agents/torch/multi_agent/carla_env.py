@@ -120,7 +120,7 @@ def flatten_obs(obs_dict):
     for token_idx, token in enumerate(tokens):
         obs_array[0,token_idx,:len(token)] = token
 
-    return obs_array
+    return obs_array.flatten()
 
 def transform_to_pov(src, ref, theta):
     """
@@ -366,7 +366,7 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'transformer':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
-                                    shape=(1, 100, 8), dtype=np.float32)
+                                    shape=(800,), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_vae':
             self.observation_space = Box(low=np.finfo(np.float32).min,
