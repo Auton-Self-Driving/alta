@@ -1587,7 +1587,7 @@ class CarlaEnv(gym.Env):
                 agent.obstacle_sensor = {}
                 for orient, sensor in obs_sensors.items():
                     agent.obstacle_sensor[orient] = sensor
-                    agent.actor_list.append(agent.obstacle_sensor[orient])
+                    agent.actor_list.append(sensor.sensor)
 
             # Set state variables for reward calculation
             # agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
