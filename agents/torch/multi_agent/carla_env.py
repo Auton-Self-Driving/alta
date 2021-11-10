@@ -543,6 +543,37 @@ class CarlaEnv(gym.Env):
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]),
             np.array([obstacle_dist_left]), np.array([obstacle_speed_left]), np.array([obstacle_dist_right]), np.array([obstacle_speed_right]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light':
+            feat_list = [agent.episode_measurements['next_orientation']]
+            for suffix in agent.obstacle_sensor:
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= self.config['vehicle_proximity_threshold']:
+                    obstacle_dist = obstacle_dist / self.config['vehicle_proximity_threshold']
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
         elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
             speed = agent.episode_measurements['speed'] / 10
             steer = agent.episode_measurements['control_steer']
@@ -591,8 +622,6 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
-
-
 
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             wp_angles_array, wp_vectors_array = self.get_wp_obs_input(agent)
@@ -997,16 +1026,21 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
 
+        for suffix in agent.obstacle_sensor:
+            agent.episode_measurements['obstacle_dist_{}'.format(suffix)] = -1
+            agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
+
+        # front obstacle detection
         found_obstacle = False
         same_lane = True
-        if agent.obstacle_sensor.frame == self.world_frame:
-            if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor.frame)
-            obstacle_actor = agent.obstacle_sensor.obstacle_actor
+        if agent.obstacle_sensor['front'].frame == self.world_frame:
+            if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor['front'].frame)
+            obstacle_actor = agent.obstacle_sensor['front'].obstacle_actor
             if 'vehicle' in obstacle_actor.type_id:
                 same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)
             found_obstacle = True
             agent.episode_measurements['obstacle_visible'] = True
-            agent.episode_measurements['obstacle_dist'] = agent.obstacle_sensor.distance
+            agent.episode_measurements['obstacle_dist'] = agent.episode_measurements['obstacle_dist_front'] = agent.obstacle_sensor['front'].distance
             # if 'vehicle' in obstacle_actor.type_id:
             if hasattr(obstacle_actor, 'get_velocity'):
                 if self.config['obs_cosine_velocity']:
@@ -1014,24 +1048,24 @@ class CarlaEnv(gym.Env):
                     if cos < 0: cos = 0.
                 else:
                     cos = 1.
-                agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
+                agent.episode_measurements['obstacle_speed'] = agent.episode_measurements['obstacle_speed_front'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
                 # cos = self.cosine_between_velocities(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
                 # print('API test COS', cos)
             else:
-                agent.episode_measurements['obstacle_speed'] = -1
+                agent.episode_measurements['obstacle_speed'] = agent.episode_measurements['obstacle_speed_front'] = -1
             found_obstacle = found_obstacle and (not self.config['check_obs_same_lane'] or same_lane)
             # for weak_verbose
             if agent.episode_measurements['obstacle_init_id'] != obstacle_actor.id: # initial
                 agent.episode_measurements['obstacle_init_id'] = obstacle_actor.id
-                agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor.distance
+                agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor['front'].distance
                 if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
                     print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
                         agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
-                        agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane, found_obstacle))
+                        agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
             if self.config['verbose'] or self.config['test_verbose']:
                 print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
                     agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
-                    agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor.distance, same_lane, found_obstacle))
+                    agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
             # if only detect vehicular obstacle
             if self.config['obs_sensor_vehicle_only'] and 'vehicle' not in obstacle_actor.type_id:
                 found_obstacle = False
@@ -1040,9 +1074,32 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_visible'] = False
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
+            agent.episode_measurements['obstacle_dist_front'] = -1
+            agent.episode_measurements['obstacle_speed_front'] = -1
             agent.episode_measurements['obstacle_init_dist'] = -1
             agent.episode_measurements['obstacle_init_id'] = -1
 
+        # for other obstacles
+        for suffix in agent.obstacle_sensor:
+            found_obstacle = False
+            same_lane = True
+            if suffix == 'front': continue
+            if agent.obstacle_sensor[suffix].frame == self.world_frame:
+                if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor[suffix].frame)
+                obstacle_actor = agent.obstacle_sensor[suffix].obstacle_actor
+                if 'vehicle' in obstacle_actor.type_id:
+                    same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)
+                found_obstacle = True
+                agent.episode_measurements['obstacle_dist_{}'.format(suffix)] = agent.obstacle_sensor[suffix].distance
+                # if 'vehicle' in obstacle_actor.type_id:
+                if hasattr(obstacle_actor, 'get_velocity') and 'vehicle' not in obstacle_actor.type_id:
+                    agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
+                else:
+                    agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
+                found_obstacle = found_obstacle and (not self.config['check_obs_same_lane'] or not same_lane)
+            if not found_obstacle:
+                agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
+                agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
 
     def _update_traffic_light_states(self, agent):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
@@ -1500,38 +1557,37 @@ class CarlaEnv(gym.Env):
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
             if self.config["enable_obstacle_sensor"]:
-                agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
-                    distance=self.config['vehicle_proximity_threshold'],
-                    hit_radius=self.config['obs_sensor_hit_radius'],)
+                # agent.obstacle_sensor = sensors.ObstacleSensor(agent.vehicle_actor,
+                #     distance=self.config['vehicle_proximity_threshold'],
+                #     hit_radius=self.config['obs_sensor_hit_radius'],)
 
-                agent.actor_list.append(agent.obstacle_sensor.sensor)
+                # agent.actor_list.append(agent.obstacle_sensor.sensor)
 
-                # obs_sensors = {
-                #     'front': sensors.ObstacleSensor(agent.vehicle_actor,
-                #         distance=self.config['vehicle_proximity_threshold'],
-                #         hit_radius=self.config['obs_sensor_hit_radius'],),
-                #     'front_right': sensors.ObstacleSensor(agent.vehicle_actor,
-                #         distance=self.config['vehicle_proximity_threshold'],
-                #         hit_radius=self.config['obs_sensor_hit_radius'],
-                #         transform=carla.Transform(rotation=carla.Rotation(yaw=45.))),
-                #     'back_right': sensors.ObstacleSensor(agent.vehicle_actor,
-                #         distance=self.config['vehicle_proximity_threshold'],
-                #         hit_radius=self.config['obs_sensor_hit_radius'],
-                #         transform=carla.Transform(rotation=carla.Rotation(yaw=135.))),
-                #     'back_left': sensors.ObstacleSensor(agent.vehicle_actor,
-                #         distance=self.config['vehicle_proximity_threshold'],
-                #         hit_radius=self.config['obs_sensor_hit_radius'],
-                #         transform=carla.Transform(rotation=carla.Rotation(yaw=225.))),
-                #     'front_left': sensors.ObstacleSensor(agent.vehicle_actor,
-                #         distance=self.config['vehicle_proximity_threshold'],
-                #         hit_radius=self.config['obs_sensor_hit_radius'],
-                #         transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
-                # }
-                # agent.obstacle_sensor = {}
-                # for orient, sensor in obs_sensors.items():
-                #     agent.obstacle_sensor[orient] = sensor
-                #     agent.actor_list.append(agent.obstacle_sensor[orient])
-
+                obs_sensors = {
+                    'front': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],),
+                    'front_right': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=45.))),
+                    'back_right': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=135.))),
+                    'back_left': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=225.))),
+                    'front_left': sensors.ObstacleSensor(agent.vehicle_actor,
+                        distance=self.config['vehicle_proximity_threshold'],
+                        hit_radius=self.config['obs_sensor_hit_radius'],
+                        transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
+                }
+                agent.obstacle_sensor = {}
+                for orient, sensor in obs_sensors.items():
+                    agent.obstacle_sensor[orient] = sensor
+                    agent.actor_list.append(agent.obstacle_sensor[orient])
 
             # Set state variables for reward calculation
             # agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions

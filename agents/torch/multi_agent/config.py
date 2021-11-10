@@ -109,7 +109,7 @@ DSAC_CONFIG = {
 
 DPPO_CONFIG = {
     # 'save_suffix': 'LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTermRndTown',
-    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoalSideObs',
+    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoal5Obs15dim',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     'ckpt_mode': 'load',
@@ -473,7 +473,8 @@ ENV_CONFIG = {
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
+    # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
+    'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,
