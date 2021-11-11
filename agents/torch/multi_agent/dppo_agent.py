@@ -488,37 +488,73 @@ class DPPO_Server_Agent(object):
         old_logprobs = torch.tensor(old_logprobs, dtype=torch.float32,
             device=self.device).squeeze().detach()
 
+        # # Optimize policy for K epochs:
+        # for _ in range(self.optim_epochs):
+        #     # Evaluating old actions and values:
+        #     # print(old_states.shape)
+        #     logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+        #         old_states, old_actions)
+
+        #     # Finding the ratio (pi_theta / pi_theta__old):
+        #     ratios = torch.exp(logprobs - old_logprobs.detach())
+        #     # Finding Surrogate Loss:
+        #     # print('state_values', state_values.shape)
+        #     advantages = rewards - state_values.detach()
+        #     if self.focal_loss:
+        #         _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+        #         _p = torch.exp(logprobs)
+        #         _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+        #             (_p * _ga * logprobs + _p - 1)
+        #         advantages = advantages * _focal_loss
+        #     surr1 = ratios * advantages
+        #     surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+        #         1 + self.eps_clip) * advantages
+        #     loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+        #         rewards) - 0.01 * dist_entropy
+
+        #     # take gradient step
+        #     self.glb_optimizer.zero_grad()
+        #     loss = loss.mean()
+        #     loss.backward()
+        #     if self.grad_clip is not None:
+        #         torch.nn.utils.clip_grad_norm_(
+        #             self.glb_policy.parameters(), self.grad_clip)
+        #     self.glb_optimizer.step()
+
         # Optimize policy for K epochs:
+        batch_size = 64
         for _ in range(self.optim_epochs):
             # Evaluating old actions and values:
             # print(old_states.shape)
-            logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-                old_states, old_actions)
-
-            # Finding the ratio (pi_theta / pi_theta__old):
-            ratios = torch.exp(logprobs - old_logprobs.detach())
-            # Finding Surrogate Loss:
-            # print('state_values', state_values.shape)
-            advantages = rewards - state_values.detach()
-            if self.focal_loss:
-                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
-                _p = torch.exp(logprobs)
-                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
-                    (_p * _ga * logprobs + _p - 1)
-                advantages = advantages * _focal_loss
-            surr1 = ratios * advantages
-            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
-                1 + self.eps_clip) * advantages
-            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
-                rewards) - 0.01 * dist_entropy
-
-            # take gradient step
             self.glb_optimizer.zero_grad()
-            loss = loss.mean()
-            loss.backward()
+            for idx in range(0, len(old_states), batch_size):
+                logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
+                        old_states[idx:idx + batch_size], old_actions[idx:idx + batch_size])
+
+                # Finding the ratio (pi_theta / pi_theta__old):
+                ratios = torch.exp(logprobs - old_logprobs[idx:idx + batch_size].detach())
+                # Finding Surrogate Loss:
+                # print('state_values', state_values.shape)
+                advantages = rewards[idx:idx + batch_size] - state_values.detach()
+                if self.focal_loss:
+                    _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                    _p = torch.exp(logprobs)
+                    _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                        (_p * _ga * logprobs + _p - 1)
+                    advantages = advantages * _focal_loss
+                surr1 = ratios * advantages
+                surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                    1 + self.eps_clip) * advantages
+                loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                    rewards[idx:idx + batch_size]) - 0.01 * dist_entropy
+
+                loss = loss.mean()
+                loss.backward()
+
             if self.grad_clip is not None:
                 torch.nn.utils.clip_grad_norm_(
                     self.glb_policy.parameters(), self.grad_clip)
+            # take gradient step
             self.glb_optimizer.step()
 
         self.reset_memory()
@@ -759,7 +795,7 @@ class DPPO_Worker_Agent(object):
         vec_mem.extend(np.array(mem['logprob']).flatten().tolist())
         vec_mem.extend(mem['reward'])
         vec_mem.extend(mem['done'])
-         #print(vec_mem, len(vec_mem), type(vec_mem))
+        # print(vec_mem, len(vec_mem), type(vec_mem))
         # print(len(vec_mem), type(vec_mem))
         vec_mem = torch.tensor(vec_mem)
         overhead = [self.rank, agent.num_total_steps,

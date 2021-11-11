@@ -108,7 +108,7 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoalSideObs11dimTsfmDebug',
+    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoalNoNPCTsfmer',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     # 'ckpt_mode': 'load',
@@ -121,7 +121,7 @@ DPPO_CONFIG = {
     'num_workers': 1,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
-    'device_list': ['cuda:3'],
+    'device_list': ['cuda:2'],
     # 'device_list': ['cuda:0'],
     # 'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
@@ -462,8 +462,8 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    # 'scenarios' : 'navigation',
-    'scenarios' : 'challenge_train_scenario',
+    'scenarios' : 'navigation',
+    # 'scenarios' : 'challenge_train_scenario',
     'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
@@ -475,8 +475,9 @@ ENV_CONFIG = {
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
+    # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
+    'input_type': 'transformer',
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,

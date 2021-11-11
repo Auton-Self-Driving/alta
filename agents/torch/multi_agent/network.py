@@ -2,6 +2,7 @@
 """
 
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -60,9 +61,12 @@ class PPOActorCritic_Continuous(nn.Module):
         self.N_A = action_dim
         self.use_transformer = use_transformer
         if self.use_transformer:
-            self.N_S = 128
-            self.transformer = TransformerAgent(self.N_S)
-        self.actor =  nn.Sequential(
+            self.N_S = 800
+            state_dim = 128
+            # state_dim = 800
+            self.transformer = TransformerAgent(state_dim)
+            # self.transformer = TransformerAgent(128)
+        self.actor = nn.Sequential(
                 nn.Linear(state_dim, 64),
                 nn.Tanh(),
                 nn.Linear(64, 32),
@@ -203,9 +207,9 @@ class TransformerAgent(nn.Module):
 
         config = BertConfig(
             vocab_size=1, # we do our own embeddings
-            num_attention_heads=8,
+            num_attention_heads=4,
             hidden_size=self.embedding_size,
-            intermediate_size=1024,
+            intermediate_size=128,
         )
         self.model = BertModel(config)
         # layer = nn.TransformerEncoderLayer(d_model=embedding_size, nhead=8, dim_feedforward=1024)
@@ -275,10 +279,9 @@ class TransformerAgent(nn.Module):
         all_tokens[waypoint_indices] = waypoint_tokens
         masks[padding_indices] = 0
 
-        all_tokens = all_tokens.permute(1,0,2)
         output = self.model(
-            all_tokens,
-            src_key_padding_mask=masks.bool()
+            inputs_embeds=all_tokens.float(),
+            attention_mask=masks
         )
 
         # hidden_state = output[0]

@@ -86,10 +86,10 @@ def launch_worker(rank, resources):
 
     N_S = env.observation_space.shape[-1]
     N_A = env.action_space.shape[-1]
-    # print(N_S, N_A)
     # from IPython import embed; embed()
 
-    local_policy = PPOActorCritic_Continuous(N_S, N_A).to(device) # global network
+    local_policy = PPOActorCritic_Continuous(N_S, N_A,
+        use_transformer=ENV_CONFIG['input_type']=='transformer').to(device) # global network
     # glb_policy.share_memory()
 
     worker_agent = DPPO_Worker_Agent(env, local_policy,

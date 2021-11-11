@@ -57,15 +57,15 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
-    """
-    HELPERS
-    """
-            
-    TOKEN_TYPE = {
-        'EGO': 1,
-        'VEHICLE': 2,
-        'WAYPOINT': 3
-    }
+"""
+HELPERS
+"""
+
+TOKEN_TYPE = {
+    'EGO': 1,
+    'VEHICLE': 2,
+    'WAYPOINT': 3
+}
 
 
 def flatten_obs(obs_dict):
@@ -116,7 +116,7 @@ def flatten_obs(obs_dict):
         # too many tokens
         tokens = tokens[:obs_array.shape[1]]
         print('Got {} tokens, expecting {} tokens'.format(len(tokens), obs_array.shape[1]))
-    
+
     for token_idx, token in enumerate(tokens):
         obs_array[0,token_idx,:len(token)] = token
 
@@ -1802,6 +1802,8 @@ class CarlaEnv(gym.Env):
                                         'wp_obs_more_info_speed_steer_ldist_light']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
+        elif self.config['input_type'] == 'transformer':
+            agent.observation = obs['observation']
         else:
             agent.observation = obs
 
@@ -1860,7 +1862,15 @@ class CarlaEnv(gym.Env):
             self.normalize_actor_features(features, ref, theta)
 
         # normalize waypoints
-        waypoints = ego_agent.episode_measurements['next_waypoints']
+        # print(len(ego_agent.next_waypoints))
+        waypoints = [
+            (
+                wp.transform.location.x,
+                wp.transform.location.y,
+                wp.transform.location.z,
+            )
+            for wp in ego_agent.next_waypoints
+        ]
         for i, (x,y,_) in enumerate(waypoints):
             x,y = transform_to_pov((x,y), ref, theta)
             waypoints[i] = (x,y)
