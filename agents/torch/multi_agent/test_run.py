@@ -2,6 +2,25 @@
 """
 
 import os
+import glob
+import sys
+
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+
+try:
+    sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
+if CARLA_9_4_PATH == None:
+    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+import carla
+
+import os
 import torch
 import matplotlib.pyplot as plt
 
@@ -26,7 +45,9 @@ N_A = env.action_space.shape[-1]
 # print('testing checkpoint [{}]...'.format(TEST_CONFIG['checkpoint']))
 print('testing config:\n{}'.format(TEST_CONFIG))
 if TEST_CONFIG['PPO']:
-    glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
+    glb_policy = PPOActorCritic_Continuous(N_S, N_A,
+        use_transformer=ENV_CONFIG['input_type']=='transformer'
+    ).to(ENV_CONFIG['device'])
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
         lr=1e-3, betas=(0.92, 0.999))
 
@@ -77,7 +98,7 @@ else:
 
     ckpt = torch.load(TEST_CONFIG['checkpoint'], map_location='cpu')
     sac_agent.load(ckpt)
-    sac_agent.test(videos=TEST_CONFIG['videos'], 
+    sac_agent.test(videos=TEST_CONFIG['videos'],
         save_buffer=TEST_CONFIG['save_buffer'])
 
 env.close()

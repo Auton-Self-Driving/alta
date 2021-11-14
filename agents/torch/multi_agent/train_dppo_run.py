@@ -2,6 +2,25 @@
 """
 
 import os
+import glob
+import sys
+
+CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
+
+try:
+    sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
+        sys.version_info.major,
+        sys.version_info.minor,
+        'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
+except IndexError:
+    pass
+
+if CARLA_9_4_PATH == None:
+    raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
+
+import carla
+
+import os
 import time
 import random
 import torch
@@ -58,6 +77,7 @@ def launch_server(rank, resources):
         standard=DPPO_CONFIG['standard'],
         num_threads=DPPO_CONFIG['num_threads_per_server'],
         save_suffix=DPPO_CONFIG['save_suffix'],
+        save_freq=DPPO_CONFIG['save_freq'],
         log_time=resources['log_time'],
         verbose=ENV_CONFIG['verbose'],
     )

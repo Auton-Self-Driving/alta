@@ -108,9 +108,14 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoalNoNPCTsfmer',
+    'save_suffix': 'LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
+    # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46.pth',
+    # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoalSideObs11dim_13724968_Nov110431PM25.pth',
+    # 'checkpoint': './ckptDPPO1x4x1_WG1kSG1kSteerScale0d5NoGoalTsfmerMini_206523_Nov121251AM50.pth',
+    # 'checkpoint': './ckptDPPO1x2x1_LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini_51194_Nov120148AM08.pth',
+    'checkpoint': './ckptDPPO1x5x1_LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini_100434_Nov120302PM12.pth',
     # 'ckpt_mode': 'load',
     'ckpt_mode': 'resume',
     'policy_lr': 4e-4,
@@ -118,12 +123,11 @@ DPPO_CONFIG = {
     'grad_clip': .5,
     'focal_loss': False,
     'standard': False,
-    'num_workers': 1,
+    'num_workers': 6,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
-    'device_list': ['cuda:2'],
     # 'device_list': ['cuda:0'],
-    # 'device_list': ['cuda:0', 'cuda:1'],
+    'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:2'],
@@ -133,6 +137,7 @@ DPPO_CONFIG = {
     'worker_grad_update_freq': 1000,
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 1000,
+    'save_freq': 100000,
 }
 
 PPO_CONFIG = {
@@ -362,7 +367,10 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kS80SteerScale0d5NoNPCNoGoal_9210986_Oct280634PM49.pth',
     # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTermRndTown_6045070_Nov060924PM44.pth',
     # 'checkpoint': './ckptDPPO1x16x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_9812819_Nov060325AM46.pth',
-    'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52.pth',
+    # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52.pth',
+    # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46.pth',
+    # 'checkpoint': './ckptDPPO1x7x1_LdbWG1kSG1kSteerScale0d5NoGoal5Obs15dimPretrainWonly_916483_Nov111049PM10.pth',
+    'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoalSideObs11dim_13724968_Nov110431PM25.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -403,7 +411,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:3',
+    'device': 'cuda:1',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -462,8 +470,8 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    'scenarios' : 'navigation',
-    # 'scenarios' : 'challenge_train_scenario',
+    # 'scenarios' : 'navigation',
+    'scenarios' : 'challenge_train_scenario',
     'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 6000,

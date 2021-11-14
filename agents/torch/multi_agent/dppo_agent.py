@@ -430,10 +430,10 @@ class DPPO_Server_Agent(object):
             old_states.extend(_state)
             old_actions.extend(_action)
             old_logprobs.extend(_logprob)
-            batch_rewards.append(list(agent_rewards))
-            batch_old_states.append(_state)
-            batch_old_actions.append(_action)
-            batch_old_logprobs.append(_logprob)
+            # batch_rewards.append(list(agent_rewards))
+            # batch_old_states.append(_state)
+            # batch_old_actions.append(_action)
+            # batch_old_logprobs.append(_logprob)
         # print('server', 318, len(rewards), len(old_states), len(old_actions), len(old_logprobs))
         # upgrade = []
         # for r, s, a, prob, ts in zip(batch_rewards, batch_old_states,
@@ -522,14 +522,14 @@ class DPPO_Server_Agent(object):
         #     self.glb_optimizer.step()
 
         # Optimize policy for K epochs:
-        batch_size = 64
+        batch_size = 127 # cannot be power of 2
         for _ in range(self.optim_epochs):
             # Evaluating old actions and values:
             # print(old_states.shape)
             self.glb_optimizer.zero_grad()
             for idx in range(0, len(old_states), batch_size):
                 logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-                        old_states[idx:idx + batch_size], old_actions[idx:idx + batch_size])
+                    old_states[idx:idx + batch_size], old_actions[idx:idx + batch_size])
 
                 # Finding the ratio (pi_theta / pi_theta__old):
                 ratios = torch.exp(logprobs - old_logprobs[idx:idx + batch_size].detach())
@@ -586,7 +586,7 @@ class DPPO_Server_Agent(object):
 
     def load(self, checkpoint):
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
-        self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
+        # self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):
@@ -595,6 +595,7 @@ class DPPO_Server_Agent(object):
                 checkpoint['num_agents'], '{} != {}'.format(
                 self.num_agents, checkpoint['num_agents'])
         self.load(checkpoint)
+        self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         self.eps_clip = checkpoint['eps_clip']
         self.max_glb_num_steps = checkpoint['max_glb_num_steps']
         self.gamma = checkpoint['gamma']

@@ -89,9 +89,9 @@ class PPOActorCritic_Continuous(nn.Module):
         raise NotImplementedError('please use act and eval instead')
 
     def act(self, state, deterministic=False):
-        if self.use_transformer:
-            state = self.transformer(state)
         device = next(self.actor.parameters()).device
+        if self.use_transformer:
+            state = self.transformer(state.to(device))
         action_mean = self.actor(state.to(device))
         cov_mat = torch.diag(self.action_var).to(device)
 
@@ -105,20 +105,21 @@ class PPOActorCritic_Continuous(nn.Module):
         return action, action_logprob
 
     def evaluate(self, state, action):
-        if self.use_transformer:
-            state = self.transformer(state)
         device = next(self.actor.parameters()).device
+        if self.use_transformer:
+            state = self.transformer(state.to(device))
         action_mean = self.actor(state.to(device))
         action_var = self.action_var.expand_as(action_mean)
         cov_mat = torch.diag_embed(action_var).to(device)
 
-        dist = MultivariateNormal(action_mean, cov_mat)
+        # print(115, action_mean.shape, type(action_mean), cov_mat.shape, type(cov_mat))
+        dist = MultivariateNormal(action_mean.to(device), cov_mat)
 
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
         state_value = self.critic(state)
 
-        return action_logprobs, torch.squeeze(state_value), dist_entropy
+        return action_logprobs, torch.squeeze(state_value), dist_entropy.view(-1)
 
     def __str__(self):
         device = next(self.actor.parameters()).device
@@ -205,9 +206,16 @@ class TransformerAgent(nn.Module):
 
         self.embedding_size = embedding_size
 
+        # config = BertConfig(
+        #     vocab_size=1, # we do our own embeddings
+        #     num_attention_heads=4,
+        #     hidden_size=self.embedding_size,
+        #     intermediate_size=128,
+        # )
         config = BertConfig(
             vocab_size=1, # we do our own embeddings
             num_attention_heads=4,
+            num_hidden_layers=2,
             hidden_size=self.embedding_size,
             intermediate_size=128,
         )
