@@ -1057,8 +1057,8 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
 
-        agent.episode_measurements['obstacle_dist_left'] = float('inf')
-        agent.episode_measurements['obstacle_dist_right'] = float('inf')
+        agent.episode_measurements['obstacle_dist_left'] = -1
+        agent.episode_measurements['obstacle_dist_right'] = -1
         agent.episode_measurements['obstacle_speed_left'] = -1
         agent.episode_measurements['obstacle_speed_right'] = -1
 
@@ -1087,12 +1087,14 @@ class CarlaEnv(gym.Env):
                 )
 
                 if side_orient == -1: # left
-                    if side_dist < agent.episode_measurements['obstacle_dist_left']:
+                    if agent.episode_measurements['obstacle_dist_left'] == -1 or \
+                        side_dist < agent.episode_measurements['obstacle_dist_left']:
                         agent.episode_measurements['obstacle_dist_left'] = side_dist
                         agent.episode_measurements['obstacle_speed_left'] = \
                             self.get_speed_from_velocity(target_vehicle.get_velocity())
                 elif side_orient == 1:
-                    if side_dist < agent.episode_measurements['obstacle_dist_right']:
+                    if agent.episode_measurements['obstacle_dist_right'] == -1 or \
+                        side_dist < agent.episode_measurements['obstacle_dist_right']:
                         agent.episode_measurements['obstacle_dist_right'] = side_dist
                         agent.episode_measurements['obstacle_speed_right'] = \
                             self.get_speed_from_velocity(target_vehicle.get_velocity())
@@ -1721,6 +1723,24 @@ class CarlaEnv(gym.Env):
         #     # print(self.world_frame)
         #     self.world_frame = self._world.tick()
 
+    def _is_static(self, agent):
+        if type(agent.obstacle_sensor) == dict:
+            for suffix in agent.obstacle_sensor:
+                if agent.episode_measurements['obstacle_dist_{}'.format(suffix)] != -1:
+                    return False
+        if agent.episode_measurements['speed'] >= self.config['zero_speed_threshold']:
+            return False
+        if agent.episode_measurements['obstacle_dist'] != -1:
+            return False
+        if agent.episode_measurements['red_light_dist'] != -1:
+            return False
+        if  'obstacle_dist_left' in agent.episode_measurements and \
+            agent.episode_measurements['obstacle_dist_left'] != -1:
+            return False
+        if  'obstacle_dist_right' in agent.episode_measurements and \
+            agent.episode_measurements['obstacle_dist_right'] != -1:
+            return False
+        return True
 
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
@@ -1761,9 +1781,7 @@ class CarlaEnv(gym.Env):
         self._update_env_obs(agent)
 
         # if static (stuck by obstacle)
-        if agent.episode_measurements['speed'] < self.config['zero_speed_threshold'] and \
-            agent.episode_measurements['obstacle_dist'] == -1 and \
-            agent.episode_measurements['red_light_dist'] == -1:
+        if self._is_static(agent):
             agent.episode_measurements['static_steps'] += 1
         else:
             agent.episode_measurements['static_steps'] = 0
