@@ -206,22 +206,22 @@ class TransformerAgent(nn.Module):
 
         self.embedding_size = embedding_size
 
-        # config = BertConfig(
-        #     vocab_size=1, # we do our own embeddings
-        #     num_attention_heads=4,
-        #     hidden_size=self.embedding_size,
-        #     intermediate_size=128,
-        # )
         config = BertConfig(
             vocab_size=1, # we do our own embeddings
             num_attention_heads=4,
-            num_hidden_layers=2,
             hidden_size=self.embedding_size,
             intermediate_size=128,
         )
+        # config = BertConfig(
+        #     vocab_size=1, # we do our own embeddings
+        #     num_attention_heads=4,
+        #     num_hidden_layers=2,
+        #     hidden_size=self.embedding_size,
+        #     intermediate_size=128,
+        # )
         self.model = BertModel(config)
         # layer = nn.TransformerEncoderLayer(d_model=embedding_size, nhead=8, dim_feedforward=1024)
-        # self.model = nn.TransformerEncoder(layer, num_layers=6)
+       # self.model = nn.TransformerEncoder(layer, num_layers=6)
 
         # self.predictor = nn.Sequential(
         #     nn.Linear(embedding_size, 512),

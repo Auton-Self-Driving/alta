@@ -522,7 +522,7 @@ class DPPO_Server_Agent(object):
         #     self.glb_optimizer.step()
 
         # Optimize policy for K epochs:
-        batch_size = 127 # cannot be power of 2
+        batch_size = 233 # cannot be power of 2
         for _ in range(self.optim_epochs):
             # Evaluating old actions and values:
             # print(old_states.shape)

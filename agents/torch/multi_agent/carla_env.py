@@ -1726,7 +1726,9 @@ class CarlaEnv(gym.Env):
     def _is_static(self, agent):
         if type(agent.obstacle_sensor) == dict:
             for suffix in agent.obstacle_sensor:
-                if agent.episode_measurements['obstacle_dist_{}'.format(suffix)] != -1:
+                obstacle_key = 'obstacle_dist_{}'.format(suffix)
+                if obstacle_key in agent.episode_measurements and \
+                    agent.episode_measurements[obstacle_key] != -1:
                     return False
         if agent.episode_measurements['speed'] >= self.config['zero_speed_threshold']:
             return False
