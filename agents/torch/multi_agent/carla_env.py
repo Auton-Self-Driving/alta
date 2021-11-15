@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../leaderboard
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../scenario_runner'))
 from leaderboard.utils.route_manipulation import interpolate_trajectory
 from leaderboard.utils.route_parser import RouteParser, TRIGGER_THRESHOLD, TRIGGER_ANGLE_THRESHOLD
+from leaderboard.utils.statistics_manager import StatisticsManager
 from leaderboard.scenarios.route_scenario import (
     scenario_sampling, build_scenario_instances, convert_transform_to_location, Trigger
 )
@@ -66,6 +67,11 @@ TOKEN_TYPE = {
     'VEHICLE': 2,
     'WAYPOINT': 3
 }
+
+class DummyScenarioConfig(object):
+    def __init__(self, index, trajectory):
+        self.index = index
+        self.trajectory = trajectory
 
 
 def flatten_obs(obs_dict):
@@ -959,6 +965,9 @@ class CarlaEnv(gym.Env):
                 # print('[agent {}] 677'.format(agent.rank), agent.episode_measurements['initial_dist_to_red_light'])
                 agent.episode_measurements['done'] = done
                 agent.done = bool(done)
+                if agent.done and 'challenge' in self.config['scenarios']:
+                    _stat = agent.stats.compute_route_statistics(agent.scenario_config)
+                    print(_stat)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
                 agent.target_speeds_array.append(agent.episode_measurements['target_speed'])
@@ -1568,6 +1577,8 @@ class CarlaEnv(gym.Env):
             agent.global_planner = agent.vehicle_actor.global_planner
             if 'challenge' in self.config['scenarios']:
                 agent.running = agent.vehicle_actor.running
+                agent.stats = agent.vehicle_actor.stats
+                agent.scenario_config = agent.vehicle_actor.scenario_config
             # agent.trace_route = None
             agent.episode_num = 0
             agent.validation_episode_num = 0
@@ -2018,8 +2029,17 @@ class CarlaEnv(gym.Env):
                     # print(236, self.sampled_scenarios_definitions)
                     self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
                     # print(244, self.scenarios)
-                    self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
-                    # self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
+                    if self.config['use_scenarios']:
+                        self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
+                    else:
+                        self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
+
+                    # set statistics
+                    self.vehicle_actor.stats = StatisticsManager()
+                    self.vehicle_actor.stats.set_route('route_{}'.format(self.scenario_index), self.scenario_index)
+                    self.vehicle_actor.stats.set_scenario(self.vehicle_actor.running.scenario)
+                    self.vehicle_actor.scenario_config = DummyScenarioConfig(self.scenario_index, self.route)
+
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)
