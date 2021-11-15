@@ -189,6 +189,7 @@ class CarlaEnv(gym.Env):
         ################################################################################
         # if 'num_agents' in self.config and self.config['algo'] == 'A2C':
         if 'challenge' in self.config["scenarios"]:
+            self.statistics_manager = StatisticsManager()
             self.config['num_agents'] == 1
             assert self.config['num_agents'] == 1, 'Multi agent in one env under challenge scenarios not supported'
         if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
@@ -966,8 +967,11 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['done'] = done
                 agent.done = bool(done)
                 if agent.done and 'challenge' in self.config['scenarios']:
-                    _stat = agent.stats.compute_route_statistics(agent.scenario_config)
-                    print(_stat)
+                    _record = agent.stats.compute_route_statistics(agent.scenario_config)
+                    print(_record.infractions, _record.scores)
+                    if len(agent.stats._registry_route_records) == self.config['num_episodes']:
+                        _glb_record = self.statistics_manager.compute_global_statistics(self.config['num_episodes'])
+                        print('global statistics:\n{}\n{}'.format(_glb_record.infractions, _glb_record.scores))
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
                 agent.target_speeds_array.append(agent.episode_measurements['target_speed'])
@@ -1173,12 +1177,12 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_init_id'] = obstacle_actor.id
                 agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor['front'].distance
                 if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
-                    print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
-                        agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
+                    print('[step {}][obstacle actor id {}][{}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
+                        agent.curr_ep_num_steps, obstacle_actor.id, obstacle_actor.type_id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                         agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
             if self.config['verbose'] or self.config['test_verbose']:
-                print('[step {}][obstacle actor id {}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
-                    agent.curr_ep_num_steps, obstacle_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
+                print('[step {}][obstacle actor id {}][{}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
+                    agent.curr_ep_num_steps, obstacle_actor.id, obstacle_actor.type_id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
                     agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
             # if only detect vehicular obstacle
             if self.config['obs_sensor_vehicle_only'] and 'vehicle' not in obstacle_actor.type_id:
@@ -1335,18 +1339,22 @@ class CarlaEnv(gym.Env):
                 # avail_map_list=self.avail_map.keys(), mode='train')
                 avail_map_list=['Town01', 'Town03'], mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
+            ######### Not the actual number of eposiodes.
+            self.config['num_episodes'] = 25
             self.source_transform, self.destination_transform, self.wps_list, _upd_town  = scenarios.get_leaderboard_route(
-                unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
-                avail_map_list=self.avail_map.keys(), mode='test')
+                unseen, curr_town=self.curr_town, index=index, max_idx=0,
+                # avail_map_list=self.avail_map.keys(), mode='test')
+                avail_map_list=['Town02', 'Town05'], mode='test')
+                # avail_map_list=['Town02'], mode='test')
         else:
             raise ValueError("Scenarios Config not set!")
 
-        if _upd_town != self.curr_town: # switch to a new town
-            print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
-            if self.config['num_agents'] != 1:
-                # self.reset_env()
-                self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
-            self._set_world_and_map(_upd_town)
+        # if _upd_town != self.curr_town: # switch to a new town
+        #     print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+        #     if self.config['num_agents'] != 1:
+        #         # self.reset_env()
+        #         self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+        #     self._set_world_and_map(_upd_town)
         return _upd_town
 
     def get_control(self, agent, action):
@@ -1998,7 +2006,6 @@ class CarlaEnv(gym.Env):
                     # time.sleep(.04)
 
             if self.vehicle_actor is not None:
-                self.scenario_index += 1
                 # print(self.vehicle_actor)
                 self.ego_vehicle_list[rk] = self.vehicle_actor
                 self.vehicle_actor.source_transform = self.source_transform
@@ -2012,7 +2019,7 @@ class CarlaEnv(gym.Env):
                 self.vehicle_actor.global_planner = planner.GlobalPlanner()
 
                 if 'challenge' in self.config["scenarios"]:
-                    # print(213, len(self.wps_list))
+                    # print(213, len(self.wps_list), self.wps_list)
                     _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
 
                     # Print route in debug mode
@@ -2035,16 +2042,20 @@ class CarlaEnv(gym.Env):
                         self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
 
                     # set statistics
-                    self.vehicle_actor.stats = StatisticsManager()
-                    self.vehicle_actor.stats.set_route('route_{}'.format(self.scenario_index), self.scenario_index)
+                    self.vehicle_actor.stats = self.statistics_manager
+                    # print('[2038]', self.scenario_index)
+                    _record_idx = len(self.statistics_manager._registry_route_records)
+                    self.vehicle_actor.stats.set_route('route_{}'.format(_record_idx), _record_idx)
+                    # self.vehicle_actor.stats.set_route('curr_route', 0)
                     self.vehicle_actor.stats.set_scenario(self.vehicle_actor.running.scenario)
-                    self.vehicle_actor.scenario_config = DummyScenarioConfig(self.scenario_index, self.route)
+                    self.vehicle_actor.scenario_config = DummyScenarioConfig(_record_idx, self.wps_list)
 
                 else:
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)
                     # print(self.dense_waypoints)
 
+                self.scenario_index += 1
                 self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
 
             else:

@@ -687,6 +687,7 @@ class PPO_Collective_Agent(object):
             self.glb_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
+        self.curr_town = self.glb_env.curr_town
         self.glb_env.step()
 
         self.num_successes = 0
@@ -739,6 +740,9 @@ class PPO_Collective_Agent(object):
                 self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
                     idx_list=idx_list, reset_npc=True)
                 # update agent list
+                if self.curr_town != self.glb_env.curr_town:
+                    self.curr_town = self.glb_env.curr_town
+                    self.glb_env.reset(rank_list=self.rank_list)
                 for rk in respawn_rank_list:
                     self.agent_list[rk] = _PPO_Individual_Agent(
                         self.glb_env.ego_vehicle_list[rk],
