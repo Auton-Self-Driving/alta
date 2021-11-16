@@ -430,7 +430,9 @@ class CarlaEnv(gym.Env):
     def _set_world_and_map(self, town_name):
         # Get the world
         self.curr_town = town_name
+        # print('[433]', self.curr_town)
         self._world = self.client.load_world(self.curr_town)
+        # print('[434]', self.curr_town)
         settings = self._world.get_settings()
         if(self.config['sync_mode']):
             settings.synchronous_mode = True
@@ -1341,10 +1343,11 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "challenge_test_scenario":
             ######### Not the actual number of eposiodes.
             self.config['num_episodes'] = 25
-            self.source_transform, self.destination_transform, self.wps_list, _upd_town  = scenarios.get_leaderboard_route(
-                unseen, curr_town=self.curr_town, index=index, max_idx=0,
+            self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
+                unseen, curr_town=self.curr_town, index=index, max_idx=1,
                 # avail_map_list=self.avail_map.keys(), mode='test')
-                avail_map_list=['Town02', 'Town05'], mode='test')
+                # avail_map_list=['Town02', 'Town05'], mode='test')
+                avail_map_list=[self.curr_town], mode='test')
                 # avail_map_list=['Town02'], mode='test')
         else:
             raise ValueError("Scenarios Config not set!")
@@ -1509,6 +1512,8 @@ class CarlaEnv(gym.Env):
         #     return self._reset(unseen, index)
 
     def reset_env(self,):
+        # CarlaDataProvider.cleanup()
+        # self.statistics_manager.scenario = None
         self.destroy_all_existing_npc_actors()
         self.destroy_all_existing_ego_agents()
         self.ego_vehicle_list = [None] * self.config['num_agents']
@@ -1987,7 +1992,7 @@ class CarlaEnv(gym.Env):
 
                 if self.vehicle_actor is not None:
                     if _upd_town != self.curr_town: # switch to a new town
-                        print('[1511] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+                        # print('[1511] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
                         # if self.config['num_agents'] != 1:
                         #     for rk in range(self.config['num_agents']):
                         #         if self.ego_agent_list[rk] is not None:
@@ -1995,8 +2000,16 @@ class CarlaEnv(gym.Env):
                         #             self.ego_agent_list[rk].done = True
                             # self.reset_env()
                         # self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+                        # print('[2000]', self.curr_town)
                         self.reset_env()
+                        # for actor in self._world.get_actors():
+                        #     try:
+                        #         actor.destroy()
+                        #     except:
+                        #         pass
+                        # print('[2002]', self.curr_town)
                         self._set_world_and_map(_upd_town)
+                        # print('[2004]', self.curr_town)
                     break
                 else:
                     print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
@@ -2015,6 +2028,7 @@ class CarlaEnv(gym.Env):
                     print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
                     print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
                 self.curr_num_agents += 1
+                # print('[2021]')
 
                 self.vehicle_actor.global_planner = planner.GlobalPlanner()
 
@@ -2054,6 +2068,7 @@ class CarlaEnv(gym.Env):
                     self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
                                             self.source_transform, self.destination_transform)
                     # print(self.dense_waypoints)
+                # print('[2061]')
 
                 self.scenario_index += 1
                 self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)

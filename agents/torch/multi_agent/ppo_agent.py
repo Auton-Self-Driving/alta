@@ -737,19 +737,31 @@ class PPO_Collective_Agent(object):
                     respawn_rank_list.append(rk)
                     idx_list[rk] += self.num_agents
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
+                # print('[740 PPO]', self.curr_town, self.glb_env.curr_town)
                 self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
                     idx_list=idx_list, reset_npc=True)
                 # update agent list
+                # print('[745 PPO]', self.curr_town, self.glb_env.curr_town)
                 if self.curr_town != self.glb_env.curr_town:
                     self.curr_town = self.glb_env.curr_town
+                    # print('[662 PPO]', self.curr_town)
                     self.glb_env.reset(rank_list=self.rank_list)
-                for rk in respawn_rank_list:
-                    self.agent_list[rk] = _PPO_Individual_Agent(
-                        self.glb_env.ego_vehicle_list[rk],
-                        glb_policy=self.glb_policy, rank=rk, memory=None)
-                self.glb_env.reset_vehicle_agent(
-                    [self.agent_list[rk] for rk in respawn_rank_list])
+                    for rk in self.rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            self.glb_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                    self.glb_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in self.rank_list])
+                    self.glb_env.scenario_index = 0
+                else:
+                    for rk in respawn_rank_list:
+                        self.agent_list[rk] = _PPO_Individual_Agent(
+                            self.glb_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk, memory=None)
+                    self.glb_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
+
         print('[Finished]', term_stats)
 
     def save(self, filename=None):
