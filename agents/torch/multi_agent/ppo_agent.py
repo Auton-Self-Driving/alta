@@ -678,8 +678,8 @@ class PPO_Collective_Agent(object):
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
-        self.glb_num_test_episodes = self.glb_env.config['num_episodes']
-        # print(self.glb_num_test_episodes)
+        # self.glb_num_test_episodes = self.glb_env.config['num_episodes']
+        # # print(self.glb_num_test_episodes)
         self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
             idx_list=idx_list, reset_npc=True)
         self.glb_env.spawn_npc_vehicles()
@@ -691,7 +691,7 @@ class PPO_Collective_Agent(object):
         self.glb_env.step()
 
         self.num_successes = 0
-        while self.glb_num_episodes < self.glb_num_test_episodes + 1:
+        while self.glb_num_episodes < self.glb_env.config['num_episodes'] + 1:
             # take action
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)

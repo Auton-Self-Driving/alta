@@ -1342,7 +1342,12 @@ class CarlaEnv(gym.Env):
                 avail_map_list=['Town01', 'Town03'], mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
             ######### Not the actual number of eposiodes.
-            self.config['num_episodes'] = 25
+            if self.curr_town == 'Town05':
+                self.config['num_episodes'] = 10
+            elif self.curr_town == 'Town02':
+                self.config['num_episodes'] = 6
+            else:
+                self.config['num_episodes'] = None
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=1,
                 # avail_map_list=self.avail_map.keys(), mode='test')
@@ -1670,7 +1675,8 @@ class CarlaEnv(gym.Env):
             rv_camera.set_attribute('fov', '90')
 
             # Orientation for forward-facing camera
-            rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            # rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            rv_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
             agent.rv_camera_actor = self._world.spawn_actor(rv_camera, rv_camera_transform, attach_to=agent.vehicle_actor)
             agent.actor_list.append(agent.rv_camera_actor)

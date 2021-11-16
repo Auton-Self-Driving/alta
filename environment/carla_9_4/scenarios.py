@@ -2140,6 +2140,7 @@ def get_leaderboard_route(unseen=False, curr_town=None, index=0, max_idx=None, a
     for _r in _routes:
         if _r.attrib['town'] == _town:
             _route_in_this_town.append(_r)
+    # print('len(_route_in_this_town):', curr_town, len(_route_in_this_town))
 
     if not unseen:
         _route = random.choice(_route_in_this_town)

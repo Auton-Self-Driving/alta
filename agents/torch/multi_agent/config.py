@@ -378,7 +378,8 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalSideObs11dimPretrain_2614110_Nov141146PM31.pth',
     'checkpoint': './ckptDPPO1x7x1_LdbWG1kSG1kSteerScale0d5NoGoal5Obs15dimPretrainWonly_2987857_Nov140712AM42.pth',
     'num_agents': 1,
-    'num_npc': 70,
+    # 'num_npc': 70,
+    'num_npc': 120,
     'sample_npc': False,
     # 'scenarios' : 'no_crash_dense',
     'scenarios' : 'challenge_test_scenario',
@@ -411,6 +412,9 @@ TEST_CONFIG = {
     'test_verbose': True,
     # 'test_verbose': False,
     'videos': False,
+    # 'sensor_x_res' : '400',
+    # 'sensor_y_res' : '800',
+    # 'videos': True,
     'save_buffer': False,
 }
 
@@ -419,7 +423,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:2',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
