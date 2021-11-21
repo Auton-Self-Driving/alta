@@ -108,7 +108,7 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini',
+    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46.pth',
@@ -119,7 +119,7 @@ DPPO_CONFIG = {
     # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalSideObs15dim_3392844_Nov120739PM33.pth',
     # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalSideObs11dimPretrain_1646129_Nov120442PM05.pth',
     # 'checkpoint': './ckptDPPO1x7x1_LdbWG1kSG1kSteerScale0d5NoGoal5Obs15dimPretrainWonly_2541892_Nov131100PM56.pth',
-    'checkpoint': './ckptDPPO1x6x1_LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini_201203_Nov131133PM47.pth',
+    # 'checkpoint': './ckptDPPO1x6x1_LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini_201203_Nov131133PM47.pth',
     # 'ckpt_mode': 'load',
     'ckpt_mode': 'resume',
     'policy_lr': 4e-4,
@@ -127,9 +127,9 @@ DPPO_CONFIG = {
     'grad_clip': .5,
     'focal_loss': False,
     'standard': False,
-    'num_workers': 6,
+    'num_workers': 8,
     'num_servers': 1, # currently only support 1 server
-    'num_threads_per_server': 1,
+    'num_threads_per_server': 4,
     # 'device_list': ['cuda:0'],
     'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
@@ -486,7 +486,8 @@ ENV_CONFIG = {
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
     # 'scenarios' : 'navigation',
-    'scenarios' : 'challenge_train_scenario',
+    # 'scenarios' : 'challenge_train_scenario',
+    'scenarios' : 'leaderboard_navigation',
     'min_num_eps_before_switch_town': 100,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
