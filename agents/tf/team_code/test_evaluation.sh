@@ -11,20 +11,21 @@ export PYTHONPATH=$PYTHONPATH:$ALTA
 export PYTHONPATH=$PYTHONPATH:$ALTA/AdelaiDet
 
 export SCENARIOS=$LEADERBOARD_ROOT/data/all_towns_traffic_scenarios_public.json
-export ROUTES=$LEADERBOARD_ROOT/data/routes_devtest.xml
-# export ROUTES=$LEADERBOARD_ROOT/data/routes_testing.xml
+# export ROUTES=$LEADERBOARD_ROOT/data/routes_devtest.xml
+export ROUTES=$LEADERBOARD_ROOT/data/routes_testing.xml
 export REPETITIONS=1
 # export CHALLENGE_TRACK_CODENAME=MAP
 export CHALLENGE_TRACK_CODENAME=MAP
 # export TEAM_AGENT=$ALTA/agents/tf/team_code/alta_agent.py
 # export TEAM_AGENT=$ALTA/leaderboard/leaderboard/autoagents/npc_agent.py
-export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent.py
-export DEBUG_CHALLENGE=0
+# export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent.py
+export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent_v2.py
+export DEBUG_CHALLENGE=1
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52_devtest.json
 
 #python3 start_server.py &
 
-python ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
+python -u ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
 --scenarios=${SCENARIOS}  \
 --routes=${ROUTES} \
 --repetitions=${REPETITIONS} \

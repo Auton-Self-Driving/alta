@@ -8,6 +8,7 @@ from environment.carla_9_4.agents.navigation.global_route_planner import GlobalR
 from environment.carla_9_4.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from environment.carla_9_4.agents.tools.misc import distance_vehicle
 from collections import deque
+from enum import Enum
 
 # CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
 # if CARLA_9_4_PATH == None:
@@ -26,6 +27,18 @@ try:
 except Exception as e:
     print("Failed to import Carla")
     raise e
+
+class RoadOption(Enum):
+    """
+    RoadOption represents the possible topological configurations when moving from a segment of lane to other.
+    """
+    VOID = -1
+    LEFT = 1
+    RIGHT = 2
+    STRAIGHT = 3
+    LANEFOLLOW = 4
+    CHANGELANELEFT = 5
+    CHANGELANERIGHT = 6
 
 class GlobalPlanner():
 
@@ -81,6 +94,10 @@ class GlobalPlanner():
         modified_plan = self.compute_distances_between_waypoints(current_plan)
         for elem in modified_plan:
             # self.printwaypoint(elem[0])
+            # print('[97]', elem[1])
+            # dont use waypoints during turning
+            # if not self.sameWaypoint(elem[0], prev_wp) and \
+            #     elem[1] not in {RoadOption.LEFT, RoadOption.RIGHT}:
             if not self.sameWaypoint(elem[0], prev_wp):
                 # print("Added wp")
                 # print('elem', elem)
@@ -194,19 +211,20 @@ class GlobalPlanner():
 
     #     return angle, self.dist_to_trajectory
 
-    def get_next_orientation_new(self, vehicle_transform, append_road_opt=False):
+    def get_next_orientation_new(self, vehicle_transform, append_road_opt=False, num_next_waypoints=5):
 
         next_waypoints_angles = []
         next_waypoints_vectors = []
         next_waypoints = []
         next_road_opts = []
         next_waypoint_found = False
-        num_next_waypoints = 5
         max_index = -1
         min_dist = np.inf
-        for i, (waypoint, _, dist) in enumerate(self._waypoints_queue):
+        for i, (waypoint, road_opt, dist) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
+            # to prevent cut off too many waypoints
+            if i > 20: break
             # print("i:{0}, dist : {1}".format(i, dist_i))
             if dist_i < self._min_distance:
                 max_index = i

@@ -30,7 +30,8 @@ class CarlaServer():
             os.environ["SDL_VIDEODRIVER"] = "offscreen"
 
         launch_command = [
-                self.server_binary, "-carla-rpc-port={}".format(self.server_port)
+            self.server_binary, "-carla-rpc-port={}".format(self.server_port),
+                # self.server_binary, "-carla-rpc-port={}".format(self.server_port), '-carla-streaming-port=0', '--carla-world-port=3000',
         ]
 
         self.server_process = subprocess.Popen(launch_command,
