@@ -205,7 +205,7 @@ def convert_route_from_GPS_world(route, world_map):
 
     mapped_route = []
     for idx, pt in enumerate(route):
-        print(pt)
+        # print(pt)
         altitude = pt[0]['z']
         latitude = pt[0]['lat']
         longitude = pt[0]['lon']

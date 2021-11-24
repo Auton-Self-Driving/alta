@@ -205,6 +205,10 @@ class ObstacleSensor(object):
         self.distance = event.distance
         self.obstacle_actor = event.other_actor
 
+    # def __del__(self):
+    #     self.sensor.destroy(self)
+    #     print('[210] sensor')
+
 # ==============================================================================
 # -- GnssSensor --------------------------------------------------------
 # ==============================================================================
