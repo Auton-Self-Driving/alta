@@ -22,6 +22,10 @@ export CHALLENGE_TRACK_CODENAME=MAP
 export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent_v2.py
 export DEBUG_CHALLENGE=1
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52_devtest.json
+export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7943856_Nov230612PM23_test.json
+# export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7540019_Nov231255PM00_test.json
+# export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46_test.json
+# export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_8892417_Oct270136AM13_test.json
 
 #python3 start_server.py &
 
@@ -33,9 +37,9 @@ python -u ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
 --agent=${TEAM_AGENT} \
 --debug=${DEBUG_CHALLENGE} \
 --port=2000 \
---trafficManagerPort=4050
+--trafficManagerPort=4050 \
+--checkpoint=${CHECKPOINT_ENDPOINT} \
 #--record=${RECORD_PATH} \
 #--resume=${RESUME}
 #--agent-config=${TEAM_CONFIG} \
--checkpoint=${CHECKPOINT_ENDPOINT} \
 

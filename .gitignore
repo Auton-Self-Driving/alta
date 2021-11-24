@@ -155,4 +155,5 @@ AdelaiDet_model/*
 source_py35
 agents/tf/RUN.sh
 agents/torch/multi_agent/grad_viz
+agents/tf/team_agent/*.json
 
