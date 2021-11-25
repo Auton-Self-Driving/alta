@@ -1357,7 +1357,8 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "leaderboard_navigation":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
-                avail_map_list=['Town01', 'Town03'], mode='train')
+                avail_map_list=['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'], mode='train')
+                # avail_map_list=['Town01', 'Town03'], mode='train')
                 # avail_map_list=[self.curr_town], mode='train')
         else:
             raise ValueError("Scenarios Config not set!")
