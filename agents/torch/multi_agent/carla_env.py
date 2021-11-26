@@ -13,6 +13,7 @@ import copy
 import queue
 import time
 import matplotlib.pyplot as plt
+from collections import deque
 
 import environment.carla_9_4.scenarios as scenarios
 import environment.carla_9_4.server as server
@@ -936,9 +937,22 @@ class CarlaEnv(gym.Env):
                         # else:
                         #     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
                         #     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections - \
+                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                        agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
                             agent.prev_measurement['num_laneintersections']
                         agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
+                        # skip lane changing
+                        # print('[945]', [opt.value for opt in agent.next_road_opt_queue])
+                        next_opts = set(agent.next_road_opt_queue)
+                        for opt in next_opts:
+                            # NOTE: not sure the reason but here should use .name to compare
+                            if opt.name != RoadOption.CHANGELANELEFT.name and \
+                                opt.name != RoadOption.CHANGELANERIGHT.name:
+                                continue
+                            # if not continued
+                            print('[953]', opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
+                            # print('[952] permitted offlane')
+                            agent.episode_measurements['unlawful_lane_change'] = False
                         # print('[937]', agent.next_road_opts)
                         # if RoadOption.CHANGELANELEFT in agent.next_road_opts or \
                             #  RoadOption.CHANGELANERIGHT in agent.next_road_opts:
@@ -1652,6 +1666,10 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_speed'] = -1
             agent.episode_measurements['obstacle_orientation'] = -1
             agent.next_waypoints = None
+            agent.next_waypoint_queue = deque(maxlen=12)
+            agent.next_road_opts = None
+            agent.next_road_opt_queue = deque(maxlen=12)
+
             agent.next_wp_vectors = None
             agent.next_wp_angles = None
 
@@ -1826,6 +1844,19 @@ class CarlaEnv(gym.Env):
         # if agent_wp.lane_type == LaneType.NONE:
         #     agent.episode_measurements['out_of_road'] = True
         #     return
+        if agent_wp.lane_type not in {
+            LaneType.Driving,
+            LaneType.Parking,
+            LaneType.Biking,
+            LaneType.Shoulder,
+            LaneType.Entry,
+            LaneType.Exit,
+            LaneType.OffRamp,
+            LaneType.OnRamp,
+        }:
+            agent.episode_measurements['out_of_road'] = True
+            print('[1822] out of road', agent_wp.lane_type)
+            return
 
         # skip intersections
         next_opts = set(agent.next_road_opts)
@@ -1838,9 +1869,10 @@ class CarlaEnv(gym.Env):
             # print('[1824] permitted offlane')
             return
 
+        # if not intersection, should stick on driving lane
         if agent_wp.lane_type != LaneType.Driving:
             agent.episode_measurements['out_of_road'] = True
-            # print('[1822] out of road', agent_wp.lane_type)
+            print('[1852] out of road', agent_wp.lane_type)
         else:
             num_same_road_wp = 0
             for next_wp in [agent.next_waypoints[0], agent.next_waypoints[-1]]:
@@ -1894,6 +1926,15 @@ class CarlaEnv(gym.Env):
         next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
             agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
             agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
+        
+        wp_opt = [(wp, opt) for wp, opt in zip(agent.next_waypoints, agent.next_road_opts)]
+        new_wp_starting_idx = 0
+        for idx, wp in enumerate(agent.next_waypoint_queue):
+            if wp is agent.next_waypoints[0]:
+                new_wp_starting_idx = len(agent.next_waypoint_queue) - idx
+                break
+        agent.next_waypoint_queue.extend(agent.next_waypoints[new_wp_starting_idx:])
+        agent.next_road_opt_queue.extend(agent.next_road_opts[new_wp_starting_idx:])
 
         agent.episode_measurements['next_orientation'] = next_orientation
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
@@ -2442,7 +2483,9 @@ class CarlaEnv(gym.Env):
             runover_light = False
         if self.config['enable_lane_invasion_termination']:
             # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
-            offlane = agent.episode_measurements['num_laneintersections'] > 0
+            offlane = agent.episode_measurements['unlawful_lane_change'] or \
+                agent.episode_measurements['out_of_road']
+
 
         # Do not want to terminate on reaching goal
         # in case of VAE training

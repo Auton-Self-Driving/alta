@@ -250,11 +250,11 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
         # count any lane change also as a collision
         if config["enable_lane_invasion_collision"]:
-            lane_change = current['num_laneintersections'] > 0
+            lane_change = current['unlawful_lane_change'] > 0
             is_collision = is_collision or lane_change
 
     current['obs_collision'] = obs_collision
-    current['lane_change'] = lane_change
+    # current['lane_change'] = lane_change
     current["is_collision"] = is_collision
 
     # Collision damage
