@@ -232,7 +232,7 @@ class GlobalPlanner():
         q_len = len(self._waypoints_queue)
         if max_index >= 0:
             for i in range(max_index + 1):
-                waypoint, _, dist= self._waypoints_queue.popleft()
+                waypoint, _, dist = self._waypoints_queue.popleft()
 
                 if i == q_len - 1:
                     self.last_waypoint = waypoint

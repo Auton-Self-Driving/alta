@@ -18,7 +18,7 @@ except IndexError:
     pass
 
 import carla
-from carla.libcarla import Location
+from carla.libcarla import Location, LaneType
 
 def _create_bb_points(vehicle):
         """
@@ -81,7 +81,7 @@ def get_matrix(transform):
         matrix[2, 2] = c_p * c_r
         return matrix
 
-def get_wp_from_bb(bbox_cords, world_map):
+def get_wp_from_bb(bbox_cords, world_map, lane_type=LaneType.Driving):
     """
     Get list of wp from given bbox_cords array
     """
@@ -93,7 +93,7 @@ def get_wp_from_bb(bbox_cords, world_map):
     for i in range(num_pts):
         vertex = bbox_cords[:,i]
         vertex_location = Location(x=vertex[0], y=vertex[1], z=vertex[2])
-        vertex_wp = world_map.get_waypoint(vertex_location)
+        vertex_wp = world_map.get_waypoint(vertex_location, lane_type=lane_type)
         bb_wps.append(vertex_wp)
 
     return bb_wps
@@ -106,14 +106,14 @@ def get_road_lane_id_set_from_wp(wp_list):
 
     return road_lane_id_set
 
-def get_vehicle_bb_wp(world_map, vehicle):
+def get_vehicle_bb_wp(world_map, vehicle, lane_type=LaneType.Driving):
     '''
     Get waypoints corresponding to vehicle centre and vertices of bb of vehicle
     '''
     vehicle_wp = world_map.get_waypoint(vehicle.get_location())
     vehicle_bb = get_bounding_box(vehicle)
 
-    vehicle_bb_wp = get_wp_from_bb(vehicle_bb, world_map)
+    vehicle_bb_wp = get_wp_from_bb(vehicle_bb, world_map, lane_type=lane_type)
     vehicle_bb_wp.append(vehicle_wp)
 
     return vehicle_bb_wp

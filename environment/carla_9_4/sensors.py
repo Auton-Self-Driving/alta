@@ -144,9 +144,9 @@ class LaneInvasionSensor(object):
         self._parent = parent_actor
         self.num_laneintersections = 0
         self.out_of_road = False
-        world = self._parent.get_world()
-        bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
-        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        self._world = self._parent.get_world()
+        bp = self._world.get_blueprint_library().find('sensor.other.lane_invasion')
+        self.sensor = self._world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -157,13 +157,40 @@ class LaneInvasionSensor(object):
         self = weak_self()
         if not self:
             return
-        # TODO : Handle case of lane invasion for dashed vs solid lane markings
-        self.num_laneintersections += 1
 
-        lane_types = set(x.type for x in event.crossed_lane_markings)
-        # print(lane_types)
-        if carla.libcarla.LaneMarkingType.NONE in lane_types:
-            self.out_of_road = True
+        # lane_types = set(x.type for x in event.crossed_lane_markings)
+        lanemarks = set(x for x in event.crossed_lane_markings)
+        print(lanemarks)
+        # TODO : Handle case of lane invasion for dashed vs solid lane markings
+        for mark in lanemarks:
+            # wp = self._world.get_map().get_waypoint(self._parent.get_location(), 
+            #     project_to_road=True, 
+            #     lane_type=(carla.LaneType.Driving | carla.LaneType.Shoulder | carla.LaneType.Sidewalk))
+            if mark.type == carla.libcarla.LaneMarkingType.NONE or \
+                (mark.color == carla.LaneMarkingColor.Yellow and (
+                    mark.type == carla.libcarla.LaneMarkingType.SolidSolid or \
+                    mark.type == carla.libcarla.LaneMarkingType.Solid
+            )):
+            # )) or wp.lane_type != carla.LaneType.Driving:
+                self.out_of_road = True
+                self.num_laneintersections += 1
+                return
+            # else:
+            #     if mark.lane_change == carla.LaneChange.NONE:
+            elif mark.lane_change == carla.LaneChange.NONE:
+                self.num_laneintersections += 1
+                    # return
+                # elif mark.lane_change == carla.LaneChange.BOTH:
+                #     return
+
+                # wp = self._world.get_map().get_waypoint(self._parent.get_location(), 
+                #     project_to_road=True, lane_type=carla.LaneType.Driving)
+                
+                # if wp.left_lane_marking == mark:
+                    # ego changing to the left
+
+        # if carla.libcarla.LaneMarkingType.NONE in lane_types:
+        #     self.out_of_road = True
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
 

@@ -50,13 +50,33 @@ from carla import ColorConverter as cc
 from carla.libcarla import Transform
 from carla.libcarla import Location
 from carla.libcarla import Rotation
+from carla.libcarla import LaneType, LaneChange
 import psutil
 
 from environment.carla_9_4.env_util import (
     check_if_vehicle_in_same_lane,
     get_world_coords_from_latlong,
-    convert_route_from_GPS_world
+    convert_route_from_GPS_world,
+    get_vehicle_bb_wp,
 )
+
+
+
+def draw_arrow_waypoints(world, waypoints, z=0.5):
+    """
+    Draw a list of waypoints at a certain height given in z.
+
+    :param world: carla.world object
+    :param waypoints: list or iterable container with the waypoints to draw
+    :param z: height in meters
+    :return:
+    """
+    for w in waypoints:
+        t = w.transform
+        begin = t.location + carla.Location(z=z)
+        angle = math.radians(t.rotation.yaw)
+        end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+        world.debug.draw_arrow(begin, end, arrow_size=0.3, life_time=1000.0)
 
 """
 HELPERS
@@ -904,21 +924,32 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
                 agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
-                if self.config["enable_lane_invasion_sensor"]:
-                    if 'challenge' in self.config['scenarios']:
-                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections and \
-                            RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
-                            RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
-                        agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road) and \
-                            RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
-                            RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
-                    else:
-                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                if self.config['enable_lane_invasion_termination']:
+                    if self.config["enable_lane_invasion_sensor"]:
+                        # if 'challenge' in self.config['scenarios']:
+                        #     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections and \
+                        #         RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                        #         RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                        #     agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road) and \
+                        #         RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                        #         RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                        # else:
+                        #     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                        #     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
+                        agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections - \
+                            agent.prev_measurement['num_laneintersections']
                         agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                    # if agent.episode_measurements['num_laneintersections'] > 0:
-                    #     agent.episode_measurements['offlane_steps'] += 1
-                    # else:
-                    #     agent.episode_measurements['offlane_steps'] = 0
+                        # print('[937]', agent.next_road_opts)
+                        # if RoadOption.CHANGELANELEFT in agent.next_road_opts or \
+                            #  RoadOption.CHANGELANERIGHT in agent.next_road_opts:
+                            #  print('>>>>>>> [939]', agent.next_road_opts)
+                        # if agent.episode_measurements['num_laneintersections'] > 0:
+                        #     agent.episode_measurements['offlane_steps'] += 1
+                        # else:
+                        #     agent.episode_measurements['offlane_steps'] = 0
+                    else:
+                        self._update_lane_invasion_info_via_privilege(agent)
+
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 if agent.episode_measurements['min_distance_to_goal'] >= agent.location.distance(agent.destination_transform.location):
@@ -1357,9 +1388,9 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "leaderboard_navigation":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
-                avail_map_list=['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'], mode='train')
+                # avail_map_list=['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'], mode='train')
                 # avail_map_list=['Town01', 'Town03'], mode='train')
-                # avail_map_list=[self.curr_town], mode='train')
+                avail_map_list=[self.curr_town], mode='train')
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -1743,9 +1774,11 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['num_collisions'] = 0
             agent.episode_measurements['collision_actor_id'] = -1
             agent.episode_measurements['collision_actor_type'] = None
-            if self.config["enable_lane_invasion_sensor"]:
-                agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
-                agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
+
+            agent.episode_measurements['num_laneintersections'] = 0
+            agent.episode_measurements['out_of_road'] = False
+            agent.episode_measurements['unlawful_lane_change'] = False
+
             agent.location = agent.vehicle_actor.get_location()
             agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
             agent.episode_measurements['min_distance_to_goal'] = 1000000.0
@@ -1780,6 +1813,58 @@ class CarlaEnv(gym.Env):
             return False
         return True
 
+    def _update_lane_invasion_info_via_privilege(self, agent):
+        if agent.done: return
+        # agent_bb_wp = get_vehicle_bb_wp(
+        #     self._world.get_map(), agent.vehicle_actor, 
+        #     lane_type=(LaneType.Any | LaneType.NONE))
+        agent_wp = self._map.get_waypoint(
+            agent.vehicle_actor.get_location(),
+            lane_type=(LaneType.Any | LaneType.NONE))
+        
+        # # definitely offroading
+        # if agent_wp.lane_type == LaneType.NONE:
+        #     agent.episode_measurements['out_of_road'] = True
+        #     return
+
+        # skip intersections
+        next_opts = set(agent.next_road_opts)
+        for opt in next_opts:
+            # NOTE: not sure the reason but here should use .name to compare
+            if opt.name == RoadOption.LANEFOLLOW.name:
+                continue
+            # if not continued
+            # print(opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
+            # print('[1824] permitted offlane')
+            return
+
+        if agent_wp.lane_type != LaneType.Driving:
+            agent.episode_measurements['out_of_road'] = True
+            # print('[1822] out of road', agent_wp.lane_type)
+        else:
+            num_same_road_wp = 0
+            for next_wp in [agent.next_waypoints[0], agent.next_waypoints[-1]]:
+                # print('[1834]', agent_wp.road_id, next_wp.road_id, 
+                #     agent_wp.lane_id, next_wp.lane_id)
+                if agent_wp.road_id == next_wp.road_id:
+                    num_same_road_wp += 1
+                    if agent_wp.lane_id == next_wp.lane_id:
+                        return
+            # for bb_wp in agent_bb_wp:
+            #     for next_wp in agent.next_waypoints:
+            #         # print('[1834]', agent_wp.road_id, next_wp.road_id, 
+            #         #     agent_wp.lane_id, next_wp.lane_id)
+            #         if bb_wp.road_id == next_wp.road_id:
+            #             num_same_road_wp += 1
+            #             if bb_wp.lane_id == next_wp.lane_id:
+            #                 return
+            # at intersection or something
+            if num_same_road_wp == 0: return
+        # if not returned, lane invasion happened
+        agent.episode_measurements['num_laneintersections'] += 1
+        if agent_wp.lane_change == LaneChange.NONE:
+            agent.episode_measurements['unlawful_lane_change'] = True
+
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
 
@@ -1798,14 +1883,17 @@ class CarlaEnv(gym.Env):
         #                         agent.source_transform, agent.destination_transform)
         # agent.global_planner.set_global_plan(agent.trace_route)
 
-        if 'challenge' in self.config['scenarios']:
-            next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-                agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
-                agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
-        else:
-            next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-                agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
-                agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
+        # if 'challenge' in self.config['scenarios'] or 'leaderboard' in self.config['scenarios']:
+        #     next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+        #         agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
+        #         agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
+        # else:
+        #     next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+        #         agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
+        #         agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
+        next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+            agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
+            agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
 
         agent.episode_measurements['next_orientation'] = next_orientation
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
@@ -2049,7 +2137,7 @@ class CarlaEnv(gym.Env):
                     _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
 
                     # Print route in debug mode
-                    self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=50000.0)
+                    # self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=500)
                     # print('self.route', self.route)
                     CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
                     # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
@@ -2085,6 +2173,10 @@ class CarlaEnv(gym.Env):
                                             self.source_transform, self.destination_transform)
                     # print(self.dense_waypoints)
                 # print('[2061]')
+                # wp_list = []
+                # for wp, _ in self.dense_waypoints:
+                #     wp_list.append(wp)
+                self._draw_waypoints(self._world, self.dense_waypoints)
 
                 self.scenario_index += 1
                 self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
@@ -2111,12 +2203,12 @@ class CarlaEnv(gym.Env):
             self.spawn_npc(self.config["num_npc"])
 
 
-    def _draw_waypoints(self, world, waypoints, vertical_shift, persistency=-1):
+    def _draw_waypoints(self, world, waypoints, vertical_shift=.5, persistency=10000):
         """
         Draw a list of waypoints at a certain height given in vertical_shift.
         """
         for w in waypoints:
-            wp = w[0].location + carla.Location(z=vertical_shift)
+            wp = w[0].transform.location + carla.Location(z=vertical_shift)
 
             size = 0.2
             if w[1] == RoadOption.LEFT:  # Yellow
@@ -2132,12 +2224,12 @@ class CarlaEnv(gym.Env):
             else:  # LANEFOLLOW
                 color = carla.Color(0, 255, 0) # Green
                 size = 0.1
-
+            
             world.debug.draw_point(wp, size=size, color=color, life_time=persistency)
 
-        world.debug.draw_point(waypoints[0][0].location + carla.Location(z=vertical_shift), size=0.2,
+        world.debug.draw_point(waypoints[0][0].transform.location + carla.Location(z=vertical_shift), size=0.2,
                                color=carla.Color(0, 0, 255), life_time=persistency)
-        world.debug.draw_point(waypoints[-1][0].location + carla.Location(z=vertical_shift), size=0.2,
+        world.debug.draw_point(waypoints[-1][0].transform.location + carla.Location(z=vertical_shift), size=0.2,
                                color=carla.Color(255, 0, 0), life_time=persistency)
 
 
@@ -2348,7 +2440,7 @@ class CarlaEnv(gym.Env):
             collision = False
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
-        if self.config["enable_lane_invasion_sensor"] and self.config['enable_lane_invasion_termination']:
+        if self.config['enable_lane_invasion_termination']:
             # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
             offlane = agent.episode_measurements['num_laneintersections'] > 0
 
@@ -2364,10 +2456,10 @@ class CarlaEnv(gym.Env):
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
-        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['out_of_road'] and self.config['enable_lane_invasion_termination']:
+        elif agent.episode_measurements['out_of_road'] and self.config['enable_lane_invasion_termination']:
             termination_state = 'out_of_road'
             termination_state_code = 2
-        elif self.config["enable_lane_invasion_sensor"] and agent.episode_measurements['lane_change'] and self.config['enable_lane_invasion_termination']:
+        elif agent.episode_measurements['unlawful_lane_change'] and self.config['enable_lane_invasion_termination']:
             termination_state = 'lane_invasion'
             termination_state_code = 3
         elif runover_light:
