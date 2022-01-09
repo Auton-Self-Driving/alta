@@ -147,8 +147,8 @@ class PPOAgent(AutonomousAgent):
         self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
         _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
         self.glb_policy.load_state_dict(_ckpt['glb_policy'])
-        self.target_speed = 20
         self.config = ENV_CONFIG
+        self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
             'K_P': 0.1,
             'K_D': 0.0005,
@@ -207,6 +207,86 @@ class PPOAgent(AutonomousAgent):
 
         if norm_target > max_distance:
             return False, -1, norm_target
+
+    @staticmethod
+    def point_inside_boundingbox(point, bb_center, bb_extent):
+        """
+        X
+        :param point:
+        :param bb_center:
+        :param bb_extent:
+        :return:
+        """
+
+        # pylint: disable=invalid-name
+        A = carla.Vector2D(bb_center.x - bb_extent.x, bb_center.y - bb_extent.y)
+        B = carla.Vector2D(bb_center.x + bb_extent.x, bb_center.y - bb_extent.y)
+        D = carla.Vector2D(bb_center.x - bb_extent.x, bb_center.y + bb_extent.y)
+        M = carla.Vector2D(point.x, point.y)
+
+        AB = B - A
+        AD = D - A
+        AM = M - A
+        am_ab = AM.x * AB.x + AM.y * AB.y
+        ab_ab = AB.x * AB.x + AB.y * AB.y
+        am_ad = AM.x * AD.x + AM.y * AD.y
+        ad_ad = AD.x * AD.x + AD.y * AD.y
+
+        return am_ab > 0 and am_ab < ab_ab and am_ad > 0 and am_ad < ad_ad
+
+    def _is_actor_affected_by_stop(self, actor, stop, multi_step=5):
+        """
+        Check if the given actor is affected by the stop
+        """
+        # first we run a fast coarse test
+        current_location = actor.get_location()
+        stop_location = stop.get_transform().location
+        dist = stop_location.distance(current_location)
+        if dist > self.config['front_obs_proximity_threshold']:
+            return False
+
+        affected = False
+        stop_t = stop.get_transform()
+        transformed_tv = stop_t.transform(stop.trigger_volume.location)
+
+        # slower and accurate test based on waypoint's horizon and geometric test
+        list_locations = [current_location]
+        waypoint = self._map.get_waypoint(current_location)
+        for _ in range(multi_step):
+            if waypoint:
+                next_wps = waypoint.next(2.0)
+                if not next_wps:
+                    break
+                waypoint = next_wps[0]
+                if not waypoint:
+                    break
+                list_locations.append(waypoint.transform.location)
+
+        for actor_location in list_locations:
+            if self.point_inside_boundingbox(actor_location, transformed_tv, stop.trigger_volume.extent):
+                affected = True
+
+        return affected
+
+    def _scan_for_stop_sign(self):
+        target_stop_sign = None
+
+        ve_tra = CarlaDataProvider.get_transform(self._agent.vehicle_actor)
+        ve_dir = ve_tra.get_forward_vector()
+
+        wp = self._map.get_waypoint(ve_tra.location)
+        wp_dir = wp.transform.get_forward_vector()
+
+        dot_ve_wp = ve_dir.x * wp_dir.x + ve_dir.y * wp_dir.y + ve_dir.z * wp_dir.z
+
+        if dot_ve_wp > 0:  # Ignore all when going in a wrong lane
+            for stop_sign in self._list_stop_signs:
+                if self._is_actor_affected_by_stop(self._agent.vehicle_actor, stop_sign):
+                    # this stop sign is affecting the vehicle
+                    target_stop_sign = stop_sign
+                    break
+
+        return target_stop_sign
 
         fwd = current_transform.get_forward_vector()
         forward_vector = np.array([fwd.x, fwd.y])
@@ -371,6 +451,7 @@ class PPOAgent(AutonomousAgent):
     def _update_traffic_light_states(self, agent):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
         traffic_actor, dist, traffic_light_orientation = agent.find_nearest_traffic_light(self.traffic_actors)
+        stop_sign = self._scan_for_stop_sign()
         found_redlight = False
         if traffic_light_orientation is not None:
             agent.episode_measurements['traffic_light_orientation'] = traffic_light_orientation
@@ -408,11 +489,26 @@ class PPOAgent(AutonomousAgent):
             agent.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
             # print('[agent {} init {}] traffic light info'.format(
             #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
+
+        elif stop_sign is not None:
+            # if has stopped for this actor, skip this stop sign actor
+            if agent.episode_measurements['nearest_traffic_actor_id'] == stop_sign.id and \
+                agent.episode_measurements['num_step_stopped'] > 2 * self.target_speed:
+                agent.episode_measurements['red_light_dist'] = -1
+            else:
+                # pretend there is a light ahead for a short period of time
+                stop_dist = stop_sign.get_transform().location.distance(self._agent.vehicle_actor.get_location())
+                agent.episode_measurements['red_light_dist'] = stop_dist
+                agent.episode_measurements['nearest_traffic_actor_id'] = stop_sign.id
+                agent.episode_measurements['num_step_stopped'] += 1
+                print('[step {}][stop sign id {}][agent {}][speed {:.2f}][curr dist {:.2f}]'.format(self.steps,
+                    stop_sign.id, agent.rank, agent.episode_measurements['speed'] * 3.6, stop_dist))
         else:
             agent.episode_measurements['red_light_dist'] = -1
             agent.episode_measurements['initial_dist_to_red_light'] = -1
             agent.episode_measurements['nearest_traffic_actor_id'] = -1
             agent.episode_measurements['nearest_traffic_actor_state'] = None
+            agent.episode_measurements['num_step_stopped'] = 0
             # print('[agent {} init {}] traffic light info'.format(
             #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
@@ -540,7 +636,6 @@ class PPOAgent(AutonomousAgent):
             input_data['IMU'][1][-1] = input_data['IMU'][1][-1]-360
         # Configure planner when we first receive MAP info
         if not self._route_assigned:
-            self._map = CarlaDataProvider.get_map()
             # print('[479], self._global_plan', len(self._global_plan), self._global_plan)
             # print('[480], self._global_plan_world_coord', len(self._global_plan_world_coord), self._global_plan_world_coord)
             self._configure_planner(input_data['OpenDRIVE'][1]['opendrive'])
@@ -930,6 +1025,7 @@ class PPOAgent(AutonomousAgent):
             if hero_actor:
                 # init add-ons
                 self.traffic_actors = CarlaDataProvider.get_world().get_actors().filter("*traffic_light*")
+                self._map = CarlaDataProvider.get_map()
                 self.controller = controller.PIDLongitudinalController(
                     K_P=self.args_longitudinal_dict['K_P'],
                     K_D=self.args_longitudinal_dict['K_D'],
@@ -946,8 +1042,9 @@ class PPOAgent(AutonomousAgent):
                 self._agent.episode_measurements['nearest_traffic_actor_state'] = None
                 self._agent.episode_measurements['initial_dist_to_red_light'] = -1
                 self._agent.episode_measurements['red_light_dist'] = -1
+                self._agent.episode_measurements['num_step_stopped'] = 0
                 self._agent.episode_measurements['traffic_light_orientation'] = -1
-                self._agent.episode_measurements["runover_light"] = False
+                self._agent.episode_measurements['runover_light'] = False
                 # agent.episode_measurements['offlane_steps'] = 0
                 self._agent.episode_measurements['obstacle_init_dist'] = -1
                 self._agent.episode_measurements['obstacle_init_id'] = -1
@@ -993,6 +1090,13 @@ class PPOAgent(AutonomousAgent):
                 for orient, sensor in obs_sensors.items():
                     self._agent.obstacle_sensor[orient] = sensor
                     self._agent.actor_list.append(sensor.sensor)
+
+                # add stop ligt list
+                self._list_stop_signs = []
+                for _actor in CarlaDataProvider.get_world().get_actors():
+                    if 'traffic.stop' in _actor.type_id:
+                        self._list_stop_signs.append(_actor)
+                print('[1002] self._list_stop_signs', self._list_stop_signs)
 
         # preprocess_inputs = self.preprocess_inputs(input_data)
         if videos:
