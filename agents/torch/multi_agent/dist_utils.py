@@ -50,7 +50,7 @@ def get_slurm_backend():
 def get_slurm_nodelist():
     return os.environ['SLURM_NODELIST']
 
-def get_slurm_comm_host():
+def get_slurm_srun_comm_host():
     return os.environ['SLURM_SRUN_COMM_HOST']
 
 def get_slurm_addr():
@@ -63,7 +63,9 @@ def get_slurm_addr():
         if pos2 < 0: pos2 = len(node_list)
         node_list = node_list[:min(pos1, pos2)].replace('[', '')
 
-    addr = node_list.replace('-', '.').split(',')[0]
+    last_ip = node_list.replace('-', '.').split(',')[0].rsplit('.', 1)[-1]
+    comm_host = get_host_ip()
+    addr = comm_host.rsplit('.', 1)[0] + '.' + last_ip
 
     return addr
 
@@ -99,16 +101,16 @@ def run_slurm_param_server(num_servers, num_workers, port=23032, backend='gloo',
         rank, world_size = 0, 1
     else:
         os.environ['MASTER_PORT'] = str(port)
-        # os.environ['MASTER_ADDR'] = get_slurm_addr()
+        os.environ['MASTER_ADDR'] = get_slurm_addr()
         # os.environ['MASTER_ADDR'] = get_slurm_comm_host()
-        os.environ['MASTER_ADDR'] = get_host_ip()
+        # os.environ['MASTER_ADDR'] = get_host_ip()
         os.environ['WORLD_SIZE'] = str(world_size)
         os.environ['RANK'] = str(rank)
 
     os.environ['NUM_SERVERS'] = str(num_servers)
     os.environ['NUM_WORKERS'] = str(num_workers)
 
-    print('[dist util 105]', os.environ['MASTER_PORT'], get_slurm_nodelist(), get_slurm_comm_host(),
+    print('[dist util 105]', os.environ['MASTER_PORT'], get_slurm_nodelist(), get_slurm_srun_comm_host(),
             get_host_ip(), os.environ['MASTER_ADDR'], os.environ['WORLD_SIZE'], os.environ['RANK'])
 
     return rank, gpu_id, world_size
@@ -177,8 +179,8 @@ def recv(overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu')
 
 
 if __name__ == '__main__':
-    run_slurm_param_server(1, 3)
-    init_param_server_comm()
+    run_slurm_param_server(0, 0)
+    dist.init_process_group(backend=get_backend())
     time.sleep(3)
     print('DONE')
 

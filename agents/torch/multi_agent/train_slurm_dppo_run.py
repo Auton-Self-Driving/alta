@@ -132,7 +132,9 @@ def launch_worker(rank, gpu_id, resources):
     env.close()
 
 
-rank, gpu_id, world_size = dist.run_slurm_param_server(DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers'])
+rank, gpu_id, world_size = dist.run_slurm_param_server(
+    DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers'],
+    port=random.randint(10000, 60000))
 print('[slurm dppo run]', rank, gpu_id, world_size)
 if rank < DPPO_CONFIG['num_servers']:
     launch_server(rank, gpu_id, res)
