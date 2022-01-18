@@ -1,4 +1,4 @@
-"""Training Distributed PPO algo
+"""Training Distributed PPO algo on Slurm
 """
 
 import os
@@ -99,8 +99,6 @@ def launch_server(rank, gpu_id, resources):
 
 
 def launch_worker(rank, gpu_id, resources):
-    os.environ['RANK'] = str(rank)
-
     # overriding carla device
     device = 'cuda:{}'.format(gpu_id)
     ENV_CONFIG['device'] = device
@@ -131,11 +129,14 @@ def launch_worker(rank, gpu_id, resources):
 
     env.close()
 
+# overriding num workers based on the world size
+DPPO_CONFIG['num_workers'] = int(os.environ['SLURM_NTASKS']) - DPPO_CONFIG['num_servers']
 
 rank, gpu_id, world_size = dist.run_slurm_param_server(
     DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers'],
     port=random.randint(10000, 60000))
-print('[slurm dppo run]', rank, gpu_id, world_size)
+print('[slurm dppo run server {} worker {}]'.format(
+    DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers']), rank, gpu_id, world_size)
 if rank < DPPO_CONFIG['num_servers']:
     launch_server(rank, gpu_id, res)
 else:
