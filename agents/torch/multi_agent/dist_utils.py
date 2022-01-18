@@ -3,6 +3,7 @@ import random
 import multiprocessing as mp
 from threading import Thread
 import socket
+import time
 import torch
 import torch.distributed as dist
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
@@ -34,6 +35,38 @@ def get_num_servers():
 def get_num_workers():
     return int(os.environ['NUM_WORKERS'])
 
+def get_slurm_world_size():
+    return int(os.environ['SLURM_NTASKS'])
+
+def get_slurm_rank():
+    return int(os.environ['SLURM_PROCID'])
+
+def get_slurm_jobid():
+    return int(os.environ['SLURM_JOB_ID'])
+
+def get_slurm_backend():
+    return os.environ.get('DISTRIBUTED_BACKEND', None)
+
+def get_slurm_nodelist():
+    return os.environ['SLURM_NODELIST']
+
+def get_slurm_comm_host():
+    return os.environ['SLURM_SRUN_COMM_HOST']
+
+def get_slurm_addr():
+    node_list = get_slurm_nodelist()
+    if '[' in node_list:
+        beg = node_list.find('[')
+        pos1 = node_list.find('-', beg)
+        if pos1 < 0: pos1 = len(node_list)
+        pos2 = node_list.find(',', beg)
+        if pos2 < 0: pos2 = len(node_list)
+        node_list = node_list[:min(pos1, pos2)].replace('[', '')
+
+    addr = node_list.replace('-', '.').split(',')[0]
+
+    return addr
+
 # def init_param_server_comm(gpu_id_list=None):
 def init_param_server_comm():
     rank, world_size = get_rank(), get_world_size()
@@ -50,6 +83,35 @@ def init_param_server_comm():
     worker_group = dist.new_group(ranks=worker_list)
 
     return rank, world_size, server_list, worker_list, server_group, worker_group
+
+def run_slurm_param_server(num_servers, num_workers, port=23032, backend='gloo', method='fork'):
+    os.environ['DISTRIBUTED_BACKEND'] = backend
+    if mp.get_start_method(allow_none=True) != method:
+        mp.set_start_method(method, force=True)
+
+    rank, world_size = get_slurm_rank(), get_slurm_world_size()
+    num_gpus = torch.cuda.device_count()
+    if num_gpus > 0:
+        gpu_id = rank % num_gpus
+        torch.cuda.set_device(gpu_id)
+
+    if world_size == 1:
+        rank, world_size = 0, 1
+    else:
+        os.environ['MASTER_PORT'] = str(port)
+        # os.environ['MASTER_ADDR'] = get_slurm_addr()
+        # os.environ['MASTER_ADDR'] = get_slurm_comm_host()
+        os.environ['MASTER_ADDR'] = get_host_ip()
+        os.environ['WORLD_SIZE'] = str(world_size)
+        os.environ['RANK'] = str(rank)
+
+    os.environ['NUM_SERVERS'] = str(num_servers)
+    os.environ['NUM_WORKERS'] = str(num_workers)
+
+    print('[dist util 105]', os.environ['MASTER_PORT'], get_slurm_nodelist(), get_slurm_comm_host(),
+            get_host_ip(), os.environ['MASTER_ADDR'], os.environ['WORLD_SIZE'], os.environ['RANK'])
+
+    return rank, gpu_id, world_size
 
 
 def run_param_server(server_func, worker_func, num_servers, num_workers,
@@ -101,7 +163,6 @@ def isend(overhead, payload=None, dst=0, tag=0, comm='cpu'):
         msg = torch.cat((msg, _payload_msg))
     return dist.isend(msg, dst, tag=tag)
 
-
 def recv(overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu'):
     msg = torch.zeros(overhead_len, dtype=torch.float32, device=comm)
     if payload_len > 0:
@@ -113,3 +174,13 @@ def recv(overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu')
         _overhead_msg = list(map(int, _overhead_msg))
         return _overhead_msg, _payload_msg
     return list(map(int, msg))
+
+
+if __name__ == '__main__':
+    run_slurm_param_server(1, 3)
+    init_param_server_comm()
+    time.sleep(3)
+    print('DONE')
+
+
+

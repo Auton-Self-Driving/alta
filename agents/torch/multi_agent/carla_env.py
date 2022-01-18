@@ -4,7 +4,10 @@ import gym
 from gym.spaces import Box, Discrete, Tuple
 
 from datetime import datetime
-import os
+import os, sys
+
+sys.path.append('/home/zhehuang/Documents/CARLA/alta')
+
 import traceback
 import random
 import numpy as np
@@ -1266,6 +1269,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
 
+
     def _update_traffic_light_states(self, agent):
         # TODO: Pass correct target waypoint to find_nearest_traffic_light() for US style traffic.
         traffic_actor, dist, traffic_light_orientation = agent.find_nearest_traffic_light(self.traffic_actors)
@@ -1834,12 +1838,12 @@ class CarlaEnv(gym.Env):
     def _update_lane_invasion_info_via_privilege(self, agent):
         if agent.done: return
         # agent_bb_wp = get_vehicle_bb_wp(
-        #     self._world.get_map(), agent.vehicle_actor, 
+        #     self._world.get_map(), agent.vehicle_actor,
         #     lane_type=(LaneType.Any | LaneType.NONE))
         agent_wp = self._map.get_waypoint(
             agent.vehicle_actor.get_location(),
             lane_type=(LaneType.Any | LaneType.NONE))
-        
+
         # # definitely offroading
         # if agent_wp.lane_type == LaneType.NONE:
         #     agent.episode_measurements['out_of_road'] = True
@@ -1876,7 +1880,7 @@ class CarlaEnv(gym.Env):
         else:
             num_same_road_wp = 0
             for next_wp in [agent.next_waypoints[0], agent.next_waypoints[-1]]:
-                # print('[1834]', agent_wp.road_id, next_wp.road_id, 
+                # print('[1834]', agent_wp.road_id, next_wp.road_id,
                 #     agent_wp.lane_id, next_wp.lane_id)
                 if agent_wp.road_id == next_wp.road_id:
                     num_same_road_wp += 1
@@ -1884,7 +1888,7 @@ class CarlaEnv(gym.Env):
                         return
             # for bb_wp in agent_bb_wp:
             #     for next_wp in agent.next_waypoints:
-            #         # print('[1834]', agent_wp.road_id, next_wp.road_id, 
+            #         # print('[1834]', agent_wp.road_id, next_wp.road_id,
             #         #     agent_wp.lane_id, next_wp.lane_id)
             #         if bb_wp.road_id == next_wp.road_id:
             #             num_same_road_wp += 1
@@ -1926,7 +1930,7 @@ class CarlaEnv(gym.Env):
         next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
             agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
             agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
-        
+
         wp_opt = [(wp, opt) for wp, opt in zip(agent.next_waypoints, agent.next_road_opts)]
         new_wp_starting_idx = 0
         for idx, wp in enumerate(agent.next_waypoint_queue):
@@ -2265,7 +2269,7 @@ class CarlaEnv(gym.Env):
             else:  # LANEFOLLOW
                 color = carla.Color(0, 255, 0) # Green
                 size = 0.1
-            
+
             world.debug.draw_point(wp, size=size, color=color, life_time=persistency)
 
         world.debug.draw_point(waypoints[0][0].transform.location + carla.Location(z=vertical_shift), size=0.2,
