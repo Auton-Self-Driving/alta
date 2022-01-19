@@ -489,7 +489,7 @@ class DSAC_Worker_Agent(object):
         self.buffer_update_freq = buffer_update_freq
         self.explore_before = explore_before
         self.explore_mode = explore_mode
-        if explore_mode not in {'random', 'autopilot'}:
+        if explore_mode not in {'random', 'autopilot', 'transfuser_autopilot'}:
             raise ValueError('unknown option')
         self.gamma = gamma
         self.num_agents = num_agents
@@ -583,6 +583,22 @@ class DSAC_Worker_Agent(object):
         # print(_prev_states.shape, _actions.shape, _rewards.shape, _obs.shape, _dones.shape, flush=True)
         # print(mem['reward'], agent_rewards, flush=True)
 
+        # buffer save as npz
+        _npz_dict = {
+            'obs': _prev_states.numpy(),
+            'actions': _actions.numpy(),
+            'rewards': _rewards.numpy(),
+            'next_observations': _obs.numpy(),
+            'terminals': _dones.numpy(),
+        }
+        _npz_folder = 'offline_data/{}'.format(self.run_name)
+        _npz_fname = '{}/{}.npz'.format(_npz_folder, self.glb_num_steps)
+        if not os.path.exists(_npz_folder):
+            os.makedirs(_npz_folder, exist_ok=True)
+        with open(_npz_fname, 'wb') as f:
+            np.savez(f, **_npz_dict)
+        print('{} saved'.format(_npz_fname))
+
         exp_buf = torch.cat([_prev_states, _actions, _rewards, _obs, _dones], dim=-1)
         exp_buf = exp_buf.reshape(-1) # vectorize from 2d [n_ts, ...] to 1-d
         overhead = [self.rank, self.num_steps_since_update,
@@ -627,10 +643,11 @@ class DSAC_Worker_Agent(object):
                 filename_suffix='_{}'.format(self.run_name),)
         self.glb_env.reset(rank_list=self.rank_list)
         self.glb_env.spawn_npc_vehicles(51 - self.num_agents)
+        self.use_transfuser = self.explore_mode == 'transfuser_autopilot'
         self.agent_list = [_SAC_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
-        self.glb_env.reset_vehicle_agent(self.agent_list)
+        self.glb_env.reset_vehicle_agent(self.agent_list, transfuser=self.use_transfuser)
         self.glb_env.step()
 
         avg_t_action, avg_t_step  = [], []
@@ -647,8 +664,11 @@ class DSAC_Worker_Agent(object):
                         # !!! the prev action will be overwritten
                         agent.autopilot = True
                         # print(rk, agent.autopilot, flush=True)
+                    elif self.explore_mode == 'transfuser_autopilot':
+                        agent.transfuser_autopilot = True
                 else:
                     action = agent.select_action()
+                    self.use_transfuser = False
                 agent.prev_state = agent.observation
                 agent.action = action
             te_action = time.time()
@@ -812,7 +832,8 @@ class DSAC_Worker_Agent(object):
                         self.glb_env.ego_vehicle_list[rk],
                         glb_policy=self.glb_policy, rank=rk)
                 self.glb_env.reset_vehicle_agent(
-                    [self.agent_list[rk] for rk in respawn_rank_list])
+                    [self.agent_list[rk] for rk in respawn_rank_list],
+                    transfuser=self.use_transfuser)
                 self.glb_env.step()
 
     def test(self, videos=False, save_buffer=False):

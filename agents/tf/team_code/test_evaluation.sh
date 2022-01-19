@@ -19,7 +19,9 @@ export CHALLENGE_TRACK_CODENAME=MAP
 # export TEAM_AGENT=$ALTA/agents/tf/team_code/alta_agent.py
 # export TEAM_AGENT=$ALTA/leaderboard/leaderboard/autoagents/npc_agent.py
 # export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent.py
-export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent_v2.py
+# export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent_v2.py
+# export TEAM_AGENT=$ALTA/agents/tf/team_code/auto_pilot.py
+export TEAM_AGENT=$ALTA/agents/tf/team_code/transfuser_autopilot.py
 export DEBUG_CHALLENGE=1
 export RESUME=true
 export CHECKPOINT_ENDPOINT=simulation_results.json
@@ -43,7 +45,7 @@ python -u ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
 --port=2000 \
 --trafficManagerPort=4050 \
 --checkpoint=${CHECKPOINT_ENDPOINT} \
---resume=${RESUME} 
+# --resume=${RESUME} 
 #--record=${RECORD_PATH} \
 #--agent-config=${TEAM_CONFIG} \
 

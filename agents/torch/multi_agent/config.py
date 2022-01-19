@@ -79,19 +79,20 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'Explrand10kTrain10k1Q1B25S20Efixlog0SteerScale0d5NoGoalObsAll',
+    'save_suffix': 'test',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
-    'num_workers': 8,
+    'num_workers': 1,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:1'],
-    'device_list': ['cuda:0', 'cuda:1'],
+    # 'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
+    'device_list': ['cuda:0'],
     'buffer_len': 1000000,
     'log_alpha': 0,
     'log_target_entropy': -2,
@@ -102,9 +103,12 @@ DSAC_CONFIG = {
     'buffer_update_freq': 25,
     'target_update_freq': 1,
     'explore_before': 10000,
-    'explore_mode': 'random',
+    # 'explore_mode': 'random',
+    # 'explore_mode': 'autopilot',
+    'explore_mode': 'transfuser_autopilot',
     'train_after': 10000,
-    'standard': True,
+    # 'standard': True,
+    'standard': False, # to collect traj
 }
 
 DPPO_CONFIG = {
@@ -427,7 +431,7 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
-    'num_agents': 8,
+    'num_agents': 1,
     'max_num_steps': 16000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -447,7 +451,8 @@ ENV_CONFIG = {
     'server_fps' : 10,
     'server_port' : None,
     'server_retries' : 5,
-    'city_name' : 'Town01',
+    'initial_town' : 'Town01',
+    'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'],
     'frame_skip': 1,
     'enable_planner' : True,
     # 'reward_function': 'obs',

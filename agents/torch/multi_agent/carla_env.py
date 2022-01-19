@@ -40,6 +40,9 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from environment.carla_9_4.agents.navigation.local_planner import RoadOption
 from environment.carla_9_4.agents.navigation.agent import Agent
 
+# transfuser autopilot
+from transfuser_autopilot import AutoPilot
+
 
 # import ipdb
 # st = ipdb.set_trace
@@ -268,7 +271,7 @@ class CarlaEnv(gym.Env):
         print("server_version", self.client.get_server_version())
         self.avail_map = {name[-6:]: name for name in self.client.get_available_maps()}
         print('self.avail_map:', self.avail_map)
-        self._set_world_and_map(self.config["city_name"])
+        self._set_world_and_map(self.config['initial_town'])
         self.world_annotations = RouteParser.parse_annotations_file(
             '../../../leaderboard/data/all_towns_traffic_scenarios_public.json')
         # print(self.world_annotations)
@@ -1408,7 +1411,8 @@ class CarlaEnv(gym.Env):
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
                 # avail_map_list=['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'], mode='train')
                 # avail_map_list=['Town01', 'Town03'], mode='train')
-                avail_map_list=[self.curr_town], mode='train')
+                # avail_map_list=[self.curr_town], mode='train')
+                avail_map_list=self.config['avail_town_list'], mode='train')
         else:
             raise ValueError("Scenarios Config not set!")
 
@@ -1501,6 +1505,13 @@ class CarlaEnv(gym.Env):
                     target_speed = self.target_speed
                 steer = agent.steer_controller.pid_control(
                     agent.next_waypoints[0], agent.vehicle_actor.get_transform())
+                steer = np.clip(steer, -1., 1.)
+                #!!! modify agent.action
+                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
+
+            if hasattr(agent, 'transfuser_autopilot') and agent.transfuser_autopilot:
+                steer, target_speed = agent.transfuser_agent.run_step()
+                print('[1513]', steer, target_speed)
                 steer = np.clip(steer, -1., 1.)
                 #!!! modify agent.action
                 agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
@@ -1601,6 +1612,11 @@ class CarlaEnv(gym.Env):
                 actor.destroy()
             except Exception as e:
                 print("Error during destroying sensor actor {0}:{1}: {2}".format(actor.type_id, actor.id, traceback.format_exc()))
+        if hasattr(agent, 'transfuser_agent'):
+            try:
+                agent.transfuser_agent.cleanup()
+            except Exception as e:
+                print("Error during destroying transfuser actor")
         try:
             actor = agent.vehicle_actor
             actor.destroy()
@@ -1633,7 +1649,7 @@ class CarlaEnv(gym.Env):
         _filename = '{}/{:08d}.jpg'.format(_folder, agent.num_total_steps)
         plt.imsave(_filename, rgb_image)
 
-    def reset_vehicle_agent(self, agent_list):
+    def reset_vehicle_agent(self, agent_list, transfuser=False):
         # bind new agent
         for agent in agent_list:
             self.ego_agent_list[agent.rank] = agent
@@ -1745,6 +1761,7 @@ class CarlaEnv(gym.Env):
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)
 
+
             if self.config["enable_lane_invasion_sensor"]:
                 agent.lane_invasion_sensor = sensors.LaneInvasionSensor(agent.vehicle_actor)
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
@@ -1807,6 +1824,12 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
             agent.episode_measurements['total_steps'] = agent.num_total_steps
+
+            # add transfuser
+            if transfuser:
+                agent.transfuser_agent = AutoPilot()
+                agent.transfuser_agent.set_global_plan(self.gps_route, self.gps_route)
+                agent.transfuser_agent._init(agent.vehicle_actor)
 
         # Ticking for 15 frames to handle car initialization in air
         # time.sleep(.04)
@@ -2120,12 +2143,12 @@ class CarlaEnv(gym.Env):
                 # Set source and destination based on scenario
                 # Currently scenarios are defined only for Town01
 
-                # if self.config["use_scenarios"] and (self.config["city_name"] == "Town01" or self.config["city_name"] == "Town02"):
+                # if self.config["use_scenarios"] and (self.config['initial_town'] == "Town01" or self.config['initial_town'] == "Town02"):
                 if self.config["use_scenarios"]:
                     if self.config["updated_scenarios"]:
-                        self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
+                        self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
                     else:
-                        _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config["city_name"])
+                        _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
                 else:
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -2179,7 +2202,7 @@ class CarlaEnv(gym.Env):
 
                 if 'challenge' in self.config["scenarios"]:
                     # print(213, len(self.wps_list), self.wps_list)
-                    _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+                    self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
 
                     # Print route in debug mode
                     # self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=500)
@@ -2210,7 +2233,7 @@ class CarlaEnv(gym.Env):
                     self.vehicle_actor.scenario_config = DummyScenarioConfig(_record_idx, self.wps_list)
 
                 elif self.config["scenarios"] == 'leaderboard_navigation':
-                    _, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+                    self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
                     self.dense_waypoints = self._global_plan_world_coord
 
                 else:
