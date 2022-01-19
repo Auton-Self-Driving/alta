@@ -463,13 +463,14 @@ class AutoPilot(object):
         angle = angle_unnorm / 90
 
         steer = self._turn_controller.step(angle)
+        # print(angle, steer)
         steer = np.clip(steer, -1.0, 1.0)
         steer = round(steer, 3)
 
         # Acceleration.
         angle_far_unnorm = self._get_angle_to(pos, theta, far_target)
         should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
-        target_speed = 10.0 if should_slow else 20.0
+        target_speed = 4.0 if should_slow else 7.0
         brake = self._should_brake()
         target_speed = target_speed if not brake else 0.0
 
@@ -487,7 +488,7 @@ class AutoPilot(object):
             steer *= 0.5
             throttle = 0.0
 
-        return steer, throttle, brake, target_speed
+        return steer, angle, throttle, brake, target_speed
 
     def _translate_tl_state(self, state):
         if state == carla.TrafficLightState.Red:
@@ -512,19 +513,20 @@ class AutoPilot(object):
         data = self.tick(input_data)
         gps = self._get_position(data)
 
-        print(data, gps)
+        # print(data, gps)
 
         near_node, near_command = self._waypoint_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
 
-        steer, throttle, brake, target_speed = self._get_control(near_node, far_node, data)
+        steer, angle, throttle, brake, target_speed = self._get_control(near_node, far_node, data)
 
         control = carla.VehicleControl()
         control.steer = steer + 1e-2 * np.random.randn()
         control.throttle = throttle
         control.brake = float(brake)
 
-        return steer + 1e-2 * np.random.randn(), target_speed
+        # return steer + 1e-2 * np.random.randn(), target_speed
+        return angle, target_speed, control
 
     def _should_brake(self):
         actors = self._world.get_actors()

@@ -956,7 +956,7 @@ class CarlaEnv(gym.Env):
                                 opt.name != RoadOption.CHANGELANERIGHT.name:
                                 continue
                             # if not continued
-                            print('[953]', opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
+                            # print('[953]', opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
                             # print('[952] permitted offlane')
                             agent.episode_measurements['unlawful_lane_change'] = False
                         # print('[937]', agent.next_road_opts)
@@ -1263,7 +1263,8 @@ class CarlaEnv(gym.Env):
                 found_obstacle = True
                 agent.episode_measurements['obstacle_dist_{}'.format(suffix)] = agent.obstacle_sensor[suffix].distance
                 # if 'vehicle' in obstacle_actor.type_id:
-                if hasattr(obstacle_actor, 'get_velocity') and 'vehicle' not in obstacle_actor.type_id:
+                # if hasattr(obstacle_actor, 'get_velocity') and 'vehicle' not in obstacle_actor.type_id:
+                if hasattr(obstacle_actor, 'get_velocity'):
                     agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
                 else:
                     agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
@@ -1510,11 +1511,14 @@ class CarlaEnv(gym.Env):
                 agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
 
             if hasattr(agent, 'transfuser_autopilot') and agent.transfuser_autopilot:
-                steer, target_speed = agent.transfuser_agent.run_step()
-                print('[1513]', steer, target_speed)
-                steer = np.clip(steer, -1., 1.)
+                # steer, target_speed = agent.transfuser_agent.run_step()
+                steer, target_speed, control = agent.transfuser_agent.run_step()
+                # print('[1513]', steer, target_speed)
                 #!!! modify agent.action
+                target_speed *= 3.6
                 agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
+                agent.episode_measurements["target_speed"] = target_speed
+                return control
 
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
             gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])

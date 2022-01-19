@@ -457,14 +457,14 @@ class DSAC_Server_Agent(object):
 
 
 class DSAC_Worker_Agent(object):
-    def __init__(self, glb_env, glb_policy, num_agents=1,
+    def __init__(self, local_env, glb_policy, num_agents=1,
         max_glb_num_steps=1000000, explore_before=10000,
         explore_mode='autopilot', gamma=.99, buffer_update_freq=1,
         save_suffix='', log_time='TEST', standard=True,
         verbose=False):
         """An asynchronous Distributed SAC Worker (Agent).
         Args:
-            glb_env: environment for this worker
+            local_env: environment for this worker
             glb_policy: global policy net for all SAC agents
             num_agents: number of SAC agents
             max_glb_num_steps: max number of global steps
@@ -479,7 +479,7 @@ class DSAC_Worker_Agent(object):
             verbose: if print some debug information
         """
         super().__init__()
-        self.glb_env = glb_env
+        self.local_env = local_env
         self.glb_policy = glb_policy
         self.N_S = self.glb_policy.N_S
         self.N_A = self.glb_policy.N_A
@@ -576,8 +576,8 @@ class DSAC_Worker_Agent(object):
 
         _prev_states = torch.tensor(mem['prev_state'], dtype=torch.float).reshape(-1, self.N_S)
         _actions = torch.tensor(mem['action'], dtype=torch.float).reshape(-1, self.N_A)
-        _rewards = torch.tensor(list(agent_rewards), dtype=torch.float).reshape(-1, 1)
-        # _rewards = torch.tensor(mem['reward'], dtype=torch.float).reshape(-1, 1) # sanity check
+        # _rewards = torch.tensor(list(agent_rewards), dtype=torch.float).reshape(-1, 1)
+        _rewards = torch.tensor(mem['reward'], dtype=torch.float).reshape(-1, 1) # sanity check
         _obs = torch.tensor(mem['obs'], dtype=torch.float).reshape(-1, self.N_S)
         _dones = torch.tensor(mem['done'], dtype=torch.float).reshape(-1, 1)
         # print(_prev_states.shape, _actions.shape, _rewards.shape, _obs.shape, _dones.shape, flush=True)
@@ -585,11 +585,11 @@ class DSAC_Worker_Agent(object):
 
         # buffer save as npz
         _npz_dict = {
-            'obs': _prev_states.numpy(),
+            'observations': _prev_states.numpy(),
             'actions': _actions.numpy(),
-            'rewards': _rewards.numpy(),
+            'rewards': _rewards.squeeze().numpy(),
             'next_observations': _obs.numpy(),
-            'terminals': _dones.numpy(),
+            'terminals': _dones.squeeze().numpy(),
         }
         _npz_folder = 'offline_data/{}'.format(self.run_name)
         _npz_fname = '{}/{}.npz'.format(_npz_folder, self.glb_num_steps)
@@ -641,14 +641,15 @@ class DSAC_Worker_Agent(object):
             self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
-        self.glb_env.reset(rank_list=self.rank_list)
-        self.glb_env.spawn_npc_vehicles(51 - self.num_agents)
+        self.local_env.reset(rank_list=self.rank_list)
+        self.local_env.spawn_npc_vehicles(51 - self.num_agents)
         self.use_transfuser = self.explore_mode == 'transfuser_autopilot'
         self.agent_list = [_SAC_Individual_Agent(
-            self.glb_env.ego_vehicle_list[i],
+            self.local_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
-        self.glb_env.reset_vehicle_agent(self.agent_list, transfuser=self.use_transfuser)
-        self.glb_env.step()
+        self.local_env.reset_vehicle_agent(self.agent_list, transfuser=self.use_transfuser)
+        self.curr_town = self.local_env.curr_town
+        self.local_env.step()
 
         avg_t_action, avg_t_step  = [], []
 
@@ -657,7 +658,7 @@ class DSAC_Worker_Agent(object):
             ts_action = time.time()
             for rk, agent in enumerate(self.agent_list):
                 if self.glb_num_steps < self.explore_before:
-                    action = self.glb_env.action_space.sample()
+                    action = self.local_env.action_space.sample()
                     if self.explore_mode == 'autopilot':
                         # NOTE: even if curr_step > explore_before,
                         # autopilot flag will continue to the end of the episode
@@ -676,7 +677,7 @@ class DSAC_Worker_Agent(object):
 
             # get new observation
             ts_step = time.time()
-            self.glb_env.step()
+            self.local_env.step()
             te_step = time.time()
             avg_t_action.append(te_action - ts_action)
             avg_t_step.append(te_step - ts_step)
@@ -825,16 +826,30 @@ class DSAC_Worker_Agent(object):
             for rk, agent in enumerate(self.agent_list):
                 if agent.done: respawn_rank_list.append(rk)
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
-                self.glb_env.reset(rank_list=respawn_rank_list)
-                # update agent list
-                for rk in respawn_rank_list:
-                    self.agent_list[rk] = _SAC_Individual_Agent(
-                        self.glb_env.ego_vehicle_list[rk],
-                        glb_policy=self.glb_policy, rank=rk)
-                self.glb_env.reset_vehicle_agent(
-                    [self.agent_list[rk] for rk in respawn_rank_list],
-                    transfuser=self.use_transfuser)
-                self.glb_env.step()
+                self.local_env.reset(rank_list=respawn_rank_list)
+                if self.curr_town != self.local_env.curr_town:
+                    self.curr_town = self.local_env.curr_town
+                    # print('[662 PPO]', self.curr_town)
+                    self.local_env.reset(rank_list=self.rank_list)
+                    for rk in self.rank_list:
+                        self.agent_list[rk] = _DPPO_Individual_Agent(
+                            self.local_env.ego_vehicle_list[rk],
+                            glb_policy=self.local_policy,
+                            timestamp=self.local_policy_timestamp,
+                            rank=rk, memory=None)
+                    self.local_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in self.rank_list])
+                    self.local_env.scenario_index = 0
+                else:
+                    # update agent list
+                    for rk in respawn_rank_list:
+                        self.agent_list[rk] = _SAC_Individual_Agent(
+                            self.local_env.ego_vehicle_list[rk],
+                            glb_policy=self.glb_policy, rank=rk)
+                    self.local_env.reset_vehicle_agent(
+                        [self.agent_list[rk] for rk in respawn_rank_list],
+                        transfuser=self.use_transfuser)
+                self.local_env.step()
 
     def test(self, videos=False, save_buffer=False):
         raise NotImplementedError
