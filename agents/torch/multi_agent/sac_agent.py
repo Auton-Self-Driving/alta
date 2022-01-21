@@ -516,6 +516,7 @@ class DSAC_Worker_Agent(object):
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.log_time = log_time
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, log_time)
         self.num_q_upd_since_target_upd = 0
@@ -591,8 +592,11 @@ class DSAC_Worker_Agent(object):
             'next_observations': _obs.numpy(),
             'terminals': _dones.squeeze().numpy(),
         }
-        _npz_folder = 'offline_data/{}'.format(self.run_name)
-        _npz_fname = '{}/{}.npz'.format(_npz_folder, self.glb_num_steps)
+        # _npz_folder = 'offline_data/{}'.format(self.run_name)
+        # _npz_folder = '/home/scratch/zhehuang/offline_data/{}_{}'.format(
+        _npz_folder = 'offline_data/{}_{}'.format(
+                self.run_name, self.log_time)
+        _npz_fname = '{}/{}_{}.npz'.format(_npz_folder, self.glb_num_steps, self.rank)
         if not os.path.exists(_npz_folder):
             os.makedirs(_npz_folder, exist_ok=True)
         with open(_npz_fname, 'wb') as f:
@@ -642,7 +646,7 @@ class DSAC_Worker_Agent(object):
                 log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
         self.local_env.reset(rank_list=self.rank_list)
-        self.local_env.spawn_npc_vehicles(51 - self.num_agents)
+        self.local_env.spawn_npc_vehicles(351 - self.num_agents)
         self.use_transfuser = self.explore_mode == 'transfuser_autopilot'
         self.agent_list = [_SAC_Individual_Agent(
             self.local_env.ego_vehicle_list[i],
@@ -832,13 +836,12 @@ class DSAC_Worker_Agent(object):
                     # print('[662 PPO]', self.curr_town)
                     self.local_env.reset(rank_list=self.rank_list)
                     for rk in self.rank_list:
-                        self.agent_list[rk] = _DPPO_Individual_Agent(
+                        self.agent_list[rk] = _SAC_Individual_Agent(
                             self.local_env.ego_vehicle_list[rk],
-                            glb_policy=self.local_policy,
-                            timestamp=self.local_policy_timestamp,
-                            rank=rk, memory=None)
+                            glb_policy=self.glb_policy, rank=rk)
                     self.local_env.reset_vehicle_agent(
-                        [self.agent_list[rk] for rk in self.rank_list])
+                        [self.agent_list[rk] for rk in self.rank_list],
+                        transfuser=self.use_transfuser)
                     self.local_env.scenario_index = 0
                 else:
                     # update agent list

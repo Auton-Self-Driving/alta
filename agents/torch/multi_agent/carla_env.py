@@ -1417,8 +1417,8 @@ class CarlaEnv(gym.Env):
         else:
             raise ValueError("Scenarios Config not set!")
 
-        # if _upd_town != self.curr_town: # switch to a new town
-        #     print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+        if _upd_town != self.curr_town: # switch to a new town
+            print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
         #     if self.config['num_agents'] != 1:
         #         # self.reset_env()
         #         self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)

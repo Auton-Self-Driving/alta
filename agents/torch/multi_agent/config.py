@@ -79,7 +79,7 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'offline_datacollection',
+    'save_suffix': 'offline_datacollection_gpu16_switchtown',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
@@ -431,9 +431,9 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
-    'num_agents': 4,
+    'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:3',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -451,9 +451,9 @@ ENV_CONFIG = {
     'server_fps' : 10,
     'server_port' : None,
     'server_retries' : 5,
-    'initial_town' : 'Town03',
-    'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05'],
-    # 'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'],
+    'initial_town' : 'Town01', # no ldb training routes for town05
+    # 'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05'],
+    'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'],
     'frame_skip': 1,
     'enable_planner' : True,
     # 'reward_function': 'obs',
@@ -497,7 +497,7 @@ ENV_CONFIG = {
     # 'scenarios' : 'navigation',
     # 'scenarios' : 'challenge_train_scenario',
     'scenarios' : 'leaderboard_navigation',
-    'min_num_eps_before_switch_town': 500,
+    'min_num_eps_before_switch_town': 2,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
     # 'carla_gpu': '0',
