@@ -47,20 +47,30 @@ from transfuser_autopilot import PIDController
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
-
 policy_set = {'dvae_dt', 'bt', 'dt', 'tt'}
 
 def infer_policy_class(ckpt_folder):
     folder_list = ckpt_folder.split('/')
     for folder in folder_list:
-        if folder in policy_switch:
+        if folder in policy_set:
             return folder
     raise ValueError('policy for [{}] not found'.format(ckpt_folder))
 
 utils.set_device(ENV_CONFIG['device'])
 
+dataset = utils.load_from_config(
+    OFFLINE_CONFIG['offline_policy_location'],
+    'data_config.pkl')
+
+discretizer = dataset.discretizer
+value_fn = lambda x: discretizer.value_fn(x, 'mean')
+discount = dataset.discount
+observation_dim = dataset.observation_dim
+action_dim = dataset.action_dim
+max_return = dataset.get_max_return()
+
 gpt, gpt_epoch = utils.load_model(
-        OFFLINE_CONFIG['offline_policy_location']
+        OFFLINE_CONFIG['offline_policy_location'],
         epoch='latest', device=ENV_CONFIG['device'])
 print('[59 load model]', gpt, gpt_epoch)
 
@@ -74,9 +84,9 @@ if policy_type == 'dvae_dt':
     policy = DVAEBTPolicy(
         gpt,
         10,
-        15,
-        2,
-        0.95,
+        observation_dim,
+        action_dim,
+        discount,
         bs=1,
         max_history=2,
         device=ENV_CONFIG['device'],
@@ -85,9 +95,9 @@ elif policy_type == 'bt':
     policy = BTPolicy(
         gpt,
         10,
-        15,
-        2,
-        0.95,
+        observation_dim,
+        action_dim,
+        discount,
         bs=1,
         max_history=2,
         device=ENV_CONFIG['device'],
@@ -95,10 +105,10 @@ elif policy_type == 'bt':
 elif policy_type == 'dt':
     policy = DTPolicy(
         gpt,
-        15000.,
-        15,
-        2,
-        0.95,
+        max_return * 1.0,
+        observation_dim,
+        action_dim,
+        discount,
         bs=1,
         max_history=2,
         device=ENV_CONFIG['device'],
@@ -106,11 +116,20 @@ elif policy_type == 'dt':
 elif policy_type == 'tt':
     policy = TTPolicy(
         gpt,
-        123123.,
-        15,
+        discretizer,
+        10,
+        128,
         2,
-        0.95,
-        bs=1,
+        value_fn,
+        observation_dim,
+        action_dim,
+        discount,
+        verbose=False,
+        k_obs=1,
+        k_act=None,
+        cdf_obs=None,
+        cdf_act=0.6,
+        prefix_context=True,
         max_history=2,
         device=ENV_CONFIG['device'],
     )
@@ -1099,7 +1118,8 @@ class PPOAgent(AutonomousAgent):
             config=self.config,
             verbose=self.config["verbose"])
 
-        # policy.update_context(obs, action, step_reward)
+        if policy_type in {'dt', 'tt'}:
+            policy.update_context(obs, action, step_reward)
 
         control = self.get_control(input_data, action)
 
