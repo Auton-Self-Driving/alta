@@ -13,6 +13,9 @@ sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl')
 # sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl/config')
 
 from trajectory.policies.dvae_bt_policy import DVAEBTPolicy
+from trajectory.policies.bt_policy import BTPolicy
+from trajectory.policies.dt_policy import DTPolicy
+from trajectory.policies.tt_policy import TTPolicy
 import trajectory.utils as utils
 
 import numpy as np
@@ -28,7 +31,7 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 from leaderboard.utils.route_manipulation import interpolate_trajectory
 
-from config import ENV_CONFIG, TEST_CONFIG
+from config import ENV_CONFIG, TEST_CONFIG, OFFLINE_CONFIG
 
 from environment.carla_9_4.dashcam import Visualizer
 
@@ -45,16 +48,19 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
-# class Parser(utils.Parser):
-#     dataset: str = 'leaderboard'
-#     config: str = 'config.offline'
-#
-# args = Parser().parse_args('plan')
+policy_set = {'dvae_dt', 'bt', 'dt', 'tt'}
+
+def infer_policy_class(ckpt_folder):
+    folder_list = ckpt_folder.split('/')
+    for folder in folder_list:
+        if folder in policy_switch:
+            return folder
+    raise ValueError('policy for [{}] not found'.format(ckpt_folder))
 
 utils.set_device(ENV_CONFIG['device'])
 
 gpt, gpt_epoch = utils.load_model(
-        '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
+        OFFLINE_CONFIG['offline_policy_location']
         epoch='latest', device=ENV_CONFIG['device'])
 print('[59 load model]', gpt, gpt_epoch)
 
@@ -62,17 +68,53 @@ T = 20000
 
 gpt.eval()
 
-policy = DVAEBTPolicy(
-    gpt,
-    10,
-    15,
-    2,
-    0.95,
-    bs=1,
-    max_history=2,
-    device=ENV_CONFIG['device'],
-)
+policy_type = infer_policy_class(OFFLINE_CONFIG['offline_policy_location'])
 
+if policy_type == 'dvae_dt':
+    policy = DVAEBTPolicy(
+        gpt,
+        10,
+        15,
+        2,
+        0.95,
+        bs=1,
+        max_history=2,
+        device=ENV_CONFIG['device'],
+    )
+elif policy_type == 'bt':
+    policy = BTPolicy(
+        gpt,
+        10,
+        15,
+        2,
+        0.95,
+        bs=1,
+        max_history=2,
+        device=ENV_CONFIG['device'],
+    )
+elif policy_type == 'dt':
+    policy = DTPolicy(
+        gpt,
+        15000.,
+        15,
+        2,
+        0.95,
+        bs=1,
+        max_history=2,
+        device=ENV_CONFIG['device'],
+    )
+elif policy_type == 'tt':
+    policy = TTPolicy(
+        gpt,
+        123123.,
+        15,
+        2,
+        0.95,
+        bs=1,
+        max_history=2,
+        device=ENV_CONFIG['device'],
+    )
+        
 def get_entry_point():
     return 'PPOAgent'
 

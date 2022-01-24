@@ -177,6 +177,10 @@ PPO_CONFIG = {
     'optim_epochs': 10,
 }
 
+OFFLINE_CONFIG = {
+    'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
+}
+
 TEST_CONFIG = {
     'PPO': False, # else SAC, currently only support those two
     # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
