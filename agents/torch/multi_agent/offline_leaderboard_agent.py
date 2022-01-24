@@ -9,7 +9,9 @@ import time
 import math
 import copy
 
-sys.path.append('')
+sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl')
+# sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl/config')
+
 from trajectory.policies.dvae_bt_policy import DVAEBTPolicy
 import trajectory.utils as utils
 
@@ -43,17 +45,18 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
-class Parser(utils.Parser):
-    dataset: str = 'leaderboard'
-    config: str = 'config.offline'
+# class Parser(utils.Parser):
+#     dataset: str = 'leaderboard'
+#     config: str = 'config.offline'
+#
+# args = Parser().parse_args('plan')
 
-args = Parser().parse_args('plan')
-
-utils.set_device(args.device)
+utils.set_device(ENV_CONFIG['device'])
 
 gpt, gpt_epoch = utils.load_model(
-        'asd',
-        epoch='latest', device=args.device)
+        '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
+        epoch='latest', device=ENV_CONFIG['device'])
+print('[59 load model]', gpt, gpt_epoch)
 
 T = 20000
 
@@ -61,12 +64,14 @@ gpt.eval()
 
 policy = DVAEBTPolicy(
     gpt,
-    args.horizon,
+    10,
     15,
     2,
     0.95,
     bs=1,
-    device=args.device)
+    max_history=2,
+    device=ENV_CONFIG['device'],
+)
 
 def get_entry_point():
     return 'PPOAgent'
@@ -114,9 +119,9 @@ class PPOAgent(AutonomousAgent):
 
     def __init__(self, *args, **kwargs):
         global episode, savetime, videos, sub_folder, vid_log_dir
-        self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
-        _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
-        self.glb_policy.load_state_dict(_ckpt['glb_policy'])
+        # self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
+        # _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
+        # self.glb_policy.load_state_dict(_ckpt['glb_policy'])
         self.config = ENV_CONFIG
         self.target_speed = self.config['target_speed']
         self.args_longitudinal_dict = {
@@ -619,10 +624,10 @@ class PPOAgent(AutonomousAgent):
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
-        
+
     def create_observations(self, agent):
         obs = {}
-        
+
         obs['observation'] = np.array([agent.episode_measurements['next_orientation']])
 
         if self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
@@ -885,7 +890,7 @@ class PPOAgent(AutonomousAgent):
             - control: Control object for Carla
         """
         steer = self._turn_controller.step(float(action[0]))
-        steer = np.clip(steer, -1., 1.)  
+        steer = np.clip(steer, -1., 1.)
         steer = round(steer, 3)
         target_speed = (action[1] * 1.5) + 1
         # print('action[1]', action[1], 'target_speed', target_speed)
@@ -963,15 +968,15 @@ class PPOAgent(AutonomousAgent):
                 self._agent.episode_measurements['num_collisions'] = 0
                 self._agent.episode_measurements['collision_actor_id'] = -1
                 self._agent.episode_measurements['collision_actor_type'] = None
-
+                self._agent.episode_measurements['distance_to_goal'] = 10000
                 self._agent.episode_measurements['num_laneintersections'] = 0
                 self._agent.episode_measurements['out_of_road'] = False
                 self._agent.episode_measurements['unlawful_lane_change'] = False
-                self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
                 self._agent._proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._traffic_light_proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._front_obs_proximity_threshold = self.config['front_obs_proximity_threshold']
                 self._agent.vehicle_actor = hero_actor
+
                 # add sensor
                 self._agent.actor_list = []
                 self._agent.collision_sensor = sensors.CollisionSensor(self._agent.vehicle_actor)
@@ -1031,6 +1036,8 @@ class PPOAgent(AutonomousAgent):
         #     st()
         # action = self.get_action(preprocess_inputs)
         self._update_env_obs(self._agent, input_data)
+        self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
+
         obs = self.create_observations(self._agent)
         # print(obs)
 
@@ -1038,7 +1045,7 @@ class PPOAgent(AutonomousAgent):
 
         action, sequence, candidates, world_index, policy_index = policy(
             obs, max_horizon=T - self.steps, return_plans=True)
-        print(self.steps, obs, action)
+        # print(self.steps, obs, action)
         # action, _ = self.glb_policy.act(state_tensor, deterministic=True)
         self._agent.episode_measurements['num_collisions'] = self._agent.collision_sensor.num_collisions
         self._agent.episode_measurements['collision_actor_id'] = self._agent.collision_sensor.actor_id
