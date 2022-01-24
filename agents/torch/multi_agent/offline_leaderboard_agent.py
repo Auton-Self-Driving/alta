@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 
-import os
+import sys, os
 import carla
 import torch
 import pyproj
 import traceback
 import time
 import math
+import copy
+
+sys.path.append('')
+from trajectory.policies.dvae_bt_policy import DVAEBTPolicy
+import trajectory.utils as utils
 
 import numpy as np
 import environment.carla_9_4.controller as controller
@@ -14,6 +19,7 @@ import environment.carla_9_4.sensors as sensors
 
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.planner import GlobalPlanner
+from environment.carla_9_4.reward import compute_reward
 from network import PPOActorCritic_Continuous
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -30,9 +36,37 @@ from environment.carla_9_4.env_util import (
     convert_route_from_GPS_world
 )
 
+# transfuser autopilot
+from transfuser_autopilot import PIDController
 
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
+
+
+class Parser(utils.Parser):
+    dataset: str = 'leaderboard'
+    config: str = 'config.offline'
+
+args = Parser().parse_args('plan')
+
+utils.set_device(args.device)
+
+gpt, gpt_epoch = utils.load_model(
+        'asd',
+        epoch='latest', device=args.device)
+
+T = 20000
+
+gpt.eval()
+
+policy = DVAEBTPolicy(
+    gpt,
+    args.horizon,
+    15,
+    2,
+    0.95,
+    bs=1,
+    device=args.device)
 
 def get_entry_point():
     return 'PPOAgent'
@@ -65,71 +99,6 @@ elif ENV_CONFIG['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
     N_S, N_A = 15, 2
 else:
     N_S, N_A = 7, 2
-
-# def _latlon_to_ecef(lat,lon,alt):
-#     # Projections
-#     ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
-#     lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
-
-#     # Transform from lat/lon to ecef
-#     x,y,z= pyproj.transform(p1=lla,
-#         p2 = ecef,
-#         x = lon,
-#         y = lat,
-#         z = alt,
-#         radians=False)
-
-#     return x, y, z
-
-# def get_world_coords_from_latlong(latitude, longitude, altitude, world_map):
-#     origin_latlong = world_map.transform_to_geolocation(carla.Location())
-
-#     # Origin in ECEF coordinates
-#     O_ecef = _latlon_to_ecef(origin_latlong.latitude, origin_latlong.longitude, origin_latlong.altitude)
-
-#     # Convert GNSS data to ECEF coordinates
-#     P_ecef = _latlon_to_ecef(latitude, longitude, altitude)
-
-#     # Calculate difference between current location and origin
-#     #FIXME The /2 constant is a hacky fix to get this working - this shouldn't be here
-#     delta = np.expand_dims(np.array(P_ecef) - np.array(O_ecef), axis = 1)
-
-#     # Create the rotation matrix to convert from ECEF to ENU Coords
-#     ecef_to_enu_rot = np.array(
-#         [[-np.sin(longitude), np.cos(longitude), 0],
-#          [-np.sin(latitude) * np.cos(longitude), -np.sin(latitude) * np.sin(longitude), np.cos(latitude)],
-#          [np.cos(latitude) * np.cos(longitude), np.cos(latitude) * np.sin(longitude), np.sin(latitude)]]
-#     )
-#     enu = ecef_to_enu_rot @ delta
-
-#     # Create rotation matrix to convert from right hand ENU frame to left-hand CARLA frame
-#     enu_to_carla_rot = np.array(
-#         [[1, 0, 0],
-#          [0,-1, 0],
-#          [0, 0, 1]]
-#     )
-#     return enu_to_carla_rot @ enu
-
-
-# def convert_route_from_GPS_world(route, world_map):
-
-#     # Example route input
-#     # route =[({'z': 0.0, 'lat': 48.99822669411668, 'lon': 8.002271601998707}, RoadOption.LEFT),
-#     #     ({'z': 0.0, 'lat': 48.99822669411668, 'lon': 8.002709765148996}, RoadOption.RIGHT),
-#     #     ({'z': 0.0, 'lat': 48.99822679980298, 'lon': 8.002735250105061}, RoadOption.STRAIGHT)
-#     #     ]
-
-#     mapped_route = []
-#     for idx, pt in enumerate(route):
-#         print(pt)
-#         altitude = pt[0]['z']
-#         latitude = pt[0]['lat']
-#         longitude = pt[0]['lon']
-#         world_coord = get_world_coords_from_latlong(latitude, longitude, altitude, world_map)
-#         x, y, z = world_coord[0][0], world_coord[1][0], world_coord[2][0]
-#         mapped_route.append(carla.Transform(carla.Location(x=x, y=y, z=z), carla.Rotation()))
-#     return mapped_route
-
 
 episode = -1
 savetime = lambda: time.strftime('%b%d%I%M%p%S')
@@ -524,34 +493,8 @@ class PPOAgent(AutonomousAgent):
         return image
 
     def _configure_planner(self, map_string):
-        # self._map = carla.Map("map", map_string)
-        # self._map = CarlaDataProvider._map
-        # Instantiate the global planner
-        # print('[416], self._global_plan', self._global_plan)
-        # self.scenario_route = convert_route_from_GPS_world(self._global_plan, self._map)
-        # wp_list = []
-        # loc_list = []
-        # for transform, _ in self._global_plan_world_coord:
-        #     loc_list.append(transform.location)
-        #     wp_list.append(self._map.get_waypoint(transform.location))
-        # _, self.route, self.trace_route = interpolate_trajectory(CarlaDataProvider._world, loc_list)
-
-        # draw_waypoints(CarlaDataProvider._world, wp_list)
-
         self.global_planner = GlobalPlanner()
         self.trace_route = []
-        # for idx in range(len(self.scenario_route) - 1):
-        #     source = self.scenario_route[idx]
-        #     destination = self.scenario_route[idx+1]
-        #     trace_route = self.global_planner.trace_route(self._map,
-        #                     source, destination)
-        #     self.trace_route.extend(trace_route)
-        # for idx in range(len(self._global_plan_world_coord) - 1):
-        #     source = self._global_plan_world_coord[idx][0]
-        #     destination = self._global_plan_world_coord[idx+1][0]
-        #     trace_route = self.global_planner.trace_route(self._map,
-        #                     source, destination)
-        #     self.trace_route.extend(trace_route)
 
         # cheating
         plan = []
@@ -640,34 +583,6 @@ class PPOAgent(AutonomousAgent):
             # print('[479], self._global_plan', len(self._global_plan), self._global_plan)
             # print('[480], self._global_plan_world_coord', len(self._global_plan_world_coord), self._global_plan_world_coord)
             self._configure_planner(input_data['OpenDRIVE'][1]['opendrive'])
-            # if self._global_plan:
-            #     plan = []
-            #     self.global_planner = GlobalPlanner()
-            #     prev = None
-            #     for transform, _ in self._global_plan_world_coord:
-            #         wp = self._map.get_waypoint(transform.location)
-            #         # wp = transform
-            #         if  prev:
-            #             route_segment = self._agent._trace_route(prev, wp)
-            #             # route_segment = self.global_planner.trace_route(
-            #             #     self._map, prev, wp)
-            #             plan.extend(route_segment)
-            #         prev = wp
-
-            #     wp_list = []
-            #     for wp, _ in plan:
-            #         wp_list.append(wp)
-
-            #     draw_waypoints(CarlaDataProvider._world, wp_list)
-
-            #     self.global_planner.set_global_plan(plan)
-
-            #     # loc = plan[-1][0].transform.location
-            #     # self._agent.set_destination([loc.x, loc.y, loc.z])
-            #     # self._agent._local_planner.set_global_plan(plan)  # pylint: disable=protected-access
-            #     self._route_assigned = True
-            # else:
-            #     raise ValueError('No waypoints found')
             self._route_assigned = True
 
         # vehicle_transform = self._get_vehicle_transform(input_data["GPS"][1], input_data['IMU'][1])
@@ -969,7 +884,9 @@ class PPOAgent(AutonomousAgent):
         Output:
             - control: Control object for Carla
         """
-        steer = np.clip(.5 * float(action[0]), -0.5, .5)
+        steer = self._turn_controller.step(float(action[0]))
+        steer = np.clip(steer, -1., 1.)  
+        steer = round(steer, 3)
         target_speed = (action[1] * 1.5) + 1
         # print('action[1]', action[1], 'target_speed', target_speed)
         target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
@@ -988,28 +905,20 @@ class PPOAgent(AutonomousAgent):
         # current_speed = self._agent.episode_measurements['speed']
         current_speed = self._agent.episode_measurements['speed'] * 3.6
 
-        gas = self.controller.pid_control(target_speed, current_speed, enable_brake=True)
-        if gas < 0:
-            throttle = 0.0
-            brake = abs(gas)
-        else:
-            throttle = gas
-            brake = 0.0
-        '''print("#"*50)
-        print(current_speed, target_speed)
-        print(throttle)
-        print(brake)
-        print(steer)
-        print("#"*50)'''
+        delta = np.clip(target_speed - current_speed, 0.0, 0.25)
+        throttle = self._speed_controller.step(delta)
+        throttle = np.clip(throttle, 0.0, 0.75)
 
-        control = carla.VehicleControl(
-            throttle=throttle,
-            steer=steer,
-            brake=brake,
-            hand_brake=False,
-            reverse=False,
-            manual_gear_shift=False,
-            gear=0)
+        brake = False
+        if target_speed < current_speed: # brake
+            brake = True
+            steer *= 0.5
+            throttle = 0.0
+
+        control = carla.VehicleControl()
+        control.steer = steer
+        control.throttle = throttle
+        control.brake = float(brake)
 
         return control
 
@@ -1025,13 +934,11 @@ class PPOAgent(AutonomousAgent):
                     break
             if hero_actor:
                 # init add-ons
+                policy.reset()
                 self.traffic_actors = CarlaDataProvider.get_world().get_actors().filter("*traffic_light*")
                 self._map = CarlaDataProvider.get_map()
-                self.controller = controller.PIDLongitudinalController(
-                    K_P=self.args_longitudinal_dict['K_P'],
-                    K_D=self.args_longitudinal_dict['K_D'],
-                    K_I=self.args_longitudinal_dict['K_I'],
-                    dt=self.args_longitudinal_dict['dt'],)
+                self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
+                self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
                 self.static_episode_problem = False
                 self._agent = BasicAgent(hero_actor, proximity_threshold=15.)
                 self._agent.rank = 0
@@ -1053,12 +960,27 @@ class PPOAgent(AutonomousAgent):
                 self._agent.episode_measurements['obstacle_dist'] = -1
                 self._agent.episode_measurements['obstacle_speed'] = -1
                 self._agent.episode_measurements['obstacle_orientation'] = -1
+                self._agent.episode_measurements['num_collisions'] = 0
+                self._agent.episode_measurements['collision_actor_id'] = -1
+                self._agent.episode_measurements['collision_actor_type'] = None
+
+                self._agent.episode_measurements['num_laneintersections'] = 0
+                self._agent.episode_measurements['out_of_road'] = False
+                self._agent.episode_measurements['unlawful_lane_change'] = False
+                self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
                 self._agent._proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._traffic_light_proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._front_obs_proximity_threshold = self.config['front_obs_proximity_threshold']
                 self._agent.vehicle_actor = hero_actor
                 # add sensor
                 self._agent.actor_list = []
+                self._agent.collision_sensor = sensors.CollisionSensor(self._agent.vehicle_actor)
+                self._agent.actor_list.append(self._agent.collision_sensor.sensor)
+
+                # if self.config["enable_lane_invasion_sensor"]:
+                #     self._agent.lane_invasion_sensor = sensors.LaneInvasionSensor(self._agent.vehicle_actor)
+                #     self._agent.actor_list.append(self._agent.lane_invasion_sensor.sensor)
+
                 if self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
                     obs_sensors = {
                         'front': sensors.ObstacleSensor(self._agent.vehicle_actor,
@@ -1111,20 +1033,24 @@ class PPOAgent(AutonomousAgent):
         self._update_env_obs(self._agent, input_data)
         obs = self.create_observations(self._agent)
         # print(obs)
-        # CarlaDataProvider.get_actor_by_id()
-        # print('979', list(CarlaDataProvider.get_actors()))
-        # all_actors = list(CarlaDataProvider.get_world().get_actors())
-        # all_act_list = []
-        # for act in all_actors:
-        #     all_act_list.append((act.id, act))
-        # all_act_list.sort()
-        # print('980', all_act_list)
 
-        # raise NotImplementedError()
+        # state_tensor = torch.from_numpy(obs).to(torch.float).to(ENV_CONFIG['device'])
 
-        state_tensor = torch.from_numpy(obs).to(torch.float).to(ENV_CONFIG['device'])
-        action, _ = self.glb_policy.act(state_tensor, deterministic=True)
-        # self.previous_steer = action[0]
+        action, sequence, candidates, world_index, policy_index = policy(
+            obs, max_horizon=T - self.steps, return_plans=True)
+        print(self.steps, obs, action)
+        # action, _ = self.glb_policy.act(state_tensor, deterministic=True)
+        self._agent.episode_measurements['num_collisions'] = self._agent.collision_sensor.num_collisions
+        self._agent.episode_measurements['collision_actor_id'] = self._agent.collision_sensor.actor_id
+        self._agent.episode_measurements['collision_actor_type'] = self._agent.collision_sensor.actor_type
+
+        step_reward = compute_reward(name=self.config['reward_function'],
+            prev_measurement=self._agent.prev_measurement,
+            cur_measurement=self._agent.episode_measurements,
+            config=self.config,
+            verbose=self.config["verbose"])
+
+        # policy.update_context(obs, action, step_reward)
 
         control = self.get_control(input_data, action)
 
@@ -1133,6 +1059,8 @@ class PPOAgent(AutonomousAgent):
         self._agent.episode_measurements['control_brake'] = control.brake
         self._agent.episode_measurements['control_reverse'] = control.reverse
         self._agent.episode_measurements['control_hand_brake'] = control.hand_brake
+
+        self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
 
         return control
 
