@@ -9,13 +9,16 @@ import time
 import math
 import copy
 
-sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl')
-# sys.path.append('/zfsauton2/home/zhehuang/Documents/transformer_rl/config')
+from config import ENV_CONFIG, TEST_CONFIG, OFFLINE_CONFIG
+
+sys.path.append(os.path.abspath(OFFLINE_CONFIG['offline_repo_location']))
+sys.path.append(os.path.abspath(OFFLINE_CONFIG['offline_repo_location'] + '/..'))
 
 from trajectory.policies.dvae_bt_policy import DVAEBTPolicy
 from trajectory.policies.bt_policy import BTPolicy
 from trajectory.policies.dt_policy import DTPolicy
 from trajectory.policies.tt_policy import TTPolicy
+from trajectory.policies.rlkit_policy import RLKitPolicy
 import trajectory.utils as utils
 
 import numpy as np
@@ -31,8 +34,6 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 from leaderboard.utils.route_manipulation import interpolate_trajectory
 
-from config import ENV_CONFIG, TEST_CONFIG, OFFLINE_CONFIG
-
 from environment.carla_9_4.dashcam import Visualizer
 
 from environment.carla_9_4.env_util import (
@@ -47,62 +48,73 @@ from transfuser_autopilot import PIDController
 os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
-policy_set = {'dvae_dt', 'bt', 'dt', 'tt'}
+
+policy_set = {'dvae_dt', 'bt', 'dt', 'tt', 'iql'}
 
 def infer_policy_class(ckpt_folder):
     folder_list = ckpt_folder.split('/')
     for folder in folder_list:
         if folder in policy_set:
             return folder
-    raise ValueError('policy for [{}] not found'.format(ckpt_folder))
-
-utils.set_device(ENV_CONFIG['device'])
-
-dataset = utils.load_from_config(
-    OFFLINE_CONFIG['offline_policy_location'],
-    'data_config.pkl')
-
-discretizer = dataset.discretizer
-value_fn = lambda x: discretizer.value_fn(x, 'mean')
-discount = dataset.discount
-observation_dim = dataset.observation_dim
-action_dim = dataset.action_dim
-max_return = dataset.get_max_return()
-
-gpt, gpt_epoch = utils.load_model(
-        OFFLINE_CONFIG['offline_policy_location'],
-        epoch='latest', device=ENV_CONFIG['device'])
-print('[59 load model]', gpt, gpt_epoch)
-
-T = 20000
-
-gpt.eval()
+    return 'iql'
 
 policy_type = infer_policy_class(OFFLINE_CONFIG['offline_policy_location'])
 
+if policy_type != 'iql':
+    class Parser(utils.Parser):
+        dataset: str = 'lowerdimobs-random-ttc'
+        config: str = 'transformer_rl.config.offline'
+
+    if policy_type == 'tt':
+        args = Parser().parse_args('tt_plan')
+    else:
+        args = Parser().parse_args('plan')
+
+    utils.set_device(ENV_CONFIG['device'])
+
+    dataset = utils.load_from_config(
+        OFFLINE_CONFIG['offline_policy_location'],
+        'data_config.pkl')
+
+    discount = dataset.discount
+    observation_dim = dataset.observation_dim
+    action_dim = dataset.action_dim
+
+    gpt, gpt_epoch = utils.load_model(
+            OFFLINE_CONFIG['offline_policy_location'],
+            epoch='latest', device=ENV_CONFIG['device'])
+    print('[59 load model]', gpt, gpt_epoch)
+
+    gpt.eval()
+else:
+    policy = RLKitPolicy(OFFLINE_CONFIG['offline_policy_location'],
+        ENV_CONFIG['device'])
+
+
 if policy_type == 'dvae_dt':
+
     policy = DVAEBTPolicy(
         gpt,
-        10,
+        args.horizon,
         observation_dim,
         action_dim,
         discount,
         bs=1,
-        max_history=2,
+        max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
 elif policy_type == 'bt':
     policy = BTPolicy(
         gpt,
-        10,
         observation_dim,
         action_dim,
         discount,
         bs=1,
-        max_history=2,
+        max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
 elif policy_type == 'dt':
+    max_return = dataset.get_max_return()
     policy = DTPolicy(
         gpt,
         max_return * 1.0,
@@ -110,30 +122,32 @@ elif policy_type == 'dt':
         action_dim,
         discount,
         bs=1,
-        max_history=2,
+        max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
 elif policy_type == 'tt':
+    discretizer = dataset.discretizer
+    value_fn = lambda x: discretizer.value_fn(x, 'mean')
     policy = TTPolicy(
         gpt,
         discretizer,
-        10,
-        128,
-        2,
+        args.horizon,
+        args.beam_width,
+        args.n_expand,
         value_fn,
         observation_dim,
         action_dim,
         discount,
-        verbose=False,
-        k_obs=1,
-        k_act=None,
-        cdf_obs=None,
-        cdf_act=0.6,
-        prefix_context=True,
-        max_history=2,
+        verbose=args.verbose,
+        k_obs=args.k_obs,
+        k_act=args.k_act,
+        cdf_obs=args.cdf_obs,
+        cdf_act=args.cdf_act,
+        prefix_context=args.prefix_context,
+        max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
-        
+
 def get_entry_point():
     return 'PPOAgent'
 
@@ -185,11 +199,6 @@ class PPOAgent(AutonomousAgent):
         # self.glb_policy.load_state_dict(_ckpt['glb_policy'])
         self.config = ENV_CONFIG
         self.target_speed = self.config['target_speed']
-        self.args_longitudinal_dict = {
-            'K_P': 0.1,
-            'K_D': 0.0005,
-            'K_I': 0.4,
-            'dt': 1/10.0}
         if videos:
             self.viz = Visualizer(images_path=vid_log_dir, video_path=vid_log_dir)
         # have to put init at last since it will call self.setup first
@@ -1104,8 +1113,14 @@ class PPOAgent(AutonomousAgent):
 
         # state_tensor = torch.from_numpy(obs).to(torch.float).to(ENV_CONFIG['device'])
 
-        action, sequence, candidates, world_index, policy_index = policy(
-            obs, max_horizon=T - self.steps, return_plans=True)
+        if policy_type == 'dvae_dt':
+            action, sequence, candidates, world_index, policy_index = policy(
+                obs, max_horizon=None, return_plans=True)
+        elif policy_type in {'bt', 'dt'}:
+            action = policy(obs)
+        elif policy_type == 'tt':
+            action, sequence, candidates = policy(
+                obs, max_horizon=None, return_plans=True)
         # print(self.steps, obs, action)
         # action, _ = self.glb_policy.act(state_tensor, deterministic=True)
         self._agent.episode_measurements['num_collisions'] = self._agent.collision_sensor.num_collisions
@@ -1118,8 +1133,11 @@ class PPOAgent(AutonomousAgent):
             config=self.config,
             verbose=self.config["verbose"])
 
-        if policy_type in {'dt', 'tt'}:
-            policy.update_context(obs, action, step_reward)
+        if policy_type == 'dt' or policy_type == 'tt':
+            policy.update_context(obs, action, np.array(step_reward))
+        # elif policy_type == 'tt':
+            # print(obs.shape, action.shape, action[:, None].shape)
+        #     policy.update_context(obs, action, step_reward)
 
         control = self.get_control(input_data, action)
 

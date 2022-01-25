@@ -178,7 +178,20 @@ PPO_CONFIG = {
 }
 
 OFFLINE_CONFIG = {
-    'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
+    'offline_repo_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed0_run3/',
+    'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed2_run3/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed0/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed1/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed2/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed0/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed1/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed2/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed0/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed1/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed2/',
+    # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/01-23-train-leaderboard',
 }
 
 TEST_CONFIG = {
@@ -437,7 +450,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:3',
+    'device': 'cuda:2',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
