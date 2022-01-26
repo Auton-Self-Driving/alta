@@ -353,10 +353,12 @@ class PPOAgent(AutonomousAgent):
         for target_vehicle in CarlaDataProvider.get_world().get_actors():
             # do not account for the ego vehicle
             try:
-                if target_vehicle is None or hasattr(target_vehicle, 'done') and target_vehicle.done: continue
-                if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
-                    # skip self and non-vehicular
-                    continue
+                # print(target_vehicle, dir(target_vehicle))
+                if 'vehicle' not in target_vehicle.type_id: continue
+                # if not hasattr(target_vehicle, 'id'): continue
+                # if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
+                #     # skip self and non-vehicular
+                #     continue
 
                 # if the object is not in our lane it's not an obstacle
                 target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
@@ -364,26 +366,6 @@ class PPOAgent(AutonomousAgent):
                 d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                             agent.vehicle_actor.get_transform(),
                                             self.config['front_obs_proximity_threshold'])
-
-
-                side_bool, side_dist, side_orient = self._is_in_neighboring_lane(
-                    target_vehicle.get_transform(),
-                    agent.vehicle_actor.get_transform(),
-                    self.config['front_obs_proximity_threshold'],
-                )
-
-                if side_orient == -1: # left
-                    if agent.episode_measurements['obstacle_dist_left'] == -1 or \
-                        side_dist < agent.episode_measurements['obstacle_dist_left']:
-                        agent.episode_measurements['obstacle_dist_left'] = side_dist
-                        agent.episode_measurements['obstacle_speed_left'] = \
-                            self.get_speed_from_velocity(target_vehicle.get_velocity())
-                elif side_orient == 1:
-                    if agent.episode_measurements['obstacle_dist_right'] == -1 or \
-                        side_dist < agent.episode_measurements['obstacle_dist_right']:
-                        agent.episode_measurements['obstacle_dist_right'] = side_dist
-                        agent.episode_measurements['obstacle_speed_right'] = \
-                            self.get_speed_from_velocity(target_vehicle.get_velocity())
 
                 if not d_bool:
                     continue
@@ -403,15 +385,12 @@ class PPOAgent(AutonomousAgent):
                 print('>>> skip this vehicle {} due to [{}]'.format(target_vehicle, e))
                 if target_vehicle is None or hasattr(target_vehicle, 'done'):
                     print(target_vehicle.done, target_vehicle.termination_state, target_vehicle.rank, target_vehicle.num_total_steps)
-                self.spawn_npc_vehicles()
-                time.sleep(4)
-                return
 
         if not found_obstacle:
             agent.episode_measurements['obstacle_dist'] = -1
             agent.episode_measurements['obstacle_speed'] = -1
-        # else:
-        #     print('obstacle actor {}, dist: {}'.format(target_vehicle, distance))
+        else:
+            print('obstacle actor {}, dist: {}'.format(target_vehicle, distance))
 
     def _update_obs_detector_via_sensor(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
@@ -680,6 +659,7 @@ class PPOAgent(AutonomousAgent):
                 self._update_obs_detector_via_privilege(agent)
             elif self.config['enable_obstacle_sensor']:
                 self._update_obs_detector_via_sensor(agent)
+                # self._update_obs_detector_via_privilege(agent)
             else:
                 self._update_obs_detector_via_privilege(agent)
 
@@ -959,12 +939,22 @@ class PPOAgent(AutonomousAgent):
         Output:
             - control: Control object for Carla
         """
+        current_speed = self._agent.episode_measurements['speed'] * 3.6
+
         steer = self._turn_controller.step(float(action[0]))
         steer = np.clip(steer, -1., 1.)
         steer = round(steer, 3)
+        if current_speed < 0.05:
+            angle = np.array(0.) # When we don't move we don't want the angle error to accumulate in the integral
         target_speed = (action[1] * 1.5) + 1
-        # print('action[1]', action[1], 'target_speed', target_speed)
+
         target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
+
+        print('action[1]', action[1], 'target_speed', target_speed)
+
+        delta = np.clip(target_speed / 3.6 - current_speed / 3.6, 0.0, 0.25)
+        throttle = self._speed_controller.step(delta)
+        throttle = np.clip(throttle, 0.0, 0.75)
 
         # if static, push a little bit
         # if self._agent.episode_measurements['static_steps'] > self.config['max_static_steps']:
@@ -973,22 +963,15 @@ class PPOAgent(AutonomousAgent):
             print('[878] static_episode_problem. Need push !!!')
             self.static_episode_problem = True
 
-        # TODO: Need to replace this once we get to know how to extract agent's current velocity from IMU/speedometer sensors
-        # current_speed = self.get_speed_from_velocity(input_data['SPEED'][1]['speed']) * 3.6
-        # current_speed = input_data['SPEED'][1]['speed'] *  3.6
-        # current_speed = input_data['SPEED'][1]['speed']
-        # current_speed = self._agent.episode_measurements['speed']
-        current_speed = self._agent.episode_measurements['speed'] * 3.6
+        # brake = False
+        brake = target_speed < 3.5 * 3.6 or current_speed / target_speed > 1.1
 
-        delta = np.clip(target_speed - current_speed, 0.0, 0.25)
-        throttle = self._speed_controller.step(delta)
-        throttle = np.clip(throttle, 0.0, 0.75)
+        throttle = throttle if not brake else 0.0
 
-        brake = False
-        if target_speed < current_speed: # brake
-            brake = True
-            steer *= 0.5
-            throttle = 0.0
+        # if target_speed < current_speed: # brake
+        #     brake = True
+        #     steer *= 0.5
+        #     throttle = 0.0
 
         control = carla.VehicleControl()
         control.steer = steer
@@ -1015,7 +998,7 @@ class PPOAgent(AutonomousAgent):
                 self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
                 self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
                 self.static_episode_problem = False
-                self._agent = BasicAgent(hero_actor, proximity_threshold=15.)
+                self._agent = BasicAgent(hero_actor, proximity_threshold=self.config['front_obs_proximity_threshold'])
                 self._agent.rank = 0
                 self._agent.episode_measurements = {}
                 self._agent.episode_measurements['static_steps'] = 0
@@ -1040,12 +1023,14 @@ class PPOAgent(AutonomousAgent):
                 self._agent.episode_measurements['collision_actor_type'] = None
                 self._agent.episode_measurements['distance_to_goal'] = 10000
                 self._agent.episode_measurements['num_laneintersections'] = 0
+                self._agent.episode_measurements['speed'] = 0
                 self._agent.episode_measurements['out_of_road'] = False
                 self._agent.episode_measurements['unlawful_lane_change'] = False
                 self._agent._proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._traffic_light_proximity_threshold = self.config['traffic_light_proximity_threshold']
                 self._agent._front_obs_proximity_threshold = self.config['front_obs_proximity_threshold']
                 self._agent.vehicle_actor = hero_actor
+                self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
 
                 # add sensor
                 self._agent.actor_list = []
@@ -1106,7 +1091,6 @@ class PPOAgent(AutonomousAgent):
         #     st()
         # action = self.get_action(preprocess_inputs)
         self._update_env_obs(self._agent, input_data)
-        self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
 
         obs = self.create_observations(self._agent)
         # print(obs)
@@ -1132,6 +1116,8 @@ class PPOAgent(AutonomousAgent):
             cur_measurement=self._agent.episode_measurements,
             config=self.config,
             verbose=self.config["verbose"])
+
+        self._agent.prev_measurement = copy.deepcopy(self._agent.episode_measurements)
 
         if policy_type == 'dt' or policy_type == 'tt':
             policy.update_context(obs, action, np.array(step_reward))

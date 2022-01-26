@@ -217,6 +217,7 @@ class ObstacleSensor(object):
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.obstacle')
         bp.set_attribute('only_dynamics', 'True')
+        # bp.set_attribute('debug_linetrace', 'True')
         bp.set_attribute('distance', str(distance))
         # hit_radius = math.atan(1 / distance) # calculate detection range
         bp.set_attribute('hit_radius', str(hit_radius))
