@@ -1100,7 +1100,7 @@ class PPOAgent(AutonomousAgent):
         if policy_type == 'dvae_dt':
             action, sequence, candidates, world_index, policy_index = policy(
                 obs, max_horizon=None, return_plans=True)
-        elif policy_type in {'bt', 'dt'}:
+        elif policy_type in {'bt', 'dt', 'iql'}:
             action = policy(obs)
         elif policy_type == 'tt':
             action, sequence, candidates = policy(

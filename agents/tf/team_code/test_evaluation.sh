@@ -26,7 +26,7 @@ export TEAM_AGENT=$ALTA/agents/torch/multi_agent/offline_leaderboard_agent.py
 export DEBUG_CHALLENGE=1
 export RESUME=true
 export CHECKPOINT_ENDPOINT=simulation_results_dvae_bt_seed2_noT.json
-# export CHECKPOINT_ENDPOINT=simulation_results_bc_seed0.json
+# export CHECKPOINT_ENDPOINT=simulation_results_bc_seed2.json
 # export CHECKPOINT_ENDPOINT=simulation_results_dt_seed2.json
 # export CHECKPOINT_ENDPOINT=simulation_results_tt_seed0.json
 # export CHECKPOINT_ENDPOINT=simulation_results_iql_jan24.json
@@ -50,7 +50,7 @@ python -u ${LEADERBOARD_ROOT}/leaderboard_evaluator.py \
 --port=2000 \
 --trafficManagerPort=4050 \
 --checkpoint=${CHECKPOINT_ENDPOINT} \
-# --resume=${RESUME} 
+--resume=${RESUME} 
 #--record=${RECORD_PATH} \
 #--agent-config=${TEAM_CONFIG} \
 
