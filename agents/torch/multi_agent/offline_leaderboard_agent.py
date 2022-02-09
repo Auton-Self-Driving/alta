@@ -56,7 +56,7 @@ def infer_policy_class(ckpt_folder):
     for folder in folder_list:
         if folder in policy_set:
             return folder
-    return 'iql'
+    return 'dvae_dt' if 'dvae_bt_set' in ckpt_folder else 'iql'
 
 policy_type = infer_policy_class(OFFLINE_CONFIG['offline_policy_location'])
 
@@ -81,8 +81,8 @@ if policy_type != 'iql':
     action_dim = dataset.action_dim
 
     gpt, gpt_epoch = utils.load_model(
-            OFFLINE_CONFIG['offline_policy_location'],
-            epoch='latest', device=ENV_CONFIG['device'])
+        OFFLINE_CONFIG['offline_policy_location'],
+        epoch=OFFLINE_CONFIG['epoch'], device=ENV_CONFIG['device'])
     print('[59 load model]', gpt, gpt_epoch)
 
     gpt.eval()
@@ -964,7 +964,8 @@ class PPOAgent(AutonomousAgent):
             self.static_episode_problem = True
 
         # brake = False
-        brake = target_speed < 3.5 * 3.6 or current_speed / target_speed > 1.1
+        # brake = target_speed < 3.5 * 3.6 or current_speed / target_speed > 1.1
+        brake = target_speed < 10 or current_speed / target_speed > 1.1
 
         throttle = throttle if not brake else 0.0
 
@@ -1105,7 +1106,6 @@ class PPOAgent(AutonomousAgent):
         elif policy_type == 'tt':
             action, sequence, candidates = policy(
                 obs, max_horizon=None, return_plans=True)
-        # print(self.steps, obs, action)
         # action, _ = self.glb_policy.act(state_tensor, deterministic=True)
         self._agent.episode_measurements['num_collisions'] = self._agent.collision_sensor.num_collisions
         self._agent.episode_measurements['collision_actor_id'] = self._agent.collision_sensor.actor_id
@@ -1124,6 +1124,8 @@ class PPOAgent(AutonomousAgent):
         # elif policy_type == 'tt':
             # print(obs.shape, action.shape, action[:, None].shape)
         #     policy.update_context(obs, action, step_reward)
+
+        # print(self.steps, obs, action, step_reward)
 
         control = self.get_control(input_data, action)
 
