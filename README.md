@@ -190,7 +190,7 @@ mkdir $HOME/projects
 cd $HOME/projects
 git clone https://github.com/Auton-Self-Driving/alta.git --recursive
 cd alta
-git checkout carla_challenge_2020
+git checkout multiagent-ae
 ```
 
 * Install conda environment 'carla9.4_py37' from environment.yml file.
@@ -207,10 +207,21 @@ conda activate carla9.10_py37
 cd $HOME/projects/alta/
 git submodule init
 git submodule update
-python -m pip install -e detectron2
+cd leaderboard
+git remote set-url origin git@github.com:Auton-Self-Driving/leaderboard.git
+git pull
+git checkout dev-zheh
 cd ../AdelaiDet
-python setup.py build develop
-```  
+git remote set-url origin git@github.com:kareido/AdelaiDet.git
+git pull
+git checkout traffic_light
+cd ..
+
+# commented out
+# python -m pip install -e detectron2
+# cd AdelaiDet
+# python setup.py build develop
+``` 
 
 * Set the following paths in the bashrc file.
 (Note: We use variable CARLA_9_4_PATH here as well as in the code, but we actually run the CARLA v0.9.10 in the latest version.)
