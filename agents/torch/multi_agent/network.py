@@ -308,6 +308,89 @@ class TransformerAgent(nn.Module):
         return action.detach().cpu().numpy().reshape(2)
 
 
+class Encoder(nn.Module):
+
+    def __init__(self, params):
+        '''
+        Arg
+                params: A dictionary storing model-type-specific arguments.
+        '''
+        super(Encoder, self).__init__()
+
+        # if params is not given, just do nothing. This means the state_dict of a trained model will be loaded later.
+        if params:
+            self.layer_params = params['layer_params']
+
+            if params['model_type'] == 'conv':
+                self.mod = self.get_conv_mod()
+            else:
+                raise Exception('Invalid model type found.')
+
+    def get_conv_mod(self):
+        '''
+        Build the convolutional module and return it.
+        '''
+        # Modify this part!!
+        mods = list()
+
+        for layer_param in self.layer_params:
+            layer_type = layer_param[0]
+
+            if layer_type == 'conv':
+                in_channel_cnt = layer_param[1]
+                out_channel_cnt = layer_param[2]
+                filt_size = layer_param[3]
+                stride = layer_param[4]
+                dilation = layer_param[5]
+                padding = layer_param[6]
+                mods.append(nn.Conv3d(in_channel_cnt, out_channel_cnt, filt_size,
+                                      stride=stride, dilation=dilation, padding=padding))
+
+            elif layer_type == 'relu':
+                mods.append(nn.ReLU())
+
+            else:
+                raise Exception('Invalid layer_type found.')
+
+        return nn.Sequential(*mods)
+
+    def forward(self, x):
+
+        return self.mod(x)
+
+def load_model(model_path, device='cpu'):
+    '''
+    Arguments
+            model_path: The path and name to the saved model, which is a pkl file storing the state_dict of the module.
+            device: The device on which the model is ran on.
+    '''
+    pix_class_num = 23
+    ##### Make parameters for model creation #######
+    encoder_params = {
+        'model_type': 'conv',
+        'layer_params': [\
+            # ('conv', input_channel_cnt, filter_num, filter_size, stride, dilation, padding)
+            ('conv', pix_class_num, 64, 3, (1, 2, 2), 1, 1), \
+            ('relu',), \
+            ('conv', 64, 128, 3, (1, 2, 2), 1, 1), \
+            ('relu',), \
+            ('conv', 128, 256, 3, 2, 1, 1), \
+            ('relu',), \
+            ('conv', 256, 128, 3, 2, 1, 1), \
+            ('relu',), \
+            ('conv', 128, 8, 3, 2, 1, 1), \
+        ]}
+    ##### Create the model #####
+    encoder = Encoder(encoder_params).to(device)
+    ##### Load existing state_dict #####
+    state_dict = torch.load(model_path)
+    encoder.load_state_dict(state_dict)
+    ​
+    print('model loaded from ', model_path)
+    encoder.eval()
+
+    return encoder
+    
 if __name__ == '__main__':
     glb_net = Basic_Discrete(12, 24).to('cpu')
     print(glb_net)

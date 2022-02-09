@@ -15,6 +15,7 @@ import math
 import copy
 import queue
 import time
+import torch
 import matplotlib.pyplot as plt
 from collections import deque
 
@@ -43,6 +44,9 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 # transfuser autopilot
 from transfuser_autopilot import AutoPilot
 
+# autoencoder
+from network import load_model
+from environment.carla_9_4.agents.tools.misc import convert_to_one_hot
 
 # import ipdb
 # st = ipdb.set_trace
@@ -67,6 +71,22 @@ from environment.carla_9_4.env_util import (
     get_vehicle_bb_wp,
 )
 
+
+class ImageBuffer(deque):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def append(self, val):
+        while self.maxlen is not None and len(self) < self.maxlen:
+            super().append(val)
+        return super().append(val)
+    
+    def to_tensor(self):
+        # [(128, 128, 23), (128, 128, 23), ...]
+        out = torch.stack([torch.from_numpy(v) for v in self])
+        # (8, 128, 128, 23)
+        out = out.permute((3, 0, 1, 2)).unsqueeze(0).to(torch.float)
+        return out
 
 
 def draw_arrow_waypoints(world, waypoints, z=0.5):
@@ -380,6 +400,12 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 5 obs sensors
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
              high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light_ae': # 5 obs sensors + autoencoder
+            self.observation_space = Box(
+            low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0] + [-1.] * 8]),
+            high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0] + [1.] * 8]), 
+            dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
@@ -705,6 +731,53 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']
 
             feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+        
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light_ae':
+
+            feat_list = [agent.episode_measurements['next_orientation']]
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+
+            bev_seg_image = self._read_data(agent.bev_seg_queue, self.world_frame)
+            bev_seg_image = bev_seg_image[:,:,0]
+            bev_seg_image = convert_to_one_hot(bev_seg_image, 23)
+            agent.bev_seg_buffer.append(bev_seg_image)
+            # print('724', bev_seg_image.shape)
+
+            encoder_input = agent.bev_seg_buffer.to_tensor()
+            encoder_input = encoder_input.view(1, 23, 8, 128, 128).to(self.config['device'])
+            # print('772', encoder_input.shape)
+            encoding = self.autoencoder(encoder_input).mean(dim=(-2, -1)).detach().cpu().flatten().tolist()
+            # print('778', encoding, type(encoding))
+
+            feat_list.extend(encoding)
 
             obs['observation'] = np.array(feat_list)
 
@@ -1709,6 +1782,7 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_init_id'] = -1
 
             agent.rv_camera_queue = queue.Queue()
+            agent.bev_seg_queue = queue.Queue()
 
             agent.actor_list = []
             agent.target_speeds_array = []
@@ -1762,6 +1836,28 @@ class CarlaEnv(gym.Env):
 
             agent.rv_camera_actor.listen(agent.rv_camera_queue.put)
 
+
+            if self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light_ae':
+                bev_seg = self.blueprint_library.find('sensor.camera.semantic_segmentation')
+                bev_seg.set_attribute('image_size_x', '128')
+                bev_seg.set_attribute('image_size_y', '128')
+                bev_seg.set_attribute('sensor_tick', '0.0')
+                # camera.set_attribute('fov', '120')
+                bev_seg.set_attribute('fov', '90')
+
+                # Orientation for forward-facing camera
+                # rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+                bev_seg_transform = carla.Transform(carla.Location(x=3.0, z=10.0), carla.Rotation(pitch=270.0))
+
+                agent.bev_seg_actor = self._world.spawn_actor(bev_seg, bev_seg_transform, attach_to=agent.vehicle_actor)
+                agent.actor_list.append(agent.bev_seg_actor)
+
+                agent.bev_seg_actor.listen(agent.bev_seg_queue.put)
+                agent.bev_seg_buffer = ImageBuffer(maxlen=8)
+
+                self.autoencoder = load_model(self.config['autoencoder_ckpt']).to(self.config['device'])
+
+
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)
 
@@ -1776,7 +1872,8 @@ class CarlaEnv(gym.Env):
                 #     hit_radius=self.config['front_obs_sensor_hit_radius'],)
 
                 # agent.actor_list.append(agent.obstacle_sensor.sensor)
-                if self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
+                if self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light' or \
+                    self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light_ae':
                     obs_sensors = {
                         'front': sensors.ObstacleSensor(agent.vehicle_actor,
                             distance=self.config['front_obs_proximity_threshold'],
@@ -2023,7 +2120,7 @@ class CarlaEnv(gym.Env):
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_angles_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-                                        'wp_obs_more_info_speed_steer_ldist_light']:
+                                        'wp_obs_more_info_speed_steer_ldist_light', 'wp_obs_more_info_speed_steer_ldist_light_ae']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
         elif self.config['input_type'] == 'transformer':
