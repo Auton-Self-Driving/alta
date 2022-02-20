@@ -197,7 +197,7 @@ git checkout multiagent-ae
 
 ```
 cd $HOME/projects/alta
-conda env create -f environment.yml
+conda env create -f carla910_environment.yml
 conda activate carla9.10_py37
 ```
   
