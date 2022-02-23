@@ -75,7 +75,9 @@ def init_param_server_comm():
     # if gpu_id_list is not None:
     #     gpu_id = gpu_id_list[rank % len(gpu_id_list)]
     #     torch.cuda.set_device(gpu_id)
+    # print(79, f'[{rank}] init started')
     dist.init_process_group(backend=get_backend())
+    # print(79, 'init completed')
 
     num_servers = get_num_servers()
     server_list = list(range(num_servers))
@@ -181,7 +183,10 @@ def recv(overhead_len, payload_len=0, src=None, tag=0, comm='cpu', device='cpu')
 if __name__ == '__main__':
     run_slurm_param_server(0, 0)
     dist.init_process_group(backend=get_backend())
+    x = torch.randn(3, 4, 5).cuda()
+    print(x.device)
     time.sleep(3)
+    dist.barrier()
     print('DONE')
 
 

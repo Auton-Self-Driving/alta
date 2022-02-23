@@ -103,7 +103,6 @@ def launch_worker(rank, gpu_id, resources):
     device = 'cuda:{}'.format(gpu_id)
     ENV_CONFIG['device'] = device
     env = CarlaEnv(ENV_CONFIG, env_rank=rank)
-
     N_S = env.observation_space.shape[-1]
     N_A = env.action_space.shape[-1]
     # from IPython import embed; embed()
@@ -133,8 +132,8 @@ def launch_worker(rank, gpu_id, resources):
 DPPO_CONFIG['num_workers'] = int(os.environ['SLURM_NTASKS']) - DPPO_CONFIG['num_servers']
 
 rank, gpu_id, world_size = dist.run_slurm_param_server(
-    DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers'],
-    port=random.randint(10000, 60000))
+    DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers'])
+    # port=random.randint(10000, 60000), method='spawn')
 print('[slurm dppo run server {} worker {}]'.format(
     DPPO_CONFIG['num_servers'], DPPO_CONFIG['num_workers']), rank, gpu_id, world_size)
 if rank < DPPO_CONFIG['num_servers']:
