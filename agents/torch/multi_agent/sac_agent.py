@@ -18,6 +18,7 @@ from carla_env import CarlaEnv
 from config import ENV_CONFIG
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.dashcam import (
+    ProfilerRecorder,
     GlobalRecorder,
     TensorboardWriter,
     Visualizer,)
@@ -221,6 +222,7 @@ class DSAC_Server_Agent(object):
         # not resumed after resuming training
         self.glb_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
+        self.profiler = ProfilerRecorder
         self.tbwriter = None
         self.resumed = False
 
@@ -532,6 +534,7 @@ class DSAC_Worker_Agent(object):
         # not resumed after resuming training
         self.local_num_steps_nonresumed = 0
         self.recorder = GlobalRecorder
+        self.profiler = ProfilerRecorder
         self.tbwriter = None
         self.resumed = False
 
@@ -557,13 +560,14 @@ class DSAC_Worker_Agent(object):
         exp_buf = torch.cat(self.buffer)
         overhead = [self.rank, self.num_steps_since_update,
             len(exp_buf), self.num_eps_since_update, SIG.EXP_PUSH]
-        dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
-        dist.isend(overhead, exp_buf, dst=self.server_rank, tag=SIG.EXP).wait()
-        # reset buffer
-        self.buffer = []
-        # update parameters
-        self.glb_num_steps, self.glb_num_episodes, \
-            self.local_policy_timestamp = self.update_parameters()
+        with self.profiler.record_time('avg_sync_buffer', group='worker'):
+            dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
+            dist.isend(overhead, exp_buf, dst=self.server_rank, tag=SIG.EXP).wait()
+            # reset buffer
+            self.buffer = []
+            # update parameters
+            self.glb_num_steps, self.glb_num_episodes, \
+                self.local_policy_timestamp = self.update_parameters()
 
     def _update_buffer_nonstandard(self, agent):
         mem = agent.memory
@@ -621,9 +625,10 @@ class DSAC_Worker_Agent(object):
         #     self.num_eps_since_update, SIG.PARAM_REQ]
         overhead = [self.rank, self.num_steps_since_update,
             self.num_steps_since_update, self.local_policy_timestamp, SIG.PARAM_REQ]
-        dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
-        glb_stats, vec_param = dist.recv(self.recv_info_len, self.model_len,
-            src=self.server_rank, tag=SIG.PARAM, device=self.device)
+        with self.profiler.record_time('avg_sync_param', group='worker'):
+            dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
+            glb_stats, vec_param = dist.recv(self.recv_info_len, self.model_len,
+                src=self.server_rank, tag=SIG.PARAM, device=self.device)
         vector_to_parameters(vec_param, self.glb_policy.parameters())
         return glb_stats
 
@@ -658,37 +663,28 @@ class DSAC_Worker_Agent(object):
         avg_t_action, avg_t_step  = [], []
 
         while self.local_num_steps < self.max_glb_num_steps + 1:
-            # take action
-            ts_action = time.time()
-            for rk, agent in enumerate(self.agent_list):
-                if self.glb_num_steps < self.explore_before:
-                    action = self.local_env.action_space.sample()
-                    if self.explore_mode == 'autopilot':
-                        # NOTE: even if curr_step > explore_before,
-                        # autopilot flag will continue to the end of the episode
-                        # !!! the prev action will be overwritten
-                        agent.autopilot = True
-                        # print(rk, agent.autopilot, flush=True)
-                    elif self.explore_mode == 'transfuser_autopilot':
-                        agent.transfuser_autopilot = True
-                else:
-                    action = agent.select_action()
-                    self.use_transfuser = False
-                agent.prev_state = agent.observation
-                agent.action = action
-            te_action = time.time()
-            self.vprint('action chosen:', [a.action for a in self.agent_list])
+            with self.profiler.record_time('avg_action_step', group='worker'):
+                # take action
+                for rk, agent in enumerate(self.agent_list):
+                    if self.glb_num_steps < self.explore_before:
+                        action = self.local_env.action_space.sample()
+                        if self.explore_mode == 'autopilot':
+                            # NOTE: even if curr_step > explore_before,
+                            # autopilot flag will continue to the end of the episode
+                            # !!! the prev action will be overwritten
+                            agent.autopilot = True
+                            # print(rk, agent.autopilot, flush=True)
+                        elif self.explore_mode == 'transfuser_autopilot':
+                            agent.transfuser_autopilot = True
+                    else:
+                        action = agent.select_action()
+                        self.use_transfuser = False
+                    agent.prev_state = agent.observation
+                    agent.action = action
+                self.vprint('action chosen:', [a.action for a in self.agent_list])
 
-            # get new observation
-            ts_step = time.time()
-            self.local_env.step()
-            te_step = time.time()
-            avg_t_action.append(te_action - ts_action)
-            avg_t_step.append(te_step - ts_step)
-            self.vprint('[num_agent {}][action time {:.4f}, avg {:.4f}]'
-                '[step time {:.4f}, avg {:.4f}]'.format(self.num_agents,
-                avg_t_action[-1], np.mean(avg_t_action), avg_t_step[-1],
-                np.mean(avg_t_step)))
+                # get new observation
+                self.local_env.step()
 
             for rk, agent in enumerate(self.agent_list):
                 if not self.standard:
@@ -799,6 +795,7 @@ class DSAC_Worker_Agent(object):
                         self.recorder['recent']['collision_rate'].summary(),
                         self.local_num_episodes)
                     self.recorder.summary_all()
+                    self.profiler.summary_group('worker')
                     self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 

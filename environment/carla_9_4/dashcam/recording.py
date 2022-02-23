@@ -65,11 +65,17 @@ class Recorder:
         return self._record.__iter__()
 
     @contextmanager
-    def register_time(self, key, window_size=None, mode='plain', group='default'):
-        self.register_key(key, window_size, mode, group)
+    def record_time(self, key, group='default'):
         _tick = time.time()
         yield
-        self._record[group][key] = time.time() - _tick
+        self._record[group][key].record_value(time.time() - _tick)
+        
+#     @contextmanager
+#     def register_time(self, key, window_size=None, mode='plain', group='default'):
+#         self.register_key(key, window_size, mode, group)
+#         _tick = time.time()
+#         yield
+#         self._record[group][key] = time.time() - _tick
 
     def summary(self, key, group='default'):
         if group not in self._record:
@@ -77,6 +83,15 @@ class Recorder:
         if key not in self._record[group]:
             raise KeyError('key {} not been recorded in group {}'.format(key, group))
         return self._record[group][key].summary()
+
+    def summary_group(self, group='default'):
+        if group not in self._record:
+            raise KeyError('group {} not been recorded'.format(group))
+        for key in self[group]:
+            val = self[group][key].summary()
+            if val is None or type(val) == list: continue
+            print('[{}/{} {:.2f}]'.format(group, key, val), end='')
+        print()
 
     def summary_all(self, skip_nonscalar=True):
         for g_name in self:
@@ -184,7 +199,8 @@ class _PolarizedRec(_BaseRec):
             self.value = value
 
     def summary(self):
-        if self.queue is not None: return self.polarize(self.queue)
+        if self.queue is not None and len(self.queue) > 0: 
+            return self.polarize(self.queue)
         return self.value
 
 
@@ -215,6 +231,15 @@ GlobalRecorder.register_key('success_rate', window_size=100, mode='mean', group=
 GlobalRecorder.register_key('collision_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('avg_dist_to_trgt', window_size=100, mode='mean', group='recent')
 
+ProfilerRecorder = Recorder()
+ProfilerRecorder.register_key('avg_action_step', window_size='inf', mode='mean', group='worker')
+ProfilerRecorder.register_key('avg_sync_param', window_size='inf', mode='mean', group='worker')
+# ProfilerRecorder.register_key('total_sync_param', window_size='inf', mode='sum', group='worker')
+ProfilerRecorder.register_key('avg_sync_buffer', window_size='inf', mode='mean', group='worker')
+# ProfilerRecorder.register_key('total_sync_buffer', window_size='inf', mode='sum', group='worker')
+# ProfilerRecorder.register_key('avg_lock', window_size='inf', mode='mean', group='server')
+ProfilerRecorder.register_key('avg_backprop', window_size='inf', mode='mean', group='server')
+# ProfilerRecorder.register_key('total_backprop', window_size='inf', mode='sum', group='server')
 
 
 class TensorboardWriter(SummaryWriter):
@@ -236,5 +261,3 @@ class TensorboardWriter(SummaryWriter):
         assert type(tag) == str
         content = '  \n'.join('**{}**: {}'.format(k, v) for k, v in dict_obj.items())
         self.add_text(tag, content)
-
-
