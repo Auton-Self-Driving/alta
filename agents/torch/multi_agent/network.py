@@ -376,16 +376,16 @@ def load_model(model_path, device='cpu'):
             ('relu',), \
             ('conv', 128, 256, 3, 2, 1, 1), \
             ('relu',), \
-            ('conv', 256, 128, 3, 2, 1, 1), \
+            ('conv', 256, 128, 7, (2, 4, 4), 1, 3), \
             ('relu',), \
-            ('conv', 128, 8, 3, 2, 1, 1), \
+            ('conv', 128, 4, 7, (2, 4, 4), 1, 3), \
         ]}
     ##### Create the model #####
     encoder = Encoder(encoder_params).to(device)
     ##### Load existing state_dict #####
     state_dict = torch.load(model_path)
     encoder.load_state_dict(state_dict)
-    ​
+    
     print('model loaded from ', model_path)
     encoder.eval()
 

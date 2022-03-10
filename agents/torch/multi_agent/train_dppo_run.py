@@ -7,18 +7,27 @@ import sys
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
 
+print ('carla94 path: ', CARLA_9_4_PATH)
+
+# sys.path.append(CARLA_9_4_PATH+'/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg')
+
 try:
     sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-*%d.%d-%s.egg' % (
+#    sys.path.append(glob.glob(CARLA_9_4_PATH+ '/**/carla/dist/carla-0.%d.%d-py3.7-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
 
+print ('sys.path: ', sys.path)
+
 if CARLA_9_4_PATH == None:
     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
 
 import carla
+
+print ('carla imported!!')
 
 import os
 import time
@@ -63,7 +72,7 @@ def launch_server(rank, resources):
     elif ENV_CONFIG['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
         N_S, N_A = 15, 2
     elif ENV_CONFIG['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light_ae':
-        N_S, N_A = 15 + 8, 2
+        N_S, N_A = 15 + ENV_CONFIG['ae_output_size'], 2
     else:
         N_S, N_A = 7, 2
     # print(N_S, N_A)

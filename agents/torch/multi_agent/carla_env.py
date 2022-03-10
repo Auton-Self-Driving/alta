@@ -402,9 +402,10 @@ class CarlaEnv(gym.Env):
              high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light_ae': # 5 obs sensors + autoencoder
+            self.autoencoder = load_model(self.config['autoencoder_ckpt']).to(self.config['device'])
             self.observation_space = Box(
-            low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0] + [-1.] * 8]),
-            high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0] + [1.] * 8]), 
+            low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0] + [-1.] * self.config['ae_output_size']]),
+            high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0] + [1.] * self.config['ae_output_size']]), 
             dtype=np.float32)
 
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
@@ -1854,9 +1855,6 @@ class CarlaEnv(gym.Env):
 
                 agent.bev_seg_actor.listen(agent.bev_seg_queue.put)
                 agent.bev_seg_buffer = ImageBuffer(maxlen=8)
-
-                self.autoencoder = load_model(self.config['autoencoder_ckpt']).to(self.config['device'])
-
 
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)

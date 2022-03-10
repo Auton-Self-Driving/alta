@@ -1,3 +1,4 @@
+import carla
 import argparse
 import sys, os
 

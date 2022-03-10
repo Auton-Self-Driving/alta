@@ -113,7 +113,7 @@ DSAC_CONFIG = {
 
 DPPO_CONFIG = {
     'save_suffix': 'nocrash_autoencoder',
-    'checkpoint': '',
+    'checkpoint': './ckptDPPO1x8x8_nocrash_autoencoder_3350350_Feb281104AM46.pth',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46.pth',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kS40SteerScale0d5NoNPCNoGoal_12112005_Oct290322AM31.pth',
@@ -132,7 +132,7 @@ DPPO_CONFIG = {
     'grad_clip': .5,
     'focal_loss': False,
     'standard': False,
-    'num_workers': 12,
+    'num_workers': 8,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:0'],
@@ -448,7 +448,7 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
-    'num_agents': 1,
+    'num_agents': 8,
     'max_num_steps': 16000000,
     'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
@@ -528,7 +528,9 @@ ENV_CONFIG = {
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
     'input_type': 'wp_obs_more_info_speed_steer_ldist_light_ae',
     # 'input_type': 'transformer',
-    'autoencoder_ckpt': None,
+    # 'autoencoder_ckpt': '/zfsauton2/home/hfu2/models_tmp/model_AE_futStack_dim16_epoch30_encoder_oldpickle.pth',
+    'autoencoder_ckpt': '/zfsauton2/home/hfu2/models_tmp/model_AE_futStack_dim4_epoch30_encoder_oldpickle.pth',
+    'ae_output_size': 4,
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,
