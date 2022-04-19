@@ -15,6 +15,8 @@ from collections import deque
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from map_agent import MapAgent
 
+from environment.carla_9_4.dashcam import Visualizer
+
 class PIDController(object):
     def __init__(self, K_P=1.0, K_I=0.0, K_D=0.0, n=20):
         self._K_P = K_P
@@ -175,6 +177,12 @@ def check_episode_has_noise(lat_noise_percent, long_noise_percent):
 
     return lat_noise, long_noise
 
+episode = -1
+savetime = lambda: time.strftime('%b%d%I%M%p%S')
+vid_log_dir = '{}/{}_{}'.format('./video_logs',
+    'LDB_test', savetime())
+sub_folder = None
+videos = True
 
 class AutoPilot(MapAgent):
 
@@ -183,7 +191,22 @@ class AutoPilot(MapAgent):
     SPEED_THRESHOLD = 0.1
     WAYPOINT_STEP = 1.0  # meters
 
+    def __init__(self, *args, **kwargs):
+        global episode, savetime, videos, sub_folder, vid_log_dir
+        if videos:
+            self.viz = Visualizer(images_path=vid_log_dir, video_path=vid_log_dir)
+        # have to put init at last since it will call self.setup first
+        super().__init__(*args, **kwargs)
+
+
     def setup(self, path_to_conf_file):
+        global episode, savetime, videos, sub_folder, vid_log_dir
+        self.steps = 0
+        if videos and episode >= 0:
+            self.viz.generate_video(sub_folder)
+            self.viz.remove_images(sub_folder)
+        episode += 1
+        sub_folder ='ep{}'.format(episode)
         print(f"CONF FILE: {path_to_conf_file}")
         super().setup(path_to_conf_file)
 
@@ -194,7 +217,8 @@ class AutoPilot(MapAgent):
         return gps
 
     def sensors(self):
-        return [
+        global episode, savetime, videos, sub_folder, vid_log_dir
+        sensor_list = [
             {
                 'type': 'sensor.other.imu',
                 'x': 0.0, 'y': 0.0, 'z': 0.0,
@@ -216,6 +240,12 @@ class AutoPilot(MapAgent):
                 },
             {'type': 'sensor.opendrive_map', 'reading_frequency': 1, 'id': 'OpenDRIVE'},
         ]
+        if videos:
+            return sensor_list + [{'type': 'sensor.camera.rgb', 'x': 13., 'y': 0., 'z': 18., 
+                'roll': 0.0, 'pitch': 270., 'yaw': 0.0,
+                'width': 400, 'height': 800, 'fov': 90, 'id': 'BEV'}]
+        else:
+            return sensor_list
 
     def _get_affordances(self):
 
@@ -375,12 +405,25 @@ class AutoPilot(MapAgent):
 
         return steer, throttle, brake, target_speed
 
+    def _preprocess_image(self, image):
+        #array = np.reshape(array, (image.shape[0], image.shape[1], 4))
+        image = image[:, :, :3]     # BGR
+        image = image[:, :, ::-1]   # RGB
+        return image
+
     def run_step(self, input_data, timestamp):
+        global episode, savetime, videos, sub_folder, vid_log_dir
+        self.steps += 1
+
         if not self.initialized:
             self._init()
 
         data = self.tick(input_data)
         gps = self._get_position(data)
+
+        if videos:
+            high_res_rgb = self._preprocess_image(input_data['BEV'][1])
+            self.viz.save_image(high_res_rgb, sub_folder=sub_folder)
 
         print(data, gps)
 
