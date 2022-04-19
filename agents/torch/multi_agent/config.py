@@ -79,12 +79,12 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'offline_datacollection_gpu16_switchtown',
+    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0SteerScale0d5NoGoal',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
-    'num_workers': 16,
+    'num_workers': 8,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:1'],
@@ -102,13 +102,13 @@ DSAC_CONFIG = {
     'q_update_freq': 1,
     'buffer_update_freq': 25,
     'target_update_freq': 1,
-    'explore_before': 100000000,
-    # 'explore_mode': 'random',
+    'explore_before': 10000,
+    'explore_mode': 'random',
     # 'explore_mode': 'autopilot',
-    'explore_mode': 'transfuser_autopilot',
-    'train_after': 100000000,
-    # 'standard': True,
-    'standard': False, # to collect traj
+    # 'explore_mode': 'transfuser_autopilot',
+    'train_after': 10000,
+    'standard': True,
+    # 'standard': False, # to collect traj
 }
 
 DPPO_CONFIG = {
@@ -192,11 +192,13 @@ OFFLINE_CONFIG = {
     # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed0/',
     # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed1/',
     # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed2/',
+    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/iql/lowerdimobs-random-ttc/newexp_iql_seed0/',
     # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/01-23-train-leaderboard',
     # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/01-25-train-leaderboard-seed-2/',
 
     # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/lowerdimobs-random-ttc/dvae_bt_set8_seed4/',
-    'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/dvae_bt_results/lowerdimobs-random-ttc/dvae_bt_set11_seed4/',
+    'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/lowerdimobs-random-ttc/dvae_bt_newset10_seed6/',
+    # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/dvae_bt_results/lowerdimobs-random-ttc/dvae_bt_set11_seed4/',
 }
 
 TEST_CONFIG = {
@@ -244,17 +246,6 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdVarNPC_2500000_Feb221222AM38.pth',
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2200000_Feb211139PM33.pth',
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2600000_Feb220113PM20.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2400000_Feb220619AM01.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2500000_Feb220947AM21.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2500000_Feb220947AM21.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2000000_Feb210440PM18.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocal_2100000_Feb210804PM18.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPCFocalv2_1600000_Feb211050PM03.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCosDiffLaneOKVarNPC_2800000_Feb221228AM25.pth',
-    # 'checkpoint': './ckptPPOx8_O15mL15mG0mCosVarNPC_3000000_Feb211120PM00.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdVarNPC_2200000_Feb211258PM43.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCosDiffLaneOKVarNPC_2500000_Feb211254PM28.pth',
-    # 'checkpoint': './ckptPPOx8_O10mL10mG0mCos1KupdDiffLaneOKVarNPC_2300000_Feb210305AM06.pth',
     # 'checkpoint': './ckptPPOx8_O5mL5mG0mCosDiffLaneOKVarNPC_2400000_Feb211121AM14.pth',
     # 'checkpoint': './ckptPPOx8_O15mL15m0mgraceCosCGnstv_6600000_Feb220822PM30.pth',
     # 'checkpoint': './ckptPPOx8_O10mL10mG0mCosVarNPC_4100000_Feb230801PM56.pth',
@@ -455,7 +446,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 1,
     'max_num_steps': 16000000,
-    'device': 'cuda:3',
+    'device': 'cuda:0',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -516,9 +507,9 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    # 'scenarios' : 'navigation',
+    'scenarios' : 'navigation',
     # 'scenarios' : 'challenge_train_scenario',
-    'scenarios' : 'leaderboard_navigation',
+    # 'scenarios' : 'leaderboard_navigation',
     'min_num_eps_before_switch_town': 2,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
@@ -528,9 +519,9 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
-    # 'input_type': 'wp_obs_info_speed_steer_ldist_light',
+    'input_type': 'wp_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
+    # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light',
     # 'input_type': 'transformer',
     'use_scenarios': True,
     'num_npc' : 0,
@@ -587,9 +578,9 @@ ENV_CONFIG = {
     'side_obs_sensor_hit_radius': .7854, # pi / 4
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_sensor' : True,
-    # 'enable_lane_invasion_termination' : True,
+    'enable_lane_invasion_termination' : True,
     'enable_lane_invasion_collision' : True,
-    'enable_lane_invasion_termination' : False,
+    # 'enable_lane_invasion_termination' : False,
     # 'enable_lane_invasion_collision' : False,
     'front_obs_proximity_threshold' : 10,
     'side_obs_proximity_threshold' : 5,

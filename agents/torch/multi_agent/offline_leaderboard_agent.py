@@ -49,12 +49,14 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
-policy_set = {'dvae_dt', 'bt', 'dt', 'tt', 'iql'}
+policy_set = {'dvae_dt', 'bt', 'dt', 'tt', 'iql', 'dvae_iql'}
 
 def infer_policy_class(ckpt_folder):
     folder_list = ckpt_folder.split('/')
     for folder in folder_list:
         if folder in policy_set:
+            if 'transformer_rl' in ckpt_folder and folder == 'iql':
+                return 'dvae_iql'
             return folder
     return 'dvae_dt' if 'dvae_bt_set' in ckpt_folder else 'iql'
 
@@ -103,7 +105,7 @@ if policy_type == 'dvae_dt':
         max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
-elif policy_type == 'bt':
+elif policy_type == 'bt' or policy_type == 'dvae_iql':
     policy = BTPolicy(
         gpt,
         observation_dim,
@@ -147,6 +149,7 @@ elif policy_type == 'tt':
         max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
+
 
 def get_entry_point():
     return 'PPOAgent'
@@ -1101,7 +1104,7 @@ class PPOAgent(AutonomousAgent):
         if policy_type == 'dvae_dt':
             action, sequence, candidates, world_index, policy_index = policy(
                 obs, max_horizon=None, return_plans=True)
-        elif policy_type in {'bt', 'dt', 'iql'}:
+        elif policy_type in {'bt', 'dt', 'iql', 'dvae_iql'}:
             action = policy(obs)
         elif policy_type == 'tt':
             action, sequence, candidates = policy(

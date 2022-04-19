@@ -1,2 +1,2 @@
-from .recording import Recorder, GlobalRecorder, TensorboardWriter
+from .recording import Recorder, ProfilerRecorder, GlobalRecorder, TensorboardWriter
 from .visualizing import Visualizer
