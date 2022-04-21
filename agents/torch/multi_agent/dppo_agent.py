@@ -88,7 +88,7 @@ class _DPPO_Individual_Agent(Agent):
 class DPPO_Server_Agent(object):
     def __init__(self, glb_policy, glb_optimizer, num_threads=1, standard=True,
         glb_update_freq=1000, num_agents=1, max_glb_num_steps=1000000,
-        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100,
+        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100, push_grad=True,
         focal_loss=False, log_time='TEST', save_freq=100000, save_suffix='',
         verbose=False):
         """An asynchronous DPPO agent.
@@ -101,6 +101,8 @@ class DPPO_Server_Agent(object):
             optim_epochs: update policy for how many epochs
             standard: whether doing standard ParamServer (i.e. recv grad)
                 if not True, receive experience instead
+            push_grad: under standard mode, whether to push grad or 
+                truncated buffer
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
@@ -115,6 +117,7 @@ class DPPO_Server_Agent(object):
         self.max_glb_num_steps = max_glb_num_steps
         self.gamma = gamma
         self.standard = standard
+        self.push_grad = push_grad
         self.eps_clip = eps_clip
         self.optim_epochs = optim_epochs
         self.focal_loss = focal_loss
@@ -313,7 +316,7 @@ class DPPO_Server_Agent(object):
     def learn(self):
         thread_list = []
         for _ in range(self.num_threads):
-            if self.standard:
+            if self.standard and self.push_grad:
                 t = Thread(target=self.listen)
             else:
                 t = Thread(target=self.listen_buffer)
@@ -619,9 +622,9 @@ class DPPO_Server_Agent(object):
 class DPPO_Worker_Agent(object):
     def __init__(self, local_env, local_policy, log_time='TEST',
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
-        grad_update_freq=1000, optim_epochs=100, focal_loss=False,
-        standard='True', grad_clip=None, save_freq=100000, save_suffix='',
-        verbose=False):
+        grad_update_freq=1000, optim_epochs=100, focal_loss=False, 
+        standard=True, push_grad=True, grad_clip=None, save_freq=100000, 
+        save_suffix='', verbose=False):
         """An synchronous DPPO Worker agent.
         Args:
             local_env: the global environment
@@ -635,6 +638,8 @@ class DPPO_Worker_Agent(object):
             optim_epochs: update policy for how many epochs
             standard: whether doing standard ParamServer (i.e. recv grad)
                 if not True, receive experience instead
+            push_grad: under standard mode, whether to push grad or 
+                truncated buffer
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
             save_suffix: checkpoint saving suffix
@@ -653,6 +658,7 @@ class DPPO_Worker_Agent(object):
         self.optim_epochs = optim_epochs
         self.focal_loss = focal_loss
         self.standard = standard
+        self.push_grad = push_grad
         self.num_agents = num_agents
         self.rank_list = list(range(num_agents))
         self.agent_reward_list = [[] for _ in self.rank_list]
@@ -886,6 +892,10 @@ class DPPO_Worker_Agent(object):
                 self.num_steps_since_update += 1
                 self.local_num_steps += 1
 
+                if self.standard and not self.push_grad and \
+                    len(agent.memory['done']) >= self.grad_update_freq:
+                    self._update_buffer(agent)
+
                 if agent.done:  # done and print information
                     print('[{}]'.format(self.time()) + \
                         '[{}][rank {}]'.format(self.run_name, self.rank) + \
@@ -977,12 +987,14 @@ class DPPO_Worker_Agent(object):
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
 
-            if self.standard and self.num_steps_since_update >= self.grad_update_freq:
+            if self.standard and self.push_grad and \
+                self.num_steps_since_update >= self.grad_update_freq:
                 if self.resumed:
                     # skip the first update after resume
                     self.resumed = False
                 else:
                     self._update()
+
                 self.num_steps_since_update = 0
                 self.num_eps_since_update = 0
 

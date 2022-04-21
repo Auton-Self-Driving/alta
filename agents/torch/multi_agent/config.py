@@ -132,6 +132,7 @@ DPPO_CONFIG = {
     'grad_clip': .5,
     'focal_loss': False,
     'standard': True,
+    'push_grad': False,
     'num_workers': 8,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
