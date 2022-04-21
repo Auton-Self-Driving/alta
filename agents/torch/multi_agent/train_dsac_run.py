@@ -33,7 +33,16 @@ def launch_server(rank, resources):
     # overriding carla device
     ENV_CONFIG['device'] = device
     # N_S, N_A = 8, 2
-    N_S, N_A = 7, 2
+    if ENV_CONFIG['input_type'] == 'wp_obs_info_speed_steer_ldist_goal_light':
+        N_S, N_A = 8, 2
+    elif ENV_CONFIG['input_type'] == 'wp_obs_info_speed_steer_ldist_light':
+        N_S, N_A = 7, 2
+    elif ENV_CONFIG['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
+        N_S, N_A = 11, 2
+    elif ENV_CONFIG['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
+        N_S, N_A = 15, 2
+    else:
+        N_S, N_A = 7, 2
     # tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
     # N_S = tmp_env.observation_space.shape[-1]
     # N_A = tmp_env.action_space.shape[-1]
