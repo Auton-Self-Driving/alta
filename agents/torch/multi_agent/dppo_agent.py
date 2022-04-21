@@ -124,7 +124,8 @@ class DPPO_Server_Agent(object):
         self.grad_clip = grad_clip
         self.device = next(glb_policy.parameters()).device
         self.model_len = len(parameters_to_vector(glb_policy.parameters()))
-        self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32, device=self.device, requires_grad=False)
+        self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32, 
+            device=self.device, requires_grad=False)
         self.save_freq = save_freq
         self.verbose = verbose
         ################################################################

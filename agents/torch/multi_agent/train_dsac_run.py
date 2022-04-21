@@ -90,6 +90,7 @@ def launch_server(rank, resources):
         batch_size=DSAC_CONFIG['batch_size'],
         q_update_freq=DSAC_CONFIG['q_update_freq'],
         target_update_freq=DSAC_CONFIG['target_update_freq'],
+        push_grad=DSAC_CONFIG['push_grad'],
         train_after=DSAC_CONFIG['train_after'],
         save_suffix=DSAC_CONFIG['save_suffix'],
         log_time=resources['log_time'],
@@ -133,6 +134,7 @@ def launch_worker(rank, resources):
         save_suffix=DSAC_CONFIG['save_suffix'],
         log_time=resources['log_time'],
         standard=DSAC_CONFIG['standard'],
+        push_grad=DSAC_CONFIG['push_grad'],
         verbose=ENV_CONFIG['verbose'],
     )
     worker_agent.learn()

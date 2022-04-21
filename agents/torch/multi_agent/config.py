@@ -109,6 +109,7 @@ DSAC_CONFIG = {
     'train_after': 10000,
     'standard': True,
     # 'standard': False, # to collect traj
+    'push_grad': True,
 }
 
 DPPO_CONFIG = {
