@@ -740,37 +740,38 @@ class DPPO_Worker_Agent(object):
 
         # Optimize policy for K epochs:
         total_loss = None
-        batch_size = 233 # cannot be power of 2
+        # batch_size = 233 # cannot be power of 2
         for _ in range(self.optim_epochs):
             # Evaluating old actions and values:
             # print(old_states.shape)
-            self.glb_optimizer.zero_grad()
-            for idx in range(0, len(old_states), batch_size):
-                logprobs, state_values, dist_entropy = self.glb_policy.evaluate(
-                    old_states[idx:idx + batch_size], old_actions[idx:idx + batch_size])
+            # for idx in range(0, len(old_states), batch_size):
+            #     logprobs, state_values, dist_entropy = self.local_policy.evaluate(
+            #         old_states[idx:idx + batch_size], old_actions[idx:idx + batch_size])
 
-                # Finding the ratio (pi_theta / pi_theta__old):
-                ratios = torch.exp(logprobs - old_logprobs.detach())
-                # Finding Surrogate Loss:
-                # print('state_values', state_values.shape)
-                advantages = rewards - state_values.detach()
-                if self.focal_loss:
-                    _al, _ga = self.focal_loss # assume a [alpha, gamma] list
-                    _p = torch.exp(logprobs)
-                    _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
-                        (_p * _ga * logprobs + _p - 1)
-                    advantages = advantages * _focal_loss
-                surr1 = ratios * advantages
-                surr2 = torch.clamp(ratios, 1 - self.eps_clip,
-                    1 + self.eps_clip) * advantages
-                loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
-                    rewards) - 0.01 * dist_entropy
+            logprobs, state_values, dist_entropy = self.local_policy.evaluate(
+                old_states, old_actions)
+            # Finding the ratio (pi_theta / pi_theta__old):
+            ratios = torch.exp(logprobs - old_logprobs.detach())
+            # Finding Surrogate Loss:
+            # print('state_values', state_values.shape)
+            advantages = rewards - state_values.detach()
+            if self.focal_loss:
+                _al, _ga = self.focal_loss # assume a [alpha, gamma] list
+                _p = torch.exp(logprobs)
+                _focal_loss = -_al * ((1 - _p) ** (_ga - 1)) * \
+                    (_p * _ga * logprobs + _p - 1)
+                advantages = advantages * _focal_loss
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip,
+                1 + self.eps_clip) * advantages
+            loss = -torch.min(surr1, surr2) + 0.5 * F.mse_loss(state_values,
+                rewards) - 0.01 * dist_entropy
 
-                # send gradient
-                if total_loss is None:
-                    total_loss = loss.mean() / self.optim_epochs
-                else:
-                    total_loss += loss.mean() / self.optim_epochs
+            # send gradient
+            if total_loss is None:
+                total_loss = loss.mean() / self.optim_epochs
+            else:
+                total_loss += loss.mean() / self.optim_epochs
 
         total_loss.backward()
         if self.grad_clip:
@@ -780,7 +781,8 @@ class DPPO_Worker_Agent(object):
         # send gradients
         self.send_gradients()
         # get new parameters
-        self.glb_num_steps, self.glb_num_episodes = self.update_parameters()
+        self.glb_num_steps, self.glb_num_episodes, \
+            self.local_policy_timestamp = self.update_parameters()
 
         # zero grad
         for p in self.local_policy.parameters():
@@ -815,7 +817,7 @@ class DPPO_Worker_Agent(object):
         self.vprint('rank', self.rank, 'send_gradients')
         param_grad = [item.grad for item in self.local_policy.parameters()]
         vec_grad = parameters_to_vector(param_grad).detach()
-        overhead = [self.rank, self.num_steps_since_update, 
+        overhead = [self.rank, self.num_steps_since_update,
             self.num_eps_since_update, self.local_policy_timestamp, SIG.GRAD_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_grad, dst=self.server_rank, tag=SIG.GRAD).wait()
