@@ -14,7 +14,7 @@ import environment.carla_9_4.sensors as sensors
 
 from environment.carla_9_4.agents.navigation.basic_agent import BasicAgent
 from environment.carla_9_4.planner import GlobalPlanner
-from network import PPOActorCritic_Continuous
+from network import PPOActorCritic_Continuous, PolicyNetwork
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
@@ -145,7 +145,10 @@ class PPOAgent(AutonomousAgent):
 
     def __init__(self, *args, **kwargs):
         global episode, savetime, videos, sub_folder, vid_log_dir
-        self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
+        if TEST_CONFIG['ppo']:
+            self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
+        else:
+            self.glb_policy = PolicyNetwork(N_S, N_A).to(ENV_CONFIG['device'])
         _ckpt = torch.load('../../torch/multi_agent/' + TEST_CONFIG['checkpoint'], map_location='cpu')
         self.glb_policy.load_state_dict(_ckpt['glb_policy'])
         self.config = ENV_CONFIG

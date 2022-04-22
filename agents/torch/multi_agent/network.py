@@ -191,6 +191,9 @@ class PolicyNetwork(nn.Module):
         return action, log_pi
         # return z, log_pi
 
+    def act(self, state, deterministic=True):
+        return self.sample(state, deterministic=deterministic)
+
     # def rescale_action(self, action):
     #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\
     #         (self.action_range[1] + self.action_range[0]) / 2
