@@ -181,7 +181,7 @@ class DSAC_Server_Agent(object):
         self.push_grad = push_grad
         if self.push_grad:
             self.model_len = self.policy_len + 2 * self.q_len
-            self.glb_grad = torch.zeros(self.model_len, 
+            self.glb_grad = torch.zeros(self.model_len,
                 dtype=torch.float32, device=self.device, requires_grad=False)
         self.buffer = VanillaReplayBuffer(buffer_len)
         self.log_alpha = log_alpha
@@ -389,13 +389,45 @@ class DSAC_Server_Agent(object):
                 # num_steps_added, signal)
             if signal == SIG.EXP_PUSH: # actually policy grads
                 _, vec_grad = dist.recv(self.recv_info_len, self.model_len,
-                    src=sender, tag=SIG.EXP, device='cpu')
+                    src=sender, tag=SIG.EXP, device=self.device)
                 with self.server_lock:
                     # update glb network
                     self.glb_grad += vec_grad
                     self.glb_num_steps += num_steps_added
                     self.num_steps_since_update += num_steps_added
                     self.glb_num_episodes += num_eps_added
+
+                    # print('[{}][server rank {}][glb ep {}][glb step {}] updating ...'.format(
+                    #     self.time(), self.rank, self.glb_num_episodes, self.glb_num_steps,
+                    # ))
+                    self.num_steps_since_update = 0
+                    # update policy
+                    self.policy_optimizer.zero_grad()
+                    ptr = 0
+                    for param in self.glb_policy.parameters():
+                        n = param.numel()
+                        param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
+                        ptr += n
+                    self.policy_optimizer.step()
+                    # q1
+                    self.q1_optimizer.zero_grad()
+                    for param in self.glb_q1.parameters():
+                        n = param.numel()
+                        param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
+                        ptr += n
+                    self.q1_optimizer.step()
+                    # q2
+                    self.q2_optimizer.zero_grad()
+                    for param in self.glb_q2.parameters():
+                        n = param.numel()
+                        param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
+                        ptr += n
+                    self.q2_optimizer.step()
+                    # zero grad
+                    self.glb_grad = torch.zeros(self.model_len,
+                        dtype=torch.float32, device=self.device,
+                        requires_grad=False)
+                    self.glb_policy_timestamp += 1
                 # print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
@@ -424,42 +456,6 @@ class DSAC_Server_Agent(object):
 
             else:
                 raise ValueError('signal not seen')
-            with self.server_lock:
-                if self.num_steps_since_update >= self.glb_update_freq:
-                    if self.resumed:
-                        self.resumed = False
-                    else:
-                        print('[{}][server rank {}][glb ep {}][glb step {}] updating ...'.format(
-                            self.time(), self.rank, self.glb_num_episodes, self.glb_num_steps,
-                        ))
-                        self.num_steps_since_update = 0
-                        # update policy
-                        self.glb_optimizer.zero_grad()
-                        ptr = 0
-                        for param in self.glb_policy.parameters():
-                            n = param.numel()
-                            param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
-                            ptr += n
-                        self.glb_optimizer.step()
-                        # q1
-                        self.q1_optimizer.zero_grad()
-                        for param in self.glb_q1.parameters():
-                            n = param.numel()
-                            param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
-                            ptr += n
-                        self.q1_optimizer.step()
-                        # q2
-                        self.q2_optimizer.zero_grad()
-                        for param in self.glb_q2.parameters():
-                            n = param.numel()
-                            param._grad = self.glb_grad[ptr:ptr + n].view_as(param).data
-                            ptr += n
-                        self.q2_optimizer.step()
-                        # zero grad
-                        self.glb_grad = torch.zeros(self.model_len,
-                            dtype=torch.float32, device=self.device,
-                            requires_grad=False)
-                        self.glb_policy_timestamp += 1
 
             # save checkpoint
             if self.glb_num_steps >= self.train_after:
@@ -591,8 +587,13 @@ class DSAC_Worker_Agent(object):
         self.device = next(glb_policy.parameters()).device
         self.push_grad = push_grad
         if self.push_grad:
-            self.glb_q1 = SoftQNetwork(N_S, N_A).to(ENV_CONFIG['device']) # q network
-            self.glb_q2 = SoftQNetwork(N_S, N_A).to(ENV_CONFIG['device']) # q network
+            self.glb_q1 = SoftQNetwork(self.N_S, self.N_A).to(self.device) # q network
+            self.target_q1 = copy.deepcopy(self.glb_q1)
+            self.glb_q2 = SoftQNetwork(self.N_S, self.N_A).to(self.device) # q network
+            self.target_q2 = copy.deepcopy(self.glb_q2)
+            self.log_alpha = torch.tensor(0.).to(self.device)
+            self.tau = .01
+            self.batch_size = 512
             self.policy_len = len(parameters_to_vector(glb_policy.parameters()))
             self.q_len = len(parameters_to_vector(self.glb_q2.parameters()))
             self.buffer = VanillaReplayBuffer(100_000)
@@ -700,13 +701,18 @@ class DSAC_Worker_Agent(object):
             policy_loss = (self.log_alpha.exp() * log_pi - min_q).mean()
             policy_loss.backward()
 
+        for target_param, param in zip(self.target_q1.parameters(), self.glb_q1.parameters()):
+            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
+        for target_param, param in zip(self.target_q2.parameters(), self.glb_q2.parameters()):
+            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
+
         # send gradient
         self.vprint('rank', self.rank, 'send_gradients')
         param_grad = [item.grad for item in self.glb_policy.parameters()]
         q1_grad = [item.grad for item in self.glb_q1.parameters()]
         q2_grad = [item.grad for item in self.glb_q2.parameters()]
         vec_grad = parameters_to_vector(param_grad + q1_grad + q2_grad).detach()
-        overhead = [self.rank, self.local_policy_timestamp, self.num_steps_since_update,
+        overhead = [self.rank, self.num_steps_since_update, self.local_policy_timestamp,
             self.num_eps_since_update, SIG.EXP_PUSH]
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
         dist.isend(overhead, vec_grad, dst=self.server_rank, tag=SIG.EXP).wait()
@@ -834,6 +840,8 @@ class DSAC_Worker_Agent(object):
         if not self.push_grad:
             self.glb_num_steps, self.glb_num_episodes, \
                 self.local_policy_timestamp = self.update_parameters()
+            self.target_q1 = copy.deepcopy(self.glb_q1)
+            self.target_q2 = copy.deepcopy(self.glb_q2)
         else:
             self.glb_num_steps, self.glb_num_episodes, \
                 self.local_policy_timestamp = self.update_parameters_grad()
@@ -878,15 +886,16 @@ class DSAC_Worker_Agent(object):
 
             for rk, agent in enumerate(self.agent_list):
                 if self.standard:
-                    self.buffer.append(
-                        self._buffer_to_tensor(
-                        agent.prev_state, agent.action,
-                        agent.step_reward, agent.observation,
-                        agent.done,)
-                    )
-                elif self.push_grad:
-                    self.buffer.append(agent.prev_state, agent.action, 
-                        agent.step_reward, agent.observation, agent.done)
+                    if self.push_grad:
+                        self.buffer.append(agent.prev_state, agent.action,
+                            agent.step_reward, agent.observation, agent.done)
+                    else:
+                        self.buffer.append(
+                            self._buffer_to_tensor(
+                            agent.prev_state, agent.action,
+                            agent.step_reward, agent.observation,
+                            agent.done,)
+                        )
                 else:
                     # update memory
                     agent.memory['prev_state'].append(agent.prev_state.tolist())
@@ -1002,8 +1011,9 @@ class DSAC_Worker_Agent(object):
                 if self.num_steps_since_update >= self.buffer_update_freq:
                     if self.standard:
                         if self.push_grad:
-                            # update gradients
-                            self._update()
+                            if len(self.buffer) > self.batch_size:
+                                # update gradients
+                                self._update()
                         else:
                             # do the learning in a standard myopic SAC way
                             # print('updating policy (standard)...')

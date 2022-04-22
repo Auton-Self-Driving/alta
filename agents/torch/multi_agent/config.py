@@ -79,20 +79,20 @@ SAC_CONFIG = {
 }
 
 DSAC_CONFIG = {
-    'save_suffix': 'LdbExplrand10kTrain10k1Q1B25Efixlog0SteerScale0d5NoGoal15dimTown1234567',
+    'save_suffix': 'Explrand10kTrain10k1Q1B25Efixlog0SteerScale0d5NoGoal7dimPushgrad',
     'checkpoint': '',
     'policy_lr': 4e-4,
     'q_lr': 4e-4,
     'alpha_lr': 4e-5,
-    'num_workers': 16,
+    'num_workers': 4,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:1'],
     # 'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2'],
-    'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
-    # 'device_list': ['cuda:0'],
+    # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
+    'device_list': ['cuda:2'],
     'buffer_len': 1000000,
     'log_alpha': 0,
     'log_target_entropy': -2,
@@ -113,7 +113,7 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoal5Obs7dimPushgrad',
+    'save_suffix': 'WG1kSG1kSteerScale0d5NoGoal5Obs7dimPushbuff125',
     'checkpoint': '',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_12032830_Oct271204PM38.pth',
     # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs15dim_12649216_Nov101019PM46.pth',
@@ -126,8 +126,9 @@ DPPO_CONFIG = {
     # 'checkpoint': './ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalSideObs11dimPretrain_1646129_Nov120442PM05.pth',
     # 'checkpoint': './ckptDPPO1x7x1_LdbWG1kSG1kSteerScale0d5NoGoal5Obs15dimPretrainWonly_2541892_Nov131100PM56.pth',
     # 'checkpoint': './ckptDPPO1x6x1_LdbWG1kSG1kSteerScale0d5NoGoalTsfmerMini_201203_Nov131133PM47.pth',
-    'ckpt_mode': 'load',
-    # 'ckpt_mode': 'resume',
+    # 'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal5Obs7dimPushbuff1k_400642_Apr211040PM08.pth',
+    # 'ckpt_mode': 'load',
+    'ckpt_mode': 'resume',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
@@ -138,14 +139,15 @@ DPPO_CONFIG = {
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:0'],
-    'device_list': ['cuda:0', 'cuda:1'],
-    # 'device_list': ['cuda:2', 'cuda:3'],
+    # 'device_list': ['cuda:2'],
+    # 'device_list': ['cuda:0', 'cuda:1'],
+    'device_list': ['cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:0'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
-    'worker_grad_update_freq': 1000,
+    'worker_grad_update_freq': 125,
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 1000,
     'save_freq': 100000,
@@ -204,7 +206,7 @@ OFFLINE_CONFIG = {
 }
 
 TEST_CONFIG = {
-    'PPO': False, # else SAC, currently only support those two
+    'PPO': True, # else SAC, currently only support those two
     # 'checkpoint': './ckptPPOx1_input_700000_Feb051014PM24.pth',
     # 'checkpoint': './ckptPPOx1_obsfix90km_300000_Feb060938PM56.pth',
     # 'checkpoint': './ckptPPOx8_obsfix_600000_Feb061128PM06.pth',
@@ -403,7 +405,8 @@ TEST_CONFIG = {
     # 'checkpoint': './ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7943856_Nov230612PM23.pth',
     # 'checkpoint': './ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7540019_Nov231255PM00.pth',
     # 'checkpoint': './ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_9067970_Nov240931AM50.pth',
-    'checkpoint': './ckptDSAC1x4x8_Explrand10kTrain10k1Q1B25EfixlogN1_2300000_Sep290135PM45.pth',
+    # 'checkpoint': './ckptDSAC1x4x8_Explrand10kTrain10k1Q1B25EfixlogN1_2300000_Sep290135PM45.pth',
+    'checkpoint': './ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_10007570_Oct270450AM37.pth',
     'num_agents': 1,
     'num_npc': 70,
     # 'num_npc': 120,
@@ -449,7 +452,7 @@ ENV_CONFIG = {
     'num_envs': 1,
     'num_agents': 8,
     'max_num_steps': 16000000,
-    'device': 'cuda:0',
+    'device': 'cuda:3',
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
