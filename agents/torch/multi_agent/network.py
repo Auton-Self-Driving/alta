@@ -192,7 +192,11 @@ class PolicyNetwork(nn.Module):
         # return z, log_pi
 
     def act(self, state, deterministic=True):
-        return self.sample(state, deterministic=deterministic)
+        assert deterministic is True
+        mean, log_std = self.forward(state)
+        action = torch.tanh(mean)
+        action = mean.cpu().detach().squeeze(0).numpy()
+        return action, log_std
 
     # def rescale_action(self, action):
     #     return action * (self.action_range[1] - self.action_range[0]) / 2 +\

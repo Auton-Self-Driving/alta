@@ -79,6 +79,7 @@ def launch_server(rank, resources):
         eps_clip=DPPO_CONFIG['eps_clip'],
         grad_clip=DPPO_CONFIG['grad_clip'],
         glb_update_freq=DPPO_CONFIG['server_glb_update_freq'],
+        glb_adaptive_freq=DPPO_CONFIG['server_adaptive_freq'],
         optim_epochs=DPPO_CONFIG['worker_optim_epochs'],
         focal_loss=DPPO_CONFIG['focal_loss'],
         standard=DPPO_CONFIG['standard'],

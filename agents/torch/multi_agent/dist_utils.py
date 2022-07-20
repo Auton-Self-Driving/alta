@@ -4,6 +4,7 @@ import multiprocessing as mp
 from threading import Thread
 import socket
 import time
+import datetime
 import torch
 import torch.distributed as dist
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
@@ -76,7 +77,7 @@ def init_param_server_comm():
     #     gpu_id = gpu_id_list[rank % len(gpu_id_list)]
     #     torch.cuda.set_device(gpu_id)
     # print(79, f'[{rank}] init started')
-    dist.init_process_group(backend=get_backend())
+    dist.init_process_group(backend=get_backend(), timeout=datetime.timedelta(0, 18000))
     # print(79, 'init completed')
 
     num_servers = get_num_servers()

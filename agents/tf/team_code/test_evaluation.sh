@@ -21,8 +21,8 @@ export CHALLENGE_TRACK_CODENAME=MAP
 # export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent.py
 # export TEAM_AGENT=$ALTA/agents/torch/multi_agent/leaderboard_agent_v2.py
 # export TEAM_AGENT=$ALTA/agents/tf/team_code/auto_pilot.py
-export TEAM_AGENT=$ALTA/agents/tf/team_code/transfuser_autopilot.py
-# export TEAM_AGENT=$ALTA/agents/torch/multi_agent/offline_leaderboard_agent.py
+# export TEAM_AGENT=$ALTA/agents/tf/team_code/transfuser_autopilot.py
+export TEAM_AGENT=$ALTA/agents/torch/multi_agent/offline_leaderboard_agent.py
 export DEBUG_CHALLENGE=1
 export RESUME=true
 # export CHECKPOINT_ENDPOINT=simulation_results_dvae_bt_seed2_noT.json
@@ -31,8 +31,9 @@ export RESUME=true
 # export CHECKPOINT_ENDPOINT=simulation_results_tt_seed0.json
 # export CHECKPOINT_ENDPOINT=simulation_results_iql_jan24.json
 # export CHECKPOINT_ENDPOINT=simulation_results_newexp_iql_seed0.json
-# export CHECKPOINT_ENDPOINT=simulation_results_dvae_bt_newset10_seed6.json
-export CHECKPOINT_ENDPOINT=simulation_results_dvae_transfuser_local.json
+export CHECKPOINT_ENDPOINT=simulation_results_dvae_bt_newset8_seed6_iql2.json
+# export CHECKPOINT_ENDPOINT=simulation_results_dvae_bt_newset8_seed4.json
+# export CHECKPOINT_ENDPOINT=simulation_results_dvae_transfuser_local.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_LdbWG1kSG1kSteerScale0d5NoGoalLoadckptNoTerm_4868721_Nov060211AM52_devtest.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7943856_Nov230612PM23_test.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_7540019_Nov231255PM00_test.json
@@ -40,6 +41,7 @@ export CHECKPOINT_ENDPOINT=simulation_results_dvae_transfuser_local.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x8_WG1kSG1kSteerScale0d5NoGoal_8892417_Oct270136AM13_test.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x8x1_WG1kSG1kSteerScale0d5NoGoal5Obs15dimLdbNavi_9067970_Nov240931AM50_test.json
 # export CHECKPOINT_ENDPOINT=sim_results_ckptDPPO1x7x1_LdbWG1kSG1kSteerScale0d5NoGoal5Obs15dimPretrainWonly_2452288_Nov130823PM47_test.json
+# export CHECKPOINT_ENDPOINT=sim_results_ckptckptDSAC1x16x1_LdbExplrand10kTrain10k1Q1B25Efixlog0SteerScale0d5NoGoal15dimTown1234567_6700000_Apr221047AM26_test.json
 
 #python3 start_server.py &
 

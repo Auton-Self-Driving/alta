@@ -145,7 +145,7 @@ class PPOAgent(AutonomousAgent):
 
     def __init__(self, *args, **kwargs):
         global episode, savetime, videos, sub_folder, vid_log_dir
-        if TEST_CONFIG['ppo']:
+        if TEST_CONFIG['PPO']:
             self.glb_policy = PPOActorCritic_Continuous(N_S, N_A).to(ENV_CONFIG['device'])
         else:
             self.glb_policy = PolicyNetwork(N_S, N_A).to(ENV_CONFIG['device'])
@@ -707,10 +707,10 @@ class PPOAgent(AutonomousAgent):
     def get_speed_from_velocity(self, velocity):
         speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
         return speed
-        
+
     def create_observations(self, agent):
         obs = {}
-        
+
         obs['observation'] = np.array([agent.episode_measurements['next_orientation']])
 
         if self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
@@ -1127,6 +1127,7 @@ class PPOAgent(AutonomousAgent):
 
         state_tensor = torch.from_numpy(obs).to(torch.float).to(ENV_CONFIG['device'])
         action, _ = self.glb_policy.act(state_tensor, deterministic=True)
+        # print(action)
         # self.previous_steer = action[0]
 
         control = self.get_control(input_data, action)

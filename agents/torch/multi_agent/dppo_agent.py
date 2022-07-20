@@ -87,10 +87,10 @@ class _DPPO_Individual_Agent(Agent):
 
 class DPPO_Server_Agent(object):
     def __init__(self, glb_policy, glb_optimizer, num_threads=1, standard=True,
-        glb_update_freq=1000, num_agents=1, max_glb_num_steps=1000000,
-        gamma=.99, eps_clip=.2, grad_clip=None, optim_epochs=100, push_grad=True,
-        focal_loss=False, log_time='TEST', save_freq=100000, save_suffix='',
-        verbose=False):
+        glb_update_freq=1000, glb_adaptive_freq=False, num_agents=1,
+        max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, grad_clip=None,
+        optim_epochs=100, push_grad=True, focal_loss=False, log_time='TEST',
+        save_freq=100000, save_suffix='', verbose=False):
         """An asynchronous DPPO agent.
         Args:
             glb_policy: network shared by all PPO agents
@@ -101,7 +101,7 @@ class DPPO_Server_Agent(object):
             optim_epochs: update policy for how many epochs
             standard: whether doing standard ParamServer (i.e. recv grad)
                 if not True, receive experience instead
-            push_grad: under standard mode, whether to push grad or 
+            push_grad: under standard mode, whether to push grad or
                 truncated buffer
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
@@ -124,7 +124,7 @@ class DPPO_Server_Agent(object):
         self.grad_clip = grad_clip
         self.device = next(glb_policy.parameters()).device
         self.model_len = len(parameters_to_vector(glb_policy.parameters()))
-        self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32, 
+        self.glb_grad = torch.zeros(self.model_len, dtype=torch.float32,
             device=self.device, requires_grad=False)
         self.save_freq = save_freq
         self.verbose = verbose
@@ -149,6 +149,9 @@ class DPPO_Server_Agent(object):
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.glb_update_freq = glb_update_freq
+        self.initial_glb_update_freq = glb_update_freq
+        self.glb_adaptive_freq = glb_adaptive_freq
+        self.recent_avg_traj_len = deque(maxlen=100)
         self.glb_num_steps = 0
         self.glb_num_episodes = 1
         self.glb_policy_timestamp = 0
@@ -275,6 +278,13 @@ class DPPO_Server_Agent(object):
                     self.num_steps_since_update += num_steps_added
                     self.glb_num_episodes += 1
                 # print('server', 256, len(_action), len(_state), len(_logprob), len(_reward), len(_done))
+                self.recent_avg_traj_len.append(buffer_len)
+                if self.glb_adaptive_freq:
+                    self.glb_update_freq = int(max(
+                        self.initial_glb_update_freq,
+                        self.num_workers * sum(self.recent_avg_traj_len) / \
+                            len(self.recent_avg_traj_len),
+                    ))
             elif signal == SIG.PARAM_REQ:
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
@@ -623,8 +633,8 @@ class DPPO_Server_Agent(object):
 class DPPO_Worker_Agent(object):
     def __init__(self, local_env, local_policy, log_time='TEST',
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
-        grad_update_freq=1000, optim_epochs=100, focal_loss=False, 
-        standard=True, push_grad=True, grad_clip=None, save_freq=100000, 
+        grad_update_freq=1000, optim_epochs=100, focal_loss=False,
+        standard=True, push_grad=True, grad_clip=None, save_freq=100000,
         save_suffix='', verbose=False):
         """An synchronous DPPO Worker agent.
         Args:
@@ -639,7 +649,7 @@ class DPPO_Worker_Agent(object):
             optim_epochs: update policy for how many epochs
             standard: whether doing standard ParamServer (i.e. recv grad)
                 if not True, receive experience instead
-            push_grad: under standard mode, whether to push grad or 
+            push_grad: under standard mode, whether to push grad or
                 truncated buffer
             save_freq: checkpoint saving frequency
                 (save the agent every N global steps)
@@ -811,7 +821,8 @@ class DPPO_Worker_Agent(object):
         # print(vec_mem, len(vec_mem), type(vec_mem))
         # print(len(vec_mem), type(vec_mem))
         vec_mem = torch.tensor(vec_mem)
-        overhead = [self.rank, agent.num_total_steps,
+        # overhead = [self.rank, agent.num_total_steps,
+        overhead = [self.rank, len(mem['reward']),
             len(mem['reward']), agent.timestamp, SIG.GRAD_PUSH]
         # print(766, overhead)
         dist.isend(overhead, dst=self.server_rank, tag=SIG.QUERY).wait()
@@ -893,7 +904,9 @@ class DPPO_Worker_Agent(object):
                 self.num_steps_since_update += 1
                 self.local_num_steps += 1
 
-                if self.standard and not self.push_grad and \
+                # if self.standard and not self.push_grad and \
+                # for controlling  max rollout length
+                if not self.push_grad and \
                     len(agent.memory['done']) >= self.grad_update_freq:
                     self._update_buffer(agent)
 
@@ -983,7 +996,7 @@ class DPPO_Worker_Agent(object):
                     self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 
-                    if not self.standard:
+                    if not self.standard and len(agent.memory['done']) > 0:
                         self._update_buffer(agent)
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0

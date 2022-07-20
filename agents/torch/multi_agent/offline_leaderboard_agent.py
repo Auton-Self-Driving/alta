@@ -49,7 +49,7 @@ os.environ["OMP_NUM_THREADS"] = '1'
 print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 
-policy_set = {'dvae_dt', 'bt', 'dt', 'tt', 'iql', 'dvae_iql'}
+policy_set = {'dvae_dt', 'bt', 'dt', 'tt', 'iql', 'dvae_iql', 'dvae_dt_with_dvae_iql'}
 
 def infer_policy_class(ckpt_folder):
     folder_list = ckpt_folder.split('/')
@@ -61,6 +61,8 @@ def infer_policy_class(ckpt_folder):
     return 'dvae_dt' if 'dvae_bt_set' in ckpt_folder else 'iql'
 
 policy_type = infer_policy_class(OFFLINE_CONFIG['offline_policy_location'])
+if OFFLINE_CONFIG['dvae_iql_policy_location']:
+    policy_type = 'dvae_dt_with_dvae_iql'
 
 if policy_type != 'iql':
     class Parser(utils.Parser):
@@ -94,7 +96,6 @@ else:
 
 
 if policy_type == 'dvae_dt':
-
     policy = DVAEBTPolicy(
         gpt,
         args.horizon,
@@ -149,6 +150,26 @@ elif policy_type == 'tt':
         max_history=args.max_context_transitions,
         device=ENV_CONFIG['device'],
     )
+elif policy_type == 'dvae_dt_with_dvae_iql':
+    iql, iql_epoch = utils.load_model(
+        OFFLINE_CONFIG['dvae_iql_policy_location'],
+        epoch=OFFLINE_CONFIG['epoch'], device=ENV_CONFIG['device'])
+    iql.eval()
+
+    value_fn = lambda x, y: iql.vf(y['observations'][:, -1]).squeeze(-1)
+
+    policy = DVAEBTPolicy(
+        gpt,
+        args.horizon,
+        observation_dim,
+        action_dim,
+        discount,
+        bs=1,
+        max_history=args.max_context_transitions,
+        device=ENV_CONFIG['device'],
+        value_fn=value_fn,
+    )
+
 
 
 def get_entry_point():
@@ -1101,7 +1122,7 @@ class PPOAgent(AutonomousAgent):
 
         # state_tensor = torch.from_numpy(obs).to(torch.float).to(ENV_CONFIG['device'])
 
-        if policy_type == 'dvae_dt':
+        if policy_type == 'dvae_dt' or policy_type == 'dvae_dt_with_dvae_iql':
             action, sequence, candidates, world_index, policy_index = policy(
                 obs, max_horizon=None, return_plans=True)
         elif policy_type in {'bt', 'dt', 'iql', 'dvae_iql'}:
