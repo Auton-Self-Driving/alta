@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.distributions import MultivariateNormal, Categorical, Normal
-from transformers import BertConfig, BertModel
+#from transformers import BertConfig, BertModel
 
 from agent_utils import set_init
 
@@ -67,20 +67,31 @@ class PPOActorCritic_Continuous(nn.Module):
             self.transformer = TransformerAgent(state_dim)
             # self.transformer = TransformerAgent(128)
         self.actor = nn.Sequential(
-                nn.Linear(state_dim, 64),
-                nn.Tanh(),
-                nn.Linear(64, 32),
-                nn.Tanh(),
-                nn.Linear(32, action_dim),
-                nn.Tanh(),
+                #nn.Linear(state_dim, 64),
+                #nn.Tanh(),
+                #nn.Linear(64, 32),
+                #nn.Tanh(),
+                #nn.Linear(32, action_dim),
+                #nn.Tanh(),
+                nn.Linear(state_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, 256),
+                nn.ReLU(),
+                nn.Linear(256, action_dim),
+                nn.Tanh()
             )
         # critic
         self.critic = nn.Sequential(
-                nn.Linear(state_dim, 64),
-                nn.Tanh(),
-                nn.Linear(64, 32),
-                nn.Tanh(),
-                nn.Linear(32, 1)
+                #nn.Linear(state_dim, 64),
+                #nn.Tanh(),
+                #nn.Linear(64, 32),
+                #nn.Tanh(),
+                #nn.Linear(32, 1)
+                nn.Linear(state_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, 256),
+                nn.ReLU(),
+                nn.Linear(256, 1)
             )
         self.action_var = torch.full(
             (action_dim,) , action_std * action_std)

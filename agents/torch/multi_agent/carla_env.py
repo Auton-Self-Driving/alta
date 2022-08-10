@@ -419,6 +419,11 @@ class CarlaEnv(gym.Env):
                                     # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
                                     shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
 
+        elif self.config["input_type"] == 'wp_360_obstacle_speed_steer':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
+                            high=np.array([[4.0, 1.0, 0.5, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
+                            dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
@@ -844,6 +849,116 @@ class CarlaEnv(gym.Env):
             sym_dict = self.fetch_symbolic_dict(agent)
             obs['observation'] = flatten_obs(sym_dict) # (1, 100, 8)
 
+        elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            front_obs_vec = np.array([1.5, 1.5])
+            front_obs_vel = np.array([1.5, 1.5])
+            front_min_dist = 10000
+
+            front_right_obs_vec = np.array([1.5, 1.5])
+            front_right_obs_vel = np.array([1.5, 1.5])
+            front_right_min_dist = 10000
+
+            front_left_obs_vec = np.array([1.5, 1.5])
+            front_left_obs_vel = np.array([1.5, 1.5])
+            front_left_min_dist = 10000
+
+            back_right_obs_vec = np.array([1.5, 1.5])
+            back_right_obs_vel = np.array([1.5, 1.5])
+            back_right_min_dist = 10000
+
+            back_left_obs_vec = np.array([1.5, 1.5])
+            back_left_obs_vel = np.array([1.5, 1.5])
+            back_left_min_dist = 10000
+
+
+            for id, obstacle_data in agent.episode_measurements['obstacle_sensor']['state'].items():
+                # Compute dot product of obstacle vector with car vector
+                normalized_obstacle_vector = obstacle_data['position'] / np.linalg.norm(obstacle_data['position'])
+                # Dot product is simply the first element of the normalized vector
+                dot_product = normalized_obstacle_vector[0]
+
+                # Obstacle is in front of vehicle
+                if dot_product > 0.995 and obstacle_data['distance'] < front_min_dist:
+                    front_min_dist = obstacle_data['distance']
+                    front_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                    front_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in front right
+                elif dot_product > 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < front_right_min_dist:
+                    front_right_min_dist = obstacle_data['distance']
+                    front_right_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                    front_right_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in front left
+                elif dot_product > 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < front_left_min_dist:
+                    front_left_min_dist = obstacle_data['distance']
+                    front_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    front_left_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in back right
+                elif dot_product <= 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < back_right_min_dist:
+                    back_right_min_dist = obstacle_data['distance']
+                    back_right_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    back_right_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in back left
+                elif dot_product <= 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < back_left_min_dist:
+                    back_left_min_dist = obstacle_data['distance']
+                    back_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    back_left_obs_vel = obstacle_data['velocity'] / 20
+
+            if(light != self.config['default_obs_traffic_val']):
+                unnorm_obs_dist = front_obs_vec[0] * self.config['vehicle_proximity_threshold']
+                unnorm_light = light * 20
+
+                # If the light is further do nothing
+                if(front_obs_vec[0] != self.config['default_obs_traffic_val'] and unnorm_light > unnorm_obs_dist):
+                    pass
+                else:
+                    front_obs_vec = np.array([light, 0]) / 20.0
+                    front_obs_vel = np.array([0,0])
+
+            obs['observation'] = np.concatenate(
+                (
+                    np.array([agent.episode_measurements['next_orientation']]),
+                    np.array([speed]),
+                    np.array([steer]),
+                    np.array([ldist]),
+                    np.array([front_obs_vec[0]]),
+                    np.array([front_obs_vec[1]]),
+                    np.array([front_obs_vel[0]]),
+                    np.array([front_obs_vel[1]]),
+                    np.array([front_right_obs_vec[0]]),
+                    np.array([front_right_obs_vec[1]]),
+                    np.array([front_right_obs_vel[0]]),
+                    np.array([front_right_obs_vel[1]]),
+                    np.array([front_left_obs_vec[0]]),
+                    np.array([front_left_obs_vec[1]]),
+                    np.array([front_left_obs_vel[0]]),
+                    np.array([front_left_obs_vel[1]]),
+                    np.array([back_right_obs_vec[0]]),
+                    np.array([back_right_obs_vec[1]]),
+                    np.array([back_right_obs_vel[0]]),
+                    np.array([back_right_obs_vel[1]]),
+                    np.array([back_left_obs_vec[0]]),
+                    np.array([back_left_obs_vec[1]]),
+                    np.array([back_left_obs_vel[0]]),
+                    np.array([back_left_obs_vel[1]]),
+                )
+            )
+            #print(obs['observation'])
+            #exit()
+
 
     def step(self, action=None):
         # action is for stablebaseline
@@ -1102,6 +1217,8 @@ class CarlaEnv(gym.Env):
         if not self.config['disable_obstacle_info']:
             if self.config['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
                 self._update_obs_detector_via_privilege(agent)
+            elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+                self._update_obs_detector_via_all_sensor(agent)
             elif self.config['enable_obstacle_sensor']:
                 self._update_obs_detector_via_sensor(agent)
             else:
@@ -1272,6 +1389,63 @@ class CarlaEnv(gym.Env):
             if not found_obstacle:
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
+
+
+    def _update_obs_detector_via_all_sensor(self, agent):
+        sensor_readings = {}
+        obstacle_set = set()
+        for suffix in agent.obstacle_sensor:
+            #for idx, k in enumerate(self.sensor_names):
+            if(not 'obstacle_sensor' in sensor_readings):
+
+                sensor_readings['obstacle_sensor'] = {
+                    "state" : {}
+                }
+
+
+            other_actor, distance = agent.obstacle_sensor[suffix]._read_data()
+            if other_actor is not None:
+                # Get the current number of actors to see if we added a new unique actor
+                num_actors = len(obstacle_set)
+
+                # Add actor id to the set of ids
+                obstacle_set.add(other_actor.id)
+
+                # If new actor, get transform and velocity
+                if(len(obstacle_set) > num_actors):
+                    # Get the pose, and velocity of the new actor relative to our vehicle
+
+                    # Get the obstacle sensor readings
+                    ego_actor = agent.vehicle_actor
+                    ego_velocity = ego_actor.get_velocity()
+                    ego_velocity = np.array([ego_velocity.x, ego_velocity.y, ego_velocity.z])
+                    ego_inverse_matrix = np.array(ego_actor.get_transform().get_inverse_matrix())
+
+                    # Get transform of other object
+                    other_transform = other_actor.get_transform()
+                    other_velocity = other_actor.get_velocity()
+                    other_velocity = np.array([other_velocity.x, other_velocity.y, other_velocity.z])
+
+                    # Get the relative transform of the new actor
+                    relative_transform = ego_inverse_matrix @ np.array(other_transform.get_matrix())
+
+                    # Extract relative position
+                    x = relative_transform[0, 3]
+                    y = relative_transform[1, 3]
+
+
+                    # Compute relative velocity
+                    relative_velocity = ego_inverse_matrix[0:3,0:3] @ (other_velocity - ego_velocity)
+                    vel_x = relative_velocity[0]
+                    vel_y = relative_velocity[1]
+
+                    sensor_readings['obstacle_sensor']["state"][other_actor.id] = {
+                        "position" : np.array([x,y]),
+                        "velocity" : np.array([vel_x, vel_y]),
+                        "distance" : distance
+                    }
+
+        agent.episode_measurements['obstacle_sensor'] = sensor_readings['obstacle_sensor']
 
 
     def _update_traffic_light_states(self, agent):
@@ -1798,6 +1972,147 @@ class CarlaEnv(gym.Env):
                             hit_radius=self.config['side_obs_sensor_hit_radius'],
                             transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
                     }
+
+                elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+                    obs_sensors = {
+                        'obstacle_sensor_0': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=0.0,y=0.0,z=0.3),rotation=carla.Rotation(yaw=0))),
+                        'obstacle_sensor_1': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=12))),
+                        'obstacle_sensor_2': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=24))),
+                        'obstacle_sensor_3': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=36))),
+                        'obstacle_sensor_4': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=48))),
+                        'obstacle_sensor_5': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=60))),
+                        'obstacle_sensor_6': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=72))),
+                        'obstacle_sensor_7': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=84))),
+                        'obstacle_sensor_8': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=96))),
+                        'obstacle_sensor_9': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=108))),
+                        'obstacle_sensor_10': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=120))),
+                        'obstacle_sensor_11': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=132))),
+                        'obstacle_sensor_12': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=144))),
+                        'obstacle_sensor_13': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=156))),
+                        'obstacle_sensor_14': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=168))),
+                        'obstacle_sensor_15': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=0.0,z=0.3),rotation=carla.Rotation(yaw=180))),
+                        'obstacle_sensor_16': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=192))),
+                        'obstacle_sensor_17': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=204))),
+                        'obstacle_sensor_18': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=216))),
+                        'obstacle_sensor_19': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=228))),
+                        'obstacle_sensor_20': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=240))),
+                        'obstacle_sensor_21': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=252))),
+                        'obstacle_sensor_22': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=264))),
+                        'obstacle_sensor_23': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=276))),
+                        'obstacle_sensor_24': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=288))),
+                        'obstacle_sensor_25': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=300))),
+                        'obstacle_sensor_26': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=312))),
+                        'obstacle_sensor_27': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=324))),
+                        'obstacle_sensor_28': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=336))),
+                        'obstacle_sensor_29': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=self.config['all_obs_hit_radius'],
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=348))),
+                        'obstacle_sensor_30': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=0.1,
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=5))),
+                        'obstacle_sensor_31': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=0.1,
+                            transform=carla.Transform(location=carla.Location(x=1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=-5))),
+                        'obstacle_sensor_32': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=0.1,
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=1.0,z=0.3),rotation=carla.Rotation(yaw=175))),
+                        'obstacle_sensor_33': sensors.ObstacleSensor(agent.vehicle_actor,
+                            distance=self.config['all_obs_proximity_threshold'],
+                            hit_radius=0.1,
+                            transform=carla.Transform(location=carla.Location(x=-1.5,y=-1.0,z=0.3),rotation=carla.Rotation(yaw=-175))),
+                    }
+
                 else:
                     obs_sensors = {
                         'front': sensors.ObstacleSensor(agent.vehicle_actor,
@@ -2023,7 +2338,7 @@ class CarlaEnv(gym.Env):
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_angles_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-                                        'wp_obs_more_info_speed_steer_ldist_light']:
+                                        'wp_obs_more_info_speed_steer_ldist_light','wp_360_obstacle_speed_steer']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
         elif self.config['input_type'] == 'transformer':

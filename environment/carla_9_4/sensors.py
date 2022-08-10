@@ -227,6 +227,11 @@ class ObstacleSensor(object):
         weak_self = weakref.ref(self)
         self.sensor.listen(lambda event: ObstacleSensor._on_obstacle(weak_self, event))
 
+        self.actor = None
+        self.obstacle_actor = None
+        self.distance = None
+        self.data_new = False
+
     @staticmethod
     def _on_obstacle(weak_self, event):
         self = weak_self()
@@ -236,6 +241,18 @@ class ObstacleSensor(object):
         self.frame = event.frame
         self.distance = event.distance
         self.obstacle_actor = event.other_actor
+        if 'vehicle' in event.other_actor.type_id:
+            self.obstacle_actor = event.other_actor
+            self.distance = event.distance
+            self.data_new = True
+
+    def _read_data(self):
+        if(self.data_new):
+            self.data_new = False
+
+            return self.obstacle_actor, self.distance
+
+        return None, None
 
     # def __del__(self):
     #     self.sensor.destroy(self)

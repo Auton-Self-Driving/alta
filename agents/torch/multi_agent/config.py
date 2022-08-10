@@ -140,10 +140,10 @@ DPPO_CONFIG = {
     'focal_loss': False,
     'standard': False, # if False, will push traj after finishing an episode
     'push_grad': False,
-    'num_workers': 11,
+    'num_workers': 1,#11,
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
-    # 'device_list': ['cuda:0'],
+    'device_list': ['cuda:0'],
     # 'device_list': ['cuda:2'],
     # 'device_list': ['cuda:0', 'cuda:1'],
     # 'device_list': ['cuda:2', 'cuda:3'],
@@ -152,7 +152,7 @@ DPPO_CONFIG = {
     # 'device_list': ['cuda:0', 'cuda:3'],
     # 'device_list': ['cuda:1', 'cuda:0'],
     # 'device_list': ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'],
-    'device_list': ['cuda:3', 'cuda:1', 'cuda:2', 'cuda:0'],
+    #'device_list': ['cuda:3', 'cuda:1', 'cuda:2', 'cuda:0'],
     'worker_grad_update_freq': 20000,
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 100,
@@ -549,9 +549,9 @@ ENV_CONFIG = {
     'sync_mode': True,
     # NOTE: crop does not work with framestack yet. need to add.
     'preprocess_crop_image': False,
-    'scenarios' : 'navigation',
+    # 'scenarios' : 'navigation',
     # 'scenarios' : 'challenge_train_scenario',
-    # 'scenarios' : 'leaderboard_navigation',
+    'scenarios' : 'leaderboard_navigation',
     'min_num_eps_before_switch_town': 15,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
@@ -561,10 +561,11 @@ ENV_CONFIG = {
     'vae_encoding_norm_factor' : 10,
     # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
-    'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
+    # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
     # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim
     # 'input_type': 'transformer',
+    'input_type': 'wp_360_obstacle_speed_steer',
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,
@@ -618,6 +619,7 @@ ENV_CONFIG = {
     'check_obs_same_lane': True,
     'front_obs_sensor_hit_radius': .5,
     'side_obs_sensor_hit_radius': .7854, # pi / 4
+    'all_obs_hit_radius': 2,
     'use_pid_in_frame_skip' : True,
     'enable_lane_invasion_sensor' : True,
     'enable_lane_invasion_termination' : True,
@@ -626,7 +628,9 @@ ENV_CONFIG = {
     # 'enable_lane_invasion_collision' : False,
     'front_obs_proximity_threshold' : 30,
     'side_obs_proximity_threshold' : 5,
-    'traffic_light_proximity_threshold' : 30,
+    'all_obs_proximity_threshold' : 45,
+    'vehicle_proximity_threshold' : 45,
+    'traffic_light_proximity_threshold' : 20,#30,
     'min_dist_from_red_light' : 0,
     'clip_reward' : False,
     'default_obs_traffic_val': 1,
