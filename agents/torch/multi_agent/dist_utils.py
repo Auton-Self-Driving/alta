@@ -77,7 +77,15 @@ def init_param_server_comm():
     #     gpu_id = gpu_id_list[rank % len(gpu_id_list)]
     #     torch.cuda.set_device(gpu_id)
     # print(79, f'[{rank}] init started')
-    dist.init_process_group(backend=get_backend(), timeout=datetime.timedelta(0, 18000))
+
+    print("Process {}/{} is initing".format(rank, world_size))
+    dist.init_process_group(backend=get_backend(), timeout=datetime.timedelta(0, 12000))
+
+    
+    # dist.init_process_group(backend=get_backend(), init_method='file:///home/scratch/amanmehr/alta-logs/dist_comms', 
+    #                             world_size=world_size, rank=rank, timeout=datetime.timedelta(0, 100))
+    # dist.init_process_group(backend=get_backend(), rank=rank, world_size=world_size, 
+    #         store=dist.FileStore('/home/scratch/amanmehr/alta-logs/filestore',world_size) ,timeout=datetime.timedelta(0, 10000))
     # print(79, 'init completed')
 
     num_servers = get_num_servers()

@@ -158,3 +158,5 @@ agents/torch/multi_agent/grad_viz
 agents/tf/team_agent/*.json
 agents/torch/multi_agent/offline_data
 **/.nfs*
+agents/torch/multi_agent/checkpoints
+agents/torch/multi_agent/videos

@@ -42,6 +42,24 @@ print('>>>DPPO_CONFIG:{}\n>>>ENV_CONFIG:{}'.format(DPPO_CONFIG, ENV_CONFIG))
 
 res = {'log_time': time.strftime('%b%d%I%M%p%S')}
 
+def get_state_action_dims(config):
+
+    if config['input_type'] == 'wp_obs_info_speed_steer_ldist_goal_light':
+        N_S, N_A = 8, 2
+    elif config['input_type'] == 'wp_obs_info_speed_steer_ldist_light':
+        N_S, N_A = 7, 2
+    elif config['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
+        N_S, N_A = 11, 2
+    elif config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
+        N_S, N_A = 15, 2
+    elif config['input_type'] == 'wp_360_obstacle_speed_steer':
+        N_S, N_A = 24, 2
+    else:
+        N_S, N_A = 7, 2
+
+    return N_S, N_A
+
+
 def launch_server(rank, resources):
     os.environ['RANK'] = str(rank)
 
@@ -50,25 +68,9 @@ def launch_server(rank, resources):
 
     # overriding carla device
     ENV_CONFIG['device'] = device
-    # tmp_env = CarlaEnv(ENV_CONFIG, env_rank=rank)
-    # N_S = tmp_env.observation_space.shape[-1]
-    # N_A = tmp_env.action_space.shape[-1]
-    # tmp_env.close()
-    if ENV_CONFIG['input_type'] == 'wp_obs_info_speed_steer_ldist_goal_light':
-        N_S, N_A = 8, 2
-    elif ENV_CONFIG['input_type'] == 'wp_obs_info_speed_steer_ldist_light':
-        N_S, N_A = 7, 2
-    elif ENV_CONFIG['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
-        N_S, N_A = 11, 2
-    elif ENV_CONFIG['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
-        N_S, N_A = 15, 2
-    elif ENV_CONFIG['input_type'] == 'wp_360_obstacle_speed_steer':
-        N_S, N_A = 24, 2
-    else:
-        N_S, N_A = 7, 2
-    # print(N_S, N_A)
-    # from IPython import embed; embed()
-
+    
+    N_S, N_A = get_state_action_dims(ENV_CONFIG)
+    
     glb_policy = PPOActorCritic_Continuous(N_S, N_A,
         use_transformer=ENV_CONFIG['input_type']=='transformer').to(device) # global network
     # glb_policy.share_memory()
@@ -97,9 +99,11 @@ def launch_server(rank, resources):
     server_agent.tb_write_config('ppo_config',DPPO_CONFIG)
 
 
+    os.makedirs(os.path.join('./checkpoints', DPPO_CONFIG['save_suffix'] if DPPO_CONFIG['save_suffix'] else  "the_nameless_ones"),exist_ok=True)
+
     # resume if necessary
     if DPPO_CONFIG['checkpoint']:
-        ckpt = torch.load(DPPO_CONFIG['checkpoint'], map_location='cpu')
+        ckpt = torch.load(os.path.join('./checkpoints', DPPO_CONFIG['save_suffix'] if DPPO_CONFIG['save_suffix'] else  "the_nameless_ones",DPPO_CONFIG['checkpoint']), map_location='cpu')
         _func = getattr(server_agent, DPPO_CONFIG['ckpt_mode'])
         _func(ckpt)
 

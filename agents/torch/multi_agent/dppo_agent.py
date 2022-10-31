@@ -141,13 +141,21 @@ class DPPO_Server_Agent(object):
         # self.num_steps_since_update = server_resources['num_steps_since_update']
         # self.last_save_steps = server_resources['last_save_steps']
         # self.server_proc_lock = server_resources['server_proc_lock']
+
+        # Variables used in determining checkpoint name 
         self.save_suffix = '_' + save_suffix if save_suffix else ''
         self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
-        self.recv_info_len = 5
-        self.glb_ep_reward_list = []
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
+
+        # Tensorboard logging specifications
+        self.tb_log_dir = '{}/{}'.format('./tensorboard_logs',
+            self.run_name)
+        self.tbwriter = None
+
+        self.recv_info_len = 5
+        self.glb_ep_reward_list = []
         self.glb_update_freq = glb_update_freq
         self.initial_glb_update_freq = glb_update_freq
         self.glb_adaptive_freq = glb_adaptive_freq
@@ -159,9 +167,7 @@ class DPPO_Server_Agent(object):
         self.last_save_steps = 0
         self.server_lock = Lock()
         self.server_save_lock = Lock()
-        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
-            self.run_name, log_time)
-        self.tbwriter = None
+       
         self.resumed = False
         self.reset_memory()
         # for Hessian
@@ -295,14 +301,7 @@ class DPPO_Server_Agent(object):
                         self.glb_policy.parameters(),
                         dst=sender, tag=SIG.PARAM
                     ).wait()
-                    # self.timestamp_counter[self.glb_policy_timestamp] += 1
-                    # if self.glb_policy_timestamp not in self.old_policy_dict:
-                    #     self.old_policy_dict[self.glb_policy_timestamp] = \
-                    #         copy.deepcopy(self.glb_policy)
-                    # print(self.timestamp_counter)
-                    # print('server {}, sent to {}, timestamp {}'.format(
-                    #     self.rank, sender, self.glb_policy_timestamp))
-
+                   
             else:
                 raise ValueError('signal not seen')
             with self.server_lock:
@@ -578,8 +577,10 @@ class DPPO_Server_Agent(object):
         raise NotImplementedError
 
     def save(self, filename=None):
-        if filename is None: filename = './ckpt{}_{}_{}.pth'.format(
-            self.run_name, self.glb_num_steps, self.savetime())
+        if filename is None: 
+            filename = './checkpoints/{}/ckpt{}_{}_{}.pth'.format(
+                        self.save_suffix[1:] if self.save_suffix else "the_nameless_ones",
+                        self.run_name, self.glb_num_steps, self.savetime())
         _ckpt = {
             'glb_policy': self.glb_policy.state_dict(),
             'glb_optimizer': self.glb_optimizer.state_dict(),
@@ -608,7 +609,10 @@ class DPPO_Server_Agent(object):
             assert self.num_agents == \
                 checkpoint['num_agents'], '{} != {}'.format(
                 self.num_agents, checkpoint['num_agents'])
+
         self.load(checkpoint)
+
+        # Setting attributes from checkpoint
         self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         self.eps_clip = checkpoint['eps_clip']
         self.max_glb_num_steps = checkpoint['max_glb_num_steps']
@@ -620,6 +624,7 @@ class DPPO_Server_Agent(object):
         self.glb_num_steps = checkpoint['glb_num_steps']
         self.num_steps_since_update = checkpoint['num_steps_since_update']
         self.glb_num_episodes = checkpoint['glb_num_episodes']
+
         self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
                 purge_step=self.glb_num_episodes,
@@ -689,14 +694,16 @@ class DPPO_Worker_Agent(object):
         self.recv_info_len = 3
         self.grad_clip = grad_clip
         self.device = next(local_policy.parameters()).device
+
         self.save_freq = save_freq
         self.save_suffix = '_' + save_suffix if save_suffix else ''
         self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
-        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
-            self.run_name, log_time)
+        self.tb_log_dir = '{}/{}'.format('./tensorboard_logs',
+            self.run_name)
+
         self.glb_num_episodes = 1
         self.glb_num_steps = 0
         self.local_num_episodes = 1

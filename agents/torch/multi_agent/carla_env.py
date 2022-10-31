@@ -203,7 +203,6 @@ class DummyAgent(Agent):
 class CarlaEnv(gym.Env):
     def __init__(self, config, logger=None, env_rank=0):
         self.config = config
-        # self._update_config(config)
         self.CarlaServer = None
         self.env_rank = env_rank
         self.episode_measurements = self.config['episode_measurements']
@@ -274,25 +273,7 @@ class CarlaEnv(gym.Env):
         self._set_world_and_map(self.config['initial_town'])
         self.world_annotations = RouteParser.parse_annotations_file(
             '../../../leaderboard/data/all_towns_traffic_scenarios_public.json')
-        # print(self.world_annotations)
-        # Commenting load_world, assuming default is set as Town01 in CARLA binary config
-        # since sometimes, it causes timeout issues in the beginning
-        # print(self.client.get_available_maps())
-        # self._world = self.client.load_world('/Game/Carla/Maps/' + self.config['city_name'])
-        # time.sleep(600)
-        # self._world = self.client.get_world()
 
-        # settings = self._world.get_settings()
-        # if(self.config['sync_mode']):
-        #     settings.synchronous_mode = True
-
-        # if self.config["server_fps"] is not None and self.config["server_fps"] != 0:
-        #     settings.fixed_delta_seconds =  1.0 / float(self.config["server_fps"])
-
-        # We want to enable rendering
-        # settings.no_rendering_mode = False
-
-        # self._world.apply_settings(settings)
         time.sleep(20)
 
         # self._map = self._world.get_map()
@@ -312,6 +293,16 @@ class CarlaEnv(gym.Env):
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
             np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
+
+        self._setup_observation_and_action_space()
+
+        # self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+        # self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
+
+        if self.config["disable_two_wheeler"]:
+            self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
+
+    def _setup_observation_and_action_space(self):
 
         # TODO: Verify the limits and bounds of observation spaces
         if self.config["action_type"] == 'merged_gas':
@@ -442,12 +433,6 @@ class CarlaEnv(gym.Env):
                                     shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
                                     # shape=(1, 12296), dtype=np.float32)
                                     # shape=(1, 20488), dtype=np.float32)
-
-        # self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
-        # self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
-
-        if self.config["disable_two_wheeler"]:
-            self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
 
     def _update_config(self, config):
         for key, val in config.items():
@@ -1004,6 +989,7 @@ class CarlaEnv(gym.Env):
             if not self.config["use_pid_in_frame_skip"]:
                 control = self._update_control(agent)
 
+
         for _ in range(self.config["frame_skip"]):
             for rk, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
@@ -1033,6 +1019,7 @@ class CarlaEnv(gym.Env):
                 agent.curr_ep_num_steps += 1
                 # if not agent.unseen:
                 #     agent.total_num_steps +=1
+
             ########################################################################################
             CarlaDataProvider.on_carla_tick()
             self.world_frame = self._world.tick()
@@ -2246,29 +2233,6 @@ class CarlaEnv(gym.Env):
     def _get_ego_input(self, agent):
         rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
 
-        # agent.global_planner = planner.GlobalPlanner()
-
-        # if self.config["use_route_to_plan"]:
-        #     agent.trace_route = []
-        #     for idx in range(len(self.scenario_route) - 1):
-        #         source = self.scenario_route[idx]
-        #         destination = self.scenario_route[idx + 1]
-        #         trace_route = agent.global_planner._trace_route(self._map,
-        #                         source, destination)
-        #         agent.trace_route.extend(trace_route)
-        # else:
-        #     agent.trace_route  = agent.global_planner._trace_route(self._map,
-        #                         agent.source_transform, agent.destination_transform)
-        # agent.global_planner.set_global_plan(agent.trace_route)
-
-        # if 'challenge' in self.config['scenarios'] or 'leaderboard' in self.config['scenarios']:
-        #     next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-        #         agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
-        #         agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
-        # else:
-        #     next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
-        #         agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
-        #         agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
         next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
             agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
             agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
