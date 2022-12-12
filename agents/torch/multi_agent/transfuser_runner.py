@@ -1,4 +1,4 @@
-"""Test multi-agent algo
+"""Run Distributed Transfuser to collect offline data
 """
 
 import os

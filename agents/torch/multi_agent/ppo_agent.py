@@ -117,25 +117,38 @@ class PPO_Collective_Agent(object):
         self.standard = standard
         self.device = next(glb_policy.parameters()).device
         self.save_freq = save_freq
-        self.save_suffix = '_' + save_suffix if save_suffix else ''
-        self.run_name = 'PPOx{}{}'.format(self.num_agents,
-            self.save_suffix)
+        
         self.verbose = verbose
         self.glb_ep_reward_list = []
         self.agent_reward_list = [[] for _ in self.rank_list]
-        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
-        self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
-        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
-            self.run_name, self.savetime())
-        self.vid_log_dir = '{}/{}_{}'.format('./video_logs',
-            'PPO_test', self.savetime())
+        
         self.glb_num_episodes = 1
         self.glb_num_steps = 0
         self.num_steps_since_update = 0
         self.recorder = GlobalRecorder
         self.tbwriter = None
         self.resumed = False
+
+        self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
+        self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
+        self.save_suffix = '_' + save_suffix if save_suffix else ''
+        self._set_experiment_name()
+
         self.reset_glb_memory()
+
+    def _set_experiment_name(self, run_name = None):
+        
+        if run_name is None:
+            self.run_name = 'PPOx{}{}'.format(self.num_agents,
+                self.save_suffix)
+            
+        else:
+            self.run_name = run_name
+
+        self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
+            self.run_name, self.savetime())
+        self.vid_log_dir = '{}/{}'.format('./video_logs',self.run_name)
+
 
     def reset_glb_memory(self):
         self.memory = {
@@ -481,7 +494,6 @@ class PPO_Collective_Agent(object):
             agent.update_local_policy()
             agent.reset_memory()
 
-
     def learn(self):
         # initialize
         if self.tbwriter is None:
@@ -672,7 +684,6 @@ class PPO_Collective_Agent(object):
                 self.glb_env.step()
 
     def test(self, videos=False):
-        # assert self.num_agents == 1, '{} != 1'.format(self.num_agents)
         # initialize
         term_stats = defaultdict(int)
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
@@ -690,6 +701,9 @@ class PPO_Collective_Agent(object):
         self.curr_town = self.glb_env.curr_town
         self.glb_env.step()
 
+        # Camera Feed Management
+        camera_folders = list(self.agent_list[0].camera_images.keys())
+
         self.glb_num_test_episodes = self.glb_env.config['num_episodes']
         print('testing on [{}] for [{}] episodes'.format(
             self.curr_town, self.glb_num_test_episodes))
@@ -706,15 +720,35 @@ class PPO_Collective_Agent(object):
             self.glb_env.step()
 
             for rk, agent in enumerate(self.agent_list):
+
                 if videos:
-                    sub_folder='ep{}rk{}'.format(self.glb_num_episodes, rk)
-                    viz.save_image(agent.rv_image, sub_folder=sub_folder)
+                    for k in camera_folders:
+                        sub_folder='ep{}rk{}_{}'.format(self.glb_num_episodes, rk, k)
+                        viz.save_image(agent.camera_images[k], sub_folder=sub_folder)
                 if agent.done:  # done and print information
                     term_stats[agent.termination_state] += 1
                     if videos:
-                        viz.generate_video(sub_folder,
-                            suffix=agent.termination_state)
-                        viz.remove_images(sub_folder)
+                        sub_folders=['ep{}rk{}_{}'.format(self.glb_num_episodes, rk, k) for k in camera_folders]
+                        combined_folder = viz.create_combined_image(sub_folders)
+                        print(combined_folder)
+                        viz.generate_video(combined_folder,suffix=agent.termination_state)
+                        viz.remove_images(combined_folder)
+                        for sub_folder in sub_folders:
+                            viz.remove_images(sub_folder)
+
+                        viz.plot_episode_info_2('',
+                                agent.target_speeds_array,
+                                agent.speeds_array,
+                                agent.throttles_array,
+                                agent.steers_array,
+                                agent.brakes_array,
+                                agent.obstacle_dist_array,
+                                agent.step_reward_array,
+                                agent.collision_reward_array,
+                                agent.dist_to_trajectory_array,
+                                agent.red_light_dist_array,
+                                self.glb_num_episodes)
+
                     if agent.termination_state == 'success':
                         self.num_successes += 1
                     print('[test {}][glb ep {}/{}]'.format(
@@ -766,6 +800,8 @@ class PPO_Collective_Agent(object):
                         [self.agent_list[rk] for rk in respawn_rank_list])
                 self.glb_env.step()
 
+            # break #COMMENT
+
         print('[Finished]', term_stats)
 
     def save(self, filename=None):
@@ -789,10 +825,14 @@ class PPO_Collective_Agent(object):
         torch.save(_ckpt, filename)
         print('checkpoint saved at [{}]'.format(filename))
 
-    def load(self, checkpoint):
+    def load(self, checkpoint, run_name = None):
+
+        if run_name is not None: # update experiment name. This is used for managing testing runs
+            self._set_experiment_name(run_name)
+            
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
         self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
-        print('checkpoint params loadeded')
+        print('checkpoint params loaded')
 
     def resume(self, checkpoint, strict=False):
         if strict:
@@ -1335,7 +1375,6 @@ class MultiPPO_Collective_Agent(object):
 
     def run(self):
         raise NotImplementedError
-
 
 
 if __name__ == '__main__':

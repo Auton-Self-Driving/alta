@@ -113,35 +113,40 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix':'test2_nolane_15dim',#'test1',
-    'checkpoint': '',
+    # 'save_suffix':'15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08',#'test2_nolane_15dim_nocrach_empty',#'test1',
+    'save_suffix':'7dim_nocrach_dense_no_lane',#'test2_nolane_15dim_nocrach_empty',#'test1',
+    'checkpoint':  '',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
     # 'ckpt_mode': 'load',
     # 'ckpt_mode': '',
     'ckpt_mode': 'resume',
+    'gamma':0.8, # 0.99
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
+    'squash': True, # This enables tanh squashing of sampled actions from policy
     'focal_loss': False,
     'standard': False, # if False, will push traj after finishing an episode
     'push_grad': False,
-    'num_workers': 15,#1,#
+    'num_workers': 14,#1,#
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:0'],
     'device_list': ['cuda:1', 'cuda:2', 'cuda:3'],
+    # 'device_list': ['cuda:0','cuda:1', 'cuda:2', 'cuda:3'],
     'worker_grad_update_freq': 20000,
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 100,
     'server_adaptive_freq': True,
-    'save_freq': 100000,
+    'save_freq': 300000,
 }
 
 PPO_CONFIG = {
     'save_suffix': 'O10mL10mG0m1kupdstdoffchallenge',
-    'checkpoint': './checkpoints/test1/ckptDPPO1x8x8_test1_6790185_Oct200239PM32.pth',
+    'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_2702504_Nov281208AM12.pth',
     'policy_lr': 4e-4,
     'eps_clip': .2,
     'grad_clip': .5,
+    'squash': True, # This enables tanh squashing of sampled actions from policy
     'nesterov': False,
     'standard': False,
     # 'focal_loss': [.5, .5],
@@ -153,44 +158,24 @@ PPO_CONFIG = {
 OFFLINE_CONFIG = {
     'epoch': 40,
     'offline_repo_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl',
-    # 'dvae_iql_policy_location': '',
     'dvae_iql_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/iql/lowerdimobs-random-ttc/newexp_iql_seed2/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed1',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed0_run3/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/leaderboard/dvae_bt_seed2_run3/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed0/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed1/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/bt/leaderboard/bt_seed2/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed0/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed1/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dt/leaderboard/dt_seed2/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed0/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed1/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/tt/leaderboard/tt_seed2/',
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/iql/lowerdimobs-random-ttc/newexp_iql_seed0/',
-    # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/01-23-train-leaderboard',
-    # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/01-25-train-leaderboard-seed-2/',
-
-    # 'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/lowerdimobs-random-ttc/dvae_bt_set8_seed4/',
     'offline_policy_location': '/zfsauton2/home/zhehuang/Documents/transformer_rl/logs/dvae_dt/lowerdimobs-random-ttc/dvae_bt_newset8_seed6/',
-    # 'offline_policy_location': '/zfsauton/datasets/ArgoRL/swapnilp/dvae_bt_results/lowerdimobs-random-ttc/dvae_bt_set11_seed4/',
 }
+
 
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
-    # 'PPO': False,
+    # 'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_9023024_Nov290328PM28.pth',
+    'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7208291_Dec060316PM51.pth',
     'num_agents': 1,
     'num_npc': 70,
-    # 'num_npc': 120,
     'sample_npc': False,
-    # 'scenarios' : 'no_crash_dense',
-    'scenarios' : 'challenge_test_scenario',
+    'scenarios' : 'no_crash_dense', # 'no_crash_dense', # 
+    # 'scenarios' : 'challenge_test_scenario',
     'use_scenarios': True,
     'city_name' : 'Town02',
-    # 'city_name' : 'Town01',
-    # 'city_name' : 'Town05',
     'num_episodes' : 25,
-    'target_speed': 25,
+    'target_speed': 50,
     'steering_scale': 0.5,
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static_termination' : True,
@@ -202,7 +187,7 @@ TEST_CONFIG = {
     'side_obs_sensor_hit_radius': .7854,
     'disable_traffic_light': False,
     'terminate_on_light' : False,
-    'enable_lane_invasion_termination' : False,
+    'enable_lane_invasion_termination' : True,
     'front_obs_proximity_threshold' : 15,
     'side_obs_proximity_threshold' : 5,
     'traffic_light_proximity_threshold' : 15,
@@ -212,7 +197,6 @@ TEST_CONFIG = {
     'weak_verbose': False,
     'test_verbose': True,
     # 'test_verbose': False,
-    'videos': False, 
     'sensor_x_res' : '400',
     'sensor_y_res' : '800',
     'videos': True,
@@ -222,9 +206,9 @@ TEST_CONFIG = {
 ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
-    'num_agents': 8,
+    'num_agents': 8,#1,#
     'max_num_steps': 16000000,
-    'device': 'cuda:0', # Redundant. It over written by the device list of the agent
+    'device': 'cuda:0', # Redundant. Its over written by the device list of the agent
     'log_dir': '../../../../alta-logs/',
     'server_path' : CARLA_9_4_PATH,
     'server_binary' : CARLA_9_4_PATH + '/CarlaUE4.sh',
@@ -243,6 +227,7 @@ ENV_CONFIG = {
     'server_port' : None,
     'server_retries' : 5,
     'initial_town' : 'Town01', # no ldb training routes for town05
+    # 'initial_town' : 'Town02',
     # 'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05'],
     'avail_town_list': ['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'],
     'frame_skip': 1,
@@ -288,29 +273,23 @@ ENV_CONFIG = {
     # Refer to _set_scenario in carla_env for scenarios list
     # 'scenarios' : 'navigation',
     # 'scenarios' : 'challenge_train_scenario',
-    # 'scenarios' : 'straight', ##FOR TESTING
-    'scenarios' : 'leaderboard_navigation', # Use this otherwise
+    # 'scenarios' : 'straight', 
+    'scenarios' : 'no_crash_dense', # 'no_crash_empty', 
+    # 'scenarios' : 'leaderboard_navigation', # Use this otherwise
     'min_num_eps_before_switch_town': 15,
     'semantic' : False,
     'client_timeout_seconds' : 6000,
-    # 'carla_gpu': '0',
     'render_server': False,
     'steer_penalty_coeff': 0,
     'vae_encoding_norm_factor' : 10,
-    # 'input_type': 'wp_angles_vecs_obs_info_speed_steer_ldist_light',
-    # 'input_type': 'wp_obs_info_speed_steer_ldist_goal_light',
-    # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
-    # 'input_type': 'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-    'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim
-    # 'input_type': 'transformer',
-    # 'input_type': 'wp_360_obstacle_speed_steer',
+    'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
+    # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
     'use_scenarios': True,
     'num_npc' : 0,
     'sample_npc': True,
     'num_npc_lower_threshold' : 20,
-    # 'num_npc_upper_threshold' : 200,
     'num_npc_upper_threshold' : 380,
-    'npc_reset_freq': 10000,
+    'npc_reset_freq': 10000, # CHECK: Basically means never reset NPC?
     'binarized_image': False,
     'single_channel_image': False,
     'noise_dim' : 1,
@@ -359,7 +338,7 @@ ENV_CONFIG = {
     'side_obs_sensor_hit_radius': .7854, # pi / 4
     'all_obs_hit_radius': 2,
     'use_pid_in_frame_skip' : True,
-    'enable_lane_invasion_sensor' : True,
+    'enable_lane_invasion_sensor' : False, # DISABLED [AMAN]
     # 'enable_lane_invasion_termination' : True, DISABLED [AMAN]
     # 'enable_lane_invasion_collision' : True, DISABLED [AMAN]
     'enable_lane_invasion_termination' : False,
@@ -368,7 +347,7 @@ ENV_CONFIG = {
     'side_obs_proximity_threshold' : 5,
     'all_obs_proximity_threshold' : 45,
     'vehicle_proximity_threshold' : 45,
-    'traffic_light_proximity_threshold' : 20,#30,
+    'traffic_light_proximity_threshold' : 20,
     'min_dist_from_red_light' : 0,
     'clip_reward' : False,
     'default_obs_traffic_val': 1,

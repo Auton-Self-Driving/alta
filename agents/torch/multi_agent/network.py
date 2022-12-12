@@ -54,7 +54,7 @@ class Basic_Discrete(nn.Module):
 
 
 class PPOActorCritic_Continuous(nn.Module):
-    def __init__(self, state_dim, action_dim, action_std=.5, use_transformer=False):
+    def __init__(self, state_dim, action_dim, action_std=.5, use_transformer=False, squash=False):
         super(PPOActorCritic_Continuous, self).__init__()
         # action mean range -1 to 1
         self.N_S = state_dim
@@ -66,13 +66,8 @@ class PPOActorCritic_Continuous(nn.Module):
             # state_dim = 800
             self.transformer = TransformerAgent(state_dim)
             # self.transformer = TransformerAgent(128)
+        self.squash = squash
         self.actor = nn.Sequential(
-                #nn.Linear(state_dim, 64),
-                #nn.Tanh(),
-                #nn.Linear(64, 32),
-                #nn.Tanh(),
-                #nn.Linear(32, action_dim),
-                #nn.Tanh(),
                 nn.Linear(state_dim, 256),
                 nn.ReLU(),
                 nn.Linear(256, 256),
@@ -82,11 +77,6 @@ class PPOActorCritic_Continuous(nn.Module):
             )
         # critic
         self.critic = nn.Sequential(
-                #nn.Linear(state_dim, 64),
-                #nn.Tanh(),
-                #nn.Linear(64, 32),
-                #nn.Tanh(),
-                #nn.Linear(32, 1)
                 nn.Linear(state_dim, 256),
                 nn.ReLU(),
                 nn.Linear(256, 256),
@@ -101,19 +91,24 @@ class PPOActorCritic_Continuous(nn.Module):
 
     def act(self, state, deterministic=False):
         device = next(self.actor.parameters()).device
+
         if self.use_transformer:
             state = self.transformer(state.to(device))
+
         action_mean = self.actor(state.to(device))
         cov_mat = torch.diag(self.action_var).to(device)
+        dist = MultivariateNormal(action_mean.to(torch.device('cpu')), cov_mat.to(torch.device('cpu')))
 
-        dist = MultivariateNormal(action_mean, cov_mat)
         action = dist.mean if deterministic else dist.sample()
-        action_logprob = dist.log_prob(action)
+
+        if self.squash:
+            action = torch.tanh(action)
+        action_logprobs = get_action_log_prob(dist,self.squash,action)
 
         action = action.detach().cpu().numpy()
-        action_logprob = action_logprob.detach().cpu().numpy()
+        action_logprobs = action_logprobs.detach().cpu().numpy()
 
-        return action, action_logprob
+        return action, action_logprobs
 
     def evaluate(self, state, action):
         device = next(self.actor.parameters()).device
@@ -123,11 +118,15 @@ class PPOActorCritic_Continuous(nn.Module):
         action_var = self.action_var.expand_as(action_mean)
         cov_mat = torch.diag_embed(action_var).to(device)
 
-        # print(115, action_mean.shape, type(action_mean), cov_mat.shape, type(cov_mat))
-        dist = MultivariateNormal(action_mean.to(device), cov_mat)
+        
+        dist = MultivariateNormal(action_mean.to(torch.device('cpu')), cov_mat.to(torch.device('cpu')))
 
-        action_logprobs = dist.log_prob(action)
+        action_logprobs = get_action_log_prob(dist,self.squash,action.to(torch.device('cpu')))
+
         dist_entropy = dist.entropy()
+        dist_entropy = dist_entropy.to(device)
+        action_logprobs = action_logprobs.to(device)
+
         state_value = self.critic(state)
 
         return action_logprobs, torch.squeeze(state_value), dist_entropy.view(-1)
@@ -216,6 +215,26 @@ class PolicyNetwork(nn.Module):
 
 def positional_encoding(p, L=10):
     return torch.stack([torch.sin(2**i * np.pi * p) for i in range(L)] + [torch.cos(2**i * np.pi * p) for i in range(L)], dim=-1)
+
+
+def get_action_log_prob(dist, squash, actions):
+    """ Squashing policy output via a Tanh. Implementations based on the Stable Baselines implementation.
+    """
+
+    if not squash:
+        action_logprob = dist.log_prob(actions)
+    else:
+        eps = torch.finfo(actions.dtype).eps
+        clamped_actions = actions.clamp(min=-1.0 + eps, max=1.0 - eps)
+        gaussian_action = 0.5 * (clamped_actions.log1p() - (-clamped_actions).log1p())
+
+        action_logprob = dist.log_prob(gaussian_action)
+
+        # Squash correction (action_logprob original SAC implementation)
+        # this comes from the fact that tanh is bijective and differentiable
+        action_logprob -= torch.sum(torch.log(1 - actions**2 + 1e-6), dim=1)
+
+    return action_logprob       
 
 
 class TransformerAgent(nn.Module):

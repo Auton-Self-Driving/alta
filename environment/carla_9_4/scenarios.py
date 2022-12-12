@@ -693,6 +693,7 @@ def paths_straight_Town01_test():
     ]
 
     return paths[0:1]
+
 def paths_straight_Town01_dynamic():
 
     paths = [
@@ -2067,7 +2068,6 @@ def get_t_junction_path(unseen=False, town="Town01", index=0):
             return paths_t_junction_Town01()[index%2]
         else:
             raise NotImplementedError("T-Junction scenarios only implemented for Town01!")
-
 
 def get_fixed_long_straight_path_Town01():
     " Returns a list of [start_transform, target_transform]"

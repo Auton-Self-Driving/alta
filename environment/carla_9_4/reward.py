@@ -419,7 +419,6 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
 
     return clipped_reward
 
-
 def _compute_reward_simple3(prev, current, config=None, verbose=False):
     cur_dist = current["distance_to_goal"]
     prev_dist = prev["distance_to_goal"]
@@ -532,8 +531,6 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
         print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward)
 
     return clipped_reward
-
-
 
 def _compute_reward_obs(prev, current, config=None, verbose=False):
     cur_dist = current["distance_to_goal"]
@@ -651,7 +648,6 @@ def _compute_reward_obs(prev, current, config=None, verbose=False):
     # if current["speed"] <= config["zero_speed_threshold"]:
     #     current["static_steps"] += 1
     return clipped_reward
-
 
 def _check_if_signal_crossed(prev, current):
 

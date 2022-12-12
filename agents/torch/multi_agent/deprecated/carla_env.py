@@ -209,6 +209,7 @@ class CarlaEnv(gym.Env):
         self.prev_measurement = None
         self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
+        # if 'num_agents' in self.config and self.config['algo'] == 'A2C':
         if 'challenge' in self.config["scenarios"]:
             self.statistics_manager = StatisticsManager()
             self.config['num_agents'] == 1
@@ -216,7 +217,8 @@ class CarlaEnv(gym.Env):
         if self.config['verbose']: print('##### USE MULTI-AGENT #####', flush=True)
         self.ego_vehicle_list = [None] * self.config['num_agents']
         self.ego_agent_list = [None] * self.config['num_agents']
-
+        # else:
+        #     self.config['num_agents'] = 1
         self.curr_num_agents = 0
         self.world_frame = 0
         self.last_npc_reset_frame = 0
@@ -322,70 +324,93 @@ class CarlaEnv(gym.Env):
 
         if self.config["input_type"] == 'wp':
             self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+
         elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
             self.observation_space = Box(low=np.array([[-4.0, -1.0]]), high=np.array([[4.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_ldist_goal':
             self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_bool_noise':
             limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
             self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_speed':
             self.observation_space = Box(low=np.array([[-4.0, 0.0]]), high=np.array([[4.0, 12.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_speed_goal':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_speed_steer_goal':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 10.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -1 * self.config['steering_scale'], -1.0, 0.0, 0.0]]),
                 high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light': # currently using
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -1., 0., -1., 0., 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
             high=np.array([[4.0, 1.0, 1.0, 1., 1., 1., 1., 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 5 obs sensors
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
              high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                             high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                     high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                     high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+
         elif self.config["input_type"] == 'vae':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     shape=(1, 400), dtype=np.float32)
+
         elif self.config["input_type"] == 'transformer':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     shape=(800,), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vae':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     shape=(1, 401), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     shape=(1, 404), dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
                                     # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
                                     shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+
         elif self.config["input_type"] == 'wp_360_obstacle_speed_steer':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
                             high=np.array([[4.0, 1.0, 0.5, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
                             dtype=np.float32)
+
         elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
             self.observation_space = Box(low=np.finfo(np.float32).min,
                                     high=np.finfo(np.float32).max,
@@ -442,7 +467,7 @@ class CarlaEnv(gym.Env):
         self.scenario_index = 0
         CarlaDataProvider.set_world(self._world)
 
-    def create_observations(self, agent, obs): # Observation created here.
+    def create_observations(self, agent, obs):
         obs['observation'] = np.array([agent.episode_measurements['next_orientation']])
 
         if self.config["input_type"] == 'wp_constant':
@@ -558,7 +583,7 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec])))
 
-        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light': # 7 dim
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light':
 
             speed = agent.episode_measurements['speed'] / 10
             obstacle_dist = agent.episode_measurements['obstacle_dist']
@@ -638,10 +663,8 @@ class CarlaEnv(gym.Env):
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]),
             np.array([obstacle_dist_left]), np.array([obstacle_speed_left]), np.array([obstacle_dist_right]), np.array([obstacle_speed_right]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
-        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15dim obs space
-
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light':
             feat_list = [agent.episode_measurements['next_orientation']]
-
             for suffix, sensor in agent.obstacle_sensor.items():
                 obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
                 obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
@@ -918,13 +941,27 @@ class CarlaEnv(gym.Env):
             #exit()
 
     def step(self, action=None):
+        # action is for stablebaseline
         try:
+            # if self.config['test_comparison']:
+            #     self._step_test_comparison(action)
+            #     return None
+            # elif self.config['algo'] == 'A2C':
+                # new_obs, reward, done, ep_info = self._step(action[0])
+                # return [new_obs], [reward], [done], [ep_info]
             self.list_step(action=action) # action here will be an action list
-            # For stable baselines look at old file for additional code. 'action' is for stablebaseline
+
+            if self.config['algo'] == 'stable_baseline_sac':
+                agt = self.ego_agent_list[0]
+                _rwd = agt.step_reward if hasattr(agt, 'step_reward') else 0
+                return agt.observation, _rwd, agt.done, agt.episode_measurements
 
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
+
+    def get_action_for_test_comparison(self):
+        pass
 
     def _update_control(self, agent):
         control = self.get_control(agent, agent.action)
@@ -936,7 +973,7 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['control_hand_brake'] = control.hand_brake
         return control
 
-    def list_step(self, action=None): # Environment steps take place here
+    def list_step(self, action=None):
         # action_list here should be a list of action
         self.world_frame = None
 
@@ -949,12 +986,8 @@ class CarlaEnv(gym.Env):
 
 
         for _ in range(self.config["frame_skip"]):
-
-            # Get control of agent (steer, throttle, break, reverse and hadn brake)
             for rk, agent in enumerate(self.ego_agent_list):
-
                 if agent.done or agent.action is None: continue
-
                 if self.config["use_pid_in_frame_skip"]:
                     control = self._update_control(agent)
                     if self.config['verbose']:
@@ -965,7 +998,10 @@ class CarlaEnv(gym.Env):
                         print('[step {}][agent {}][steer {:.2f}][speed {:.2f}]'.format(
                             agent.curr_ep_num_steps, agent.rank, control.steer,
                             self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
-                     
+                        # print("steer", control.steer, "throttle", control.throttle, "brake", control.brake,
+                        #     "reverse", control.reverse)
+                        # print("steps", agent.curr_ep_num_steps)
+
                 agent.obstacle_dist_array.append(agent.episode_measurements['obstacle_dist'])
                 agent.obstacle_speed_array.append(agent.episode_measurements['obstacle_speed'])
                 agent.wp_orientation_array.append(agent.episode_measurements['next_orientation'])
@@ -976,41 +1012,58 @@ class CarlaEnv(gym.Env):
                 agent.dist_to_target_array.append(agent.episode_measurements['distance_to_goal_trajec'])
                 agent.vehicle_actor.apply_control(control)
                 agent.curr_ep_num_steps += 1
-        
+                # if not agent.unseen:
+                #     agent.total_num_steps +=1
+
             ########################################################################################
             CarlaDataProvider.on_carla_tick()
             self.world_frame = self._world.tick()
             ########################################################################################
-
             for idx, agent in enumerate(self.ego_agent_list):
                 if agent.done or agent.action is None: continue
                 if 'challenge' in self.config['scenarios']:
                     agent.running.scenario.scenario_tree.tick_once()
-                
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
                 agent.episode_measurements['num_collisions'] = agent.collision_sensor.num_collisions
                 agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
-
                 if self.config['enable_lane_invasion_termination']:
                     if self.config["enable_lane_invasion_sensor"]:
-        
+                        # if 'challenge' in self.config['scenarios']:
+                        #     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections and \
+                        #         RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                        #         RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                        #     agent.episode_measurements['out_of_road'] = int(agent.lane_invasion_sensor.out_of_road) and \
+                        #         RoadOption.CHANGELANELEFT not in set(agent.next_road_opts) and \
+                        #         RoadOption.CHANGELANERIGHT not in set(agent.next_road_opts)
+                        # else:
+                        #     agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                        #     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
                         agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
                         agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
                             agent.prev_measurement['num_laneintersections']
                         agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                        
-        
+                        # skip lane changing
+                        # print('[945]', [opt.value for opt in agent.next_road_opt_queue])
                         next_opts = set(agent.next_road_opt_queue)
                         for opt in next_opts:
                             # NOTE: not sure the reason but here should use .name to compare
                             if opt.name != RoadOption.CHANGELANELEFT.name and \
                                 opt.name != RoadOption.CHANGELANERIGHT.name:
                                 continue
-                            
+                            # if not continued
+                            # print('[953]', opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
+                            # print('[952] permitted offlane')
                             agent.episode_measurements['unlawful_lane_change'] = False
-                        
+                        # print('[937]', agent.next_road_opts)
+                        # if RoadOption.CHANGELANELEFT in agent.next_road_opts or \
+                            #  RoadOption.CHANGELANERIGHT in agent.next_road_opts:
+                            #  print('>>>>>>> [939]', agent.next_road_opts)
+                        # if agent.episode_measurements['num_laneintersections'] > 0:
+                        #     agent.episode_measurements['offlane_steps'] += 1
+                        # else:
+                        #     agent.episode_measurements['offlane_steps'] = 0
                     else:
                         self._update_lane_invasion_info_via_privilege(agent)
 
@@ -1020,7 +1073,15 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['min_distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
-                self._get_ego_input(agent) # Agent observations and ep measurements constructed here
+                # next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
+                #     agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors = \
+                #     agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform())
+
+                # agent.episode_measurements['next_orientation'] = next_orientation
+                # agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
+                # agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
+
+                self._get_ego_input(agent)
 
                 agent.step_reward = compute_reward(name=self.config['reward_function'],
                                     prev_measurement=agent.prev_measurement,
@@ -1030,8 +1091,10 @@ class CarlaEnv(gym.Env):
                 agent.curr_reward += agent.step_reward
 
                 obs_collision = agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions'] > 0
+                # print('obs_collision', obs_collision, agent.episode_measurements['num_collisions'], agent.prev_measurement['num_collisions'])
 
                 if obs_collision and agent.episode_measurements["collision_actor_id"] != agent.prev_measurement["collision_actor_id"]:
+                    # print("agent.episode_measurements['is_collision'] =", obs_collision, agent.episode_measurements["collision_actor_id"])
                     self.total_collisions += 1
                     if 'vehicle' in agent.episode_measurements['collision_actor_type']:
                         self.vehicle_collisions += 1
@@ -1050,6 +1113,7 @@ class CarlaEnv(gym.Env):
                     print("Traffic Light Violations: {}".format(self.traffic_light_violations))
 
                 done = self._compute_done_condition(agent)
+                # print('[agent {}] 677'.format(agent.rank), agent.episode_measurements['initial_dist_to_red_light'])
                 agent.episode_measurements['done'] = done
                 agent.done = bool(done)
                 if agent.done and 'challenge' in self.config['scenarios']:
@@ -1077,6 +1141,12 @@ class CarlaEnv(gym.Env):
             if agent.action is None:
                 self._get_ego_input(agent)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
+
+    def _step_test_comparison(self, action):
+        pass
+
+    def _step(self, action):
+        pass
 
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
@@ -1138,7 +1208,15 @@ class CarlaEnv(gym.Env):
         if not self.config['disable_traffic_light']:
             self._update_traffic_light_states(agent)
 
-    def _update_obs_detector_via_privilege(self, agent): # Updates agent measurements based on nearby vehicular obstacles using prev. info
+            # if self.config['verbose']:
+            #     print('[agent {}] light info:'.format(agent.rank),
+            #         agent.episode_measurements['dist_to_light'],
+            #         agent.episode_measurements['nearest_traffic_actor_id'],
+            #         agent.episode_measurements['nearest_traffic_actor_state'],
+            #         agent.episode_measurements['initial_dist_to_red_light'],
+            #         agent.episode_measurements['red_light_dist'])
+
+    def _update_obs_detector_via_privilege(self, agent):
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
 
@@ -1153,7 +1231,6 @@ class CarlaEnv(gym.Env):
             # do not account for the ego vehicle
             try:
                 if target_vehicle is None or hasattr(target_vehicle, 'done') and target_vehicle.done: continue
-
                 if target_vehicle.id == agent.id or 'vehicle' not in target_vehicle.type_id:
                     # skip self and non-vehicular
                     continue
@@ -1422,16 +1499,10 @@ class CarlaEnv(gym.Env):
         self.source_transform = self.spawn_points[source_idx]
         self.destination_transform = self.spawn_points[destination_idx]
 
-    def _set_scenario(self, unseen=False, town="Town01", index=0): # Scenarios are set here
-        """ Returns Start and end waypoints for an episode based on the chosen senario. 
-        self.source_transform, self.destination_transform are indices that index a dict
-        mapping integer indices to wapoint coordinates in maps. 
-
-        Returns the current town of the environment
-        """
-
+    def _set_scenario(self, unseen=False, town="Town01", index=0):
         _upd_town = self.curr_town
         if self.config["scenarios"] == "straight":
+            # self.source_transform, self.destination_transform = scenarios.get_fixed_long_straight_path_Town01()
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "long_straight":
@@ -1471,6 +1542,7 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "challenge_train_scenario":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
+                # avail_map_list=self.avail_map.keys(), mode='train')
                 avail_map_list=['Town01', 'Town03'], mode='train')
         elif self.config["scenarios"] == "challenge_test_scenario":
             ######### Not the actual number of eposiodes.
@@ -1482,16 +1554,26 @@ class CarlaEnv(gym.Env):
                 self.config['num_episodes'] = None
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=1,
+                # avail_map_list=self.avail_map.keys(), mode='test')
+                # avail_map_list=['Town02', 'Town05'], mode='test')
                 avail_map_list=[self.curr_town], mode='test')
+                # avail_map_list=['Town02'], mode='test')
         elif self.config["scenarios"] == "leaderboard_navigation":
             self.source_transform, self.destination_transform, self.wps_list, _upd_town = scenarios.get_leaderboard_route(
                 unseen, curr_town=self.curr_town, index=index, max_idx=self.config["min_num_eps_before_switch_town"],
+                # avail_map_list=['Town01', 'Town02', 'Town03', 'Town04', 'Town05', 'Town06', 'Town07'], mode='train')
+                # avail_map_list=['Town01', 'Town03'], mode='train')
+                # avail_map_list=[self.curr_town], mode='train')
                 avail_map_list=self.config['avail_town_list'], mode='train')
         else:
             raise ValueError("Scenarios Config not set!")
 
         if _upd_town != self.curr_town: # switch to a new town
             print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+        #     if self.config['num_agents'] != 1:
+        #         # self.reset_env()
+        #         self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+        #     self._set_world_and_map(_upd_town)
         return _upd_town
 
     def get_control(self, agent, action):
@@ -1642,10 +1724,18 @@ class CarlaEnv(gym.Env):
         return control
 
     def reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
-        # If using stable baselines SAC refer to old version for additional code 
         if not rank_list: rank_list = [0]
+        # if self.config['test_comparison']:
+        #     return self._reset_test_comparison(unseen, index)
+        # elif self.config['algo'] == 'A2C':
         self.list_reset(use_idx=use_idx, idx_list=idx_list, rank_list=rank_list, reset_npc=reset_npc)
-   
+        if self.config['algo'] == 'stable_baseline_sac':
+            self.reset_vehicle_agent([DummyAgent(self.ego_vehicle_list[0])])
+            obs, _, _, _ = self.step()
+            return obs
+        # else:
+        #     return self._reset(unseen, index)
+
     def reset_env(self,):
         # CarlaDataProvider.cleanup()
         # self.statistics_manager.scenario = None
@@ -1661,6 +1751,8 @@ class CarlaEnv(gym.Env):
         # Delete all existing actors
         for _ in range(len(self.actor_list)):
             try:
+                # actor = self.actor_list.pop()
+                # actor.destroy()
                 self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
                 self.actor_list.clear()
             except Exception as e:
@@ -1703,23 +1795,15 @@ class CarlaEnv(gym.Env):
 
             self.episode_measurements[key] = 0
 
-    def _setup_camera(self, sensor, bev = True):
+    def save_rgb_image(self, agent, rgb_image, save_folder='../../../../alta-logs/a3c/'):
+        _folder = '{}/{}/{}'.format(os.path.expanduser(save_folder), agent.rank, agent.episode_id)
+        if not os.path.exists(_folder):
+            print('creating [{}] to save image'.format(_folder))
+            os.makedirs(_folder)
+        _filename = '{}/{:08d}.jpg'.format(_folder, agent.num_total_steps)
+        plt.imsave(_filename, rgb_image)
 
-            camera = self.blueprint_library.find(sensor)
-            camera.set_attribute('image_size_x', self.config['sensor_x_res'])
-            camera.set_attribute('image_size_y', self.config['sensor_y_res'])
-            camera.set_attribute('sensor_tick', self.config['sensor_tick'])
-            camera.set_attribute('fov', '90')
-
-            if bev: # BEV Camera
-                camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
-            else: # Front Facing Camera
-                camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
-
-            return camera, camera_transform
-
-    def reset_vehicle_agent(self, agent_list, transfuser=False): # Resets vehicle agents and their sensors.
-
+    def reset_vehicle_agent(self, agent_list, transfuser=False):
         # bind new agent
         for agent in agent_list:
             self.ego_agent_list[agent.rank] = agent
@@ -1774,6 +1858,8 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['obstacle_init_dist'] = -1
             agent.episode_measurements['obstacle_init_id'] = -1
 
+            agent.rv_camera_queue = queue.Queue()
+
             agent.actor_list = []
             agent.target_speeds_array = []
             agent.speeds_array = []
@@ -1805,28 +1891,30 @@ class CarlaEnv(gym.Env):
                 dt=self.args_lateral_dict['dt'])
 
 
-            # Cameras Setup
             if self.config["semantic"]:
                 sensor = self.config['sensors'][1]
             else:
                 sensor = self.config['sensors'][0]
 
-            bev_camera, bev_camera_transform = self._setup_camera(sensor, bev = True)
-            front_camera, front_camera_transform = self._setup_camera(sensor, bev = False)
+            rv_camera = self.blueprint_library.find(sensor)
+            rv_camera.set_attribute('image_size_x', self.config['sensor_x_res'])
+            rv_camera.set_attribute('image_size_y', self.config['sensor_y_res'])
+            rv_camera.set_attribute('sensor_tick', self.config['sensor_tick'])
+            # camera.set_attribute('fov', '120')
+            rv_camera.set_attribute('fov', '90')
 
-            agent.camera_actors = {
-                "bev":self._world.spawn_actor(bev_camera, bev_camera_transform, attach_to=agent.vehicle_actor),
-                "front":self._world.spawn_actor(front_camera, front_camera_transform, attach_to=agent.vehicle_actor),
-            }
+            # Orientation for forward-facing camera
+            # rv_camera_transform = carla.Transform(carla.Location(x=2.0, z=1.4), carla.Rotation(pitch=0.0))
+            rv_camera_transform = carla.Transform(carla.Location(x=13.0, z=18.0), carla.Rotation(pitch=270.0))
 
-            agent.camera_queues = [] 
-            for k in agent.camera_actors.keys():
-                agent.camera_queues.append(queue.Queue())
-                agent.actor_list.append(agent.camera_actors[k])
-                agent.camera_actors[k].listen(agent.camera_queues[-1].put)                
+            agent.rv_camera_actor = self._world.spawn_actor(rv_camera, rv_camera_transform, attach_to=agent.vehicle_actor)
+            agent.actor_list.append(agent.rv_camera_actor)
+
+            agent.rv_camera_actor.listen(agent.rv_camera_queue.put)
 
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)
+
 
             if self.config["enable_lane_invasion_sensor"]:
                 agent.lane_invasion_sensor = sensors.LaneInvasionSensor(agent.vehicle_actor)
@@ -2131,7 +2219,8 @@ class CarlaEnv(gym.Env):
         if agent_wp.lane_change == LaneChange.NONE:
             agent.episode_measurements['unlawful_lane_change'] = True
 
-    def _get_ego_input(self, agent): # Obs updated here
+    def _get_ego_input(self, agent):
+        rv_image = self._read_data(agent.rv_camera_queue, self.world_frame)
 
         next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
             agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
@@ -2154,7 +2243,7 @@ class CarlaEnv(gym.Env):
 
         # Update obstacle distance measurements
         obs = {}
-
+        # self._update_env_obs(front_rgb_image=rgb_image)
         self._update_env_obs(agent)
 
         # if static (stuck by obstacle)
@@ -2166,15 +2255,8 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight_dynamic":
             self._update_straight_dynamic_obs(agent)
 
-
-        # Gather camera measurements
-        agent.camera_images = {}
-        cameras = list(agent.camera_actors.keys())
-        for idx in range(len(cameras)):
-            image = self._read_data(agent.camera_queues[idx], self.world_frame)
-            agent.camera_images[cameras[idx]] = image
-        obs['camera_images'] = agent.camera_images
-
+        obs['rv_image'] = agent.rv_image = rv_image
+        # self.save_rgb_image(agent, rv_image)
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30
         obs['dist_to_target'] = np.array([agent.episode_measurements['distance_to_goal']])
@@ -2217,7 +2299,7 @@ class CarlaEnv(gym.Env):
         else:
             agent.observation = obs
 
-        if self.config['verbose']: print('[agent {}] observation: {}'.format(agent.rank, agent.observation))             
+        if self.config['verbose']: print('[agent {}] observation: {}'.format(agent.rank, agent.observation))
 
         return agent.observation
 
@@ -2304,27 +2386,22 @@ class CarlaEnv(gym.Env):
         }
         return features
 
-    def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False): # Resets environment and actors
-
-        # Retrieve Blueprint for Vehicle
+    def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
+        # if not idx_list: idx_list = [0] * self.config['num_agents']
         try:
             vehicle_bp = self.blueprint_library.find(self.config['vehicle_type'])
             # vehicle_bp = self.blueprint_library.find(random.choice(self.config['vehicle_types']))
         except Exception as e:
             print("Error during vehicle creation: {}".format(traceback.format_exc()))
 
-        # If episode length surpasses 'npc_reset_freq', reset all NPC vehicles
-        # CHECK: Possible source of bug if deletion not happening right
+        # print('[1544]', self.config['npc_reset_freq'], self.world_frame, self.last_npc_reset_frame)
+
         if reset_npc or (self.config['npc_reset_freq'] and self.world_frame - self.last_npc_reset_frame > self.config['npc_reset_freq']):
             self.destroy_all_existing_npc_actors()
 
-        # Iterate over indices of ego agents in curr env and destroy them
-        # Then 
-        for rk in rank_list: 
-
+        for rk in rank_list:
             prev_agent = self.ego_agent_list[rk]
             self.ego_agent_list[rk] = None
-
             if prev_agent is not None: self.curr_num_agents -= 1
             try:
                 self.destroy_an_existing_ego_agent(prev_agent)
@@ -2333,12 +2410,12 @@ class CarlaEnv(gym.Env):
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
             self.vehicle_actor = None
-            NUM_RETRIES = 500 #100
+            NUM_RETRIES = 100
             for idx in range(1, NUM_RETRIES + 1):
-                # Determine start and end points for episode
-                # use_scenarios taps into pre-existing paths and retrieves their start and end.
-                #   Currently scenarios are defined only for Town01
-                # When this is disabled, the start and end are randomly chosen from a set of spawn points
+                # Set source and destination based on scenario
+                # Currently scenarios are defined only for Town01
+
+                # if self.config["use_scenarios"] and (self.config['initial_town'] == "Town01" or self.config['initial_town'] == "Town02"):
                 if self.config["use_scenarios"]:
                     if self.config["updated_scenarios"]:
                         self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
@@ -2347,22 +2424,42 @@ class CarlaEnv(gym.Env):
                 else:
                     self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
+                # self.vehicle_actor = self._world.try_spawn_actor(vehicle_bp, self.source_transform)
                 try:
                     self.vehicle_actor = CarlaDataProvider.request_new_actor(self.config['vehicle_type'], self.source_transform, 'hero')
                 except:
                     self.vehicle_actor = None
-                                     
+
                 if self.vehicle_actor is not None:
                     if _upd_town != self.curr_town: # switch to a new town
+                        # print('[1511] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
+                        # if self.config['num_agents'] != 1:
+                        #     for rk in range(self.config['num_agents']):
+                        #         if self.ego_agent_list[rk] is not None:
+                        #             print(self.ego_agent_list[rk], self.ego_agent_list[rk].rank)
+                        #             self.ego_agent_list[rk].done = True
+                            # self.reset_env()
+                        # self.reset(rank_list=list(range(self.config['num_agents'])), reset_npc=True)
+                        # print('[2000]', self.curr_town)
                         self.reset_env()
+                        # for actor in self._world.get_actors():
+                        #     try:
+                        #         actor.destroy()
+                        #     except:
+                        #         pass
+                        # print('[2002]', self.curr_town)
                         self._set_world_and_map(_upd_town)
+                        # print('[2004]', self.curr_town)
                     break
-                # else:
-                    # print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
-                    #     self.env_rank, rk, idx, self.source_transform.location.x, self.source_transform.location.y))
+                else:
+                    print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
+                        self.env_rank, rk, idx, self.source_transform.location.x, self.source_transform.location.y))
+                    # print("Number of existing actors, {}".format(len(self.actor_list)))
+                    # print("Number of existing ego agents, {}".format(self.curr_num_agents))
+                    # time.sleep(.04)
 
             if self.vehicle_actor is not None:
-
+                # print(self.vehicle_actor)
                 self.ego_vehicle_list[rk] = self.vehicle_actor
                 self.vehicle_actor.source_transform = self.source_transform
                 self.vehicle_actor.destination_transform = self.destination_transform
@@ -2371,19 +2468,19 @@ class CarlaEnv(gym.Env):
                     print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
                     print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
                 self.curr_num_agents += 1
+                # print('[2021]')
 
-                # Generates list of waypoints connecting source and destination for current scenario
-                # The sequence of generated way points are stored in self.dense_waypoints
                 self.vehicle_actor.global_planner = planner.GlobalPlanner()
 
                 if 'challenge' in self.config["scenarios"]:
+                    # print(213, len(self.wps_list), self.wps_list)
                     self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
 
                     # Print route in debug mode
                     # self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=500)
                     # print('self.route', self.route)
                     CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
-
+                    # print(222, len(self._global_plan_world_coord), self._global_plan_world_coord[0])
                     self.dense_waypoints = self._global_plan_world_coord
 
                     potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
@@ -2420,25 +2517,6 @@ class CarlaEnv(gym.Env):
                 self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
 
             else:
-                # DEBUG
-                print("$$$$$$$$$$$$$$$$$$ Err in carla_env.list_reset")
-                
-                w = CarlaDataProvider._world
-                closeness = []
-                for ac in w.get_actors():
-                    l = ac.get_location()
-                    sr = self.source_transform.location
-                    d = ((l.x-sr.x)**2+(l.y-sr.y)**2)**0.5  
-                    closeness.append((ac.type_id,d,l.z,sr.z))
-                closeness.sort(key = lambda x : x[1])
-                closeness = closeness[-2:]
-
-                with open('debug.txt', 'a') as f:
-                    f.write('^^^^^^^^^^^^^^^^^^^^^^^^^^\n')
-                    f.write('Spawn Point = '+str(self.source_transform) + '\n')
-                    f.write('Closeness  = '+str(closeness) + '\n')
-                    f.write('Retries  = '+str(idx) + '\n')
-
                 raise Exception("Failed in spawning vehicle actor.")
 
         if reset_npc:
@@ -2486,6 +2564,9 @@ class CarlaEnv(gym.Env):
                                color=carla.Color(0, 0, 255), life_time=persistency)
         world.debug.draw_point(waypoints[-1][0].transform.location + carla.Location(z=vertical_shift), size=0.2,
                                color=carla.Color(255, 0, 0), life_time=persistency)
+
+    def _reset_test_comparison(self, unseen=False, index=0):
+        pass
 
     def _is_in_neighboring_lane(self, target_transform, current_transform, max_distance=10.):
         """
@@ -2539,6 +2620,7 @@ class CarlaEnv(gym.Env):
         # -1: left, 1: right for the orientation indicator (the last elem)
         return False, max_distance, 0
 
+    # @profile
     def _reset(self, unseen=False, index=0):
         pass
 
@@ -2658,6 +2740,7 @@ class CarlaEnv(gym.Env):
         data  = self._retrieve_data(camera_queue, timeout, world_frame)
         return data
 
+    # @profile
     def _retrieve_data(self, sensor_queue, timeout, world_frame):
         while True:
             data = sensor_queue.get(timeout=timeout)

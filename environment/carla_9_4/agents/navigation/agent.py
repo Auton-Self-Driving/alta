@@ -211,7 +211,6 @@ class Agent(object):
         else:
             return (None, -1, None)
 
-
     def _get_trafficlight_trigger_location(self, traffic_light):  # pylint: disable=no-self-use
         """
         Calculates the yaw of the waypoint that represents the trigger volume of the traffic light

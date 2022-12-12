@@ -73,20 +73,14 @@ def get_slurm_addr():
 # def init_param_server_comm(gpu_id_list=None):
 def init_param_server_comm():
     rank, world_size = get_rank(), get_world_size()
-    # if gpu_id_list is not None:
-    #     gpu_id = gpu_id_list[rank % len(gpu_id_list)]
-    #     torch.cuda.set_device(gpu_id)
-    # print(79, f'[{rank}] init started')
 
     print("Process {}/{} is initing".format(rank, world_size))
     dist.init_process_group(backend=get_backend(), timeout=datetime.timedelta(0, 12000))
 
-    
     # dist.init_process_group(backend=get_backend(), init_method='file:///home/scratch/amanmehr/alta-logs/dist_comms', 
     #                             world_size=world_size, rank=rank, timeout=datetime.timedelta(0, 100))
     # dist.init_process_group(backend=get_backend(), rank=rank, world_size=world_size, 
     #         store=dist.FileStore('/home/scratch/amanmehr/alta-logs/filestore',world_size) ,timeout=datetime.timedelta(0, 10000))
-    # print(79, 'init completed')
 
     num_servers = get_num_servers()
     server_list = list(range(num_servers))
@@ -125,7 +119,6 @@ def run_slurm_param_server(num_servers, num_workers, port=23032, backend='gloo',
             get_host_ip(), os.environ['MASTER_ADDR'], os.environ['WORLD_SIZE'], os.environ['RANK'])
 
     return rank, gpu_id, world_size
-
 
 def run_param_server(server_func, worker_func, num_servers, num_workers,
     resources, ip, port, mp_method='fork'):
