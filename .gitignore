@@ -160,3 +160,5 @@ agents/torch/multi_agent/offline_data
 **/.nfs*
 agents/torch/multi_agent/checkpoints
 agents/torch/multi_agent/videos
+agents/torch/multi_agent/video_logs
+agents/torch/multi_agent/tests

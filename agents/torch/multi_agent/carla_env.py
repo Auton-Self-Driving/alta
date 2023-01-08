@@ -1213,7 +1213,7 @@ class CarlaEnv(gym.Env):
         # else:
         #     print('obstacle actor {}, dist: {}'.format(target_vehicle, distance))
 
-    def _update_obs_detector_via_sensor(self, agent):
+    def _update_obs_detector_via_sensor(self, agent): # Default sensor observation update method
         agent.episode_measurements['obstacle_visible'] = False
         agent.episode_measurements['obstacle_orientation'] = -1
 
@@ -1504,7 +1504,6 @@ class CarlaEnv(gym.Env):
 
         if self.config["action_type"] != "control":
             action = action.flatten()
-
         if self.config["action_type"] == "sep_gas":
             steer = float(action[0])
             throttle = float(action[1])
@@ -1557,11 +1556,9 @@ class CarlaEnv(gym.Env):
                 throttle = gas
                 brake = 0.0
         elif self.config["action_type"] == "merged_speed_scaled_tanh":
-            # steer = np.clip(float(action[0]), -1.0, 1.0)
-            # steer = np.clip(float(action[0]), -.25, .25)
-            # steer = np.clip(float(action[0]), -0.5, 0.5)
+            
             steer = np.clip(float(action[0]) * self.config['steering_scale'], -1, 1)
-            # target_speed = (action[1] * 1.5) + 1.5
+
             target_speed = (action[1] * 1.5) + 1
             target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
 
@@ -1591,6 +1588,9 @@ class CarlaEnv(gym.Env):
 
             current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
             gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+
+            # print('[carla_env.get_control()] Throttle : {} Cur Spd : {} Trgt Speed : {} Action : {}'.format(gas,current_speed,target_speed,action[1]))
+
             if gas < 0:
                 throttle = 0.0
                 brake = abs(gas)

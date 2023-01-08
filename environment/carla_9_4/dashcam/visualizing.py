@@ -86,22 +86,48 @@ class Visualizer:
         cv2.destroyAllWindows()
 
     # @profile
-    def create_combined_image(self, sub_folders):
+    def create_combined_image(self, sub_folders, episode_num):
         """
-        Creates a combined video from multiple cameras
+        Creates a combined video from multiple cameras and overlays stats
         """
 
         folder_name = str(sub_folders[0].split("_")[0]) 
         out_path = os.path.join(self.images_path, folder_name)
         os.makedirs(out_path,exist_ok=True)
 
-        for im_p in os.listdir(os.path.join(self.images_path, sub_folders[0])):
-            frames = []
+        stats = np.load(os.path.join(self.video_path,'{}_stats.npy'.format(episode_num)),allow_pickle=True).item()
+
+        font = cv2.FONT_HERSHEY_SIMPLEX        
+
+        ctr = 0
+
+        for im_p in sorted(os.listdir(os.path.join(self.images_path, sub_folders[0]))):
+            frames = [0]
             for sub_folder in sub_folders: 
                 im_path = os.path.join(self.images_path, sub_folder,im_p)
                 frames.append(cv2.imread(im_path))
+
+            # Blank Pixels for stats overlay   
+            frames[0] = np.zeros(frames[-1].shape)
             out_frame = np.concatenate(frames, axis=1)
+
+            display_strs = [("Spd",stats['speed'][ctr]),
+                            ("TrgtSpd",stats['target_speed'][ctr]),
+                            ("Thrtl",stats['throttle'][ctr]),
+                            ("Steer",stats['steer'][ctr]),
+                            ("Brk",stats['brake'][ctr]),
+                            ("Wp_Or",stats['waypoint_orientation'][ctr]),
+                            ("D2Traj",stats['dist_to_traj'][ctr]),
+                            ("ObsDist",stats['obstacle_dist'][ctr]),
+                            ("ObsSpd",stats['obstacle_speed'][ctr]),
+                            ("RdLtDist",stats['red_light_dist'][ctr])]
+
+            disp_x,disp_y = 20,50
+            for record in display_strs:
+                cv2.putText(out_frame,record[0]+"="+"{:2.2f}".format(record[1]),(disp_x,disp_y),font,1,(0,255,0),1,cv2.LINE_AA) # out_frame.shape[1]-10
+                disp_y += 40
             cv2.imwrite(os.path.join(out_path,im_p),out_frame)
+            ctr += 1
 
         return folder_name
 
@@ -339,4 +365,142 @@ class Visualizer:
         plt.savefig(os.path.join(path,'{}.png'.format(episode_num)))
         plt.close()
 
+    def plot_episode_info_3(self,path,
+                target_speeds_array,
+                speeds_array,
+                throttles_array,
+                steers_array,
+                brakes_array,
+                obstacle_dist_array,
+                obstacle_speed_array,
+                step_reward_array,
+                collision_reward_array,
+                dist_to_trajectory_array,
+                dist_to_trajectory_reward_array,
+                dist_to_target_array,
+                red_light_dist_array,
+                wp_orientation_array,
+                episode_num):
+
+        # Override path
+        path = self.video_path
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        stats = {
+            "target_speed":target_speeds_array,
+            "speed":speeds_array,
+            "throttle":throttles_array,
+            "steer":steers_array,
+            "brake":brakes_array,
+            "obstacle_dist":obstacle_dist_array,
+            "obstacle_speed":obstacle_speed_array,
+            "step_reward":step_reward_array,
+            "collision_reward":collision_reward_array,
+            "dist_to_traj":dist_to_trajectory_array,
+            "dist_to_traj_reward":dist_to_trajectory_reward_array,
+            "dist_to_target":dist_to_target_array,
+            "red_light_dist":red_light_dist_array,
+            "waypoint_orientation":wp_orientation_array,
+        }
+
+        np.save(os.path.join(path,'{}_stats.npy'.format(episode_num)), stats) 
+        # read_dictionary = np.load('my_file.npy',allow_pickle='TRUE').item() # TO READ
+
+        observations = np.arange(len(target_speeds_array))
+
+        target_speeds_array = np.array(target_speeds_array)
+        speeds_array = np.array(speeds_array)
+        throttles_array = np.array(throttles_array)
+        steers_array = np.array(steers_array)
+        brakes_array = np.array(brakes_array)
+        obstacle_dist_array = np.array(obstacle_dist_array)
+        obstacle_speed_array = np.array(obstacle_speed_array)
+        step_reward_array = np.array(step_reward_array)
+        collision_reward_array = np.array(collision_reward_array)
+        dist_to_trajectory_array = np.array(dist_to_trajectory_array)
+        dist_to_trajectory_reward_array = np.array(dist_to_trajectory_reward_array)
+        dist_to_target_array = np.array(dist_to_target_array)
+        red_light_dist_array = np.array(red_light_dist_array)
+        wp_orientation_array = np.array(wp_orientation_array)
+
+        fig, axs = plt.subplots(7, 2, figsize=(14, 14))
+        fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
+
+        axs[0, 0].plot(observations, target_speeds_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[0, 0].set_xlabel('Timesteps')
+        axs[0, 0].set_ylabel('Target Speed - Stochastic')
+
+        axs[0, 1].plot(observations, speeds_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[0, 1].set_xlabel('Timesteps')
+        axs[0, 1].set_ylabel('Actual Speed - Stochastic')
+
+        axs[1, 0].plot(observations, throttles_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[1, 0].set_xlabel('Timesteps')
+        axs[1, 0].set_ylabel('Throttle')
+
+        axs[1, 1].plot(observations, steers_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[1, 1].set_xlabel('Timesteps')
+        axs[1, 1].set_ylabel('Steer - Stochastic')
+
+        axs[2, 0].plot(observations, brakes_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[2, 0].set_xlabel('Timesteps')
+        axs[2, 0].set_ylabel('Breaks')
+
+        axs[2, 1].plot(observations, step_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[2, 1].set_xlabel('Timesteps')
+        axs[2, 1].set_ylabel('Step reward')
+
+        axs[3, 0].plot(observations, obstacle_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[3, 0].set_xlabel('Timesteps')
+        axs[3, 0].set_ylabel('Obstacle Distance')
+
+        axs[3, 1].plot(observations, obstacle_speed_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[3, 1].set_xlabel('Timesteps')
+        axs[3, 1].set_ylabel('Obstacle Speed')
+
+        axs[4, 0].plot(observations, dist_to_trajectory_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[4, 0].set_xlabel('Timesteps')
+        axs[4, 0].set_ylabel('dist_to_trajectory reward')
+
+        axs[4, 1].plot(observations, dist_to_trajectory_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[4, 1].set_xlabel('Timesteps')
+        axs[4, 1].set_ylabel('dist_to_trajectory')
+
+        
+        axs[5, 0].plot(observations, collision_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[5, 0].set_xlabel('Timesteps')
+        axs[5, 0].set_ylabel('collision_reward')
+
+        axs[5, 1].plot(observations, red_light_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[5, 1].set_xlabel('Timesteps')
+        axs[5, 1].set_ylabel('Dist to red light')
+
+        axs[6, 0].plot(observations, dist_to_target_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[6, 0].set_xlabel('Timesteps')
+        axs[6, 0].set_ylabel('Dist to red light')
+
+        axs[6, 1].plot(observations, wp_orientation_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[6, 1].set_xlabel('Timesteps')
+        axs[6, 1].set_ylabel('Waypoint Orientation')
+
+        axs[0,0].grid(True)
+        axs[0,1].grid(True)
+        axs[1,0].grid(True)
+        axs[1,1].grid(True)
+        axs[2,0].grid(True)
+        axs[2,1].grid(True)
+        axs[3,0].grid(True)
+        axs[3,1].grid(True)
+        axs[4,0].grid(True)
+        axs[4,1].grid(True)
+        axs[5,0].grid(True)
+        axs[5,1].grid(True)
+        axs[6,0].grid(True)
+        axs[6,1].grid(True)
+
+        plt.grid(True)
+        plt.savefig(os.path.join(path,'{}.png'.format(episode_num)))
+        plt.close()
 

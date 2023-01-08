@@ -147,8 +147,10 @@ class PPO_Collective_Agent(object):
 
         self.tb_log_dir = '{}/{}_{}'.format('./tensorboard_logs',
             self.run_name, self.savetime())
-        self.vid_log_dir = '{}/{}'.format('./video_logs',self.run_name)
 
+        run_name_tokens = self.run_name.split("/")[0].split("_")
+        exp_name, ckpt_iter = "_".join(run_name_tokens[:-1]), run_name_tokens[-1]
+        self.vid_log_dir = '{}/{}/{}/{}/{}_wp10/'.format('./evals',self.glb_env.config['scenarios'],self.glb_env.config['initial_town'],exp_name,ckpt_iter)
 
     def reset_glb_memory(self):
         self.memory = {
@@ -691,13 +693,16 @@ class PPO_Collective_Agent(object):
         idx_list = list(range(self.num_agents))
         # self.glb_num_test_episodes = self.glb_env.config['num_episodes']
         # # print(self.glb_num_test_episodes)
+
         self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
             idx_list=idx_list, reset_npc=True)
         self.glb_env.spawn_npc_vehicles()
+
         self.agent_list = [_PPO_Individual_Agent(
             self.glb_env.ego_vehicle_list[i],
             glb_policy=self.glb_policy, rank=i) for i in self.rank_list]
         self.glb_env.reset_vehicle_agent(self.agent_list)
+
         self.curr_town = self.glb_env.curr_town
         self.glb_env.step()
 
@@ -710,12 +715,21 @@ class PPO_Collective_Agent(object):
 
         self.num_successes = 0
         while self.glb_num_episodes < self.glb_num_test_episodes + 1:
+
             # take action
             for rk, agent in enumerate(self.agent_list):
                 # prev_obs = torch.from_numpy(agent.observation).to(torch.float)
                 action, _ = agent.select_action(deterministic=True)
                 agent.action = action
             self.vprint('action chosen:', [a.action for a in self.agent_list])
+            ######################## FOR Debugging
+            print('[ppo_agent : test()] action chosen:', self.agent_list[0].action)
+            co = self.agent_list[0].observation[0]
+            obs_dict = {"Wp":co[0], "S":co[11]*10, "Str":co[12],"D2T":co[13],"Lgt":co[14],
+                "D_F_Fr_Br_Bl_Fl":[co[1]*30,co[3]*5,co[5]*5,co[7]*5,co[9]*5],
+                "S_F_Fr_Br_Bl_Fl":[co[2]*20,co[4]*20,co[6]*20,co[8]*20,co[10]*20]}
+            print('[ppo_agent : test()] state space:',str(obs_dict), co)
+            #########################
             # get new observation
             self.glb_env.step()
 
@@ -728,27 +742,32 @@ class PPO_Collective_Agent(object):
                 if agent.done:  # done and print information
                     term_stats[agent.termination_state] += 1
                     if videos:
+                        viz.plot_episode_info_3('',
+                            agent.target_speeds_array,
+                            agent.speeds_array,
+                            agent.throttles_array,
+                            agent.steers_array,
+                            agent.brakes_array,
+                            agent.obstacle_dist_array,
+                            agent.obstacle_speed_array,
+                            agent.step_reward_array,
+                            agent.collision_reward_array,
+                            agent.dist_to_trajectory_array,
+                            agent.dist_to_trajectory_reward_array,
+                            agent.dist_to_target_array,
+                            agent.red_light_dist_array,
+                            agent.wp_orientation_array,
+                            self.glb_num_episodes)
+
                         sub_folders=['ep{}rk{}_{}'.format(self.glb_num_episodes, rk, k) for k in camera_folders]
-                        combined_folder = viz.create_combined_image(sub_folders)
-                        print(combined_folder)
+                        combined_folder = viz.create_combined_image(sub_folders,self.glb_num_episodes)
+
                         viz.generate_video(combined_folder,suffix=agent.termination_state)
                         viz.remove_images(combined_folder)
                         for sub_folder in sub_folders:
                             viz.remove_images(sub_folder)
 
-                        viz.plot_episode_info_2('',
-                                agent.target_speeds_array,
-                                agent.speeds_array,
-                                agent.throttles_array,
-                                agent.steers_array,
-                                agent.brakes_array,
-                                agent.obstacle_dist_array,
-                                agent.step_reward_array,
-                                agent.collision_reward_array,
-                                agent.dist_to_trajectory_array,
-                                agent.red_light_dist_array,
-                                self.glb_num_episodes)
-
+                        
                     if agent.termination_state == 'success':
                         self.num_successes += 1
                     print('[test {}][glb ep {}/{}]'.format(
