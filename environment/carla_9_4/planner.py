@@ -141,7 +141,7 @@ class GlobalPlanner():
 
     def get_next_orientation_new(self, vehicle_transform, append_road_opt=False, num_next_waypoints=5):
 
-        num_next_waypoints = 10 #5
+        num_next_waypoints = num_next_waypoints #10 # DEFAULT = 5
 
         next_waypoints_angles = []
         next_waypoints_vectors = []

@@ -349,9 +349,19 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -1., 0., -1., 0., 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
             high=np.array([[4.0, 1.0, 1.0, 1., 1., 1., 1., 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
-        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 5 obs sensors
+        elif self.config["input_type"] == 'wp_obs_more_info_steer_ldist_light': # 14 dim obs space
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15 dim obs space w/ 5 obs sensors
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
              high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # >=15 dim obs space w/ 5 obs sensors
+            lower_bound = [-4.0] * self.config['num_waypoints']
+            lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
+            upper_bound = [4.0] * self.config['num_waypoints']
+            upper_bound.extend([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0])
+            self.observation_space = Box(low=np.array([lower_bound]),
+             high=np.array([upper_bound]), dtype=np.float32)
         elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
             self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
                                             high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
@@ -638,9 +648,74 @@ class CarlaEnv(gym.Env):
             obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]),
             np.array([obstacle_dist_left]), np.array([obstacle_speed_left]), np.array([obstacle_dist_right]), np.array([obstacle_speed_right]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
 
+        elif self.config["input_type"] == 'wp_obs_more_info_steer_ldist_light': # 14dim no speed obs space
+
+            feat_list = [agent.episode_measurements['next_orientation']]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15dim obs space
 
             feat_list = [agent.episode_measurements['next_orientation']]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # Variable >= 15 dim obs space
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
 
             for suffix, sensor in agent.obstacle_sensor.items():
                 obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
@@ -1838,7 +1913,8 @@ class CarlaEnv(gym.Env):
                 #     hit_radius=self.config['front_obs_sensor_hit_radius'],)
 
                 # agent.actor_list.append(agent.obstacle_sensor.sensor)
-                if self.config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
+                if self.config['input_type'] in ['wp_obs_more_info_speed_steer_ldist_light', \
+                                    'wp_list_obs_more_info_speed_steer_ldist_light','wp_obs_more_info_steer_ldist_light']:
                     obs_sensors = {
                         'front': sensors.ObstacleSensor(agent.vehicle_actor,
                             distance=self.config['front_obs_proximity_threshold'],
@@ -2135,7 +2211,8 @@ class CarlaEnv(gym.Env):
 
         next_orientation, agent.dist_to_trajectory, distance_to_goal_trajec, \
             agent.next_waypoints, agent.next_wp_angles, agent.next_wp_vectors, agent.next_road_opts = \
-            agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True)
+            agent.global_planner.get_next_orientation_new(agent.vehicle_actor.get_transform(), append_road_opt=True, 
+                                                            num_next_waypoints=self.config['num_waypoints'])
 
         wp_opt = [(wp, opt) for wp, opt in zip(agent.next_waypoints, agent.next_road_opts)]
         new_wp_starting_idx = 0
@@ -2209,7 +2286,10 @@ class CarlaEnv(gym.Env):
                                         'wp_angles_obs_info_speed_steer_ldist_light', 'wp_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_angles_vecs_obs_info_speed_steer_ldist_light',
                                         'wp_obs_info_side_obs_info_speed_steer_ldist_light',
-                                        'wp_obs_more_info_speed_steer_ldist_light','wp_360_obstacle_speed_steer']:
+                                        'wp_obs_more_info_steer_ldist_light',
+                                        'wp_obs_more_info_speed_steer_ldist_light',
+                                        'wp_list_obs_more_info_speed_steer_ldist_light',
+                                        'wp_360_obstacle_speed_steer']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
         elif self.config['input_type'] == 'transformer':

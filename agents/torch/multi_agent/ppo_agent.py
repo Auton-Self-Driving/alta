@@ -150,7 +150,7 @@ class PPO_Collective_Agent(object):
 
         run_name_tokens = self.run_name.split("/")[0].split("_")
         exp_name, ckpt_iter = "_".join(run_name_tokens[:-1]), run_name_tokens[-1]
-        self.vid_log_dir = '{}/{}/{}/{}/{}_wp10/'.format('./evals',self.glb_env.config['scenarios'],self.glb_env.config['initial_town'],exp_name,ckpt_iter)
+        self.vid_log_dir = '{}/{}/{}/{}/{}/'.format('tests//evals',self.glb_env.config['scenarios'],self.glb_env.config['initial_town'],exp_name,ckpt_iter)
 
     def reset_glb_memory(self):
         self.memory = {
@@ -723,12 +723,12 @@ class PPO_Collective_Agent(object):
                 agent.action = action
             self.vprint('action chosen:', [a.action for a in self.agent_list])
             ######################## FOR Debugging
-            print('[ppo_agent : test()] action chosen:', self.agent_list[0].action)
-            co = self.agent_list[0].observation[0]
-            obs_dict = {"Wp":co[0], "S":co[11]*10, "Str":co[12],"D2T":co[13],"Lgt":co[14],
-                "D_F_Fr_Br_Bl_Fl":[co[1]*30,co[3]*5,co[5]*5,co[7]*5,co[9]*5],
-                "S_F_Fr_Br_Bl_Fl":[co[2]*20,co[4]*20,co[6]*20,co[8]*20,co[10]*20]}
-            print('[ppo_agent : test()] state space:',str(obs_dict), co)
+            # print('[ppo_agent : test()] action chosen:', self.agent_list[0].action)
+            # co = self.agent_list[0].observation[0]
+            # obs_dict = {"Wp":co[0], "S":co[11]*10, "Str":co[12],"D2T":co[13],"Lgt":co[14],
+            #     "D_F_Fr_Br_Bl_Fl":[co[1]*30,co[3]*5,co[5]*5,co[7]*5,co[9]*5],
+            #     "S_F_Fr_Br_Bl_Fl":[co[2]*20,co[4]*20,co[6]*20,co[8]*20,co[10]*20]}
+            # print('[ppo_agent : test()] state space:',str(obs_dict), co)
             #########################
             # get new observation
             self.glb_env.step()

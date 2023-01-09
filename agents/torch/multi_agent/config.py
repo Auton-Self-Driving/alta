@@ -113,12 +113,12 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    # 'save_suffix':'15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08'
-    'save_suffix': '15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10', # '7dim_nocrach_dense_no_lane',
-    'checkpoint':  'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_4508846_Jan080410AM08.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
+    # 'save_suffix':'15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10'
+    'save_suffix': '14dim_nocrach_dense_no_lane_term_tanh_squashed', # '24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # '7dim_nocrach_dense_no_lane',
+    'checkpoint': '',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
     # 'ckpt_mode': 'load',
-    # 'ckpt_mode': '',
-    'ckpt_mode': 'resume',
+    'ckpt_mode': '',
+    # 'ckpt_mode': 'resume',
     'gamma': 0.99,
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -127,11 +127,11 @@ DPPO_CONFIG = {
     'focal_loss': False,
     'standard': False, # if False, will push traj after finishing an episode
     'push_grad': False,
-    'num_workers': 14, #14,#1,#
+    'num_workers': 1,#14, #14,#1,#
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
-    # 'device_list': ['cuda:2'],
-    'device_list': ['cuda:1', 'cuda:0', 'cuda:3'],
+    'device_list': ['cuda:2'],
+    # 'device_list': ['cuda:1', 'cuda:0', 'cuda:3'],
     # 'device_list': ['cuda:0','cuda:1', 'cuda:2', 'cuda:3'],
     'worker_grad_update_freq': 20000,
     'worker_optim_epochs': 10,
@@ -176,7 +176,7 @@ TEST_CONFIG = {
     'use_scenarios': True,
     'city_name' : 'Town02', # Set to town 2
     'num_episodes' : 25,
-    'target_speed': 50,
+    'target_speed': 30, # DEFAULT TO 50,
     'steering_scale': 0.5,
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static_termination' : True,
@@ -232,12 +232,15 @@ ENV_CONFIG = {
     ############### AGENT HYPER PARAMS ###############
 
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
-    'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
+    # 'input_type': 'wp_obs_more_info_steer_ldist_light', # 14-dim 
+    # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
+    'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
     'action_type': 'merged_speed_scaled_tanh',
     'vae_encoding_norm_factor' : 10,
     'enable_brake': True,
-    'target_speed': 30, # 50, ##### REDUCED FOR AN ABLATION
+    'target_speed': 50, ##### REDUCED FOR AN ABLATION | DEFAULT = 50
     'steering_scale': 0.5,
+    'num_waypoints': 5, ##### DEFAULT = 5
     'frame_skip': 1,
     'noise_dim' : 1,
     'use_pid_in_frame_skip' : True,
