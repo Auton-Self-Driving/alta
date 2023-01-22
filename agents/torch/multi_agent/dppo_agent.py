@@ -72,7 +72,7 @@ class _DPPO_Individual_Agent(Agent):
         action, logprob = self.local_policy.act(state_tensor,
             deterministic=deterministic)
         return action, logprob
-
+    
     def update_local_policy(self):
         self.local_policy.load_state_dict(self.glb_policy.state_dict())
 

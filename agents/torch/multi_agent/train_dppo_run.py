@@ -58,6 +58,8 @@ def get_state_action_dims(config):
         N_S, N_A = 14, 2
     elif config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
         N_S, N_A = 15, 2
+    elif config['input_type'] == 'wp_2avg_obs_more_info_speed_steer_ldist_light':
+        N_S, N_A = 16, 2
     elif config['input_type'] == 'wp_360_obstacle_speed_steer':
         N_S, N_A = 24, 2
     elif config['input_type'] == 'wp_list_obs_more_info_speed_steer_ldist_light':

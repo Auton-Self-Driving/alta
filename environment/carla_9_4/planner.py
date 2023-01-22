@@ -91,19 +91,18 @@ class GlobalPlanner():
     def set_global_plan(self, current_plan):
         self._waypoints_queue.clear()
         prev_wp = None
+
+        # Returns a list of (waypoint, road option, dist from destination)
         modified_plan = self.compute_distances_between_waypoints(current_plan)
         for elem in modified_plan:
-            # self.printwaypoint(elem[0])
-            # print('[97]', elem[1])
             # dont use waypoints during turning
             # if not self.sameWaypoint(elem[0], prev_wp) and \
             #     elem[1] not in {RoadOption.LEFT, RoadOption.RIGHT}:
             if not self.sameWaypoint(elem[0], prev_wp):
-                # print("Added wp")
-                # print('elem', elem)
                 self._waypoints_queue.append(elem)
                 self._waypoints_queue_old.append(elem)
             prev_wp = elem[0]
+        return modified_plan # Remove
 
     def get_next_orientation(self, vehicle_transform):
 
@@ -150,6 +149,7 @@ class GlobalPlanner():
         next_waypoint_found = False
         max_index = -1
         min_dist = np.inf
+
         for i, (waypoint, road_opt, dist) in enumerate(self._waypoints_queue):
             dist_i = distance_vehicle(
                     waypoint, vehicle_transform)
@@ -187,43 +187,8 @@ class GlobalPlanner():
                 next_waypoints_vectors.append(w_vec)
                 next_road_opts.append(road_opt)
 
-        # for i, (waypoint, _) in enumerate(self._waypoints_queue):
-
-        #     dist_to_waypoint = distance_vehicle(waypoint, vehicle_transform)
-        #     dot, angle = self.get_dot_product_and_angle(vehicle_transform, waypoint)
-
-        #     # next_waypoint_found implies the first waypoint with
-        #     # positive dot product is found
-        #     if not next_waypoint_found:
-        #         if dist_to_waypoint < min_dist:
-        #             min_dist = dist_to_waypoint
-        #             max_index = i
-        #             next_waypoints_angles = [angle]
-        #             next_waypoints = [waypoint]
-        #         else:
-        #             next_waypoint_found = True
-        #     else:
-        #         if len(next_waypoints_angles) < num_next_waypoints:
-        #             next_waypoints_angles.append(angle)
-        #             next_waypoints.append(waypoint)
-        #         else:
-        #             break
-        # if max_index > 0:
-        #     q_len = len(self._waypoints_queue)
-
-        #     # Remove all waypoints except the closest one (max_index)
-        #     for i in range(max_index):
-        #         waypoint, _ = self._waypoints_queue.popleft()
-
-        #         # Store second-last waypoint for corner case
-        #         if i == q_len - 2:
-        #             self.second_last_waypoint = waypoint
-
         next_waypoints_angles_array = np.array(next_waypoints_angles)
-        # if len(next_waypoints_angles) > 2:
-        #     angle = np.mean(next_waypoints_angles_array[2:])
-        # elif len(next_waypoints_angles) > 1:
-        #     angle = np.mean(next_waypoints_angles_array[1:])
+        
         if len(next_waypoints_angles) > 0:
             angle = np.mean(next_waypoints_angles_array)
         else:
@@ -245,8 +210,6 @@ class GlobalPlanner():
         else:
             # Reached near last waypoint
             # use second_last_waypoint
-
-            # print("Needed to use second_last_waypoint")
             if self.second_last_waypoint is not None and self.last_waypoint is not None:
                 self.dist_to_trajectory = self.getPointToLineDistance(
                                         vehicle_transform,

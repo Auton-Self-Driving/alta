@@ -355,6 +355,9 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15 dim obs space w/ 5 obs sensors
             self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
              high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_2avg_obs_more_info_speed_steer_ldist_light': # 16 dim obs space w/ 5 obs sensors
+            self.observation_space = Box(low=np.array([[-4.0,-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0,4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
         elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # >=15 dim obs space w/ 5 obs sensors
             lower_bound = [-4.0] * self.config['num_waypoints']
             lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
@@ -713,9 +716,59 @@ class CarlaEnv(gym.Env):
 
             obs['observation'] = np.array(feat_list)
 
+        elif self.config["input_type"] == 'wp_2avg_obs_more_info_speed_steer_ldist_light': # 16 dim obs space
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
+
+            first_avg, last_avg = sum(feat_list[0:5])/5.,sum(feat_list[-5:])/5.
+            feat_list = [first_avg, last_avg]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
         elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # Variable >= 15 dim obs space
 
             feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            if len(feat_list) == 0: # Raise Error
+                print("[carla_env.create_observation] Next Wp List Length is 0!!!")
+                print(agent.episode_measurements['next_orientation'])
+                print(agent.next_waypoints)
+                print(agent.global_planner._waypoints_queue)
+
+            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
 
             for suffix, sensor in agent.obstacle_sensor.items():
                 obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
@@ -1914,7 +1967,9 @@ class CarlaEnv(gym.Env):
 
                 # agent.actor_list.append(agent.obstacle_sensor.sensor)
                 if self.config['input_type'] in ['wp_obs_more_info_speed_steer_ldist_light', \
-                                    'wp_list_obs_more_info_speed_steer_ldist_light','wp_obs_more_info_steer_ldist_light']:
+                                    'wp_2avg_obs_more_info_speed_steer_ldist_light', \
+                                    'wp_list_obs_more_info_speed_steer_ldist_light', \
+                                    'wp_obs_more_info_steer_ldist_light']:
                     obs_sensors = {
                         'front': sensors.ObstacleSensor(agent.vehicle_actor,
                             distance=self.config['front_obs_proximity_threshold'],
@@ -2288,6 +2343,7 @@ class CarlaEnv(gym.Env):
                                         'wp_obs_info_side_obs_info_speed_steer_ldist_light',
                                         'wp_obs_more_info_steer_ldist_light',
                                         'wp_obs_more_info_speed_steer_ldist_light',
+                                        'wp_2avg_obs_more_info_speed_steer_ldist_light',
                                         'wp_list_obs_more_info_speed_steer_ldist_light',
                                         'wp_360_obstacle_speed_steer']:
             observation = np.expand_dims(obs['observation'], axis = 0)
@@ -2297,7 +2353,7 @@ class CarlaEnv(gym.Env):
         else:
             agent.observation = obs
 
-        if self.config['verbose']: print('[agent {}] observation: {}'.format(agent.rank, agent.observation))             
+        if self.config['verbose']: print('[agent {}] observation: {}'.format(agent.rank, agent.observation))  
 
         return agent.observation
 
@@ -2412,114 +2468,120 @@ class CarlaEnv(gym.Env):
                 print('>>> [rank {}] Error when deleting prev_agent [agent {}]'.format(self.env_rank, rk))
 
             # Spawning vehicle actor with retry logic as it fails to spawn sometimes
-            self.vehicle_actor = None
-            NUM_RETRIES = 500 #100
-            for idx in range(1, NUM_RETRIES + 1):
-                # Determine start and end points for episode
-                # use_scenarios taps into pre-existing paths and retrieves their start and end.
-                #   Currently scenarios are defined only for Town01
-                # When this is disabled, the start and end are randomly chosen from a set of spawn points
-                if self.config["use_scenarios"]:
-                    if self.config["updated_scenarios"]:
-                        self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
+            
+            NUM_RETRIES = 500 
+            BAD_SRC_DEST_RETRIES = 5
+
+            for src_dest_itr in range(BAD_SRC_DEST_RETRIES):
+                self.vehicle_actor = None
+
+                for idx in range(1, NUM_RETRIES + 1):
+                    # Determine start and end points for episode
+                    # use_scenarios taps into pre-existing paths and retrieves their start and end.
+                    #   Currently scenarios are defined only for Town01
+                    # When this is disabled, the start and end are randomly chosen from a set of spawn points
+                    if self.config["use_scenarios"]:
+                        if self.config["updated_scenarios"]:
+                            self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
+                        else:
+                            _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
                     else:
-                        _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
-                else:
-                    self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
+                        self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
-                try:
-                    self.vehicle_actor = CarlaDataProvider.request_new_actor(self.config['vehicle_type'], self.source_transform, 'hero')
-                except:
-                    self.vehicle_actor = None
-                                     
-                if self.vehicle_actor is not None:
-                    if _upd_town != self.curr_town: # switch to a new town
-                        self.reset_env()
-                        self._set_world_and_map(_upd_town)
-                    break
-                # else:
-                    # print("[rank {}][agt {}] Unable to spawn ego vehicle [trial {}] at ({:.2f}, {:.2f}).".format(
-                    #     self.env_rank, rk, idx, self.source_transform.location.x, self.source_transform.location.y))
-
-            if self.vehicle_actor is not None:
-
-                self.ego_vehicle_list[rk] = self.vehicle_actor
-                self.vehicle_actor.source_transform = self.source_transform
-                self.vehicle_actor.destination_transform = self.destination_transform
-                if self.config['verbose']:
-                    print('########## agent {} ##########'.format(rk))
-                    print('SRC TRANSFORM =', self.vehicle_actor.source_transform)
-                    print('DST TRANSFORM =', self.vehicle_actor.destination_transform)
-                self.curr_num_agents += 1
-
-                # Generates list of waypoints connecting source and destination for current scenario
-                # The sequence of generated way points are stored in self.dense_waypoints
-                self.vehicle_actor.global_planner = planner.GlobalPlanner()
-
-                if 'challenge' in self.config["scenarios"]:
-                    self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
-
-                    # Print route in debug mode
-                    # self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=500)
-                    # print('self.route', self.route)
-                    CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
-
-                    self.dense_waypoints = self._global_plan_world_coord
-
-                    potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
-                        self.curr_town, self.route, self.world_annotations)
-                    # Sample the scenarios to be used for this route instance.
-                    self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
-                    # print(236, self.sampled_scenarios_definitions)
-                    self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
-                    # print(244, self.scenarios)
-                    if self.config['use_scenarios']:
-                        self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
-                    else:
-                        self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
-
-                    # set statistics
-                    self.vehicle_actor.stats = self.statistics_manager
-                    # print('[2038]', self.scenario_index)
-                    _record_idx = len(self.statistics_manager._registry_route_records)
-                    self.vehicle_actor.stats.set_route('route_{}'.format(_record_idx), _record_idx)
-                    self.vehicle_actor.stats.set_scenario(self.vehicle_actor.running.scenario)
-                    self.vehicle_actor.scenario_config = DummyScenarioConfig(_record_idx, self.wps_list)
-
-                elif self.config["scenarios"] == 'leaderboard_navigation':
-                    self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
-                    self.dense_waypoints = self._global_plan_world_coord
-
-                else:
-                    self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
-                                            self.source_transform, self.destination_transform)
-       
-                self._draw_waypoints(self._world, self.dense_waypoints)
-
-                self.scenario_index += 1
-                self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
-
-            else:
-                # DEBUG
-                print("$$$$$$$$$$$$$$$$$$ Err in carla_env.list_reset")
+                    try:
+                        self.vehicle_actor = CarlaDataProvider.request_new_actor(self.config['vehicle_type'], self.source_transform, 'hero')
+                    except:
+                        self.vehicle_actor = None
+                                        
+                    if self.vehicle_actor is not None:
+                        if _upd_town != self.curr_town: # switch to a new town
+                            self.reset_env()
+                            self._set_world_and_map(_upd_town)
+                        break
                 
-                w = CarlaDataProvider._world
-                closeness = []
-                for ac in w.get_actors():
-                    l = ac.get_location()
-                    sr = self.source_transform.location
-                    d = ((l.x-sr.x)**2+(l.y-sr.y)**2)**0.5  
-                    closeness.append((ac.type_id,d,l.z,sr.z))
-                closeness.sort(key = lambda x : x[1])
-                closeness = closeness[-2:]
+                if self.vehicle_actor is not None:
 
-                with open('debug.txt', 'a') as f:
-                    f.write('^^^^^^^^^^^^^^^^^^^^^^^^^^\n')
-                    f.write('Spawn Point = '+str(self.source_transform) + '\n')
-                    f.write('Closeness  = '+str(closeness) + '\n')
-                    f.write('Retries  = '+str(idx) + '\n')
+                    self.ego_vehicle_list[rk] = self.vehicle_actor
+                    self.vehicle_actor.source_transform = self.source_transform
+                    self.vehicle_actor.destination_transform = self.destination_transform
+        
+                    self.curr_num_agents += 1
 
-                raise Exception("Failed in spawning vehicle actor.")
+                    # Generates list of waypoints connecting source and destination for current scenario
+                    # The sequence of generated way points are stored in self.dense_waypoints
+                    self.vehicle_actor.global_planner = planner.GlobalPlanner()
+
+                    if 'challenge' in self.config["scenarios"]:
+                        self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+
+                        # Print route in debug mode
+                        # self._draw_waypoints(self._world, self.route, vertical_shift=1.0, persistency=500)
+                        # print('self.route', self.route)
+                        CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
+
+                        self.dense_waypoints = self._global_plan_world_coord
+
+                        potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
+                            self.curr_town, self.route, self.world_annotations)
+                        # Sample the scenarios to be used for this route instance.
+                        self.sampled_scenarios_definitions = scenario_sampling(potential_scenarios_definitions)
+                        # print(236, self.sampled_scenarios_definitions)
+                        self.scenarios = build_scenario_instances(self._world, self.vehicle_actor, self.sampled_scenarios_definitions, debug_mode=1)
+                        # print(244, self.scenarios)
+                        if self.config['use_scenarios']:
+                            self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, self.scenarios, debug_mode=1)
+                        else:
+                            self.vehicle_actor.running = Trigger(self._world, self.vehicle_actor, self.route, [], debug_mode=1)
+
+                        # set statistics
+                        self.vehicle_actor.stats = self.statistics_manager
+                        # print('[2038]', self.scenario_index)
+                        _record_idx = len(self.statistics_manager._registry_route_records)
+                        self.vehicle_actor.stats.set_route('route_{}'.format(_record_idx), _record_idx)
+                        self.vehicle_actor.stats.set_scenario(self.vehicle_actor.running.scenario)
+                        self.vehicle_actor.scenario_config = DummyScenarioConfig(_record_idx, self.wps_list)
+
+                    elif self.config["scenarios"] == 'leaderboard_navigation':
+                        self.gps_route, self.route, self._global_plan_world_coord = interpolate_trajectory(self._world, self.wps_list)
+                        self.dense_waypoints = self._global_plan_world_coord
+
+                    else:
+                        self.dense_waypoints  = self.vehicle_actor.global_planner.trace_route(self._map,
+                                                self.source_transform, self.destination_transform)
+        
+                    self._draw_waypoints(self._world, self.dense_waypoints)
+
+                    self.scenario_index += 1
+
+                    mod_plan = self.vehicle_actor.global_planner.set_global_plan(self.dense_waypoints)
+
+                    if len(self.dense_waypoints) < self.config['num_waypoints']:
+                        print("[carla_env.list_reset] Agent {} Num waypoints {}  Plan {} Trial {}".format(rk,len(self.dense_waypoints),str(mod_plan),src_dest_itr+1))
+                    else:
+                        break
+                    
+
+                else:
+                    # DEBUG
+                    print("$$$$$$$$$$$$$$$$$$ Err in carla_env.list_reset")
+                    
+                    w = CarlaDataProvider._world
+                    closeness = []
+                    for ac in w.get_actors():
+                        l = ac.get_location()
+                        sr = self.source_transform.location
+                        d = ((l.x-sr.x)**2+(l.y-sr.y)**2)**0.5  
+                        closeness.append((ac.type_id,d,l.z,sr.z))
+                    closeness.sort(key = lambda x : x[1])
+                    closeness = closeness[-2:]
+
+                    with open('debug.txt', 'a') as f:
+                        f.write('^^^^^^^^^^^^^^^^^^^^^^^^^^\n')
+                        f.write('Spawn Point = '+str(self.source_transform) + '\n')
+                        f.write('Closeness  = '+str(closeness) + '\n')
+                        f.write('Retries  = '+str(idx) + '\n')
+
+                    raise Exception("Failed in spawning vehicle actor.")
 
         if reset_npc:
             self.spawn_npc_vehicles()

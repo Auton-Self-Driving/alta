@@ -179,8 +179,12 @@ if __name__ == '__main__':
     with Pool(args.threads) as p:
        p.map(test_policy, config_list)
 
-# python test_run.py --ckpt 7dim_nocrach_dense_no_lane --ckpt_iters 1200526 2401433 3603487 4807135 6009340 7210465 8415674 --test_towns Town02 Town01 --scenarios no_crash_dense no_crash_empty --threads 6
+# python test_run.py --ckpt 7dim_nocrach_dense_no_lane --ckpt_iters 4807135 6009340 7210465 8415674 --test_towns Town02 --scenarios no_crash_dense --num_eps 25 --threads 4 --device 2 
+
 # python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 9624106 10829321 --test_towns Town02 --scenarios no_crash_dense --threads 2 --device 2
 
-# python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10 --ckpt_iters 5710454 --test_towns Town02 --scenarios t_junction --num_eps 1 --threads 1 --device 2 
+# python test_run.py --ckpt 14dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 16220649 17424400 18625743 19828046 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 2
+
+# python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10 --ckpt_iters 9323607 8420271 7216397 6012595 4808944 3606154 2403630 --test_towns Town02 --scenarios no_crash_dense --num_eps 25 --threads 6 --device 2 
+
 
