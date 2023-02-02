@@ -45,7 +45,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Evaluations organizer")
     parser.add_argument("--exps", nargs='*', 
         default=[#["7dim_nocrach_dense_no_lane","15dim_nocrach_dense_no_lane_term_tanh_squashed",
-        "14dim_nocrach_dense_no_lane_term_tanh_squashed"])#,"15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10"])
+        "14dim_nocrach_dense_no_lane_term_tanh_squashed",
+        "24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed"])#,"15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10"])
 
     args = parser.parse_args()
 

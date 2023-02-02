@@ -113,12 +113,11 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    # 'save_suffix':'15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10'
-    'save_suffix': '24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # '14dim_nocrach_dense_no_lane_term_tanh_squashed', # '7dim_nocrach_dense_no_lane',
-    'checkpoint': 'ckptDPPO1x14x8_24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed_1502503_Jan210623PM13.pth',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
+    'save_suffix': '24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # 
+    'checkpoint': 'ckptDPPO1x14x8_24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed_17739845_Jan260447PM53.pth',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
     # 'ckpt_mode': 'load',
-    # 'ckpt_mode': '',
-    'ckpt_mode': 'resume',
+    'ckpt_mode': '',
+    # 'ckpt_mode': 'resume',
     'gamma': 0.99,
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -127,7 +126,7 @@ DPPO_CONFIG = {
     'focal_loss': False,
     'standard': False, # if False, will push traj after finishing an episode
     'push_grad': False,
-    'num_workers': 12,#14, #14,#1,#
+    'num_workers': 14,#14, #14,#1,#
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
     # 'device_list': ['cuda:2'],
@@ -166,8 +165,6 @@ OFFLINE_CONFIG = {
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
     'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_7216852_Nov290726AM24.pth',
-    # 'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_9023024_Nov290328PM28.pth',
-    # 'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7208291_Dec060316PM51.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -208,7 +205,7 @@ ENV_CONFIG = {
     'algo': 'Multi-Agent',
     'num_envs': 1,
     'num_agents': 8,#1,#
-    'max_num_steps': 16000000,
+    'max_num_steps': 25000000,
     'num_episodes' : 1,
     'max_steps' : 50000,
     'next_command': None,  
@@ -234,13 +231,15 @@ ENV_CONFIG = {
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
     # 'input_type': 'wp_obs_more_info_steer_ldist_light', # 14-dim 
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
-    'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
+    # 'input_type': 'wp_2avg_obs_more_info_speed_steer_ldist_light', # 16-dim 
+    'input_type': 'wp_list_obs_more_info_steer_ldist_light', # >=14-dim 
+    # 'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
     'action_type': 'merged_speed_scaled_tanh',
     'vae_encoding_norm_factor' : 10,
     'enable_brake': True,
     'target_speed': 50, #50, ##### REDUCED FOR AN ABLATION | DEFAULT = 50
     'steering_scale': 0.5,
-    'num_waypoints': 10, #10, ##### DEFAULT = 5
+    'num_waypoints': 5, #10, ##### DEFAULT = 5
     'frame_skip': 1,
     'noise_dim' : 1,
     'use_pid_in_frame_skip' : True,

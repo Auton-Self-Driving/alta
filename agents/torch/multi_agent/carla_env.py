@@ -358,6 +358,13 @@ class CarlaEnv(gym.Env):
         elif self.config["input_type"] == 'wp_2avg_obs_more_info_speed_steer_ldist_light': # 16 dim obs space w/ 5 obs sensors
             self.observation_space = Box(low=np.array([[-4.0,-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
              high=np.array([[4.0,4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_list_obs_more_info_steer_ldist_light': # >=14 dim obs space w/ 5 obs sensors and no speed measure
+            lower_bound = [-4.0] * self.config['num_waypoints']
+            lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
+            upper_bound = [4.0] * self.config['num_waypoints']
+            upper_bound.extend([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0])
+            self.observation_space = Box(low=np.array([lower_bound]),
+             high=np.array([upper_bound]), dtype=np.float32)
         elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # >=15 dim obs space w/ 5 obs sensors
             lower_bound = [-4.0] * self.config['num_waypoints']
             lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
@@ -720,7 +727,7 @@ class CarlaEnv(gym.Env):
 
             feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
 
-            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+            if len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
                 for itr in range(10-len(feat_list)):
                     feat_list.append(feat_list[-1])
 
@@ -753,6 +760,48 @@ class CarlaEnv(gym.Env):
                 light = self.config['default_obs_traffic_val']
 
             feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_list_obs_more_info_steer_ldist_light': # Variable >= 14 dim obs space. No speed
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            if len(feat_list) == 0: # Raise Error
+                print("[carla_env.create_observation] Next Wp List Length is 0!!!")
+                print(agent.episode_measurements['next_orientation'])
+                print(agent.next_waypoints)
+                print(agent.global_planner._waypoints_queue)
+
+            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([steer, ldist, light])
 
             obs['observation'] = np.array(feat_list)
 
@@ -1968,6 +2017,7 @@ class CarlaEnv(gym.Env):
                 # agent.actor_list.append(agent.obstacle_sensor.sensor)
                 if self.config['input_type'] in ['wp_obs_more_info_speed_steer_ldist_light', \
                                     'wp_2avg_obs_more_info_speed_steer_ldist_light', \
+                                    'wp_list_obs_more_info_steer_ldist_light', \
                                     'wp_list_obs_more_info_speed_steer_ldist_light', \
                                     'wp_obs_more_info_steer_ldist_light']:
                     obs_sensors = {
@@ -2344,6 +2394,7 @@ class CarlaEnv(gym.Env):
                                         'wp_obs_more_info_steer_ldist_light',
                                         'wp_obs_more_info_speed_steer_ldist_light',
                                         'wp_2avg_obs_more_info_speed_steer_ldist_light',
+                                        'wp_list_obs_more_info_steer_ldist_light',
                                         'wp_list_obs_more_info_speed_steer_ldist_light',
                                         'wp_360_obstacle_speed_steer']:
             observation = np.expand_dims(obs['observation'], axis = 0)
