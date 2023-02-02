@@ -183,8 +183,10 @@ if __name__ == '__main__':
 
 # python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 9624106 10829321 --test_towns Town02 --scenarios no_crash_dense --threads 2 --device 2
 
-# python test_run.py --ckpt 14dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 16220649 17424400 18625743 19828046 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 2
+# python test_run.py --ckpt 14dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 17424400 --test_towns Town01 --scenarios curved t_junction left_right_curved right_curved straight_crowded --threads 5 --device 1
 
-# python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10 --ckpt_iters 9323607 8420271 7216397 6012595 4808944 3606154 2403630 --test_towns Town02 --scenarios no_crash_dense --num_eps 25 --threads 6 --device 2 
+# python test_run.py --ckpt 16dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 17424400 --test_towns Town02 --scenarios no_crash_dense --threads 8 --device 1
+
+# python test_run.py --ckpt 24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 24057987 22254420 20750512 18642090 16839270 15034713 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 3
 
 

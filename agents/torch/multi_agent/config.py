@@ -113,12 +113,11 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    # 'save_suffix':'15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10'
-    'save_suffix': '16dim_nocrach_dense_no_lane_term_tanh_squashed', # '14dim_nocrach_dense_no_lane_term_tanh_squashed', # '7dim_nocrach_dense_no_lane', # '24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # 
-    'checkpoint': 'ckptDPPO1x28x8_16dim_nocrach_dense_no_lane_term_tanh_squashed_19824952_Jan270154PM33.pth',
+    'save_suffix': '24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # 
+    'checkpoint': 'ckptDPPO1x14x8_24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed_17739845_Jan260447PM53.pth',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
     # 'ckpt_mode': 'load',
-    # 'ckpt_mode': '',
-    'ckpt_mode': 'resume',
+    'ckpt_mode': '',
+    # 'ckpt_mode': 'resume',
     'gamma': 0.99,
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -167,8 +166,6 @@ OFFLINE_CONFIG = {
 TEST_CONFIG = {
     'PPO': True, # else SAC, currently only support those two
     'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_7216852_Nov290726AM24.pth',
-    # 'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_9023024_Nov290328PM28.pth',
-    # 'checkpoint': './checkpoints/15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08/ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7208291_Dec060316PM51.pth',
     'num_agents': 1,
     'num_npc': 70,
     'sample_npc': False,
@@ -233,7 +230,7 @@ ENV_CONFIG = {
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
     # 'input_type': 'wp_obs_more_info_steer_ldist_light', # 14-dim 
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
-    # 'input_type': 'wp_2avg_obs_more_info_speed_steer_ldist_light', # 15-dim 
+    # 'input_type': 'wp_2avg_obs_more_info_speed_steer_ldist_light', # 16-dim 
     'input_type': 'wp_list_obs_more_info_steer_ldist_light', # >=14-dim 
     # 'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
     'action_type': 'merged_speed_scaled_tanh',
@@ -241,7 +238,7 @@ ENV_CONFIG = {
     'enable_brake': True,
     'target_speed': 50, #50, ##### REDUCED FOR AN ABLATION | DEFAULT = 50
     'steering_scale': 0.5,
-    'num_waypoints': 10, #10, ##### DEFAULT = 5
+    'num_waypoints': 5, #10, ##### DEFAULT = 5
     'frame_skip': 1,
     'noise_dim' : 1,
     'use_pid_in_frame_skip' : True,
