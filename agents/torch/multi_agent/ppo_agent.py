@@ -12,6 +12,7 @@ from collections import deque, defaultdict
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG
+from utils.testing_utils import StatsLogger
 from environment.carla_9_4.agents.navigation.agent import Agent
 from environment.carla_9_4.dashcam import (
     GlobalRecorder,
@@ -688,11 +689,11 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # initialize
         term_stats = defaultdict(int)
+        stats_logger = StatsLogger("side_obs_sensors")
+
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
-        # self.glb_num_test_episodes = self.glb_env.config['num_episodes']
-        # # print(self.glb_num_test_episodes)
 
         self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
             idx_list=idx_list, reset_npc=True)
@@ -722,6 +723,7 @@ class PPO_Collective_Agent(object):
                 action, _ = agent.select_action(deterministic=True)
                 agent.action = action
             self.vprint('action chosen:', [a.action for a in self.agent_list])
+
             ######################## FOR Debugging
             # print('[ppo_agent : test()] action chosen:', self.agent_list[0].action)
             # co = self.agent_list[0].observation[0]
@@ -730,6 +732,7 @@ class PPO_Collective_Agent(object):
             #     "S_F_Fr_Br_Bl_Fl":[co[2]*20,co[4]*20,co[6]*20,co[8]*20,co[10]*20]}
             # print('[ppo_agent : test()] state space:',str(obs_dict), co)
             #########################
+
             # get new observation
             self.glb_env.step()
 
@@ -757,6 +760,7 @@ class PPO_Collective_Agent(object):
                             agent.dist_to_target_array,
                             agent.red_light_dist_array,
                             agent.wp_orientation_array,
+                            stats_logger.retrieve_stats_in_numpy(),
                             self.glb_num_episodes)
 
                         sub_folders=['ep{}rk{}_{}'.format(self.glb_num_episodes, rk, k) for k in camera_folders]
@@ -782,6 +786,8 @@ class PPO_Collective_Agent(object):
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     self.glb_num_episodes += 1
+                else: # Log additional information 
+                    stats_logger.update(agent)
 
                 agent.num_total_steps += 1
                 self.glb_num_steps += 1
@@ -793,15 +799,17 @@ class PPO_Collective_Agent(object):
                     idx_list[rk] < self.glb_num_test_episodes:
                     respawn_rank_list.append(rk)
                     idx_list[rk] += self.num_agents
+
             if len(respawn_rank_list) > 0: # there're dead agents to respawn
-                # print('[740 PPO]', self.curr_town, self.glb_env.curr_town)
+
+                stats_logger.reset()
+
                 self.glb_env.reset(rank_list=respawn_rank_list, use_idx=True,
                     idx_list=idx_list, reset_npc=True)
+
                 # update agent list
-                # print('[745 PPO]', self.curr_town, self.glb_env.curr_town)
                 if self.curr_town != self.glb_env.curr_town:
                     self.curr_town = self.glb_env.curr_town
-                    # print('[662 PPO]', self.curr_town)
                     self.glb_env.reset(rank_list=self.rank_list)
                     for rk in self.rank_list:
                         self.agent_list[rk] = _PPO_Individual_Agent(

@@ -408,7 +408,6 @@ class DPPO_Server_Agent(object):
 
     def load(self, checkpoint):
         self.glb_policy.load_state_dict(checkpoint['glb_policy'])
-        # self.glb_optimizer.load_state_dict(checkpoint['glb_optimizer'])
         print('checkpoint params loadeded')
 
     def resume(self, checkpoint, strict=False):

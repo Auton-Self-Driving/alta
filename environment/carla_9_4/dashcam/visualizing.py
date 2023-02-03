@@ -118,8 +118,16 @@ class Visualizer:
                             ("Brk",stats['brake'][ctr]),
                             ("Wp_Or",stats['waypoint_orientation'][ctr]),
                             ("D2Traj",stats['dist_to_traj'][ctr]),
-                            ("ObsDist",stats['obstacle_dist'][ctr]),
-                            ("ObsSpd",stats['obstacle_speed'][ctr]),
+                            ("FrObsDist",stats['obstacle_dist'][ctr]),
+                            ("FrObsSpd",stats['obstacle_speed'][ctr]),
+                            ("FRObsD",stats['obstacle_dist_front_right'][ctr]),
+                            ("FRObsS",stats['obstacle_speed_front_right'][ctr]),
+                            ("FLObsD",stats['obstacle_dist_front_left'][ctr]),
+                            ("FLObsS",stats['obstacle_speed_front_left'][ctr]),
+                            ("BRObsD",stats['obstacle_dist_back_right'][ctr]),
+                            ("BRObsS",stats['obstacle_speed_back_right'][ctr]),
+                            ("BLObsD",stats['obstacle_dist_back_left'][ctr]),
+                            ("BLObsS",stats['obstacle_speed_back_left'][ctr]),
                             ("RdLtDist",stats['red_light_dist'][ctr])]
 
             disp_x,disp_y = 20,50
@@ -380,6 +388,7 @@ class Visualizer:
                 dist_to_target_array,
                 red_light_dist_array,
                 wp_orientation_array,
+                side_obs_dict,
                 episode_num):
 
         # Override path
@@ -405,6 +414,10 @@ class Visualizer:
             "waypoint_orientation":wp_orientation_array,
         }
 
+        # Adding side sensor measurements to stats
+        for k in list(side_obs_dict.keys()):
+            stats[k] = list(side_obs_dict[k])
+
         np.save(os.path.join(path,'{}_stats.npy'.format(episode_num)), stats) 
         # read_dictionary = np.load('my_file.npy',allow_pickle='TRUE').item() # TO READ
 
@@ -425,7 +438,7 @@ class Visualizer:
         red_light_dist_array = np.array(red_light_dist_array)
         wp_orientation_array = np.array(wp_orientation_array)
 
-        fig, axs = plt.subplots(7, 2, figsize=(14, 14))
+        fig, axs = plt.subplots(11, 2, figsize=(22, 22))
         fig.suptitle('Episode info plots for episode idx {} '.format(episode_num))
 
         axs[0, 0].plot(observations, target_speeds_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
@@ -454,11 +467,11 @@ class Visualizer:
 
         axs[3, 0].plot(observations, obstacle_dist_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
         axs[3, 0].set_xlabel('Timesteps')
-        axs[3, 0].set_ylabel('Obstacle Distance')
+        axs[3, 0].set_ylabel('Front Obstacle Distance')
 
         axs[3, 1].plot(observations, obstacle_speed_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
         axs[3, 1].set_xlabel('Timesteps')
-        axs[3, 1].set_ylabel('Obstacle Speed')
+        axs[3, 1].set_ylabel('Front Obstacle Speed')
 
         axs[4, 0].plot(observations, dist_to_trajectory_reward_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
         axs[4, 0].set_xlabel('Timesteps')
@@ -484,6 +497,38 @@ class Visualizer:
         axs[6, 1].plot(observations, wp_orientation_array, color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
         axs[6, 1].set_xlabel('Timesteps')
         axs[6, 1].set_ylabel('Waypoint Orientation')
+
+        axs[7, 0].plot(observations, side_obs_dict["obstacle_dist_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[7, 0].set_xlabel('Timesteps')
+        axs[7, 0].set_ylabel('Front Right Obstacle Distance')
+
+        axs[7, 1].plot(observations, side_obs_dict["obstacle_speed_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[7, 1].set_xlabel('Timesteps')
+        axs[7, 1].set_ylabel('Front Right Obstacle Speed')
+
+        axs[8, 0].plot(observations, side_obs_dict["obstacle_dist_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[8, 0].set_xlabel('Timesteps')
+        axs[8, 0].set_ylabel('Front Left Obstacle Distance')
+
+        axs[8, 1].plot(observations, side_obs_dict["obstacle_speed_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[8, 1].set_xlabel('Timesteps')
+        axs[8, 1].set_ylabel('Front Left Obstacle Speed')
+
+        axs[9, 0].plot(observations, side_obs_dict["obstacle_dist_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[9, 0].set_xlabel('Timesteps')
+        axs[9, 0].set_ylabel('Back Right Obstacle Distance')
+
+        axs[9, 1].plot(observations, side_obs_dict["obstacle_speed_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[9, 1].set_xlabel('Timesteps')
+        axs[9, 1].set_ylabel('Back Right Obstacle Speed')
+
+        axs[10, 0].plot(observations, side_obs_dict["obstacle_dist_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[10, 0].set_xlabel('Timesteps')
+        axs[10, 0].set_ylabel('Back Left Obstacle Distance')
+
+        axs[10, 1].plot(observations, side_obs_dict["obstacle_speed_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+        axs[10, 1].set_xlabel('Timesteps')
+        axs[10, 1].set_ylabel('Back Left Obstacle Speed')
 
         axs[0,0].grid(True)
         axs[0,1].grid(True)
