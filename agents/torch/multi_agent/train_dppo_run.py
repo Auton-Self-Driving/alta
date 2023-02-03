@@ -154,15 +154,8 @@ def launch_worker(rank, resources):
         verbose=ENV_CONFIG['verbose'],
     )
 
-    # try:
     worker_agent.learn()
-    # except Exception as e:
-    #     print(traceback.format_exc())
-    #     with open('debug.txt', 'a') as f:
-    #         f.write(str(e) + '\n')
-    #         f.write('!!!!!!!!!!!!!!!!!!!!!\n')
-    #         f.write(traceback.format_exc())
-    #     env.close()
+
     env.close()
 
 dist.run_param_server(launch_server, launch_worker, DPPO_CONFIG['num_servers'],

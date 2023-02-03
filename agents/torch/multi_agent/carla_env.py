@@ -1127,7 +1127,7 @@ class CarlaEnv(gym.Env):
 
         for _ in range(self.config["frame_skip"]):
 
-            # Get control of agent (steer, throttle, break, reverse and hadn brake)
+            # Get control of agent (steer, throttle, break, reverse and hand brake)
             for rk, agent in enumerate(self.ego_agent_list):
 
                 if agent.done or agent.action is None: continue
@@ -2330,8 +2330,6 @@ class CarlaEnv(gym.Env):
 
         agent.episode_measurements['next_orientation'] = next_orientation
         agent.episode_measurements['distance_to_goal_trajec'] = distance_to_goal_trajec
-        # if agent.unseen:
-        #     self.total_distance += distance_to_goal_trajec
         agent.episode_measurements['dist_to_trajectory'] = agent.dist_to_trajectory
 
         # Update obstacle distance measurements
