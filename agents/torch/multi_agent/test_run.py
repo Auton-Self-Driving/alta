@@ -43,8 +43,8 @@ def test_policy(test_config):
     # ENV_CONFIG['initial_town'] = ENV_CONFIG['city_name']
 
     env = CarlaEnv(ENV_CONFIG)
-    N_S = env.observation_space.shape[-1]
-    N_A = env.action_space.shape[-1]
+    N_S = env.obs_manager.observation_space.shape[-1]
+    N_A = env.obs_manager.action_space.shape[-1]
 
     print('testing config:\n{}'.format(test_config))
 
@@ -139,9 +139,11 @@ def construct_config_update(args):
                 if scn == "no_crash_dense":
                     config_list[-1]['num_npc'] = 70
                 elif scn == "no_crash_empty":
-                    config_list[-1]['num_npc'] = 0            
+                    config_list[-1]['num_npc'] = 0
+                else:
+                    config_list[-1]['num_npc'] = 0      
 
-                config_list[-1]['initial_town'] = twn
+                config_list[-1]['city_name'] = twn
 
                 config_list[-1]['checkpoint'] = ckpt
 
@@ -150,6 +152,8 @@ def construct_config_update(args):
                 if '7dim' in ckpt:
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light'
                 elif '15dim' in ckpt:
+                    config_list[-1]['input_type'] = 'wp_obs_more_info_speed_steer_ldist_light'
+                else:
                     config_list[-1]['input_type'] = 'wp_obs_more_info_speed_steer_ldist_light'
 
     return config_list
@@ -188,5 +192,10 @@ if __name__ == '__main__':
 # python test_run.py --ckpt 16dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 17424400 --test_towns Town02 --scenarios no_crash_dense --threads 8 --device 1
 
 # python test_run.py --ckpt 24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 24057987 22254420 20750512 18642090 16839270 15034713 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 3
+
+# python test_run.py --ckpt cubic_bezier3dof_long_straight --ckpt_iters 50005  --test_towns Town01 --scenarios straight --threads 1 --device 2
+# python test_run.py --ckpt cubic_bezier5dof_straight --ckpt_iters 600038  --test_towns Town01 --scenarios straight --threads 1 --device 2
+# python test_run.py --ckpt sp_throttle_straight --ckpt_iters 25038 50066  --test_towns Town01 --scenarios straight --threads 2 --device 2
+# python test_run.py --ckpt sp_wp_straight --ckpt_iters 25009  --test_towns Town01 --scenarios straight --threads 1 --device 2
 
 

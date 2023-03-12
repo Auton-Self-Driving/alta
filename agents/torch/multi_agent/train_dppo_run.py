@@ -49,25 +49,34 @@ res = {'log_time': time.strftime('%b%d%I%M%p%S')}
 def get_state_action_dims(config):
 
     if config['input_type'] == 'wp_obs_info_speed_steer_ldist_goal_light':
-        N_S, N_A = 8, 2
+        N_S = 8
     elif config['input_type'] == 'wp_obs_info_speed_steer_ldist_light':
-        N_S, N_A = 7, 2
+        N_S = 7
     elif config['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
-        N_S, N_A = 11, 2
+        N_S = 11
     elif config['input_type'] == 'wp_obs_more_info_steer_ldist_light': # No speed
-        N_S, N_A = 14, 2
+        N_S = 14
     elif config['input_type'] == 'wp_obs_more_info_speed_steer_ldist_light':
-        N_S, N_A = 15, 2
+        N_S = 15
     elif config['input_type'] == 'wp_2avg_obs_more_info_speed_steer_ldist_light':
-        N_S, N_A = 16, 2
+        N_S = 16
     elif config['input_type'] == 'wp_360_obstacle_speed_steer':
-        N_S, N_A = 24, 2
+        N_S = 24
     elif config['input_type'] == 'wp_list_obs_more_info_steer_ldist_light': # No speed
-        N_S, N_A = 13 + config['num_waypoints'] , 2
+        N_S = 13 + config['num_waypoints'] 
     elif config['input_type'] == 'wp_list_obs_more_info_speed_steer_ldist_light':
-        N_S, N_A = 14 + config['num_waypoints'] , 2
+        N_S = 14 + config['num_waypoints'] 
     else:
-        N_S, N_A = 7, 2
+        N_S = 7
+
+    if config['action_type'] == 'cubic_bezier_3dof':
+        N_A = 4
+    elif config['action_type'] == 'cubic_bezier_5dof':
+        N_A = 6
+    elif config['action_type'] == 'speed_wp':
+        N_A = 3
+    else:
+        N_A = 2
 
     return N_S, N_A
 
@@ -132,8 +141,8 @@ def launch_worker(rank, resources):
     ENV_CONFIG['device'] = device
     env = CarlaEnv(ENV_CONFIG, env_rank=rank)
 
-    N_S = env.observation_space.shape[-1]
-    N_A = env.action_space.shape[-1]
+    N_S = env.obs_manager.observation_space.shape[-1]
+    N_A = env.obs_manager.action_space.shape[-1]
 
     local_policy = PPOActorCritic_Continuous(N_S, N_A,
         use_transformer=ENV_CONFIG['input_type']=='transformer', squash=DPPO_CONFIG['squash']).to(device) # global network

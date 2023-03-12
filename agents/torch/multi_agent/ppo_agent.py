@@ -151,7 +151,7 @@ class PPO_Collective_Agent(object):
 
         run_name_tokens = self.run_name.split("/")[0].split("_")
         exp_name, ckpt_iter = "_".join(run_name_tokens[:-1]), run_name_tokens[-1]
-        self.vid_log_dir = '{}/{}/{}/{}/{}/'.format('tests/evals',self.glb_env.config['scenarios'],self.glb_env.config['initial_town'],exp_name,ckpt_iter)
+        self.vid_log_dir = '{}/{}/{}/{}/{}/'.format('tests/evals',self.glb_env.config['scenarios'],self.glb_env.config['city_name'],exp_name,ckpt_iter)
 
     def reset_glb_memory(self):
         self.memory = {

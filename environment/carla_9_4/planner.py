@@ -10,18 +10,6 @@ from environment.carla_9_4.agents.tools.misc import distance_vehicle
 from collections import deque
 from enum import Enum
 
-# CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
-# if CARLA_9_4_PATH == None:
-#     raise ValueError("Set $CARLA_9_4_PATH to directory that contains CarlaUE4.sh")
-
-# try:
-#     sys.path.append(glob.glob(CARLA_9_4_PATH+'/**/*%d.%d-%s.egg' % (
-#         sys.version_info.major,
-#         sys.version_info.minor,
-#         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
-# except IndexError:
-#     pass
-
 try:
     import carla
 except Exception as e:
@@ -73,15 +61,18 @@ class GlobalPlanner():
         route = self._grp.trace_route(
             start_waypoint.transform.location,
             end_waypoint.transform.location)
-
+        
         return route
 
     def compute_distances_between_waypoints(self, current_plan):
+        """
+        Calculates distance of an arbitrary waypoint to the destination waypoint along the route
+        """
         modified_plan = []
         last_waypoint = current_plan[-1][0]
         dist = 0
         for elem in reversed(current_plan):
-            waypoint, unk = elem
+            waypoint, unk = elem # unk = Roadoption
             dist += last_waypoint.transform.location.distance(waypoint.transform.location)
             modified_plan.append((waypoint, unk, dist))
             last_waypoint = waypoint
@@ -94,6 +85,7 @@ class GlobalPlanner():
 
         # Returns a list of (waypoint, road option, dist from destination)
         modified_plan = self.compute_distances_between_waypoints(current_plan)
+
         for elem in modified_plan:
             # dont use waypoints during turning
             # if not self.sameWaypoint(elem[0], prev_wp) and \
