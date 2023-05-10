@@ -18,6 +18,8 @@ class StatsLogger:
                 "obstacle_dist_front_left":[],"obstacle_speed_front_left":[],
                 "obstacle_dist_back_left":[],"obstacle_speed_back_left":[],
                 }
+        elif mode == "no_side":
+            self.config = {}
         else:
             raise Exception("Invalid Agent Logging Mode")
 

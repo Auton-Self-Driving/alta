@@ -112,11 +112,12 @@ DSAC_CONFIG = {
 }
 
 DPPO_CONFIG = {
-    'save_suffix': 'cubic_bezier5dof_straight',#'cubic_bezier3dof_long_straight', #'24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # 
-    'checkpoint': 'ckptDPPO1x14x8_cubic_bezier5dof_straight_600038_Mar120521AM37.pth', #'ckptDPPO1x14x8_24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed_17739845_Jan260447PM53.pth',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth', # 'ckptDPPO1x14x8_7dim_nocrach_dense_no_lane_3002333_Dec130112AM03.pth',#'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_gamma_08_7508753_Dec060659PM49.pth',#ckptDPPO1x15x8_test2_nolane_15dim_nocrach_empty_8379736_Nov021006AM17.pth',
+    'save_suffix': 'sp_str_24dim_st_frameskip_10', 
+    #'cubic_bezier5dof_24dim_st_ovrtk_lanepen', 'cubic_bezier5dof_st_ovrtk', #'sp_wp_straight_openloop', #'sp_throttle_straight', #'cubic_bezier5dof_turns', #'cubic_bezier5dof_straight', #'cubic_bezier3dof_long_straight', #'24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed', # 
+    'checkpoint': '',#'ckptDPPO1x14x8_cubic_bezier5dof_straight_900049_Mar130341AM11.pth', #'ckptDPPO1x14x8_24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed_17739845_Jan260447PM53.pth',# 'ckptDPPO1x14x8_15dim_nocrach_dense_no_lane_term_tanh_squashed_sp_30_wp_10_5710454_Jan080933PM30.pth'
     # 'ckpt_mode': 'load',
-    # 'ckpt_mode': '',
-    'ckpt_mode': 'resume',
+    'ckpt_mode': '',
+    # 'ckpt_mode': 'resume',
     'gamma': 0.99,
     'policy_lr': 4e-4,
     'eps_clip': .2,
@@ -125,17 +126,17 @@ DPPO_CONFIG = {
     'focal_loss': False,
     'standard': False, # if False, will push traj after finishing an episode
     'push_grad': False,
-    'num_workers': 14, #14,#1,#
+    'num_workers': 13, #14,#1,#
     'num_servers': 1, # currently only support 1 server
     'num_threads_per_server': 1,
-    # 'device_list': ['cuda:2'],
-    'device_list': ['cuda:1', 'cuda:0', 'cuda:3'],
+    # 'device_list': ['cuda:1'],
+    'device_list': ['cuda:0', 'cuda:2', 'cuda:3'],
     # 'device_list': ['cuda:0','cuda:1', 'cuda:2', 'cuda:3'],
     'worker_grad_update_freq': 20000,
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 100,
     'server_adaptive_freq': True,
-    'save_freq': 300000,# 1000 # 
+    'save_freq': 30000,#10000 #   
 }
 
 PPO_CONFIG = {
@@ -173,8 +174,9 @@ TEST_CONFIG = {
     'num_episodes' : 25,
     'target_speed': 50, # DEFAULT TO 50,
     'steering_scale': 0.5,
-    'frame_skip':1,
-    'sticky_temporal_action_frames':1,
+    'action_type': 'merged_speed_scaled_tanh',#'speed_wp', # 'cubic_bezier_5dof', ##  NOTE
+    'frame_skip':1, # NOTE
+    'sticky_temporal_action_frames':1, #1, # NOTE
     'testing' : False, # spawn point pending bugs in env line#142
     'enable_static_termination' : True,
     'enable_obstacle_sensor': True,
@@ -185,7 +187,7 @@ TEST_CONFIG = {
     'side_obs_sensor_hit_radius': .7854,
     'disable_traffic_light': False,
     'terminate_on_light' : False,
-    'enable_lane_invasion_termination' : True,
+    'enable_lane_invasion_termination' : True, 
     'front_obs_proximity_threshold' : 15,
     'side_obs_proximity_threshold' : 5,
     'traffic_light_proximity_threshold' : 15,
@@ -214,7 +216,7 @@ ENV_CONFIG = {
     'preprocess_crop_image': False, # oc
     # Refer to _set_scenario in carla_env for scenarios list
     # 'scenarios' : 'no_crash_dense', #sc 
-    'scenarios' : 'straight', #sc 
+    'scenarios' : 'straight', #'straight_overtake', #sc NOTE
     'updated_scenarios': False, # sc
     'use_scenarios': True, # sc
 
@@ -225,11 +227,12 @@ ENV_CONFIG = {
 
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
     # 'input_type': 'wp_obs_more_info_steer_ldist_light', # 14-dim # oc
-    'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
+    # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
+    'input_type': 'wp_360_obstacle_speed_steer', # 15-dim 
     # 'input_type': 'wp_2avg_obs_more_info_speed_steer_ldist_light', # 16-dim 
     # 'input_type': 'wp_list_obs_more_info_steer_ldist_light', # >=14-dim 
     # 'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
-    'action_type': 'cubic_bezier_5dof', # 'speed_wp', # 'merged_speed_scaled_tanh', #  ac
+    'action_type': 'merged_speed_scaled_tanh', #'speed_wp', #'cubic_bezier_5dof', #  ac
     'enable_brake': True, # ac
     'target_speed': 50, # ac, ##### REDUCED FOR AN ABLATION | DEFAULT = 50
     'steering_scale': 0.5, # ac
@@ -240,9 +243,9 @@ ENV_CONFIG = {
     'episode_measurements': EPISODE_MEASUREMENTS, # c TODO rework since outside class
     'frame_stack_size' : 1, # oc
 
-    'frame_skip': 1, #1 # ac # TODO: monitor this
-    'traj_frame_horizon':30, # TODO add somewhere. Must be more than frameskip
-    'sticky_temporal_action_frames': 15, #1 # TODO: add somewhere. Performs frame skip but also commits (S,A,R,S) at each frame
+    'frame_skip': 10, #1 # ac # TODO: monitor this
+    'traj_frame_horizon':30, #30, #TODO add somewhere. Must be more than frameskip
+    'sticky_temporal_action_frames': 1, #12 # TODO: add somewhere. Performs frame skip but also commits (S,A,R,S) at each frame
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 
@@ -270,8 +273,8 @@ ENV_CONFIG = {
     'verbose': False, # c
     
     # NPC Vehicle Settings
-    'num_npc' : 0,  # sc
-    'sample_npc': True, # sc
+    'num_npc' : 1,  # sc
+    'sample_npc': False, # True, # sc TODO reset to True  # default
     'num_npc_lower_threshold' : 20, # sc
     'num_npc_upper_threshold' : 380, # sc
     'npc_reset_freq': 10000, # CHECK: Basically means never reset NPC?
@@ -341,8 +344,7 @@ ENV_CONFIG = {
     'check_obs_same_lane': True, # TODO add to oc
     'front_obs_sensor_hit_radius': .5, # TODO [RED] remove
     'side_obs_sensor_hit_radius': .7854, # pi / 4 # TODO [RED] remove
-    'all_obs_hit_radius': 2, # TODO [RED] remove
-    'disable_lane_invasion_sensor' : True, # sc TODO [RED] # DISABLED [AMAN]    
+    'all_obs_hit_radius': 2, # TODO [RED] remove 
     'front_obs_proximity_threshold' : 30, # TODO [RED] remove
     'side_obs_proximity_threshold' : 5, # TODO [RED] remove
     'all_obs_proximity_threshold' : 45, # TODO [RED] remove
@@ -374,6 +376,7 @@ ENV_CONFIG = {
     # Reward and Termination Booleans
     'terminate_on_light' : False, # sc
     'disable_collision': False, # sc
+    'disable_lane_invasion_sensor' : True, # sc TODO [RED] # DISABLED [AMAN]   
     'enable_static_termination': False, # DISABLED [AMAN] # sc disable_static TODO fix code
     'enable_lane_invasion_termination' : False, #DISABLED [AMAN] # rc
     'enable_lane_invasion_collision' : False, #DISABLED [AMAN] # rc

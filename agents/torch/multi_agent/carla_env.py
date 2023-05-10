@@ -91,18 +91,6 @@ TOKEN_TYPE = {
     'WAYPOINT': 3
 }
 
-
-class DummyWaypoint:
-    """ Acts as a proxy for Carla.Waypoint since carla does not allow users to create their own waypoints
-    Can be instantiated and passed to functions that rely on only the location and rototation of waypoints
-    without requiring additional code to handle user defined transforms
-    """
-
-    def __init__(self, transform):
-
-        self.transform = transform
-
-
 class DummyScenarioConfig(object):
     def __init__(self, index, trajectory):
         self.index = index
@@ -295,7 +283,7 @@ class CarlaEnv(gym.Env):
         self.obs_manager = ObservationsManager(self.config, self._world)
         self.obs_manager.setup_observation_and_action_space()
 
-        self.traj_manager = env_util.CubicBezierHandler(self.config["traj_frame_horizon"])
+        self.traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
@@ -352,8 +340,8 @@ class CarlaEnv(gym.Env):
             if action is not None: agent.action = action # for stablebaseline
             if agent.action is None: continue
 
+            agent.curr_reward = 0
             if agent.frame_skip_itr == 0:
-                agent.curr_reward = 0
                 agent.last_acted_location = agent.vehicle_actor.get_transform().location # required in bezier action space
                 agent.last_acted_rotation = agent.vehicle_actor.get_transform().rotation # required in bezier action space
 
@@ -372,7 +360,7 @@ class CarlaEnv(gym.Env):
                     control = self._update_control(agent)
 
                     # frame_skip_itr required for time dependendent control
-                    # used in bezier_curve action space
+                    # used in parameterized trajectory action space
                     agent.frame_skip_itr = (agent.frame_skip_itr + 1) % self.config['sticky_temporal_action_frames']
 
                     if self.config['verbose']:
@@ -427,6 +415,23 @@ class CarlaEnv(gym.Env):
                         
                     else:
                         self._update_lane_invasion_info_via_privilege(agent)
+
+                elif not self.config["disable_lane_invasion_sensor"]:
+
+                    agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
+                    agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
+                        agent.prev_measurement['num_laneintersections']
+                    agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
+                    
+    
+                    next_opts = set(agent.next_road_opt_queue)
+                    for opt in next_opts:
+                        # NOTE: not sure the reason but here should use .name to compare
+                        if opt.name != RoadOption.CHANGELANELEFT.name and \
+                            opt.name != RoadOption.CHANGELANERIGHT.name:
+                            continue
+                        
+                        agent.episode_measurements['unlawful_lane_change'] = False
 
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
@@ -691,104 +696,59 @@ class CarlaEnv(gym.Env):
             steer = np.clip(steer, -1., 1.)
         elif self.config["action_type"] == "cubic_bezier_5dof":
 
-            cubic_bezier_pt = lambda t,p0,p1,p2,p3 : p0 * (1-t)**3 + \
-                                    3 * p1 * t*(1-t)**2 + \
-                                    3 * p2 * (t**2)*(1-t) + \
-                                    p3 * t**3
-
-            action_to_point = lambda pt_range, action, scaling=1.2 : np.clip((action*((pt_range[1]-pt_range[0])/2.)*scaling + \
-                                    (pt_range[1]+pt_range[0])/2.),pt_range[0],pt_range[1])
-            point_to_action = lambda pt_range, pt, scaling=1.2: (2*pt - (pt_range[1]+pt_range[0])) / \
-                                     ((pt_range[1]-pt_range[0]) * scaling)
-
-            pt_range = {
-                0:{'x':[0,0],'y':[0,0]},
-                1:{'x':[1,4],'y':[-4,4]},
-                2:{'x':[0,4],'y':[-4,4]},
-                3:{'x':[8,8],'y':[-4,4]}}
-
             # TODO improve ctrl pt computation code. Make it depend on self.action_space bounds
 
-            time_delay = 0.1
-            time_on_curve = time_delay +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
+            time_delay = 0.35
 
+            # This is to rectify the origin of the  traj. 
+            # Without this the origin would lie at the rear end of the car
+            car_length_offset = 3.5
 
-            # Computing bezier waypoint coordinate in world system
-            sign = 1 if (agent.last_acted_rotation.yaw < 90 or agent.last_acted_rotation.yaw > 270) else -1
-            x0, y0 = agent.last_acted_location.x          , agent.last_acted_location.y 
-
-            # First control point is free
-            # Bounded in box space where X in [1,4] and Y in [-4,4]
-            # Note raw action are in [-1,1] due to tanh. Due to squashing they are scaled and clipped
-            x1 = action_to_point(pt_range[1]['x'],action[0])
-            y1 = action_to_point(pt_range[1]['y'],action[1])
-            x1, y1 = agent.last_acted_location.x + sign*x1, agent.last_acted_location.y + sign*y1
-
-            # Second control point is free
-            # Bounded in box space where X in [0,4] and Y in [-4,4]
-            # Note raw action are in [-1,1] due to tanh. Due to squashing they are scaled and clipped
-            x2 = action_to_point(pt_range[2]['x'],action[2])
-            y2 = action_to_point(pt_range[2]['y'],action[3])
-            x2, y2 = agent.last_acted_location.x + sign*x2, agent.last_acted_location.y + sign*y2
-
-            # Destination point. Fixed at [8,y] where y varies between [-4,4] 
-            x3, y3 = 8,  action_to_point(pt_range[3]['y'],action[4]) 
-            x3, y3 = agent.last_acted_location.x + sign*x3, agent.last_acted_location.y + sign*y3
-
-            target_x = cubic_bezier_pt(time_on_curve,x0,x1,x2,x3)
-            target_y = cubic_bezier_pt(time_on_curve,y0,y1,y2,y3)
-
-            target_waypoint = DummyWaypoint(Transform(Location(target_x,target_y,0),Rotation(0,0,0))) # LateralPID only observes x,y
-
-            # Target Speed at destination
-            # TODO: target speed is ramped up along bezier curve
-            target_speed = action[5]*1.5 + 1
-            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-
-            steer = agent.steer_controller.pid_control(
-                    target_waypoint, agent.vehicle_actor.get_transform())
-            steer = np.clip(steer, -1., 1.)
-
-            # Compute pseudo action that creates the same bezier curve but 
-            # with origin at current position on original bezier curve
+            time_on_curve = time_delay  +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
 
             if agent.frame_skip_itr == 0:
-                self.traj_manager.set_ctrl_points([x0,y0,x1,y1,x2,y2,x3,y3])
+                # Setting up vehicle centric coordinate space
+                self.traj_manager.set_coordinate_system(
+                    agent.last_acted_location,
+                    agent.last_acted_rotation,
+                    car_length_offset)
+                # Parameterizing trajectory
+                self.traj_manager.populate_trajectory(action)
             else:
-                new_ctrl_pts = self.traj_manager.get_sub_cubic_bezier_ctrl_points(time_on_curve, free_pts=2)
-                pseudo_action = env_util.bezier_to_action(new_ctrl_pts, pt_range, point_to_action, 2)
-                pseudo_action.append(action[5])
-                agent.action = np.asarray(pseudo_action)
+                # Update trajectory manager with current vehicle orientation 
+                # to suitably rotate car coordinate system
+                self.traj_manager.set_current_basis(agent.vehicle_actor.get_transform().rotation)
 
+                # Compute pseudo action that produces remaining traj but
+                # with origin at current position on original traj
+                agent.action, start_pt = self.traj_manager.get_subsegment_parameters(time_on_curve)
+                # agent.action, start_pt = self.traj_manager.get_subsegment_parameters(agent)
 
-        elif self.config["action_type"] == "speed_wp":
+                ### FOR DEBUGGING ###
+                debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
+                debug_traj_manager.current_basis = self.traj_manager.current_basis
+                debug_traj_manager.reference_basis = self.traj_manager.current_basis
+                debug_traj_manager.yaw_drift = 0
+                debug_traj_manager.origin = self.traj_manager.origin 
+                cur_pos_ref = start_pt
+                debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
+                debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"] 
+                debug_traj_manager.populate_trajectory(agent.action)
+                env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
 
+            agent.trajectory_yaw_drift = self.traj_manager.yaw_drift
 
-            # Destination point. At [x,y] where x in [0,6] and y varies between [-6,6] 
-            x1, y1 = np.clip(((action[0]+1)*6)/2.0,0,6),  np.clip(action[0]*1.2*6,-6,6) # dest pt fixed at 8meters away
+            ### FOR DEBUGGING ###
+            # if agent.frame_skip_itr == 0:
+            env_util.plot_trajectory(time_on_curve, self._world, self.traj_manager)
 
-
-            # Computing bezier waypoint coordinate in world system
-            sign = 1 if (agent.last_acted_rotation.yaw < 90 or agent.last_acted_rotation.yaw > 270) else -1
-            x1, y1 = agent.last_acted_location.x + sign*x1, agent.last_acted_location.y + sign*y1
-
-            target_waypoint = DummyWaypoint(Transform(Location(x1, y1,0),Rotation(0,0,0))) # LateralPID only observes x,y
-
-
-            # Target Speed at destination
-            # TODO: target speed is ramped up along bezier curve
-            target_speed = action[1]*1.5 + 1
-            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
+            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
+            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
             current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+
+            # self._world.debug.draw_point(
+            #     carla.Location(x=target_waypoint.transform.location.x,y=target_waypoint.transform.location.y,z=5),
+            #     size=4, color=(255,0,0), life_time=0.3)
 
             gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
@@ -801,9 +761,70 @@ class CarlaEnv(gym.Env):
             steer = agent.steer_controller.pid_control(
                     target_waypoint, agent.vehicle_actor.get_transform())
             steer = np.clip(steer, -1., 1.)
+        elif self.config["action_type"] == "speed_wp":
 
-            # print('[carla_env.get_control()] Throttle : {} Cur Spd : {} Trgt Speed : {} Action : {}'.format(gas,current_speed,target_speed,action[1]))
+            time_delay = 0.1
 
+            # This is to rectify the origin of the  traj. 
+            # Without this the origin would lie at the rear end of the car
+            car_length_offset = 3.5
+
+            time_on_curve = time_delay +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
+
+            if agent.frame_skip_itr == 0:
+                # Setting up vehicle centric coordinate space
+                self.traj_manager.set_coordinate_system(
+                    agent.last_acted_location,
+                    agent.last_acted_rotation,
+                    car_length_offset)
+                # Parameterizing trajectory
+                self.traj_manager.populate_trajectory(action)
+            else:
+                # Update trajectory manager with current vehicle orientation 
+                # to suitably rotate car coordinate system
+                self.traj_manager.set_current_basis(agent.vehicle_actor.get_transform().rotation)
+
+                # Compute pseudo action that produces remaining traj but
+                # with origin at current position on original traj
+                agent.action = self.traj_manager.get_subsegment_parameters(agent)
+                # agent.action = self.traj_manager.get_subsegment_parameters(time_on_curve)
+
+                ### FOR DEBUGGING ###
+                if agent.frame_skip_itr > 0:
+                    debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
+                    debug_traj_manager.set_coordinate_system(
+                        agent.vehicle_actor.get_transform().location,
+                        agent.vehicle_actor.get_transform().rotation,
+                        car_length_offset)
+                    debug_traj_manager.yaw_drift = 0
+                    debug_traj_manager.origin = carla.Vector3D(x=self.traj_manager.origin.x, y=self.traj_manager.origin.y, z=self.traj_manager.origin.z)
+                    cur_pos_ref = self.traj_manager.get_points_on_trajectory()[int(time_on_curve*self.traj_manager.points_on_traj)]
+                    debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
+                    debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"]
+                    debug_traj_manager.populate_trajectory(agent.action)
+                    env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
+
+            agent.trajectory_yaw_drift = self.traj_manager.yaw_drift
+
+            ### FOR DEBUGGING ###
+            if agent.frame_skip_itr == 0:
+                env_util.plot_trajectory(time_on_curve, self._world, self.traj_manager)
+
+            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
+            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
+            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+
+            steer = agent.steer_controller.pid_control(
+                    target_waypoint, agent.vehicle_actor.get_transform())
+            steer = np.clip(steer, -1., 1.)                
         
         agent.episode_measurements["target_speed"] = target_speed
 
@@ -988,7 +1009,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
 
-    def _update_obs_detector_via_all_sensor(self, agent):
+    def _update_obs_detector_via_all_sensor(self, agent): # Used in 360 degree obs space to populate sensor readings
         sensor_readings = {}
         obstacle_set = set()
         for suffix in agent.obstacle_sensor:
@@ -1106,9 +1127,16 @@ class CarlaEnv(gym.Env):
         """
 
         _upd_town = self.curr_town
-        if self.config["scenarios"] == "straight":
+        if self.config["scenarios"] == "straight": 
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
+        elif self.config["scenarios"] == "straight_overtake": 
+            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+            frac = random.random() * 0.5 + 0.25
+            spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
+            spwn_rot = self.source_transform.rotation
+            self.spawn_points = [Transform(spwn_loc,spwn_rot)]
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
             self.config["num_episodes"] = 2
@@ -1566,6 +1594,8 @@ class CarlaEnv(gym.Env):
             # Agent location and rotation where last action was taken by policy
             agent.last_acted_location = agent.vehicle_actor.source_transform.location
             agent.last_acted_rotation = agent.vehicle_actor.source_transform.rotation
+            # Difference between on trajectory yaw and last action location yaw
+            agent.trajectory_yaw_drift = 0
 
             # add transfuser
             if transfuser:
@@ -1581,17 +1611,12 @@ class CarlaEnv(gym.Env):
 
     def _update_lane_invasion_info_via_privilege(self, agent):
         if agent.done: return
-        # agent_bb_wp = get_vehicle_bb_wp(
-        #     self._world.get_map(), agent.vehicle_actor,
-        #     lane_type=(LaneType.Any | LaneType.NONE))
+        
+        
         agent_wp = self._map.get_waypoint(
             agent.vehicle_actor.get_location(),
             lane_type=(LaneType.Any | LaneType.NONE))
 
-        # # definitely offroading
-        # if agent_wp.lane_type == LaneType.NONE:
-        #     agent.episode_measurements['out_of_road'] = True
-        #     return
         if agent_wp.lane_type not in {
             LaneType.Driving,
             LaneType.Parking,
@@ -1612,9 +1637,6 @@ class CarlaEnv(gym.Env):
             # NOTE: not sure the reason but here should use .name to compare
             if opt.name == RoadOption.LANEFOLLOW.name:
                 continue
-            # if not continued
-            # print(opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
-            # print('[1824] permitted offlane')
             return
 
         # if not intersection, should stick on driving lane
@@ -1624,20 +1646,10 @@ class CarlaEnv(gym.Env):
         else:
             num_same_road_wp = 0
             for next_wp in [agent.next_waypoints[0], agent.next_waypoints[-1]]:
-                # print('[1834]', agent_wp.road_id, next_wp.road_id,
-                #     agent_wp.lane_id, next_wp.lane_id)
                 if agent_wp.road_id == next_wp.road_id:
                     num_same_road_wp += 1
                     if agent_wp.lane_id == next_wp.lane_id:
                         return
-            # for bb_wp in agent_bb_wp:
-            #     for next_wp in agent.next_waypoints:
-            #         # print('[1834]', agent_wp.road_id, next_wp.road_id,
-            #         #     agent_wp.lane_id, next_wp.lane_id)
-            #         if bb_wp.road_id == next_wp.road_id:
-            #             num_same_road_wp += 1
-            #             if bb_wp.lane_id == next_wp.lane_id:
-            #                 return
             # at intersection or something
             if num_same_road_wp == 0: return
         # if not returned, lane invasion happened
@@ -1675,9 +1687,6 @@ class CarlaEnv(gym.Env):
             agent.episode_measurements['static_steps'] += 1
         else:
             agent.episode_measurements['static_steps'] = 0
-
-        if self.config["scenarios"] == "straight_dynamic":
-            self.obs_manager._update_straight_dynamic_obs(agent)
 
 
         # Gather camera measurements
@@ -1999,8 +2008,11 @@ class CarlaEnv(gym.Env):
         tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
+
+            if self.config["scenarios"] == "straight_overtake":
+                self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
             # TODO: uncomment below to enable autopilot
-            if not self.config["scenarios"] == "straight_dynamic":
+            elif not self.config["scenarios"] == "straight_dynamic":
                 vehicle.set_autopilot(True, tm_port)
 
             if self.config["verbose"]:
@@ -2009,6 +2021,7 @@ class CarlaEnv(gym.Env):
         return False
 
     def spawn_npc(self, number_of_vehicles):
+
         # Testing
         if self.config["test_fixed_spawn_points"]:
             spawn_points = self.spawn_points_fixed_order

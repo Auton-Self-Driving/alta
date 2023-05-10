@@ -267,7 +267,7 @@ class ObservationsManager:
                 speed = agent.episode_measurements['speed'] / 10
                 obstacle_dist = agent.episode_measurements['obstacle_dist']
                 obstacle_speed = agent.episode_measurements['obstacle_speed']
-                steer = agent.episode_measurements['control_steer']
+                steer = agent.episode_measurements['control_steer'] #agent.trajectory_yaw_drift / 360. # agent.episode_measurements['control_steer']
                 ldist = agent.episode_measurements['dist_to_trajectory']
                 light = agent.episode_measurements['red_light_dist']
 
@@ -746,6 +746,19 @@ class ObservationsManager:
                     else:
                         front_obs_vec = np.array([light, 0]) / 20.0
                         front_obs_vel = np.array([0,0])
+
+
+                # For visualization
+                agent.episode_measurements['obstacle_dist'] = front_min_dist
+                agent.episode_measurements['obstacle_speed'] = np.mean(np.square(front_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_right'] = front_right_min_dist
+                agent.episode_measurements['obstacle_speed_front_right'] = np.mean(np.square(front_right_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_left'] = front_left_min_dist
+                agent.episode_measurements['obstacle_speed_front_left'] = np.mean(np.square(front_left_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_right'] = back_right_min_dist
+                agent.episode_measurements['obstacle_speed_back_right'] = np.mean(np.square(back_right_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_left'] = back_left_min_dist
+                agent.episode_measurements['obstacle_speed_back_left'] = np.mean(np.square(back_left_obs_vel * 20))**0.5 
 
                 obs['observation'] = np.concatenate(
                     (

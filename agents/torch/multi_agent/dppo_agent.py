@@ -706,7 +706,7 @@ class DPPO_Worker_Agent(object):
             te_step = time.time()
 
             # Storing pseudo action when predicted actions are temporally extended
-            if self.N_A > 2:
+            if self.local_env.config["sticky_temporal_action_frames"] > 1:
                 for rk, agent in enumerate(self.agent_list):
                     if agent.frame_skip_itr != 1: # For temporal actions
                         agent.memory['action'][-1] = agent.memory['action'][-2]

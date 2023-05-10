@@ -19,7 +19,7 @@ except IndexError:
     pass
 
 import carla
-from carla.libcarla import Location
+from carla.libcarla import Location, Rotation, Transform
 
 def _create_bb_points(vehicle):
         """
@@ -242,6 +242,25 @@ def cosine_between_obs(agt_v, obs_v, zero_speed_threshold = 0.05):
         return cosine_between_velocities(agt_v, obs_v)
 
 
+######### Geometry  Utilities #########
+
+def rotate_about_z(loc, angle):
+    """ Rotates location (Vector3D or np.ndarray (2,)) by specified angle (degrees) about the z axis
+    """
+
+    angle_radians = (angle / 180.) * math.pi
+    c, s = math.cos(angle_radians), math.sin(angle_radians)
+
+    if isinstance(loc,np.ndarray):
+        loc = (np.asarray([[c,-s],[s,c]]) @ loc[...,None])[:,0] # loc is (2,)
+    elif isinstance(loc, carla.Vector3D):
+        x_new = loc.x*c - loc.y*s
+        y_new = loc.x*s + loc.y*c 
+        loc.x, loc.y = x_new, y_new
+
+    return loc
+
+
 ######## Agent State Related Utilities #########
 
 def fetch_actor_features(actor):
@@ -362,16 +381,279 @@ def is_within_distance_ahead(target_transform, current_transform, max_distance):
 
 ####### Temporal Action Space related utilities ########
 
-class CubicBezierHandler:
+class DummyWaypoint:
+    """ Acts as a proxy for Carla.Waypoint since carla does not allow users to create their own waypoints
+    Can be instantiated and passed to functions that rely on only the location and rototation of waypoints
+    without requiring additional code to handle user defined transforms
+    """
 
-    def __init__(self, points_on_traj):
+    def __init__(self, transform):
+
+        self.transform = transform
+
+
+class ActionManager:
+
+    def __init__(self, max_speed):
+        self.max_speed = max_speed
+
+    def _action_to_point(self, pt_range, action, scaling): 
+        return np.clip((action*((pt_range[1]-pt_range[0])/2.)*scaling + \
+                                    (pt_range[1]+pt_range[0])/2.),pt_range[0],pt_range[1])
+
+    def _point_to_action(self, pt_range, pt, scaling): 
+        return (2*pt - (pt_range[1]+pt_range[0])) / \
+                                     ((pt_range[1]-pt_range[0]) * scaling)
+
+    def _action_to_speed(self, action, affine_transform = (1.5,1)):
+        W,b = affine_transform
+        target_speed = action*W + b
+        return float(np.clip(target_speed * self.max_speed / 2, 0, self.max_speed))
+
+    def _speed_to_action(self, speed, affine_transform = (1.5,1)):
+        W,b = affine_transform
+        return float(np.clip( (1./W) * ( (2 * speed) / self.max_speed - b  ), -1., 1.))
+
+
+class TrajectoryManager(ActionManager):
+    """ The trajecory manager is an interface for working with trajectory parameterzations of actions
+    that span multiple frames.
+
+    NOTE - All trajectories operate in a coordinate system that assumes the trajectory begins at origin.
+    The (x,y) coordinates stored as ctrl_points or points_on_trajectory store coefficients for an arbitrary
+    orthonormal basis of a 2D space. 
+    """
+
+    def __init__(self, max_speed):
+        super().__init__(max_speed)
+        self.pt_range = None
+        self.target_speed = None
+
+    def transform_points2world(self, points):
+        """Converts a set of points defined in the reference car coordinate system into the 
+        world coordinate system
+
+        Args:
+            points (npp.ndarray): (T,2) array of 2D waypoints describing trajectory in reference car coordinate system
+        Returns:
+            np.ndarray: Tx2 array of waypoints in world coordinate system. 
+        """
+
+        origin_in_world = np.asarray([[self.origin.x, self.origin.y]]) # 1x2
+        basis = np.asarray([ # 2x2
+            [self.reference_basis["heading"].x, self.reference_basis["heading"].y], 
+            [self.reference_basis["right"].x, self.reference_basis["right"].y] ]) 
+
+        return origin_in_world + points @ basis
+
+    def _convert_rotation_to_basis(self, rotation):
+        heading_vector = rotation.get_forward_vector()
+        heading_vector /= (heading_vector.x**2 + heading_vector.y**2)**0.5
+        right_vector = rotation.get_right_vector()
+        right_vector /= (right_vector.x**2 + right_vector.y**2)**0.5
+
+        basis = {
+            "heading": heading_vector,
+            "right": right_vector,
+            "yaw": rotation.yaw
+        }
+
+        return basis
+
+    def set_coordinate_system(self, vehicle_location, vehicle_rotation, origin_offset):
+        
+        self.reference_basis = self._convert_rotation_to_basis(vehicle_rotation)
+        self.origin = vehicle_location + self.reference_basis["heading"] * origin_offset
+        self.origin_offset = origin_offset
+        self.set_current_basis(vehicle_rotation)
+
+    def set_current_basis(self, vehicle_rotation):
+        
+        self.current_basis = self._convert_rotation_to_basis(vehicle_rotation)
+        self.yaw_drift = self.current_basis["yaw"] - self.reference_basis["yaw"] 
+
+    def populate_trajectory(self, action):
+        pass
+
+    def get_target_speed_waypoint(self, time):
+        pass
+
+    def set_ctrl_points(self):
+        pass
+
+    def get_points_on_trajectory(self):
+        pass
+
+    def get_closest_point_on_curve(self, agent):
+        """Computes point on trajectory closest to current position agent.
+
+        Args:
+            agent (_PPO_Individual_Agent): Carla vehicle agent
+
+        Returns:
+            Tuple[int,float,np.ndarray]:  idx of closest pt on curve, equivalent time on curve (in [0,1]) and value of closest point (2,) 
+ 
+        """
+
+        # Get current agent position in world coordinate system
+        cur_agent_pos = agent.vehicle_actor.get_transform().location 
+        # Move position to front of car.
+        cur_agent_pos += self.current_basis["heading"] * self.origin_offset
+
+        # Convert current position from world to trajectory reference coordinate system (defined by (origin, reference_basis))
+        cur_agent_pos_ref = np.asarray([[cur_agent_pos.x,cur_agent_pos.y]]) - np.asarray([[self.origin.x,self.origin.y]])
+
+        # Points making up trajectory
+        pts_on_curve = self.get_points_on_trajectory()
+
+        # Closest point on trajectory to agent
+        agent_idx = int(np.argmin(np.sum(np.square(pts_on_curve-cur_agent_pos_ref),axis=-1),axis=0))
+        agent_time = float(agent_idx) / self.points_on_traj
+        agent_curve_loc = pts_on_curve[agent_idx,:]
+
+
+        return agent_idx, agent_time, agent_curve_loc
+
+    def get_subsegment_parameters(self, start_time):
+        pass
+
+
+class WaypointTrajectoryManager(TrajectoryManager):
+
+    def __init__(self, points_on_traj, max_speed):
+        """
+        Args:
+            points_on_traj (int): The number of points (T) to represent the shape
+            max_speed (float): The maximum permissible speed
+        Instance Attributes:
+            time_slices (np.ndarray): A (T,) numpy array with T entries in [0,1] having step size 1/T
+        """
+
+        super().__init__(max_speed)
+
+        self.points_on_traj = points_on_traj
+        self.time_slices = np.linspace(0,1,points_on_traj)
+        self.ctrl_points = None
+        self.pt_range = {
+                0:{'x':[0,0],'y':[0,0]},
+                1:{'x':[10,15],'y':[-3,3]}
+            }
+        self.point_action_scaling = 1.0
+
+    def populate_trajectory(self, action):
+
+        # Destination point in car coordinate system
+        x1 = self._action_to_point(self.pt_range[1]['x'],action[0],self.point_action_scaling)
+        y1 = self._action_to_point(self.pt_range[1]['y'],action[1],self.point_action_scaling)
+        self.set_ctrl_points([x1,y1])
+
+        # Target Speed at destination
+        self.target_speed = self._action_to_speed(action[2])
+    
+    # def get_target_speed_waypoint(self, agent, time_offset = 0.2):
+    def get_target_speed_waypoint(self, time_on_curve):
+
+        # agent_idx, agent_time, _ = self.get_closest_point_on_curve(agent)
+        # time_idx = min(1,agent_idx + int(time_offset * self.points_on_traj))
+        # time_on_curve = agent_time + time_offset
+
+        # Computing waypoint coordinate in world system
+        loc = self.origin + time_on_curve * (
+                                    self.reference_basis["heading"] * self.ctrl_points[0] + 
+                                    self.reference_basis["right"] * self.ctrl_points[1]
+                                )
+        target_x, target_y = loc.x, loc.y
+
+        # LateralPID only observes x,y hence z value not needed
+        target_waypoint = DummyWaypoint(Transform(Location(target_x, target_y,0),Rotation(0,0,0))) 
+
+        # TODO: target speed is ramped up along traj
+        target_speed = self.target_speed
+
+        return target_speed, target_waypoint
+
+    def set_ctrl_points(self, ctrl_points):
+        """Stores ctrl points that parameterize trajectory 
+
+        Args:
+            ctrl_points (List): (2,) list of waypoints describing trajectory
+        """
+
+        self.ctrl_points = np.asarray(ctrl_points)
+
+    def get_points_on_trajectory(self):
+        """Returns points on trajectory parameterized by ctrl_points in the car coordinate system
+
+        Returns:
+            np.ndarray: Tx2 array of points on the specified. 
+        """
+
+        pts_on_curve = np.asarray(
+            [
+                [float(i*self.ctrl_points[0])/self.points_on_traj,
+                float(i*self.ctrl_points[1])/self.points_on_traj] for i in range(self.points_on_traj)
+            ]
+        )
+
+        return pts_on_curve
+
+    # def get_subsegment_parameters(self, start_time):
+    def get_subsegment_parameters(self, agent):
+        """Computes new ctrl points to represent a segment of existing trajectory from a specified point
+        until the end point.
+
+        Args:
+            start_time (float): Determines the point on the original to use a the new start point. In [0,1]
+            basis_rotation (float): An angle in degrees for rotating the reference basis to account
+                                for changing vehicle orientation (change in yaw (rotation about z))
+
+        Returns:
+            np.ndarray: (3,) array of control points describing the specified segment of the trajectory centred at the origin.
+ 
+        """
+
+        ### Testing
+        cur_idx, start_time, start_pt = self.get_closest_point_on_curve(agent)
+        ###
+
+        pts_on_curve = self.get_points_on_trajectory()
+        cur_idx = int(start_time*self.points_on_traj)
+        start_pt = pts_on_curve[cur_idx] # In reference basis coordinate space
+
+        # Returning final waypoint basis coefficient in a coordinate system with
+        # Origin at start_pt
+        # Rotation reference_basis by basis_rotation 
+
+        # Computing rotation
+        coordinate_sys_rotation = self.current_basis["yaw"] - self.reference_basis["yaw"] 
+
+        # Translating origin to current position on curve
+        intermediate_ctrl_pt = self.ctrl_points - start_pt
+        # Rotating coordinate system to match current vehicle orientation
+        intermediate_ctrl_pt = rotate_about_z(intermediate_ctrl_pt, coordinate_sys_rotation)
+
+        # Constructing subsegment parameterization
+        a0 = self._point_to_action(self.pt_range[1]['x'],intermediate_ctrl_pt[0],self.point_action_scaling)
+        a1 = self._point_to_action(self.pt_range[1]['y'],intermediate_ctrl_pt[1],self.point_action_scaling)
+        a2 = self._speed_to_action(self.target_speed)
+        subsegment_parameterization = np.asarray([a0,a1,a2])
+
+        return subsegment_parameterization
+
+
+class CubicBezierManager(TrajectoryManager):
+
+    def __init__(self, points_on_traj, max_speed):
         """
         Args:
             points_on_traj (int): The number of points (T) to represent the bezier curve shape
+            max_speed (float): The maximum permissible speed
         Instance Attributes:
             time_slices (np.ndarray): A (T,) numpy array with T entries in [0,1] having step size 1/T
             cubic_bezier_matrix (np.ndarray): A (T,4) numpy array of cubic bezier coefficients having 1/T time resolution
         """
+
+        super().__init__(max_speed)
 
         self.points_on_traj = points_on_traj
         self.time_slices = np.linspace(0,1,points_on_traj)
@@ -382,6 +664,31 @@ class CubicBezierHandler:
             self.time_slices**3
         ]).T
         self.ctrl_points = None
+        self.pt_range = {
+                0:{'x':[0,0],'y':[0,0]},
+                1:{'x':[1,6],'y':[-3,3]},
+                2:{'x':[0,8],'y':[-3,3]},
+                3:{'x':[13,13],'y':[-3,3]}}
+        self.point_action_scaling = 1.0
+
+    def populate_trajectory(self, action):
+
+        x0, y0 = 0, 0
+
+        # Destination point in car coordinate system
+        x1 = self._action_to_point(self.pt_range[1]['x'],action[0],self.point_action_scaling)
+        y1 = self._action_to_point(self.pt_range[1]['y'],action[1],self.point_action_scaling)
+
+        x2 = self._action_to_point(self.pt_range[2]['x'],action[2],self.point_action_scaling)
+        y2 = self._action_to_point(self.pt_range[2]['y'],action[3],self.point_action_scaling)
+
+        x3 = sum(self.pt_range[3]['x'])/2.0
+        y3 = self._action_to_point(self.pt_range[3]['y'],action[4],self.point_action_scaling)
+
+        self.set_ctrl_points([x0,y0,x1,y1,x2,y2,x3,y3])
+
+        # Target Speed at destination
+        self.target_speed = self._action_to_speed(action[5])
 
     def set_ctrl_points(self, ctrl_points, convert_to_np = True):
         """Stores ctrl points that parameterize a cubic bezier curve 
@@ -397,7 +704,7 @@ class CubicBezierHandler:
 
         self.ctrl_points = ctrl_points
 
-    def __get_cubic_bezier_points(self):
+    def get_points_on_trajectory(self):
         """Returns points on a cubic bezier parameterized by ctrl_points. 
 
         Returns:
@@ -408,7 +715,34 @@ class CubicBezierHandler:
 
         return pts_on_curve
 
-    def get_sub_cubic_bezier_ctrl_points(self, start_time, free_pts):
+    # def get_target_speed_waypoint(self, agent, time_offset = 0.2):
+    def get_target_speed_waypoint(self, time_on_curve):
+
+        # agent_idx, agent_time, _ = self.get_closest_point_on_curve(agent)
+        # time_idx = min(1,agent_idx + int(time_offset * self.points_on_traj))
+        # time_on_curve = agent_time + time_offset
+
+        # Computing target location on curve in car coordinate system
+        time_idx = int(time_on_curve*self.points_on_traj)
+        trgt_wp = (self.cubic_bezier_matrix[time_idx:time_idx+1,:] @ self.ctrl_points)[0]
+
+        # Computing waypoint coordinate in world system
+        loc = self.origin + time_on_curve * (
+                                    self.reference_basis["heading"] * trgt_wp[0] + 
+                                    self.reference_basis["right"] * trgt_wp[1]
+                                )
+        target_x, target_y = loc.x, loc.y
+
+        # LateralPID only observes x,y hence z value not needed
+        target_waypoint = DummyWaypoint(Transform(Location(target_x, target_y,0),Rotation(0,0,0))) 
+
+        # TODO: target speed is ramped up along traj
+        target_speed = self.target_speed
+
+        return target_speed, target_waypoint
+
+    # def get_subsegment_parameters(self, agent, free_pts=2):
+    def get_subsegment_parameters(self, start_time, free_pts=2):
         """Computes new ctrl points to represent a segment of an existing cubic bezier curve from a specified point
         until the end point.
 
@@ -423,23 +757,28 @@ class CubicBezierHandler:
         """
 
         query_idx = lambda idx : int(idx*self.points_on_traj) # idx is a float in [0,1]
-        orig_pts = self.__get_cubic_bezier_points()
 
+        ### Testing
+        # cur_idx, start_time, start_pt = self.get_closest_point_on_curve(agent)
+        ###
+
+        orig_pts = self.get_points_on_trajectory()
+        cur_idx = query_idx(start_time)
         start_pt = orig_pts[query_idx(start_time),:] 
 
-        t_n = (self.time_slices[query_idx(start_time):] - start_time) / (1 - start_time)
+        t_n = (self.time_slices[cur_idx:] - start_time) / (1 - start_time)
         T = np.asarray([(1-t_n)**3, (3*t_n*(1-t_n)**2), 3*(1-t_n)*t_n**2, t_n**3]).T
-        Y = np.copy(orig_pts[query_idx(start_time):,:])
+        Y = np.copy(orig_pts[cur_idx:,:])
 
         new_ctrl_pts = np.copy(self.ctrl_points)        
-        new_ctrl_pts[0,:] = start_pt
+        new_ctrl_pts[0,:] = start_pt #cur_pos_ref[0] #
 
         # 1 free pt
         if free_pts == 1:
 
             smoothing_factor = 2.5
-            new_ctrl_pts[1,0] = ((self.ctrl_points[3,0] - orig_pts[query_idx(start_time),0] )/ smoothing_factor) + orig_pts[query_idx(start_time),0]
-            new_ctrl_pts[1,1] = orig_pts[query_idx(start_time),1]
+            new_ctrl_pts[1,0] = ((self.ctrl_points[3,0] - orig_pts[cur_idx,0] )/ smoothing_factor) + orig_pts[cur_idx,0]
+            new_ctrl_pts[1,1] = orig_pts[cur_idx,1]
 
             Y -= T[:,(0,1,3)] @ new_ctrl_pts[(0,1,3),:]
             new_ctrl_pts[2:3,:] = np.linalg.inv(T[:,2:3].T @ T[:,2:3]) @ T[:,2:3].T @ Y 
@@ -449,10 +788,25 @@ class CubicBezierHandler:
             Y -= T[:,(0,3)] @ new_ctrl_pts[(0,3),:]
             new_ctrl_pts[1:3,:] = np.linalg.inv(T[:,1:3].T @ T[:,1:3]) @ T[:,1:3].T @ Y 
 
-        # Centre coordinates
-        new_ctrl_pts -= new_ctrl_pts[0,:]
+        # Computing rotation
+        coordinate_sys_rotation = self.current_basis["yaw"] - self.reference_basis["yaw"] 
 
-        return new_ctrl_pts
+        # Translating origin to current position on curve
+        new_ctrl_pts -= new_ctrl_pts[0,:]
+        # Rotating coordinate system to match current vehicle orientation
+        for ctrl_idx in range(new_ctrl_pts.shape[0]):
+            new_ctrl_pts[ctrl_idx] = rotate_about_z(new_ctrl_pts[ctrl_idx], -coordinate_sys_rotation)
+
+        # Constructing subsegment parameterization
+        a0 = self._point_to_action(self.pt_range[1]['x'],new_ctrl_pts[1,0],self.point_action_scaling)
+        a1 = self._point_to_action(self.pt_range[1]['y'],new_ctrl_pts[1,1],self.point_action_scaling)
+        a2 = self._point_to_action(self.pt_range[1]['x'],new_ctrl_pts[2,0],self.point_action_scaling)
+        a3 = self._point_to_action(self.pt_range[1]['y'],new_ctrl_pts[2,1],self.point_action_scaling)
+        a4 = self._point_to_action(self.pt_range[1]['y'],new_ctrl_pts[3,1],self.point_action_scaling)
+        a5 = self._speed_to_action(self.target_speed)
+        subsegment_parameterization = np.asarray([a0,a1,a2,a3,a4,a5])
+
+        return subsegment_parameterization, start_pt
 
 
 def bezier_to_action(ctrl_points, pt_range, pt2ac, free_pts):
@@ -467,6 +821,40 @@ def bezier_to_action(ctrl_points, pt_range, pt2ac, free_pts):
         action.append(pt2ac(pt_range[3]['y'], ctrl_points[3,1]))
 
     return action
+
+
+def get_trajectory_manager(action_type, config):
+
+    if 'cubic_bezier' in action_type:
+        return CubicBezierManager(config['traj_frame_horizon'], config['target_speed'])
+    elif action_type == 'speed_wp':
+        return WaypointTrajectoryManager(config['traj_frame_horizon'], config['target_speed'])
+
+
+def plot_trajectory(time_on_curve, world, traj_manager, col_scheme='std'):
+
+
+
+    pts_on_curve = traj_manager.transform_points2world(traj_manager.get_points_on_trajectory())
+    for i in range(0,pts_on_curve.shape[0]-1,3):
+        color = carla.Color(r=255, g=0, b=0) if col_scheme == "std" else carla.Color(r=255, g=0, b=255)
+        nxt_idx = min(i+3,pts_on_curve.shape[0]-1)
+        trgt_idx = int(time_on_curve*pts_on_curve.shape[0])
+        if i < trgt_idx:
+            world.debug.draw_line(
+                carla.Location(x=pts_on_curve[i,0],y=pts_on_curve[i,1],z=3.8),
+                carla.Location(x=pts_on_curve[nxt_idx,0],y=pts_on_curve[nxt_idx,1],z=3.8), 
+                color = color,
+                thickness = 0.08, life_time=0.8
+            )
+        else:
+            color = carla.Color(r=0, g=255, b=255) if col_scheme == "std" else carla.Color(r=0, g=255, b=0)
+            world.debug.draw_line(
+                carla.Location(x=pts_on_curve[i,0],y=pts_on_curve[i,1],z=3.8),
+                carla.Location(x=pts_on_curve[nxt_idx,0],y=pts_on_curve[nxt_idx,1],z=3.8), 
+                color=color,
+                thickness = 0.08, life_time=0.8
+            )
 
 
 ######## STATIC MAPPINGS ###################

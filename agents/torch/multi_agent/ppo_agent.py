@@ -689,13 +689,14 @@ class PPO_Collective_Agent(object):
     def test(self, videos=False):
         # initialize
         term_stats = defaultdict(int)
-        stats_logger = StatsLogger("side_obs_sensors")
+        N_S = self.glb_env.obs_manager.observation_space.shape[-1]
+        stats_logger = StatsLogger("side_obs_sensors" if  N_S >= 14  else "no_side")
 
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
         idx_list = list(range(self.num_agents))
 
-        self.glb_env.reset(rank_list=self.rank_list, use_idx=True,
+        self.glb_env.reset(rank_list=self.rank_list, use_idx=True, #False,
             idx_list=idx_list, reset_npc=True)
         self.glb_env.spawn_npc_vehicles()
 
@@ -734,8 +735,9 @@ class PPO_Collective_Agent(object):
             #########################
 
             # get new observation
+            # print("1")
             self.glb_env.step()
-
+            # print("2")
             for rk, agent in enumerate(self.agent_list):
 
                 if videos:

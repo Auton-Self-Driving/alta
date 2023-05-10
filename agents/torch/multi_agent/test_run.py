@@ -4,6 +4,7 @@
 import os
 import glob
 import sys
+import shutil
 
 CARLA_9_4_PATH = os.environ.get("CARLA_9_4_PATH")
 
@@ -117,6 +118,7 @@ def test_policy(test_config):
 def construct_config_update(args):
 
     ckpt_base_path = "./checkpoints/{}/".format(args.ckpt)
+
     ckpt_paths_list = [ glob.glob(ckpt_base_path+"*_{}_*".format(itr))[0] for itr in args.ckpt_iters]
 
     config_list = []
@@ -127,6 +129,9 @@ def construct_config_update(args):
 
                 # Skip if evaluations already exist
                 eval_folder = '{}/{}/{}/{}/{}/'.format('./tests/evals',scn,twn,args.ckpt,ckpt.split('_')[-2])
+                # TODO: Comment out
+                if os.path.exists(eval_folder):
+                    shutil.rmtree(eval_folder) 
                 if os.path.exists(os.path.join(eval_folder,'25.png')):
                     continue
 
@@ -140,6 +145,8 @@ def construct_config_update(args):
                     config_list[-1]['num_npc'] = 70
                 elif scn == "no_crash_empty":
                     config_list[-1]['num_npc'] = 0
+                elif scn == "straight_overtake":
+                    config_list[-1]['num_npc'] = 1
                 else:
                     config_list[-1]['num_npc'] = 0      
 
@@ -149,12 +156,15 @@ def construct_config_update(args):
 
                 config_list[-1]['num_episodes'] = args.num_eps
 
+                
                 if '7dim' in ckpt:
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light'
                 elif '15dim' in ckpt:
                     config_list[-1]['input_type'] = 'wp_obs_more_info_speed_steer_ldist_light'
+                elif '24dim' in ckpt:
+                    config_list[-1]['input_type'] = 'wp_360_obstacle_speed_steer'
                 else:
-                    config_list[-1]['input_type'] = 'wp_obs_more_info_speed_steer_ldist_light'
+                    config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light' # 7dim
 
     return config_list
                     
@@ -194,8 +204,14 @@ if __name__ == '__main__':
 # python test_run.py --ckpt 24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 24057987 22254420 20750512 18642090 16839270 15034713 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 3
 
 # python test_run.py --ckpt cubic_bezier3dof_long_straight --ckpt_iters 50005  --test_towns Town01 --scenarios straight --threads 1 --device 2
-# python test_run.py --ckpt cubic_bezier5dof_straight --ckpt_iters 600038  --test_towns Town01 --scenarios straight --threads 1 --device 2
-# python test_run.py --ckpt sp_throttle_straight --ckpt_iters 25038 50066  --test_towns Town01 --scenarios straight --threads 2 --device 2
-# python test_run.py --ckpt sp_wp_straight --ckpt_iters 25009  --test_towns Town01 --scenarios straight --threads 1 --device 2
+# python test_run.py --ckpt sp_throttle_straight --ckpt_iters 120088 150201 --test_towns Town01 --scenarios straight --threads 4 --device 2
+# python test_run.py --ckpt sp_wp_straight --ckpt_iters 90111  --test_towns Town01 --scenarios straight --threads 1 --device 2
+# python test_run.py --ckpt cubic_bezier5dof_straight --ckpt_iters 90183  --test_towns Town01 --scenarios straight --threads 1 --device 2
+# python test_run.py --ckpt cubic_bezier5dof_st_ovrtk --ckpt_iters 30155  --test_towns Town01 --scenarios straight_overtake --threads 1 --device 2
+# python test_run.py --ckpt sp_throttle_15dim_st_ovrtk --ckpt_iters 90157  --test_towns Town01 --scenarios straight_overtake --threads 1 --device 2
+# python test_run.py --ckpt sp_wp_24dim_st_ovrtk_lanepen --ckpt_iters 150613 120568 30255 60320 90523  --test_towns Town01 --scenarios straight_overtake --threads 5 --device 2
+# python test_run.py --ckpt sp_str_24dim_st_ovrtk_lanepen --ckpt_iters 300274 210133 120066 90046 --test_towns Town01 --scenarios straight_overtake --threads 5 --device 0
+# python test_run.py --ckpt sp_str_24dim_st_frameskip_4 --ckpt_iters 60137 90249 120421 150458 302682 --test_towns Town01 --scenarios straight --threads 5 --device 1
+
 
 
