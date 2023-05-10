@@ -690,14 +690,13 @@ class DPPO_Worker_Agent(object):
 
             # Select an action for all controllable agents
             for rk, agent in enumerate(self.agent_list):
-
                 # Choose agent action based on its state
                 action, logprob = agent.select_action()
-
                 agent.action = action
                 agent.memory['state'].append(agent.observation.tolist())
                 agent.memory['action'].append(action.tolist())
                 agent.memory['logprob'].append(logprob.tolist())
+
             te_action = time.time()
             self.vprint('action chosen:', [a.action for a in self.agent_list])
 
@@ -705,6 +704,13 @@ class DPPO_Worker_Agent(object):
             ts_step = time.time()
             self.local_env.step()
             te_step = time.time()
+
+            # Storing pseudo action when predicted actions are temporally extended
+            if self.local_env.config["sticky_temporal_action_frames"] > 1:
+                for rk, agent in enumerate(self.agent_list):
+                    if agent.frame_skip_itr != 1: # For temporal actions
+                        agent.memory['action'][-1] = agent.memory['action'][-2]
+                        agent.memory['logprob'][-1] = agent.memory['logprob'][-2]
 
             # Store time taken to perform an action
             avg_t_action.append(te_action - ts_action)
@@ -843,8 +849,8 @@ if __name__ == '__main__':
 
     env = CarlaEnv(ENV_CONFIG)
 
-    N_S = env.observation_space.shape[-1]
-    N_A = env.action_space.shape[-1]
+    N_S = env.obs_manager.observation_space.shape[-1]
+    N_A = env.obs_manager.action_space.shape[-1]
     print(N_S, N_A)
     # from IPython import embed; embed()
 

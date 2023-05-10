@@ -6,6 +6,8 @@ from gym.spaces import Box, Discrete, Tuple
 from datetime import datetime
 import os, sys
 
+sys.path.append('/home/zhehuang/Documents/CARLA/alta')
+
 import traceback
 import random
 import numpy as np
@@ -24,9 +26,6 @@ import environment.carla_9_4.sensors as sensors
 from environment.carla_9_4.reward import compute_reward
 from environment.carla_9_4.dashcam import Visualizer
 
-import carla_environment.environment.env_util as env_util
-from carla_environment.environment.observations_manager import ObservationsManager
-
 # Leaerboard Import
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../leaderboard'))
@@ -44,6 +43,9 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 # transfuser autopilot
 from transfuser_autopilot import AutoPilot
 
+
+# import ipdb
+# st = ipdb.set_trace
 
 try:
     import carla
@@ -205,6 +207,7 @@ class CarlaEnv(gym.Env):
         self.num_steps = 0
         self.total_reward = 0
         self.prev_measurement = None
+        self.log_dir = os.path.expanduser(self.config['log_dir'])
         ################################################################################
         if 'challenge' in self.config["scenarios"]:
             self.statistics_manager = StatisticsManager()
@@ -261,11 +264,15 @@ class CarlaEnv(gym.Env):
         print("server_version", self.client.get_server_version())
         self.avail_map = {name[-6:]: name for name in self.client.get_available_maps()}
         print('self.avail_map:', self.avail_map)
-        self._set_world_and_map(self.config['city_name'])
+        self._set_world_and_map(self.config['initial_town'])
         self.world_annotations = RouteParser.parse_annotations_file(
             '../../../leaderboard/data/all_towns_traffic_scenarios_public.json')
 
         time.sleep(20)
+
+        # self._map = self._world.get_map()
+        # self.blueprint_library = self._world.get_blueprint_library()
+        # self.spawn_points = self._world.get_map().get_spawn_points()
 
         self.tm_port = random.randint(10000, 60000)
         self.tm = self.client.get_trafficmanager(self.tm_port)
@@ -278,15 +285,149 @@ class CarlaEnv(gym.Env):
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in self.config['spawn_points_fixed_idx']]
         else:
             spawn_pt_idx = np.random.permutation(len(self.spawn_points))
+            np.save(os.path.join(self.log_dir, "spawn_pt_order"), spawn_pt_idx)
             self.spawn_points_fixed_order =  [self.spawn_points[i] for i in spawn_pt_idx]
 
-        self.obs_manager = ObservationsManager(self.config, self._world)
-        self.obs_manager.setup_observation_and_action_space()
+        self._setup_observation_and_action_space()
 
-        self.traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
+        # self.vehicle_blueprints = self._world.get_blueprint_library().filter('vehicle.*')
+        # self.traffic_actors = self._world.get_actors().filter("*traffic_light*")
 
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
+
+    def _setup_observation_and_action_space(self):
+
+        # TODO: Verify the limits and bounds of observation spaces
+        if self.config["action_type"] == 'merged_gas':
+            # Streer, Throttle
+            self.action_space = Box(low=np.array([-0.5, -0.5]), high=np.array([0.5, 0.5]), dtype=np.float32)
+        elif self.config["action_type"] == 'merged_speed':
+            # Steer, Speed
+            self.action_space = Box(low=np.array([-0.5, -10.0]), high=np.array([0.5, 10.0]), dtype=np.float32)
+        elif self.config["action_type"] == 'merged_speed_tanh' or self.config["action_type"] == 'merged_speed_scaled_tanh':
+            # Steer, Speed
+            self.action_space = Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
+        elif self.config["action_type"] == "merged_speed_pid_test":
+            self.action_space = Box(low=np.array([-0.5, -20.0]), high=np.array([0.5, 20.0]), dtype=np.float32)
+        elif self.config["action_type"] == 'steer_only':
+            # Steer only
+            self.action_space = Box(low=np.array([-0.5]), high=np.array([0.5]), dtype=np.float32)
+        elif self.config["action_type"] == 'discrete':
+            # Discrete actions
+            self.action_space = Discrete(len(self.config['discrete_actions']))
+        elif self.config["action_type"] == 'control':
+            # Discrete actions
+            self.action_space = Discrete(len(self.config['discrete_actions']))
+
+        if self.config["input_type"] == 'wp':
+            self.observation_space = Box(low=np.array([-4.0]), high=np.array([4.0]), dtype=np.float32)
+        elif self.config["input_type"] in ['wp_constant', 'wp_noise', 'wp_obs_dist', 'wp_obs_bool']:
+            self.observation_space = Box(low=np.array([[-4.0, -1.0]]), high=np.array([[4.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_ldist_goal':
+            self.observation_space = Box(low=np.array([[-4.0, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_bool_noise':
+            limit = np.hstack((np.array([[4]]), np.ones((1, 1 + self.config["noise_dim"]))))
+            self.observation_space = Box(low=-limit, high=limit, shape=(1, 2 + self.config["noise_dim"]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0]]), high=np.array([[4.0, 12.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_steer_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 0.5, 10.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -0.5, 0.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -1 * self.config['steering_scale'], -1.0, 0.0, 0.0]]),
+                high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -0.5, -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light': # currently using
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]), high=np.array([[4.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, -1., 0., -1., 0., 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+            high=np.array([[4.0, 1.0, 1.0, 1., 1., 1., 1., 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_more_info_steer_ldist_light': # 14 dim obs space
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15 dim obs space w/ 5 obs sensors
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_2avg_obs_more_info_speed_steer_ldist_light': # 16 dim obs space w/ 5 obs sensors
+            self.observation_space = Box(low=np.array([[-4.0,-4.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0]]),
+             high=np.array([[4.0,4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_list_obs_more_info_steer_ldist_light': # >=14 dim obs space w/ 5 obs sensors and no speed measure
+            lower_bound = [-4.0] * self.config['num_waypoints']
+            lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
+            upper_bound = [4.0] * self.config['num_waypoints']
+            upper_bound.extend([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0])
+            self.observation_space = Box(low=np.array([lower_bound]),
+             high=np.array([upper_bound]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # >=15 dim obs space w/ 5 obs sensors
+            lower_bound = [-4.0] * self.config['num_waypoints']
+            lower_bound.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -self.config['steering_scale'], -1.0, 0.0])
+            upper_bound = [4.0] * self.config['num_waypoints']
+            upper_bound.extend([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, self.config['steering_scale'], 1.0, 1.0])
+            self.observation_space = Box(low=np.array([lower_bound]),
+             high=np.array([upper_bound]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                            high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                    high=np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
+            self.observation_space = Box(low=np.array([[-4.0, -4.0, -4.0, -4.0, -4.0, -4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, -0.5, -1.0, -1.0]]),
+                                    high=np.array([[4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 1.0, 1.0]]), dtype=np.float32)
+        elif self.config["input_type"] == 'vae':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 400), dtype=np.float32)
+        elif self.config["input_type"] == 'transformer':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(800,), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 401), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, 404), dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    # shape=(1, 406), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                    shape=(1, 1606), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)
+        elif self.config["input_type"] == 'wp_360_obstacle_speed_steer':
+            self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
+                            high=np.array([[4.0, 1.0, 0.5, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
+                            dtype=np.float32)
+        elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    # shape=(1, 408), dtype=np.float32) # Model used for Learning to drive using Waypoints (last layer dim = 16)
+                                    shape=(1, 1608), dtype=np.float32) # Model used for Learning to Drive with Dynamic Actors (last layer dim = 64)steer_ldist_goal_light':
+        elif self.config["input_type"] == 'wp_cnn_obs_info_speed_steer_ldist_goal_light' or self.config["input_type"] == 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light':
+            if not self.config["single_channel_image"]:
+                if self.config["binarized_image"]:
+                    dim = 2
+                else:
+                    dim = 5
+            else:
+                dim = 1
+            self.observation_space = Box(low=np.finfo(np.float32).min,
+                                    high=np.finfo(np.float32).max,
+                                    shape=(1, (int(self.config['sensor_y_res']) * int(self.config['sensor_x_res']) * dim * self.config['frame_stack_size']) + 8), dtype=np.float32)
+                                    # shape=(1, 12296), dtype=np.float32)
+                                    # shape=(1, 20488), dtype=np.float32)
+
+    def _update_config(self, config):
+        for key, val in config.items():
+            self.config[key] = val
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -321,32 +462,668 @@ class CarlaEnv(gym.Env):
         self.scenario_index = 0
         CarlaDataProvider.set_world(self._world)
 
+    def create_observations(self, agent, obs): # Observation created here.
+        obs['observation'] = np.array([agent.episode_measurements['next_orientation']])
+
+        if self.config["input_type"] == 'wp_constant':
+            obs['observation'] = np.array([agent.episode_measurements['next_orientation'], 0.0])
+
+        elif self.config["input_type"] == 'wp_noise':
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.random.normal(0.0, 1.0, self.config["noise_dim"])))
+
+        elif self.config["input_type"] == 'wp_obs_dist':
+            obs_dist = agent.episode_measurements['obstacle_dist'] / self.config["obstacle_dist_norm"]
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obs_dist])))
+
+        elif self.config["input_type"] == 'wp_obs_bool':
+            obs_bool = agent.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obs_bool])))
+
+        elif self.config["input_type"] == 'wp_ldist_goal':
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([ldist]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_obs_bool_noise':
+            obs_bool = agent.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obs_bool]), np.random.normal(0.0, 1.0, self.config["noise_dim"])))
+
+        elif self.config["input_type"] == 'wp_speed':
+            obs_speed = agent.episode_measurements['speed'] / 10
+            obs['observation'] = np.concatenate((np.array(agent.episode_measurements['next_orientation']), np.array([obs_speed])))
+
+        elif self.config["input_type"] == 'wp_speed_goal':
+            obs_speed = agent.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 100
+            obs['observation'] = np.concatenate((np.array(agent.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_speed_steer_goal':
+            obs_speed = agent.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 100
+            steer = agent.episode_measurements['control_steer']
+            obs['observation'] = np.concatenate((np.array(agent.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_speed_steer_goal_obs_bool':
+            obs_speed = agent.episode_measurements['speed'] / 10
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 100
+            steer = agent.episode_measurements['control_steer']
+            obs_bool = agent.episode_measurements['obstacle_visible']
+            obs['observation'] = np.concatenate((np.array(agent.episode_measurements['next_orientation']), np.array([obs_speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([obs_bool])))
+
+        elif self.config["input_type"] == 'wp_obs_bool_speed_steer_goal_light':
+
+            speed = agent.episode_measurements['speed'] / 10
+            obs_bool = agent.episode_measurements['obstacle_visible']
+            steer = agent.episode_measurements['control_steer']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obs_bool]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal_light':
+
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_goal':
+
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_obs_info_speed_steer_ldist_light': # 7 dim
+
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            obstacle_dist_left = agent.episode_measurements['obstacle_dist_left']
+            obstacle_speed_left = agent.episode_measurements['obstacle_speed_left']
+            obstacle_dist_right = agent.episode_measurements['obstacle_dist_right']
+            obstacle_speed_right = agent.episode_measurements['obstacle_speed_right']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_dist_left <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist_left = obstacle_dist_left / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist_left = self.config['default_obs_traffic_val']
+
+            if obstacle_dist_right <= self.config['front_obs_proximity_threshold']:
+                obstacle_dist_right = obstacle_dist_right / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist_right = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if obstacle_speed_left != -1:
+                obstacle_speed_left = obstacle_speed_left / 20
+            else:
+                obstacle_speed_left = self.config['default_obs_traffic_val']
+
+            if obstacle_speed_right != -1:
+                obstacle_speed_right = obstacle_speed_right / 20
+            else:
+                obstacle_speed_right = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]),
+            np.array([obstacle_dist_left]), np.array([obstacle_speed_left]), np.array([obstacle_dist_right]), np.array([obstacle_speed_right]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_obs_more_info_steer_ldist_light': # 14dim no speed obs space
+
+            feat_list = [agent.episode_measurements['next_orientation']]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_obs_more_info_speed_steer_ldist_light': # 15dim obs space
+
+            feat_list = [agent.episode_measurements['next_orientation']]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_2avg_obs_more_info_speed_steer_ldist_light': # 16 dim obs space
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            if len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
+
+            first_avg, last_avg = sum(feat_list[0:5])/5.,sum(feat_list[-5:])/5.
+            feat_list = [first_avg, last_avg]
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_list_obs_more_info_steer_ldist_light': # Variable >= 14 dim obs space. No speed
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            if len(feat_list) == 0: # Raise Error
+                print("[carla_env.create_observation] Next Wp List Length is 0!!!")
+                print(agent.episode_measurements['next_orientation'])
+                print(agent.next_waypoints)
+                print(agent.global_planner._waypoints_queue)
+
+            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_list_obs_more_info_speed_steer_ldist_light': # Variable >= 15 dim obs space
+
+            feat_list = [agl for agl in agent.next_wp_angles] # First entry is furthest Wp
+
+            if len(feat_list) == 0: # Raise Error
+                print("[carla_env.create_observation] Next Wp List Length is 0!!!")
+                print(agent.episode_measurements['next_orientation'])
+                print(agent.next_waypoints)
+                print(agent.global_planner._waypoints_queue)
+
+            elif len(feat_list) < 10: # If not enuf waypoints, replicate last waypoint (which will be destination)
+                for itr in range(10-len(feat_list)):
+                    feat_list.append(feat_list[-1])
+
+            for suffix, sensor in agent.obstacle_sensor.items():
+                obstacle_dist = agent.episode_measurements['obstacle_dist_{}'.format(suffix)]
+                obstacle_speed = agent.episode_measurements['obstacle_speed_{}'.format(suffix)]
+                # normalization
+                if obstacle_dist <= sensor.max_distance:
+                    obstacle_dist = obstacle_dist / sensor.max_distance
+                else:
+                    obstacle_dist = self.config['default_obs_traffic_val']
+
+                if obstacle_speed != -1:
+                    obstacle_speed = obstacle_speed / 20
+                else:
+                    obstacle_speed = self.config['default_obs_traffic_val']
+                feat_list.extend([obstacle_dist, obstacle_speed])
+
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            feat_list.extend([speed, steer, ldist, light])
+
+            obs['observation'] = np.array(feat_list)
+
+        elif self.config["input_type"] == 'wp_vae_speed_steer_goal':
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([distance_to_goal_trajec])))
+
+        elif self.config["input_type"] == 'wp_vae_speed_steer_ldist_goal_light':
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] in ['wp_vae_obs_info_speed_steer_ldist_goal_light', 'wp_cnn_obs_info_speed_steer_ldist_goal_light', 'wp_bev_rv_obs_info_speed_steer_ldist_goal_light']:
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            distance_to_goal_trajec = agent.episode_measurements['distance_to_goal_trajec'] / 500
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([distance_to_goal_trajec]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_angles_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input(agent)
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.dist_to_trajectory
+            light = agent.episode_measurements['red_light_dist']
+
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+            obs['observation'] = np.concatenate((wp_angles_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input(agent)
+
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.dist_to_trajectory
+            light = agent.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 20
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+            obs['observation'] = np.concatenate((wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config["input_type"] == 'wp_angles_vecs_obs_info_speed_steer_ldist_light':
+            wp_angles_array, wp_vectors_array = self.get_wp_obs_input(agent)
+
+            # normalize vectors by 10, assuming max norm of vector would be 10
+            wp_vectors_array = wp_vectors_array / 10
+            speed = agent.episode_measurements['speed'] / 10
+            obstacle_dist = agent.episode_measurements['obstacle_dist']
+            obstacle_speed = agent.episode_measurements['obstacle_speed']
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.dist_to_trajectory
+            light = agent.episode_measurements['red_light_dist']
+            # normalization
+            if obstacle_dist != -1:
+                obstacle_dist = obstacle_dist / self.config['front_obs_proximity_threshold']
+            else:
+                obstacle_dist = self.config['default_obs_traffic_val']
+
+            if obstacle_speed != -1:
+                obstacle_speed = obstacle_speed / 10
+            else:
+                obstacle_speed = self.config['default_obs_traffic_val']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            obs['observation'] = np.concatenate((np.array([agent.episode_measurements['next_orientation']]), wp_angles_array, wp_vectors_array, np.array([obstacle_dist]), np.array([obstacle_speed]), np.array([speed]), np.array([steer]), np.array([ldist]), np.array([light])))
+
+        elif self.config['input_type'] == 'transformer':
+            sym_dict = self.fetch_symbolic_dict(agent)
+            obs['observation'] = flatten_obs(sym_dict) # (1, 100, 8)
+
+        elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+            speed = agent.episode_measurements['speed'] / 10
+            steer = agent.episode_measurements['control_steer']
+            ldist = agent.episode_measurements['dist_to_trajectory']
+            light = agent.episode_measurements['red_light_dist']
+
+            if light != -1:
+                light /= self.config['traffic_light_proximity_threshold']
+            else:
+                light = self.config['default_obs_traffic_val']
+
+            front_obs_vec = np.array([1.5, 1.5])
+            front_obs_vel = np.array([1.5, 1.5])
+            front_min_dist = 10000
+
+            front_right_obs_vec = np.array([1.5, 1.5])
+            front_right_obs_vel = np.array([1.5, 1.5])
+            front_right_min_dist = 10000
+
+            front_left_obs_vec = np.array([1.5, 1.5])
+            front_left_obs_vel = np.array([1.5, 1.5])
+            front_left_min_dist = 10000
+
+            back_right_obs_vec = np.array([1.5, 1.5])
+            back_right_obs_vel = np.array([1.5, 1.5])
+            back_right_min_dist = 10000
+
+            back_left_obs_vec = np.array([1.5, 1.5])
+            back_left_obs_vel = np.array([1.5, 1.5])
+            back_left_min_dist = 10000
+
+
+            for id, obstacle_data in agent.episode_measurements['obstacle_sensor']['state'].items():
+                # Compute dot product of obstacle vector with car vector
+                normalized_obstacle_vector = obstacle_data['position'] / np.linalg.norm(obstacle_data['position'])
+                # Dot product is simply the first element of the normalized vector
+                dot_product = normalized_obstacle_vector[0]
+
+                # Obstacle is in front of vehicle
+                if dot_product > 0.995 and obstacle_data['distance'] < front_min_dist:
+                    front_min_dist = obstacle_data['distance']
+                    front_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                    front_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in front right
+                elif dot_product > 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < front_right_min_dist:
+                    front_right_min_dist = obstacle_data['distance']
+                    front_right_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                    front_right_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in front left
+                elif dot_product > 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < front_left_min_dist:
+                    front_left_min_dist = obstacle_data['distance']
+                    front_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    front_left_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in back right
+                elif dot_product <= 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < back_right_min_dist:
+                    back_right_min_dist = obstacle_data['distance']
+                    back_right_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    back_right_obs_vel = obstacle_data['velocity'] / 20
+
+                # Obstacle is in back left
+                elif dot_product <= 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < back_left_min_dist:
+                    back_left_min_dist = obstacle_data['distance']
+                    back_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                    back_left_obs_vel = obstacle_data['velocity'] / 20
+
+            if(light != self.config['default_obs_traffic_val']):
+                unnorm_obs_dist = front_obs_vec[0] * self.config['vehicle_proximity_threshold']
+                unnorm_light = light * 20
+
+                # If the light is further do nothing
+                if(front_obs_vec[0] != self.config['default_obs_traffic_val'] and unnorm_light > unnorm_obs_dist):
+                    pass
+                else:
+                    front_obs_vec = np.array([light, 0]) / 20.0
+                    front_obs_vel = np.array([0,0])
+
+            obs['observation'] = np.concatenate(
+                (
+                    np.array([agent.episode_measurements['next_orientation']]),
+                    np.array([speed]),
+                    np.array([steer]),
+                    np.array([ldist]),
+                    np.array([front_obs_vec[0]]),
+                    np.array([front_obs_vec[1]]),
+                    np.array([front_obs_vel[0]]),
+                    np.array([front_obs_vel[1]]),
+                    np.array([front_right_obs_vec[0]]),
+                    np.array([front_right_obs_vec[1]]),
+                    np.array([front_right_obs_vel[0]]),
+                    np.array([front_right_obs_vel[1]]),
+                    np.array([front_left_obs_vec[0]]),
+                    np.array([front_left_obs_vec[1]]),
+                    np.array([front_left_obs_vel[0]]),
+                    np.array([front_left_obs_vel[1]]),
+                    np.array([back_right_obs_vec[0]]),
+                    np.array([back_right_obs_vec[1]]),
+                    np.array([back_right_obs_vel[0]]),
+                    np.array([back_right_obs_vel[1]]),
+                    np.array([back_left_obs_vec[0]]),
+                    np.array([back_left_obs_vec[1]]),
+                    np.array([back_left_obs_vel[0]]),
+                    np.array([back_left_obs_vel[1]]),
+                )
+            )
+            #print(obs['observation'])
+            #exit()
+
     def step(self, action=None):
         try:
-            # Action is set in dppo_agent learn method. 
-            # 'action' arg is for stablebaseline
-            # For stable baselines look at old file for additional code. 
             self.list_step(action=action) # action here will be an action list
+            # For stable baselines look at old file for additional code. 'action' is for stablebaseline
+
         except Exception:
             print("Error during step, terminating episode early", traceback.format_exc())
             raise
+
+    def _update_control(self, agent):
+        control = self.get_control(agent, agent.action)
+        #Store control for this step
+        agent.episode_measurements['control_steer'] = control.steer
+        agent.episode_measurements['control_throttle'] = control.throttle
+        agent.episode_measurements['control_brake'] = control.brake
+        agent.episode_measurements['control_reverse'] = control.reverse
+        agent.episode_measurements['control_hand_brake'] = control.hand_brake
+        return control
 
     def list_step(self, action=None): # Environment steps take place here
         # action_list here should be a list of action
         self.world_frame = None
 
         for rk, agent in enumerate(self.ego_agent_list):
-
             if action is not None: agent.action = action # for stablebaseline
             if agent.action is None: continue
-
             agent.curr_reward = 0
-            if agent.frame_skip_itr == 0:
-                agent.last_acted_location = agent.vehicle_actor.get_transform().location # required in bezier action space
-                agent.last_acted_rotation = agent.vehicle_actor.get_transform().rotation # required in bezier action space
-
-            if not self.config["use_pid_in_frame_skip"]:# Doesn't seem to be used
+            if not self.config["use_pid_in_frame_skip"]:
                 control = self._update_control(agent)
+
 
         for _ in range(self.config["frame_skip"]):
 
@@ -356,17 +1133,15 @@ class CarlaEnv(gym.Env):
                 if agent.done or agent.action is None: continue
 
                 if self.config["use_pid_in_frame_skip"]:
-
                     control = self._update_control(agent)
-
-                    # frame_skip_itr required for time dependendent control
-                    # used in parameterized trajectory action space
-                    agent.frame_skip_itr = (agent.frame_skip_itr + 1) % self.config['sticky_temporal_action_frames']
-
                     if self.config['verbose']:
                         print('[step {}][agent {}][steer {:.2f}][throttle {:.2f}][break {:.2f}][reverse {}][speed {:.2f}]'.format(
                             agent.curr_ep_num_steps, agent.rank, control.steer, control.throttle, control.brake, control.reverse,
-                            env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
+                            self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
+                    elif self.config['test_verbose']:
+                        print('[step {}][agent {}][steer {:.2f}][speed {:.2f}]'.format(
+                            agent.curr_ep_num_steps, agent.rank, control.steer,
+                            self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6))
                      
                 agent.obstacle_dist_array.append(agent.episode_measurements['obstacle_dist'])
                 agent.obstacle_speed_array.append(agent.episode_measurements['obstacle_speed'])
@@ -396,7 +1171,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
 
                 if self.config['enable_lane_invasion_termination']:
-                    if not self.config["disable_lane_invasion_sensor"]:
+                    if self.config["enable_lane_invasion_sensor"]:
         
                         agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
                         agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
@@ -416,28 +1191,11 @@ class CarlaEnv(gym.Env):
                     else:
                         self._update_lane_invasion_info_via_privilege(agent)
 
-                elif not self.config["disable_lane_invasion_sensor"]:
-
-                    agent.episode_measurements['num_laneintersections'] = agent.lane_invasion_sensor.num_laneintersections
-                    agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
-                        agent.prev_measurement['num_laneintersections']
-                    agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                    
-    
-                    next_opts = set(agent.next_road_opt_queue)
-                    for opt in next_opts:
-                        # NOTE: not sure the reason but here should use .name to compare
-                        if opt.name != RoadOption.CHANGELANELEFT.name and \
-                            opt.name != RoadOption.CHANGELANERIGHT.name:
-                            continue
-                        
-                        agent.episode_measurements['unlawful_lane_change'] = False
-
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 if agent.episode_measurements['min_distance_to_goal'] >= agent.location.distance(agent.destination_transform.location):
                     agent.episode_measurements['min_distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
-                agent.episode_measurements['speed'] = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
+                agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
                 self._get_ego_input(agent) # Agent observations and ep measurements constructed here
 
@@ -497,348 +1255,6 @@ class CarlaEnv(gym.Env):
                 self._get_ego_input(agent)
                 agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
-    def _update_control(self, agent):
-        control = self.get_control(agent, agent.action)
-        #Store control for this step
-        agent.episode_measurements['control_steer'] = control.steer
-        agent.episode_measurements['control_throttle'] = control.throttle
-        agent.episode_measurements['control_brake'] = control.brake
-        agent.episode_measurements['control_reverse'] = control.reverse
-        agent.episode_measurements['control_hand_brake'] = control.hand_brake
-        return control
-
-    def get_control(self, agent, action):
-        """ Get Control object for Carla from action
-        Input:
-            - action: tuple containing (steer, throttle, brake) in [-1, 1]
-        Output:
-            - control: Control object for Carla
-        """
-
-        if self.config["action_type"] != "control":
-            action = action.flatten()
-        if self.config["action_type"] == "sep_gas":
-            steer = float(action[0])
-            throttle = float(action[1])
-            brake = float(action[2])
-        elif self.config["action_type"] == "merged_gas":
-            steer = float(action[0])
-            gas = float(action[1])
-            # gas = gas + 0.25
-            gas = np.clip(gas, 0.0, 0.7)
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "steer_only":
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(20.0)
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            throttle = agent.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "throttle_only":
-            steer = float(0.0)
-            target_speed = float(np.clip(action[0], 0, self.target_speed))
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            throttle = agent.controller.pid_control(target_speed, current_speed)
-            brake = float(0.0)
-        elif self.config["action_type"] == "merged_speed":
-            # steer = float(action[0])
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "merged_speed_tanh":
-            # steer = float(action[0])
-            steer = np.clip(float(action[0]), -1.0, 1.0)
-            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "merged_speed_scaled_tanh":
-            
-            steer = np.clip(float(action[0]) * self.config['steering_scale'], -1, 1)
-
-            target_speed = (action[1] * 1.5) + 1
-            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
-
-            ##################################
-            # if use autopilot
-            if hasattr(agent, 'autopilot') and agent.autopilot:
-                if agent.episode_measurements['red_light_dist'] != -1 or \
-                    agent.episode_measurements['obstacle_dist'] != -1:
-                    target_speed = 0
-                else:
-                    target_speed = self.target_speed
-                steer = agent.steer_controller.pid_control(
-                    agent.next_waypoints[0], agent.vehicle_actor.get_transform())
-                steer = np.clip(steer, -1., 1.)
-                #!!! modify agent.action
-                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
-
-            if hasattr(agent, 'transfuser_autopilot') and agent.transfuser_autopilot:
-                # steer, target_speed = agent.transfuser_agent.run_step()
-                steer, target_speed, control = agent.transfuser_agent.run_step()
-                # print('[1513]', steer, target_speed)
-                #!!! modify agent.action
-                target_speed *= 3.6
-                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
-                agent.episode_measurements["target_speed"] = target_speed
-                return control
-
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-
-            # print('[carla_env.get_control()] Throttle : {} Cur Spd : {} Trgt Speed : {} Action : {}'.format(gas,current_speed,target_speed,action[1]))
-
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "merged_speed_pid_test":
-            # steer = float(action[0])
-            steer = (float(action[0]))
-            target_speed = float(action[1])
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "discrete":
-            # Discrete actions
-            # No need to clip actions in case of discrete state-space
-            # since it is chosen to be in range.
-            discrete_actions = self.config['discrete_actions'][int(action)]
-            target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-        elif self.config["action_type"] == "control":
-            target_speed = -1
-            agent.episode_measurements["target_speed"] = target_speed
-            return action
-        elif self.config["action_type"] == "cubic_bezier_3dof":
-
-            cubic_bezier_pt = lambda t,p0,p1,p2,p3 : p0 * (1-t)**3 + \
-                                    3 * p1 * t*(1-t)**2 + \
-                                    3 * p2 * (t**2)*(1-t) + \
-                                    p3 * t**3
-
-            # TODO improve ctrl pt computation code. Make it depend on self.action_space bounds
-
-            time_on_curve =  (agent.frame_skip_itr + float(self.config['frame_skip'] * 0.1)) / float(self.config['traj_frame_horizon'])
-
-            # First control point location fixed
-            # This enforces smooth transition into a turn (physically achievable motion)
-            x1, y1 = 2, 0 
-
-            # Second control point is free
-            # Bounded in box space where X in [0,4] and Y in [-6,6]
-            # Note raw action are in [-1,1] due to tanh. Due to squashing they are scaled and clipped
-            x2, y2 = np.clip(action[0]*1.5 + 1,0,4), np.clip(action[1]*1.2*6,-6,6)
-
-            # Destination point. At [8,y] where y varies between [-4,4] 
-            x3, y3 = 8,  np.clip(action[2]*1.2*4,-4,4) # dest pt fixed at 8meters away
-
-
-            # Computing bezier waypoint coordinate in world system
-            sign = 1 if (agent.last_acted_rotation.yaw < 90 or agent.last_acted_rotation.yaw > 270) else -1
-            x0, y0 = agent.last_acted_location.x          , agent.last_acted_location.y 
-            x1, y1 = agent.last_acted_location.x + sign*x1, agent.last_acted_location.y + sign*y1
-            x2, y2 = agent.last_acted_location.x + sign*x2, agent.last_acted_location.y + sign*y2
-            x3, y3 = agent.last_acted_location.x + sign*x3, agent.last_acted_location.y + sign*y3
-
-            target_x = cubic_bezier_pt(time_on_curve,x0,x1,x2,x3)
-            target_y = cubic_bezier_pt(time_on_curve,y0,y1,y2,y3)
-
-            target_waypoint = DummyWaypoint(Transform(Location(target_x,target_y,0),Rotation(0,0,0))) # LateralPID only observes x,y
-
-
-            # Target Speed at destination
-            # TODO: target speed is ramped up along bezier curve
-            target_speed = action[3]*1.5 + 1
-            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-
-            steer = agent.steer_controller.pid_control(
-                    target_waypoint, agent.vehicle_actor.get_transform())
-            steer = np.clip(steer, -1., 1.)
-        elif self.config["action_type"] == "cubic_bezier_5dof":
-
-            # TODO improve ctrl pt computation code. Make it depend on self.action_space bounds
-
-            time_delay = 0.35
-
-            # This is to rectify the origin of the  traj. 
-            # Without this the origin would lie at the rear end of the car
-            car_length_offset = 3.5
-
-            time_on_curve = time_delay  +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
-
-            if agent.frame_skip_itr == 0:
-                # Setting up vehicle centric coordinate space
-                self.traj_manager.set_coordinate_system(
-                    agent.last_acted_location,
-                    agent.last_acted_rotation,
-                    car_length_offset)
-                # Parameterizing trajectory
-                self.traj_manager.populate_trajectory(action)
-            else:
-                # Update trajectory manager with current vehicle orientation 
-                # to suitably rotate car coordinate system
-                self.traj_manager.set_current_basis(agent.vehicle_actor.get_transform().rotation)
-
-                # Compute pseudo action that produces remaining traj but
-                # with origin at current position on original traj
-                agent.action, start_pt = self.traj_manager.get_subsegment_parameters(time_on_curve)
-                # agent.action, start_pt = self.traj_manager.get_subsegment_parameters(agent)
-
-                ### FOR DEBUGGING ###
-                debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
-                debug_traj_manager.current_basis = self.traj_manager.current_basis
-                debug_traj_manager.reference_basis = self.traj_manager.current_basis
-                debug_traj_manager.yaw_drift = 0
-                debug_traj_manager.origin = self.traj_manager.origin 
-                cur_pos_ref = start_pt
-                debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
-                debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"] 
-                debug_traj_manager.populate_trajectory(agent.action)
-                env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
-
-            agent.trajectory_yaw_drift = self.traj_manager.yaw_drift
-
-            ### FOR DEBUGGING ###
-            # if agent.frame_skip_itr == 0:
-            env_util.plot_trajectory(time_on_curve, self._world, self.traj_manager)
-
-            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
-            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-
-            # self._world.debug.draw_point(
-            #     carla.Location(x=target_waypoint.transform.location.x,y=target_waypoint.transform.location.y,z=5),
-            #     size=4, color=(255,0,0), life_time=0.3)
-
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-
-            steer = agent.steer_controller.pid_control(
-                    target_waypoint, agent.vehicle_actor.get_transform())
-            steer = np.clip(steer, -1., 1.)
-        elif self.config["action_type"] == "speed_wp":
-
-            time_delay = 0.1
-
-            # This is to rectify the origin of the  traj. 
-            # Without this the origin would lie at the rear end of the car
-            car_length_offset = 3.5
-
-            time_on_curve = time_delay +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
-
-            if agent.frame_skip_itr == 0:
-                # Setting up vehicle centric coordinate space
-                self.traj_manager.set_coordinate_system(
-                    agent.last_acted_location,
-                    agent.last_acted_rotation,
-                    car_length_offset)
-                # Parameterizing trajectory
-                self.traj_manager.populate_trajectory(action)
-            else:
-                # Update trajectory manager with current vehicle orientation 
-                # to suitably rotate car coordinate system
-                self.traj_manager.set_current_basis(agent.vehicle_actor.get_transform().rotation)
-
-                # Compute pseudo action that produces remaining traj but
-                # with origin at current position on original traj
-                agent.action = self.traj_manager.get_subsegment_parameters(agent)
-                # agent.action = self.traj_manager.get_subsegment_parameters(time_on_curve)
-
-                ### FOR DEBUGGING ###
-                if agent.frame_skip_itr > 0:
-                    debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
-                    debug_traj_manager.set_coordinate_system(
-                        agent.vehicle_actor.get_transform().location,
-                        agent.vehicle_actor.get_transform().rotation,
-                        car_length_offset)
-                    debug_traj_manager.yaw_drift = 0
-                    debug_traj_manager.origin = carla.Vector3D(x=self.traj_manager.origin.x, y=self.traj_manager.origin.y, z=self.traj_manager.origin.z)
-                    cur_pos_ref = self.traj_manager.get_points_on_trajectory()[int(time_on_curve*self.traj_manager.points_on_traj)]
-                    debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
-                    debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"]
-                    debug_traj_manager.populate_trajectory(agent.action)
-                    env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
-
-            agent.trajectory_yaw_drift = self.traj_manager.yaw_drift
-
-            ### FOR DEBUGGING ###
-            if agent.frame_skip_itr == 0:
-                env_util.plot_trajectory(time_on_curve, self._world, self.traj_manager)
-
-            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
-            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
-            current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
-
-            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
-            if gas < 0:
-                throttle = 0.0
-                brake = abs(gas)
-            else:
-                throttle = gas
-                brake = 0.0
-
-            steer = agent.steer_controller.pid_control(
-                    target_waypoint, agent.vehicle_actor.get_transform())
-            steer = np.clip(steer, -1., 1.)                
-        
-        agent.episode_measurements["target_speed"] = target_speed
-
-        control = carla.VehicleControl(
-            throttle=throttle,
-            steer=steer,
-            brake=brake,
-            hand_brake=False,
-            reverse=False,
-            manual_gear_shift=False,
-            gear=0)
-
-        return control
-
     def _add_to_stacked_queue(self, object_queue, object_to_add):
 
         assert (object_queue is not None and object_to_add is not None)
@@ -847,6 +1263,43 @@ class CarlaEnv(gym.Env):
             # Pop out earlier stacked frame if queue is full
             object_queue.get()
         object_queue.put(object_to_add)
+
+    def _update_straight_dynamic_obs(self, agent):
+        car_spawn_point = Transform(Location(x=92.10997772216797, y=249.42999267578125, z=1.32), Rotation(yaw=-90.00029754638672))
+        location = agent.vehicle_actor.get_location()
+        distance_to_car = location.distance(car_spawn_point.location)
+
+        agent.episode_measurements['obstacle_dist'] = distance_to_car
+
+        if distance_to_car < 20:
+            agent.episode_measurements['obstacle_visible'] = True
+        else:
+            agent.episode_measurements['obstacle_visible'] = False
+
+    def is_within_distance_ahead(self, target_transform, current_transform, max_distance):
+        """
+        Check if a target object is within a certain distance in front of a reference object.
+        :param target_transform: location of the target object
+        :param current_transform: location of the reference object
+        :param orientation: orientation of the reference object
+        :param max_distance: maximum allowed distance
+        :return: True if target object is within max_distance ahead of the reference object
+        """
+        target_vector = np.array([target_transform.location.x - current_transform.location.x, target_transform.location.y - current_transform.location.y])
+        norm_target = np.linalg.norm(target_vector)
+
+        # If the vector is too short, we can simply stop here
+        if norm_target < 0.001:
+            return True, 0, norm_target
+
+        if norm_target > max_distance:
+            return False, -1, norm_target
+
+        fwd = current_transform.get_forward_vector()
+        forward_vector = np.array([fwd.x, fwd.y])
+        d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+
+        return d_angle < 90.0, d_angle, norm_target
 
     def _update_env_obs(self, agent):
         if not self.config['disable_obstacle_info']:
@@ -885,7 +1338,7 @@ class CarlaEnv(gym.Env):
                 # if the object is not in our lane it's not an obstacle
                 target_vehicle_waypoint = self._map.get_waypoint(target_vehicle.get_location())
                 # check front obstacle
-                d_bool, d_angle, distance = env_util.is_within_distance_ahead(target_vehicle.get_transform(),
+                d_bool, d_angle, distance = self.is_within_distance_ahead(target_vehicle.get_transform(),
                                             agent.vehicle_actor.get_transform(),
                                             self.config['front_obs_proximity_threshold'])
 
@@ -901,13 +1354,13 @@ class CarlaEnv(gym.Env):
                         side_dist < agent.episode_measurements['obstacle_dist_left']:
                         agent.episode_measurements['obstacle_dist_left'] = side_dist
                         agent.episode_measurements['obstacle_speed_left'] = \
-                            env_util.get_speed_from_velocity(target_vehicle.get_velocity())
+                            self.get_speed_from_velocity(target_vehicle.get_velocity())
                 elif side_orient == 1:
                     if agent.episode_measurements['obstacle_dist_right'] == -1 or \
                         side_dist < agent.episode_measurements['obstacle_dist_right']:
                         agent.episode_measurements['obstacle_dist_right'] = side_dist
                         agent.episode_measurements['obstacle_speed_right'] = \
-                            env_util.get_speed_from_velocity(target_vehicle.get_velocity())
+                            self.get_speed_from_velocity(target_vehicle.get_velocity())
 
                 if not d_bool:
                     continue
@@ -921,7 +1374,7 @@ class CarlaEnv(gym.Env):
 
                     if distance < min_obs_distance:
                         agent.episode_measurements['obstacle_dist'] = distance
-                        agent.episode_measurements['obstacle_speed'] = env_util.get_speed_from_velocity(target_vehicle.get_velocity())
+                        agent.episode_measurements['obstacle_speed'] = self.get_speed_from_velocity(target_vehicle.get_velocity())
                         min_obs_distance = distance
             except Exception as e:
                 print('>>> skip this vehicle {} due to [{}]'.format(target_vehicle, e))
@@ -951,28 +1404,36 @@ class CarlaEnv(gym.Env):
         if agent.obstacle_sensor['front'].frame == self.world_frame:
             if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor['front'].frame)
             obstacle_actor = agent.obstacle_sensor['front'].obstacle_actor
-
             if 'vehicle' in obstacle_actor.type_id:
                 same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)
             found_obstacle = True
             agent.episode_measurements['obstacle_visible'] = True
             agent.episode_measurements['obstacle_dist'] = agent.episode_measurements['obstacle_dist_front'] = agent.obstacle_sensor['front'].distance
-
+            # if 'vehicle' in obstacle_actor.type_id:
             if hasattr(obstacle_actor, 'get_velocity'):
                 if self.config['obs_cosine_velocity']:
-                    cos = env_util.cosine_between_obs(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity(), self.config['zero_speed_threshold'])
+                    cos = self.cosine_between_obs(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
                     if cos < 0: cos = 0.
                 else:
                     cos = 1.
-                agent.episode_measurements['obstacle_speed'] = agent.episode_measurements['obstacle_speed_front'] = env_util.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
-                
+                agent.episode_measurements['obstacle_speed'] = agent.episode_measurements['obstacle_speed_front'] = self.get_speed_from_velocity(obstacle_actor.get_velocity()) * cos
+                # cos = self.cosine_between_velocities(obstacle_actor.get_velocity(), agent.vehicle_actor.get_velocity())
+                # print('API test COS', cos)
             else:
                 agent.episode_measurements['obstacle_speed'] = agent.episode_measurements['obstacle_speed_front'] = -1
             found_obstacle = found_obstacle and (not self.config['check_obs_same_lane'] or same_lane)
-
+            # for weak_verbose
             if agent.episode_measurements['obstacle_init_id'] != obstacle_actor.id: # initial
                 agent.episode_measurements['obstacle_init_id'] = obstacle_actor.id
                 agent.episode_measurements['obstacle_init_dist'] = agent.obstacle_sensor['front'].distance
+                if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
+                    print('[step {}][obstacle actor id {}][{}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
+                        agent.curr_ep_num_steps, obstacle_actor.id, obstacle_actor.type_id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
+                        agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
+            if self.config['verbose'] or self.config['test_verbose']:
+                print('[step {}][obstacle actor id {}][{}][agent {}][agt speed {:.2f}][obs speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][same_lane {}][found {}]'.format(
+                    agent.curr_ep_num_steps, obstacle_actor.id, obstacle_actor.type_id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['obstacle_speed'] * 3.6,
+                    agent.episode_measurements['obstacle_init_dist'], agent.obstacle_sensor['front'].distance, same_lane, found_obstacle))
             # if only detect vehicular obstacle
             if self.config['obs_sensor_vehicle_only'] and 'vehicle' not in obstacle_actor.type_id:
                 found_obstacle = False
@@ -992,16 +1453,16 @@ class CarlaEnv(gym.Env):
             same_lane = True
             if suffix == 'front': continue
             if agent.obstacle_sensor[suffix].frame == self.world_frame:
-
+                if self.config['verbose']: print('FRAME:', self.world_frame, agent.obstacle_sensor[suffix].frame)
                 obstacle_actor = agent.obstacle_sensor[suffix].obstacle_actor
                 if 'vehicle' in obstacle_actor.type_id:
                     same_lane = check_if_vehicle_in_same_lane(agent.vehicle_actor, obstacle_actor, agent.next_waypoints, self._map)
                 found_obstacle = True
                 agent.episode_measurements['obstacle_dist_{}'.format(suffix)] = agent.obstacle_sensor[suffix].distance
-               
-               
+                # if 'vehicle' in obstacle_actor.type_id:
+                # if hasattr(obstacle_actor, 'get_velocity') and 'vehicle' not in obstacle_actor.type_id:
                 if hasattr(obstacle_actor, 'get_velocity'):
-                    agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = env_util.get_speed_from_velocity(obstacle_actor.get_velocity())
+                    agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = self.get_speed_from_velocity(obstacle_actor.get_velocity())
                 else:
                     agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
                 found_obstacle = found_obstacle and (not self.config['check_obs_same_lane'] or not same_lane)
@@ -1009,7 +1470,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
                 agent.episode_measurements['obstacle_speed_{}'.format(suffix)] = -1
 
-    def _update_obs_detector_via_all_sensor(self, agent): # Used in 360 degree obs space to populate sensor readings
+    def _update_obs_detector_via_all_sensor(self, agent):
         sensor_readings = {}
         obstacle_set = set()
         for suffix in agent.obstacle_sensor:
@@ -1074,10 +1535,17 @@ class CarlaEnv(gym.Env):
         else:
             agent.episode_measurements['traffic_light_orientation'] = -1
 
+        # if agent.vehicle_actor.is_at_traffic_light():
+        #     lt_actor = agent.vehicle_actor.get_traffic_light()
+        #     agt_loc = agent.vehicle_actor.get_location()
+        #     lt_loc = lt_actor.get_location()
+        #     print('API test', lt_actor, agent.vehicle_actor.get_traffic_light_state(), lt_loc.distance(agt_loc))
         if traffic_actor is not None:
             if traffic_actor.state != carla.TrafficLightState.Green:
                 agent.episode_measurements['red_light_dist'] = dist
                 found_redlight = True
+                # print('[agent {} init {}] traffic light info'.format(
+                #         agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
                 if agent.episode_measurements['initial_dist_to_red_light'] == -1 or \
                     (agent.episode_measurements['nearest_traffic_actor_id'] != -1 and traffic_actor.id != agent.episode_measurements['nearest_traffic_actor_id']):
                     if dist < self.config['min_dist_from_red_light']:
@@ -1087,20 +1555,33 @@ class CarlaEnv(gym.Env):
                     else:
                         agent.episode_measurements['initial_dist_to_red_light'] = dist
                         found_redlight = True
+                    if self.config['weak_verbose'] and not self.config['verbose'] and not self.config['test_verbose']:
+                        print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}][found {}]'.format(agent.curr_ep_num_steps,
+                            traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
+                            dist, traffic_actor.state, found_redlight))
+                if self.config['verbose'] or self.config['test_verbose']:
+                    print('[step {}][traffic light id {}][agent {}][speed {:.2f}][init dist {:.2f}][curr dist {:.2f}][state {}][found {}]'.format(agent.curr_ep_num_steps,
+                        traffic_actor.id, agent.rank, agent.episode_measurements['speed'] * 3.6, agent.episode_measurements['initial_dist_to_red_light'],
+                        dist, traffic_actor.state, found_redlight))
             else:
                 agent.episode_measurements['red_light_dist'] = -1
                 agent.episode_measurements['initial_dist_to_red_light'] = -1
 
             agent.episode_measurements['nearest_traffic_actor_id'] = traffic_actor.id
             agent.episode_measurements['nearest_traffic_actor_state'] = traffic_actor.state
-            
+            # print('[agent {} init {}] traffic light info'.format(
+            #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), traffic_actor.id, traffic_actor.state, dist)
         else:
             agent.episode_measurements['red_light_dist'] = -1
             agent.episode_measurements['initial_dist_to_red_light'] = -1
             agent.episode_measurements['nearest_traffic_actor_id'] = -1
             agent.episode_measurements['nearest_traffic_actor_state'] = None
+            # print('[agent {} init {}] traffic light info'.format(
+            #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
         agent.episode_measurements['dist_to_light'] = dist
+        # print('[agent {} init {}] traffic light info'.format(
+        #     agent.rank, agent.episode_measurements['initial_dist_to_red_light']), -1, -1, -1)
 
     def _set_updated_scenario(self, unseen=False, town="Town01", index=0):
         if self.config["scenarios"] == "straight":
@@ -1127,16 +1608,9 @@ class CarlaEnv(gym.Env):
         """
 
         _upd_town = self.curr_town
-        if self.config["scenarios"] == "straight": 
+        if self.config["scenarios"] == "straight":
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
-        elif self.config["scenarios"] == "straight_overtake": 
-            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
-            self.config["num_episodes"] = 25
-            frac = random.random() * 0.5 + 0.25
-            spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
-            spwn_rot = self.source_transform.rotation
-            self.spawn_points = [Transform(spwn_loc,spwn_rot)]
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
             self.config["num_episodes"] = 2
@@ -1196,6 +1670,153 @@ class CarlaEnv(gym.Env):
         if _upd_town != self.curr_town: # switch to a new town
             print('[1060] update town from {} to {}'.format(self.curr_town, _upd_town), self.scenario_index)
         return _upd_town
+
+    def get_control(self, agent, action):
+        """ Get Control object for Carla from action
+        Input:
+            - action: tuple containing (steer, throttle, brake) in [-1, 1]
+        Output:
+            - control: Control object for Carla
+        """
+
+        if self.config["action_type"] != "control":
+            action = action.flatten()
+        if self.config["action_type"] == "sep_gas":
+            steer = float(action[0])
+            throttle = float(action[1])
+            brake = float(action[2])
+        elif self.config["action_type"] == "merged_gas":
+            steer = float(action[0])
+            gas = float(action[1])
+            # gas = gas + 0.25
+            gas = np.clip(gas, 0.0, 0.7)
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "steer_only":
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(20.0)
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            throttle = agent.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "throttle_only":
+            steer = float(0.0)
+            target_speed = float(np.clip(action[0], 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            throttle = agent.controller.pid_control(target_speed, current_speed)
+            brake = float(0.0)
+        elif self.config["action_type"] == "merged_speed":
+            # steer = float(action[0])
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(np.clip(action[1] + 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "merged_speed_tanh":
+            # steer = float(action[0])
+            steer = np.clip(float(action[0]), -1.0, 1.0)
+            target_speed = float(np.clip((action[1] + 1) * 10.0, 0, self.target_speed))
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "merged_speed_scaled_tanh":
+            
+            steer = np.clip(float(action[0]) * self.config['steering_scale'], -1, 1)
+
+            target_speed = (action[1] * 1.5) + 1
+            target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
+
+            ##################################
+            # if use autopilot
+            if hasattr(agent, 'autopilot') and agent.autopilot:
+                if agent.episode_measurements['red_light_dist'] != -1 or \
+                    agent.episode_measurements['obstacle_dist'] != -1:
+                    target_speed = 0
+                else:
+                    target_speed = self.target_speed
+                steer = agent.steer_controller.pid_control(
+                    agent.next_waypoints[0], agent.vehicle_actor.get_transform())
+                steer = np.clip(steer, -1., 1.)
+                #!!! modify agent.action
+                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
+
+            if hasattr(agent, 'transfuser_autopilot') and agent.transfuser_autopilot:
+                # steer, target_speed = agent.transfuser_agent.run_step()
+                steer, target_speed, control = agent.transfuser_agent.run_step()
+                # print('[1513]', steer, target_speed)
+                #!!! modify agent.action
+                target_speed *= 3.6
+                agent.action = np.array([steer, (2 * target_speed / self.target_speed - 1) / 1.5])
+                agent.episode_measurements["target_speed"] = target_speed
+                return control
+
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+
+            # print('[carla_env.get_control()] Throttle : {} Cur Spd : {} Trgt Speed : {} Action : {}'.format(gas,current_speed,target_speed,action[1]))
+
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "merged_speed_pid_test":
+            # steer = float(action[0])
+            steer = (float(action[0]))
+            target_speed = float(action[1])
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "discrete":
+            # Discrete actions
+            # No need to clip actions in case of discrete state-space
+            # since it is chosen to be in range.
+            discrete_actions = self.config['discrete_actions'][int(action)]
+            target_speed, steer = float(discrete_actions[0]), float(discrete_actions[1])
+            current_speed = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
+            gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
+            if gas < 0:
+                throttle = 0.0
+                brake = abs(gas)
+            else:
+                throttle = gas
+                brake = 0.0
+        elif self.config["action_type"] == "control":
+            target_speed = -1
+            agent.episode_measurements["target_speed"] = target_speed
+            return action
+
+        agent.episode_measurements["target_speed"] = target_speed
+
+        control = carla.VehicleControl(
+            throttle=throttle,
+            steer=steer,
+            brake=brake,
+            hand_brake=False,
+            reverse=False,
+            manual_gear_shift=False,
+            gear=0)
+
+        return control
 
     def reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False):
         # If using stable baselines SAC refer to old version for additional code 
@@ -1384,7 +2005,7 @@ class CarlaEnv(gym.Env):
             agent.collision_sensor = sensors.CollisionSensor(agent.vehicle_actor)
             agent.actor_list.append(agent.collision_sensor.sensor)
 
-            if not self.config["disable_lane_invasion_sensor"]:
+            if self.config["enable_lane_invasion_sensor"]:
                 agent.lane_invasion_sensor = sensors.LaneInvasionSensor(agent.vehicle_actor)
                 agent.actor_list.append(agent.lane_invasion_sensor.sensor)
 
@@ -1584,18 +2205,9 @@ class CarlaEnv(gym.Env):
             agent.location = agent.vehicle_actor.get_location()
             agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
             agent.episode_measurements['min_distance_to_goal'] = 1000000.0
-            agent.episode_measurements['speed'] = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
+            agent.episode_measurements['speed'] = self.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
 
             agent.episode_measurements['total_steps'] = agent.num_total_steps
-
-            ####### Required in bezier_curve action space ######
-            # Tracks frames since last policy inference 
-            agent.frame_skip_itr = 0
-            # Agent location and rotation where last action was taken by policy
-            agent.last_acted_location = agent.vehicle_actor.source_transform.location
-            agent.last_acted_rotation = agent.vehicle_actor.source_transform.rotation
-            # Difference between on trajectory yaw and last action location yaw
-            agent.trajectory_yaw_drift = 0
 
             # add transfuser
             if transfuser:
@@ -1609,14 +2221,40 @@ class CarlaEnv(gym.Env):
         #     # print(self.world_frame)
         #     self.world_frame = self._world.tick()
 
+    def _is_static(self, agent):
+        if type(agent.obstacle_sensor) == dict:
+            for suffix in agent.obstacle_sensor:
+                obstacle_key = 'obstacle_dist_{}'.format(suffix)
+                if obstacle_key in agent.episode_measurements and \
+                    agent.episode_measurements[obstacle_key] != -1:
+                    return False
+        if agent.episode_measurements['speed'] >= self.config['zero_speed_threshold']:
+            return False
+        if agent.episode_measurements['obstacle_dist'] != -1:
+            return False
+        if agent.episode_measurements['red_light_dist'] != -1:
+            return False
+        if  'obstacle_dist_left' in agent.episode_measurements and \
+            agent.episode_measurements['obstacle_dist_left'] != -1:
+            return False
+        if  'obstacle_dist_right' in agent.episode_measurements and \
+            agent.episode_measurements['obstacle_dist_right'] != -1:
+            return False
+        return True
+
     def _update_lane_invasion_info_via_privilege(self, agent):
         if agent.done: return
-        
-        
+        # agent_bb_wp = get_vehicle_bb_wp(
+        #     self._world.get_map(), agent.vehicle_actor,
+        #     lane_type=(LaneType.Any | LaneType.NONE))
         agent_wp = self._map.get_waypoint(
             agent.vehicle_actor.get_location(),
             lane_type=(LaneType.Any | LaneType.NONE))
 
+        # # definitely offroading
+        # if agent_wp.lane_type == LaneType.NONE:
+        #     agent.episode_measurements['out_of_road'] = True
+        #     return
         if agent_wp.lane_type not in {
             LaneType.Driving,
             LaneType.Parking,
@@ -1637,6 +2275,9 @@ class CarlaEnv(gym.Env):
             # NOTE: not sure the reason but here should use .name to compare
             if opt.name == RoadOption.LANEFOLLOW.name:
                 continue
+            # if not continued
+            # print(opt, opt.name, RoadOption.LANEFOLLOW.name, opt == RoadOption.LANEFOLLOW)
+            # print('[1824] permitted offlane')
             return
 
         # if not intersection, should stick on driving lane
@@ -1646,10 +2287,20 @@ class CarlaEnv(gym.Env):
         else:
             num_same_road_wp = 0
             for next_wp in [agent.next_waypoints[0], agent.next_waypoints[-1]]:
+                # print('[1834]', agent_wp.road_id, next_wp.road_id,
+                #     agent_wp.lane_id, next_wp.lane_id)
                 if agent_wp.road_id == next_wp.road_id:
                     num_same_road_wp += 1
                     if agent_wp.lane_id == next_wp.lane_id:
                         return
+            # for bb_wp in agent_bb_wp:
+            #     for next_wp in agent.next_waypoints:
+            #         # print('[1834]', agent_wp.road_id, next_wp.road_id,
+            #         #     agent_wp.lane_id, next_wp.lane_id)
+            #         if bb_wp.road_id == next_wp.road_id:
+            #             num_same_road_wp += 1
+            #             if bb_wp.lane_id == next_wp.lane_id:
+            #                 return
             # at intersection or something
             if num_same_road_wp == 0: return
         # if not returned, lane invasion happened
@@ -1683,10 +2334,13 @@ class CarlaEnv(gym.Env):
         self._update_env_obs(agent)
 
         # if static (stuck by obstacle)
-        if env_util._is_static(agent, self.config['zero_speed_threshold']):
+        if self._is_static(agent):
             agent.episode_measurements['static_steps'] += 1
         else:
             agent.episode_measurements['static_steps'] = 0
+
+        if self.config["scenarios"] == "straight_dynamic":
+            self._update_straight_dynamic_obs(agent)
 
 
         # Gather camera measurements
@@ -1702,7 +2356,7 @@ class CarlaEnv(gym.Env):
         obs['dist_to_target'] = np.array([agent.episode_measurements['distance_to_goal']])
 
         # Update observation input in obs dictionary
-        self.obs_manager.create_observations(agent, obs)
+        self.create_observations(agent, obs)
         # agent.prev_measurement = copy.deepcopy(agent.episode_measurements)
 
         visual_observation = None
@@ -1748,6 +2402,89 @@ class CarlaEnv(gym.Env):
 
         return agent.observation
 
+    def fetch_actor_features(self, actor):
+        transform = actor.get_transform()
+        velocity = actor.get_velocity()
+        speed = np.linalg.norm([velocity.x, velocity.y, velocity.z])
+
+        bounding_box_loc = actor.bounding_box.get_world_vertices(transform)
+        bounding_box = [(loc.x, loc.y) for loc in bounding_box_loc]
+
+        return {
+            'x': transform.location.x,
+            'y': transform.location.y,
+            'theta': transform.rotation.yaw,
+            'speed': speed,
+            'bounding_box': bounding_box
+        }
+
+    def normalize_actor_features(self, actor_features, ref, theta):
+        """
+        Normalize actor feature dictionary to reference point
+        ref is a tuple (x, y, theta)
+        """
+        for i, (x,y) in enumerate(actor_features['bounding_box']):
+            x,y = transform_to_pov((x,y), ref, theta)
+            actor_features['bounding_box'][i] = (x,y)
+
+        x,y = transform_to_pov((actor_features['x'], actor_features['y']), ref, theta)
+        actor_features['x'], actor_features['y'] = x,y
+        actor_features['theta'] = normalize_angle(actor_features['theta'] - theta)
+
+    def fetch_symbolic_dict(self, ego_agent):
+        # get ego kinematics
+        ego_actor = ego_agent.vehicle_actor
+        ego_features = self.fetch_actor_features(ego_actor)
+
+        ref = ego_features['x'], ego_features['y']
+        theta = ego_features['theta']
+
+        self.normalize_actor_features(ego_features, ref, theta)
+
+        # get other entities
+        other_actors = self._world.get_actors().filter('*vehicle*')
+        vehicle_features = {actor.id: self.fetch_actor_features(actor) for actor in other_actors
+            if actor.get_transform().location.distance(ego_actor.get_transform().location) < 20
+            and actor.id != ego_actor.id
+        }
+
+        for vehicle_id in vehicle_features:
+            features = vehicle_features[vehicle_id]
+            self.normalize_actor_features(features, ref, theta)
+
+        # normalize waypoints
+        # print(len(ego_agent.next_waypoints))
+        waypoints = [
+            (
+                wp.transform.location.x,
+                wp.transform.location.y,
+                wp.transform.location.z,
+            )
+            for wp in ego_agent.next_waypoints
+        ]
+        for i, (x,y,_) in enumerate(waypoints):
+            x,y = transform_to_pov((x,y), ref, theta)
+            waypoints[i] = (x,y)
+
+        features = {
+            'ego_features': ego_features,
+            'vehicle_features': vehicle_features,
+
+            'light': ego_agent.episode_measurements['red_light_dist'],
+
+            'next_waypoints': waypoints,
+            'next_orientation': ego_agent.episode_measurements['next_orientation'],
+            'dist_to_trajectory': ego_agent.episode_measurements['dist_to_trajectory'],
+
+            'obstacle_dist': ego_agent.episode_measurements['obstacle_dist'],
+            'obstacle_speed': ego_agent.episode_measurements['obstacle_speed'],
+
+            'x': ref[0],
+            'y': ref[1],
+            'theta': theta
+        }
+        return features
+
     def list_reset(self, use_idx=False, idx_list=None, rank_list=None, reset_npc=False): # Resets environment and actors
 
         # Retrieve Blueprint for Vehicle
@@ -1790,9 +2527,9 @@ class CarlaEnv(gym.Env):
                     # When this is disabled, the start and end are randomly chosen from a set of spawn points
                     if self.config["use_scenarios"]:
                         if self.config["updated_scenarios"]:
-                            self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['city_name'])
+                            self._set_updated_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
                         else:
-                            _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['city_name'])
+                            _upd_town = self._set_scenario(unseen=use_idx, index=self.scenario_index, town=self.config['initial_town'])
                     else:
                         self.source_transform, self.destination_transform = random.choice(self.spawn_points), random.choice(self.spawn_points)
 
@@ -1992,6 +2729,44 @@ class CarlaEnv(gym.Env):
     def _reset(self, unseen=False, index=0):
         pass
 
+    def get_wp_obs_input(self, agent):
+        '''
+        Create wp angles input
+        '''
+        num_wp = 5
+        wp_angles_array = None
+        wp_vectors_array = None
+
+        n = len(agent.next_wp_angles)
+        if n == 0:
+            print("No next waypoints found. Giving zero as input.")
+            wp_angles_array = np.zeros(num_wp)
+            wp_vectors_array = np.zeros(2 * num_wp)
+
+        elif n == num_wp:
+            wp_angles_array = np.array(agent.next_wp_angles)
+            wp_vectors_array = np.array(agent.next_wp_vectors)
+
+        elif n < num_wp:
+            # Fill using last entry
+            last_angle = agent.next_wp_angles[-1]
+            last_vec = agent.next_wp_vectors[-1]
+
+            for _ in range(num_wp-n):
+                agent.next_wp_angles.append(last_angle)
+                agent.next_wp_vectors.append(last_vec)
+            wp_angles_array = np.array(agent.next_wp_angles)
+            wp_vectors_array = np.array(agent.next_wp_vectors)
+        else:
+            print("Error: More than {0} waypoints returned from planner.".format(num_wp))
+            print("Taking required number of entries.")
+            wp_angles_array = np.array(agent.next_wp_angles[:num_wp])
+            wp_vectors_array = np.array(agent.next_wp_vectors[:num_wp])
+
+        wp_vectors_array = wp_vectors_array.reshape(-1)
+
+        return wp_angles_array, wp_vectors_array
+
     def try_spawn_random_vehicle_at(self, blueprints, transform):
         # blueprint = random.choice(blueprints)
 
@@ -2002,17 +2777,14 @@ class CarlaEnv(gym.Env):
             blueprint.set_attribute('color', color)
 
         # TODO: uncomment below to enable autopilot
-        if not self.config["scenarios"] == "straight_dynamic":
+        if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
         tm_port = self.tm.get_port()
         if vehicle is not None:
             self.actor_list.append(vehicle)
-
-            if self.config["scenarios"] == "straight_overtake":
-                self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
             # TODO: uncomment below to enable autopilot
-            elif not self.config["scenarios"] == "straight_dynamic":
+            if not self.config["scenarios"] == "straight_dynamic" and not self.config['test_comparison']:
                 vehicle.set_autopilot(True, tm_port)
 
             if self.config["verbose"]:
@@ -2021,7 +2793,6 @@ class CarlaEnv(gym.Env):
         return False
 
     def spawn_npc(self, number_of_vehicles):
-
         # Testing
         if self.config["test_fixed_spawn_points"]:
             spawn_points = self.spawn_points_fixed_order
@@ -2040,6 +2811,21 @@ class CarlaEnv(gym.Env):
                 print('spawn_point:', spawn_point)
             if self.try_spawn_random_vehicle_at(self.vehicle_blueprints, spawn_point):
                 count -= 1
+
+    def get_speed_from_velocity(self, velocity):
+        speed = np.sqrt(velocity.x ** 2 + velocity.y **2 + velocity.z **2)
+        return speed
+
+    def cosine_between_velocities(self, v1, v2):
+        return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / \
+            (self.get_speed_from_velocity(v1) * self.get_speed_from_velocity(v2) + 1e-6)
+
+    def cosine_between_obs(self, agt_v, obs_v):
+        if self.get_speed_from_velocity(agt_v) < self.config['zero_speed_threshold'] or \
+            self.get_speed_from_velocity(obs_v) < self.config['zero_speed_threshold']:
+            return 0.
+        else:
+            return self.cosine_between_velocities(agt_v, obs_v)
 
     def _read_data(self, camera_queue, world_frame, timeout=240.0):
 
@@ -2068,10 +2854,13 @@ class CarlaEnv(gym.Env):
                 if self.config["verbose"]:
                     print("difference in frames, self.world_frame={0}, data_frame={1}".format(self.world_frame, data.frame))
 
-    def _compute_done_condition(self, agent): # Episode termination
+    def _compute_done_condition(self, agent):
         # Episode termination conditions
         success = agent.episode_measurements["distance_to_goal"] < self.config["dist_for_success"]
         static = agent.episode_measurements["static_steps"] > self.config["max_static_steps"]
+        # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
+        # static = agent.episode_measurements['obstacle_dist'] == -1 and \
+        #     self.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) < 1e-2
         collision = agent.episode_measurements["is_collision"]
         runover_light = agent.episode_measurements["runover_light"]
         maxStepsTaken = agent.episode_measurements["num_steps"] > self.config['max_steps']
@@ -2088,6 +2877,7 @@ class CarlaEnv(gym.Env):
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
         if self.config['enable_lane_invasion_termination']:
+            # offlane = self.episode_measurements["offlane_steps"] > self.config["max_offlane_steps"]
             offlane = agent.episode_measurements['unlawful_lane_change'] or \
                 agent.episode_measurements['out_of_road']
 
@@ -2142,7 +2932,12 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['termination_state_code'] = termination_state_code
 
         done = success or collision or runover_light or offlane or static or maxStepsTaken
+        # print(success, collision, runover_light, offlane, static, maxStepsTaken)
         return done
+
+    def printInfo(self, agent):
+        print("Vehicle transform:{0}".format(agent.vehicle_actor.get_transform()))
+        print("Vehicle velocity:{0}".format(agent.vehicle_actor.get_velocity()))
 
     def close(self):
 
@@ -2160,6 +2955,7 @@ class CarlaEnv(gym.Env):
 
     def __del__(self):
         self.close()
+
 
 
 if __name__ == "__main__":

@@ -118,17 +118,22 @@ class Visualizer:
                             ("Brk",stats['brake'][ctr]),
                             ("Wp_Or",stats['waypoint_orientation'][ctr]),
                             ("D2Traj",stats['dist_to_traj'][ctr]),
+                            ("RdLtDist",stats['red_light_dist'][ctr]),
                             ("FrObsDist",stats['obstacle_dist'][ctr]),
                             ("FrObsSpd",stats['obstacle_speed'][ctr]),
-                            ("FRObsD",stats['obstacle_dist_front_right'][ctr]),
-                            ("FRObsS",stats['obstacle_speed_front_right'][ctr]),
-                            ("FLObsD",stats['obstacle_dist_front_left'][ctr]),
-                            ("FLObsS",stats['obstacle_speed_front_left'][ctr]),
-                            ("BRObsD",stats['obstacle_dist_back_right'][ctr]),
-                            ("BRObsS",stats['obstacle_speed_back_right'][ctr]),
-                            ("BLObsD",stats['obstacle_dist_back_left'][ctr]),
-                            ("BLObsS",stats['obstacle_speed_back_left'][ctr]),
-                            ("RdLtDist",stats['red_light_dist'][ctr])]
+                            ]
+            
+            if 'obstacle_dist_front_right' in stats:
+                display_strs.extend([
+                    ("FRObsD",stats['obstacle_dist_front_right'][ctr]),
+                    ("FRObsS",stats['obstacle_speed_front_right'][ctr]),
+                    ("FLObsD",stats['obstacle_dist_front_left'][ctr]),
+                    ("FLObsS",stats['obstacle_speed_front_left'][ctr]),
+                    ("BRObsD",stats['obstacle_dist_back_right'][ctr]),
+                    ("BRObsS",stats['obstacle_speed_back_right'][ctr]),
+                    ("BLObsD",stats['obstacle_dist_back_left'][ctr]),
+                    ("BLObsS",stats['obstacle_speed_back_left'][ctr]),
+                ])
 
             disp_x,disp_y = 20,50
             for record in display_strs:
@@ -498,37 +503,38 @@ class Visualizer:
         axs[6, 1].set_xlabel('Timesteps')
         axs[6, 1].set_ylabel('Waypoint Orientation')
 
-        axs[7, 0].plot(observations, side_obs_dict["obstacle_dist_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[7, 0].set_xlabel('Timesteps')
-        axs[7, 0].set_ylabel('Front Right Obstacle Distance')
+        if len(list(side_obs_dict.keys())) > 0:
+            axs[7, 0].plot(observations, side_obs_dict["obstacle_dist_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[7, 0].set_xlabel('Timesteps')
+            axs[7, 0].set_ylabel('Front Right Obstacle Distance')
 
-        axs[7, 1].plot(observations, side_obs_dict["obstacle_speed_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[7, 1].set_xlabel('Timesteps')
-        axs[7, 1].set_ylabel('Front Right Obstacle Speed')
+            axs[7, 1].plot(observations, side_obs_dict["obstacle_speed_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[7, 1].set_xlabel('Timesteps')
+            axs[7, 1].set_ylabel('Front Right Obstacle Speed')
 
-        axs[8, 0].plot(observations, side_obs_dict["obstacle_dist_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[8, 0].set_xlabel('Timesteps')
-        axs[8, 0].set_ylabel('Front Left Obstacle Distance')
+            axs[8, 0].plot(observations, side_obs_dict["obstacle_dist_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[8, 0].set_xlabel('Timesteps')
+            axs[8, 0].set_ylabel('Front Left Obstacle Distance')
 
-        axs[8, 1].plot(observations, side_obs_dict["obstacle_speed_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[8, 1].set_xlabel('Timesteps')
-        axs[8, 1].set_ylabel('Front Left Obstacle Speed')
+            axs[8, 1].plot(observations, side_obs_dict["obstacle_speed_front_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[8, 1].set_xlabel('Timesteps')
+            axs[8, 1].set_ylabel('Front Left Obstacle Speed')
 
-        axs[9, 0].plot(observations, side_obs_dict["obstacle_dist_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[9, 0].set_xlabel('Timesteps')
-        axs[9, 0].set_ylabel('Back Right Obstacle Distance')
+            axs[9, 0].plot(observations, side_obs_dict["obstacle_dist_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[9, 0].set_xlabel('Timesteps')
+            axs[9, 0].set_ylabel('Back Right Obstacle Distance')
 
-        axs[9, 1].plot(observations, side_obs_dict["obstacle_speed_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[9, 1].set_xlabel('Timesteps')
-        axs[9, 1].set_ylabel('Back Right Obstacle Speed')
+            axs[9, 1].plot(observations, side_obs_dict["obstacle_speed_back_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[9, 1].set_xlabel('Timesteps')
+            axs[9, 1].set_ylabel('Back Right Obstacle Speed')
 
-        axs[10, 0].plot(observations, side_obs_dict["obstacle_dist_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[10, 0].set_xlabel('Timesteps')
-        axs[10, 0].set_ylabel('Back Left Obstacle Distance')
+            axs[10, 0].plot(observations, side_obs_dict["obstacle_dist_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[10, 0].set_xlabel('Timesteps')
+            axs[10, 0].set_ylabel('Back Left Obstacle Distance')
 
-        axs[10, 1].plot(observations, side_obs_dict["obstacle_speed_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
-        axs[10, 1].set_xlabel('Timesteps')
-        axs[10, 1].set_ylabel('Back Left Obstacle Speed')
+            axs[10, 1].plot(observations, side_obs_dict["obstacle_speed_back_left"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
+            axs[10, 1].set_xlabel('Timesteps')
+            axs[10, 1].set_ylabel('Back Left Obstacle Speed')
 
         axs[0,0].grid(True)
         axs[0,1].grid(True)
