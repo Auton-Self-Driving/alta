@@ -28,6 +28,7 @@ import os
 import time
 import random
 import torch
+import argparse
 import torch.multiprocessing as mp
 from threading import Thread
 import matplotlib.pyplot as plt
@@ -36,6 +37,7 @@ import dist_utils as dist
 from network import PPOActorCritic_Continuous
 from carla_env import CarlaEnv
 from config import ENV_CONFIG, DPPO_CONFIG
+from config_exp import override_configs
 from dppo_agent import DPPO_Server_Agent, DPPO_Worker_Agent
 
 
@@ -43,8 +45,6 @@ os.environ["OMP_NUM_THREADS"] = '1'
 # print('--------------------[PID {}]--------------------'.format(os.getpid()))
 
 # print('>>>DPPO_CONFIG:{}\n>>>ENV_CONFIG:{}'.format(DPPO_CONFIG, ENV_CONFIG))
-
-res = {'log_time': time.strftime('%b%d%I%M%p%S')}
 
 def get_state_action_dims(config):
 
@@ -83,50 +83,49 @@ def get_state_action_dims(config):
 
 def launch_server(rank, resources):
     os.environ['RANK'] = str(rank)
-    
-    # device = DPPO_CONFIG['device_list'][int(rank) % len(DPPO_CONFIG['device_list'])]
-    device = ENV_CONFIG['device']
+
+    device = resources["agent_cfg"]['device_list'][0]
 
     # overriding carla device
-    ENV_CONFIG['device'] = device
+    resources["env_cfg"]['device'] = device
     
-    N_S, N_A = get_state_action_dims(ENV_CONFIG)
+    N_S, N_A = get_state_action_dims(resources["env_cfg"])
     
     glb_policy = PPOActorCritic_Continuous(N_S, N_A,
-        use_transformer=ENV_CONFIG['input_type']=='transformer', squash=DPPO_CONFIG['squash']).to(device) # global network
+        use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
 
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
-        lr=DPPO_CONFIG['policy_lr'], betas=(0.92, 0.999))
+        lr=resources["agent_cfg"]['policy_lr'], betas=(0.92, 0.999))
 
     server_agent = DPPO_Server_Agent(glb_policy, glb_optimizer,
-        num_agents=ENV_CONFIG['num_agents'],
-        max_glb_num_steps=ENV_CONFIG['max_num_steps'],
-        eps_clip=DPPO_CONFIG['eps_clip'],
-        grad_clip=DPPO_CONFIG['grad_clip'],
-        glb_update_freq=DPPO_CONFIG['server_glb_update_freq'],
-        glb_adaptive_freq=DPPO_CONFIG['server_adaptive_freq'],
-        optim_epochs=DPPO_CONFIG['worker_optim_epochs'],
-        focal_loss=DPPO_CONFIG['focal_loss'],
-        standard=DPPO_CONFIG['standard'],
-        push_grad=DPPO_CONFIG['push_grad'],
-        gamma=DPPO_CONFIG['gamma'],
-        num_threads=DPPO_CONFIG['num_threads_per_server'],
-        save_suffix=DPPO_CONFIG['save_suffix'],
-        save_freq=DPPO_CONFIG['save_freq'],
+        num_agents=resources["env_cfg"]['num_agents'],
+        max_glb_num_steps=resources["env_cfg"]['max_num_steps'],
+        eps_clip=resources["agent_cfg"]['eps_clip'],
+        grad_clip=resources["agent_cfg"]['grad_clip'],
+        glb_update_freq=resources["agent_cfg"]['server_glb_update_freq'],
+        glb_adaptive_freq=resources["agent_cfg"]['server_adaptive_freq'],
+        optim_epochs=resources["agent_cfg"]['worker_optim_epochs'],
+        focal_loss=resources["agent_cfg"]['focal_loss'],
+        standard=resources["agent_cfg"]['standard'],
+        push_grad=resources["agent_cfg"]['push_grad'],
+        gamma=resources["agent_cfg"]['gamma'],
+        num_threads=resources["agent_cfg"]['num_threads_per_server'],
+        save_suffix=resources["agent_cfg"]['save_suffix'],
+        save_freq=resources["agent_cfg"]['save_freq'],
         log_time=resources['log_time'],
-        verbose=ENV_CONFIG['verbose'],
+        verbose=resources["env_cfg"]['verbose'],
     )
 
-    server_agent.tb_write_config('env_config',ENV_CONFIG)
-    server_agent.tb_write_config('ppo_config',DPPO_CONFIG)
+    server_agent.tb_write_config('env_config',resources["env_cfg"])
+    server_agent.tb_write_config('ppo_config',resources["agent_cfg"])
 
     # Create checkpoint directory
-    os.makedirs(os.path.join('./checkpoints', DPPO_CONFIG['save_suffix'] if DPPO_CONFIG['save_suffix'] else  "the_nameless_ones"),exist_ok=True)
+    os.makedirs(os.path.join('./checkpoints', resources["agent_cfg"]['save_suffix'] if resources["agent_cfg"]['save_suffix'] else  "the_nameless_ones"),exist_ok=True)
 
     # resume if necessary
-    if DPPO_CONFIG['checkpoint']:
-        ckpt = torch.load(os.path.join('./checkpoints', DPPO_CONFIG['save_suffix'] if DPPO_CONFIG['save_suffix'] else  "the_nameless_ones",DPPO_CONFIG['checkpoint']), map_location='cpu')
-        _func = getattr(server_agent, DPPO_CONFIG['ckpt_mode'])
+    if resources["agent_cfg"]['checkpoint']:
+        ckpt = torch.load(os.path.join('./checkpoints', resources["agent_cfg"]['save_suffix'] if resources["agent_cfg"]['save_suffix'] else  "the_nameless_ones",resources["agent_cfg"]['checkpoint']), map_location='cpu')
+        _func = getattr(server_agent, resources["agent_cfg"]['ckpt_mode'])
         _func(ckpt)
 
     server_agent.learn()
@@ -135,39 +134,56 @@ def launch_server(rank, resources):
 def launch_worker(rank, resources):
 
     os.environ['RANK'] = str(rank)
-    device = DPPO_CONFIG['device_list'][(int(rank) - 1) % len(DPPO_CONFIG['device_list'])]
+
+    device = resources["agent_cfg"]['device_list'][(int(rank) - 1) % len(resources["agent_cfg"]['device_list'])]
 
     # overriding carla device
-    ENV_CONFIG['device'] = device
-    env = CarlaEnv(ENV_CONFIG, env_rank=rank)
+    resources["env_cfg"]['device'] = device
+    env = CarlaEnv(resources["env_cfg"], env_rank=rank)
 
     N_S = env.obs_manager.observation_space.shape[-1]
     N_A = env.obs_manager.action_space.shape[-1]
 
     local_policy = PPOActorCritic_Continuous(N_S, N_A,
-        use_transformer=ENV_CONFIG['input_type']=='transformer', squash=DPPO_CONFIG['squash']).to(device) # global network
+        use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
 
 
     worker_agent = DPPO_Worker_Agent(env, local_policy,
-        num_agents=ENV_CONFIG['num_agents'],
-        max_glb_num_steps=ENV_CONFIG['max_num_steps'],
-        eps_clip=DPPO_CONFIG['eps_clip'],
-        grad_clip=DPPO_CONFIG['grad_clip'],
-        grad_update_freq=DPPO_CONFIG['worker_grad_update_freq'],
-        optim_epochs=DPPO_CONFIG['worker_optim_epochs'],
-        focal_loss=DPPO_CONFIG['focal_loss'],
-        standard=DPPO_CONFIG['standard'],
-        push_grad=DPPO_CONFIG['push_grad'],
-        save_suffix=DPPO_CONFIG['save_suffix'],
+        num_agents=resources["env_cfg"]['num_agents'],
+        max_glb_num_steps=resources["env_cfg"]['max_num_steps'],
+        eps_clip=resources["agent_cfg"]['eps_clip'],
+        grad_clip=resources["agent_cfg"]['grad_clip'],
+        grad_update_freq=resources["agent_cfg"]['worker_grad_update_freq'],
+        optim_epochs=resources["agent_cfg"]['worker_optim_epochs'],
+        focal_loss=resources["agent_cfg"]['focal_loss'],
+        standard=resources["agent_cfg"]['standard'],
+        push_grad=resources["agent_cfg"]['push_grad'],
+        save_suffix=resources["agent_cfg"]['save_suffix'],
         log_time=resources['log_time'],
-        verbose=ENV_CONFIG['verbose'],
+        verbose=resources["env_cfg"]['verbose'],
     )
 
     worker_agent.learn()
 
     env.close()
 
-dist.run_param_server(launch_server, launch_worker, DPPO_CONFIG['num_servers'],
-    DPPO_CONFIG['num_workers'], res, dist.get_host_ip(), random.randint(10000, 60000))
+
+
+
+
+parser = argparse.ArgumentParser(description='Run Options')
+
+parser.add_argument('--exp_name', type=str, default='360deg_str_st_fs_1',
+                    help='Name of experiment')
+# parser.add_argument('--device_list', type=int, nargs='+',default=[1,2],
+#                     help='GPU devices to run on')
+args = parser.parse_args()  
+
+env_cfg, agent_cfg = override_configs(args.exp_name,ENV_CONFIG, DPPO_CONFIG)
+
+res = {'log_time': time.strftime('%b%d%I%M%p%S'), "env_cfg":env_cfg, "agent_cfg":agent_cfg}
+
+dist.run_param_server(launch_server, launch_worker, agent_cfg['num_servers'],
+    agent_cfg['num_workers'], res, dist.get_host_ip(), random.randint(10000, 60000))
 
 

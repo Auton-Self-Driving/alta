@@ -423,6 +423,7 @@ class CarlaEnv(gym.Env):
                         agent.prev_measurement['num_laneintersections']
                     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
                     
+                    print(" $",agent.episode_measurements['out_of_road'],end="$ ")
     
                     next_opts = set(agent.next_road_opt_queue)
                     for opt in next_opts:
@@ -447,8 +448,8 @@ class CarlaEnv(gym.Env):
                                     config=self.config,
                                     verbose=self.config["verbose"])
                 agent.curr_reward += agent.step_reward
-
-                obs_collision = agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions'] > 0
+                print(" $",agent.episode_measurements['out_of_road'],end="$ ")
+                obs_collision = (agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions']) > 0
 
                 if obs_collision and agent.episode_measurements["collision_actor_id"] != agent.prev_measurement["collision_actor_id"]:
                     self.total_collisions += 1
@@ -2104,7 +2105,7 @@ class CarlaEnv(gym.Env):
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
-        elif agent.episode_measurements['out_of_road'] and self.config['enable_lane_invasion_termination']:
+        elif agent.episode_measurements['out_of_road']: # and self.config['enable_lane_invasion_termination']
             termination_state = 'out_of_road'
             termination_state_code = 2
         elif agent.episode_measurements['unlawful_lane_change'] and self.config['enable_lane_invasion_termination']:

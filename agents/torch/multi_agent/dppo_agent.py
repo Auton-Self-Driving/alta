@@ -614,7 +614,9 @@ class DPPO_Worker_Agent(object):
         self.recorder['recent']['collision_rate'].record_value(
             obs_collision_int)
 
-        # tensorboard
+        # tensorboard'
+
+        # Episode Stats
         self.tbwriter.add_scalar('rank_{}/episode/reward'.format(self.rank),
             agent.episode_reward, self.glb_num_episodes)
         self.tbwriter.add_scalar('episode/dist_to_target',
@@ -638,13 +640,15 @@ class DPPO_Worker_Agent(object):
         self.tbwriter.add_scalar('rank_{}/episode/dist_to_target'.format(self.rank),
             self.recorder['episode']['dist_to_target'].summary(),
             self.glb_num_episodes)
+
+        # Recent Stats
         self.tbwriter.add_scalar('rank_{}/recent/avg_reward'.format(self.rank),
             self.recorder['recent']['avg_reward'].summary(),
             self.glb_num_episodes)
         self.tbwriter.add_scalar('rank_{}/recent/max_reward'.format(self.rank),
             self.recorder['recent']['max_reward'].summary(),
             self.glb_num_episodes)
-        self.tbwriter.add_scalar('rrank_{}/ecent/min_reward'.format(self.rank),
+        self.tbwriter.add_scalar('rank_{}/recent/min_reward'.format(self.rank),
             self.recorder['recent']['min_reward'].summary(),
             self.glb_num_episodes)
         self.tbwriter.add_scalar('rank_{}/recent/avg_dist_to_target'.format(self.rank),
@@ -656,7 +660,21 @@ class DPPO_Worker_Agent(object):
         self.tbwriter.add_scalar('rank_{}/recent/collision_rate'.format(self.rank),
             self.recorder['recent']['collision_rate'].summary(),
             self.glb_num_episodes)
-        # self.recorder.summary_all() # FOR PRINTING
+
+        # Stepwise stats
+        self.tbwriter.add_scalar('rank_{}/step/success_rate'.format(self.rank),
+            self.recorder['recent']['success_rate'].summary(),
+            self.glb_num_steps)
+        self.tbwriter.add_scalar('rank_{}/step/collision_rate'.format(self.rank),
+            self.recorder['recent']['collision_rate'].summary(),
+            self.glb_num_steps)
+        self.tbwriter.add_scalar('rank_{}/step/avg_reward'.format(self.rank),
+            self.recorder['recent']['avg_reward'].summary(),
+            self.glb_num_steps)
+        self.tbwriter.add_scalar('rank_{}/step/avg_dist_to_target'.format(self.rank),
+            self.recorder['recent']['avg_dist_to_trgt'].summary(),
+            self.glb_num_steps)
+
 
     def learn(self):
 
@@ -739,7 +757,6 @@ class DPPO_Worker_Agent(object):
 
                 if agent.done:  # done and print information
 
-                    # FOR PRINTING
                     print('[{}]'.format(self.time()) + \
                         '[rank {}]'.format(self.rank) + \
                         '[local ep {}][local step {}][agent {}] done({})'

@@ -239,22 +239,21 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     current["light_reward"] = light_reward
 
     is_collision = False
-    lane_change = False
+    unlawful_lane_change = False
     obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
     is_collision = obs_collision
 
     # count out_of_road also as a collision
-    if not config["disable_lane_invasion_sensor"]:
+    if config["disable_lane_invasion_sensor"] == False:
         is_collision = obs_collision or current["out_of_road"]
 
-        # count any lane change also as a collision
-        if not config["disable_lane_invasion_sensor"]:
-            lane_change = current['unlawful_lane_change'] > 0
-            is_collision = is_collision or lane_change
+        if config["enable_lane_invasion_penalty"] == True:
+            unlawful_lane_change = current['unlawful_lane_change'] > 0
 
     current['obs_collision'] = obs_collision
-    # current['lane_change'] = lane_change
     current["is_collision"] = is_collision
+
+    lane_invasion_reward = -1 * int(unlawful_lane_change) * config["const_lane_invasion_penalty"] 
 
     # Collision damage
     if is_collision:
@@ -262,26 +261,18 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         # due to non-determinism in speed at the time of collision
         collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
         speed_reward = prev["speed"]
-        # old collision reward
-        # collision_reward = -1 * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * current["speed"])
-        if config['verbose']: print('-' * 60 + '[collision reward {}]'.format(collision_reward))
     else:
         collision_reward = 0
     current["collision_reward"] = collision_reward
+
+    print(current["num_steps"],":",obs_collision,current["out_of_road"],current["is_collision"],end=" -- ")
 
     # static penalty
     static_reward = 0
     if config['enable_static_termination'] and current['static_steps'] > config['max_static_steps']:
         static_reward = -1 * config['static_penalty']
 
-    # # New sidewalk intersection
-    # if((current["num_laneintersections"] - prev["num_laneintersections"]) > 0):
-    #     lane_intersection_reward = -1
-    # else:
-    #     lane_intersection_reward = 0
-    # current["lane_intersection_reward"] = lane_intersection_reward
-
-    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + light_reward + static_reward
+    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + lane_invasion_reward + light_reward + static_reward
 
     # Adding constant positive reward to make dist_to_trajectory_reward positive
     reward += config["constant_positive_reward"]
@@ -305,14 +296,14 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     current["step_reward"] = clipped_reward
 
-    if verbose:
-        print("dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward")
-        print(dist_to_trajectory_reward, speed_reward, acceleration_reward, collision_reward, light_reward, steer_reward, reward, clipped_reward)
-    # Update state variables
-    # if np.absolute(lane_intersection_reward) > 0:
-    #     current["offlane_steps"] += 1
-    # if current["speed"] <= config["zero_speed_threshold"]:
-    #     current["static_steps"] += 1
+    # if verbose:
+    if collision_reward + lane_invasion_reward < 0:
+        print()
+        # print("collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward")
+        # print(collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward)
+        print("collision_reward, lane_invasion_reward, clipped_reward")
+        print(collision_reward, lane_invasion_reward, clipped_reward)
+    
     return clipped_reward
 
 def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
@@ -366,7 +357,7 @@ def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):
         is_collision = obs_collision or current["out_of_road"]
 
         # count any lane change also as a collision
-        if config["enable_lane_invasion_collision"]:
+        if config["enable_lane_invasion_penalty"]:
             lane_change = current['num_laneintersections'] > 0
             is_collision = is_collision or lane_change
 
@@ -471,7 +462,7 @@ def _compute_reward_simple3(prev, current, config=None, verbose=False):
         is_collision = obs_collision or current["out_of_road"]
 
         # count any lane change also as a collision
-        if config["enable_lane_invasion_collision"]:
+        if config["enable_lane_invasion_penalty"]:
             lane_change = current['num_laneintersections'] > 0
             is_collision = is_collision or lane_change
 
@@ -578,7 +569,7 @@ def _compute_reward_obs(prev, current, config=None, verbose=False):
         is_collision = obs_collision or current["out_of_road"]
 
         # count any lane change also as a collision
-        if config["enable_lane_invasion_collision"]:
+        if config["enable_lane_invasion_penalty"]:
             lane_change = current['num_laneintersections'] > 0
             is_collision = is_collision or lane_change
 
