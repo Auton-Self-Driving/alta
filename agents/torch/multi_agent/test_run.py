@@ -139,6 +139,8 @@ def construct_config_update(args):
 
                 config_list[-1]['device'] = 'cuda:'+args.device
 
+                config_list[-1]['num_episodes'] = args.num_eps
+                
                 config_list[-1]['scenarios'] = scn
 
                 if scn == "no_crash_dense":
@@ -147,6 +149,8 @@ def construct_config_update(args):
                     config_list[-1]['num_npc'] = 0
                 elif scn == "straight_overtake":
                     config_list[-1]['num_npc'] = 1
+                    config_list[-1]['enable_off_road_termination'] = False
+                    config_list[-1]['enable_lane_invasion_termination'] = False
                 else:
                     config_list[-1]['num_npc'] = 0      
 
@@ -161,10 +165,15 @@ def construct_config_update(args):
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light'
                 elif '15dim' in ckpt:
                     config_list[-1]['input_type'] = 'wp_obs_more_info_speed_steer_ldist_light'
-                elif '24dim' in ckpt:
+                elif '24dim' in ckpt or '360deg' in ckpt:
                     config_list[-1]['input_type'] = 'wp_360_obstacle_speed_steer'
                 else:
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light' # 7dim
+
+                if "5dof" in ckpt:
+                    config_list[-1]['action_type'] = 'cubic_bezier_5dof'
+                elif "wp" in ckpt:
+                    config_list[-1]['action_type'] = 'speed_wp'
 
     return config_list
                     
@@ -212,6 +221,9 @@ if __name__ == '__main__':
 # python test_run.py --ckpt sp_wp_24dim_st_ovrtk_lanepen --ckpt_iters 150613 120568 30255 60320 90523  --test_towns Town01 --scenarios straight_overtake --threads 5 --device 2
 # python test_run.py --ckpt sp_str_24dim_st_ovrtk_lanepen --ckpt_iters 300274 210133 120066 90046 --test_towns Town01 --scenarios straight_overtake --threads 5 --device 0
 # python test_run.py --ckpt sp_str_24dim_st_frameskip_4 --ckpt_iters 60137 90249 120421 150458 302682 --test_towns Town01 --scenarios straight --threads 5 --device 1
+
+
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_1 --ckpt_iters 151831 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
 
 
 

@@ -244,7 +244,7 @@ ENV_CONFIG = {
     'episode_measurements': EPISODE_MEASUREMENTS, # c TODO rework since outside class
     'frame_stack_size' : 1, # oc
 
-    'frame_skip': 10, #1 # ac # TODO: monitor this
+    'frame_skip': 1, #1 # ac # TODO: monitor this
     'traj_frame_horizon':30, #30, #TODO add somewhere. Must be more than frameskip
     'sticky_temporal_action_frames': 1, #12 # TODO: add somewhere. Performs frame skip but also commits (S,A,R,S) at each frame
 
@@ -366,7 +366,8 @@ ENV_CONFIG = {
     # Reward Coefficients
     'steer_penalty_coeff': 0, # rc
     'const_collision_penalty': 250, # rc
-    'collision_penalty_speed_coeff': 250, # rc
+    'const_lane_invasion_penalty': 250, # sc TODO
+    'collision_penalty_speed_coeff': 0, # 250, # rc # NOTE modified
     'const_light_penalty': 250, # rc
     'light_penalty_speed_coeff': 250, # rc
     'static_penalty': 0, # TODO add
@@ -375,12 +376,15 @@ ENV_CONFIG = {
     'constant_positive_reward': 0, # rc
 
     # Reward and Termination Booleans
-    'terminate_on_light' : False, # sc
     'disable_collision': False, # sc
-    'disable_lane_invasion_sensor' : True, # sc TODO [RED] # DISABLED [AMAN]   
-    'enable_static_termination': False, # DISABLED [AMAN] # sc disable_static TODO fix code
+    'disable_lane_invasion_sensor' : False, # sc TODO [RED]  
     'enable_lane_invasion_termination' : False, #DISABLED [AMAN] # rc
-    'enable_lane_invasion_collision' : False, #DISABLED [AMAN] # rc
+    'enable_off_road_termination' : True, # TODO rc
+
+    'terminate_on_light' : False, # sc
+    'enable_static_termination': False, # DISABLED [AMAN] # sc disable_static TODO fix code
+    'enable_lane_invasion_penalty' : False, #DISABLED [AMAN] # rc
+
     'clip_reward' : False, # rc
 
 

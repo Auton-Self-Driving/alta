@@ -195,6 +195,7 @@ class DummyAgent(Agent):
 
 
 class CarlaEnv(gym.Env):
+    
     def __init__(self, config, logger=None, env_rank=0):
         self.config = config
         self.CarlaServer = None
@@ -422,8 +423,6 @@ class CarlaEnv(gym.Env):
                     agent.episode_measurements['unlawful_lane_change'] = agent.episode_measurements['num_laneintersections'] > \
                         agent.prev_measurement['num_laneintersections']
                     agent.episode_measurements['out_of_road'] = agent.lane_invasion_sensor.out_of_road
-                    
-                    print(" $",agent.episode_measurements['out_of_road'],end="$ ")
     
                     next_opts = set(agent.next_road_opt_queue)
                     for opt in next_opts:
@@ -448,7 +447,7 @@ class CarlaEnv(gym.Env):
                                     config=self.config,
                                     verbose=self.config["verbose"])
                 agent.curr_reward += agent.step_reward
-                print(" $",agent.episode_measurements['out_of_road'],end="$ ")
+
                 obs_collision = (agent.episode_measurements['num_collisions'] - agent.prev_measurement['num_collisions']) > 0
 
                 if obs_collision and agent.episode_measurements["collision_actor_id"] != agent.prev_measurement["collision_actor_id"]:
@@ -490,8 +489,13 @@ class CarlaEnv(gym.Env):
                 agent.speed_reward_array.append(agent.episode_measurements['speed_reward'])
 
                 agent.episode_reward += agent.curr_reward
+                for k in agent.episode_reward_breakup:
+                    agent.episode_reward_breakup[k] += agent.episode_measurements['reward_breakup'][k]
                 agent.episode_measurements['reward'] = agent.curr_reward
                 agent.episode_measurements['total_reward'] = agent.episode_reward
+
+                for k in agent.camera_images_array:
+                    agent.camera_images_array[k].append(agent.episode_measurements['camera_images'][k])
 
         for rk, agent in enumerate(self.ego_agent_list):
             if agent.action is None:
@@ -1138,6 +1142,15 @@ class CarlaEnv(gym.Env):
             spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
             spwn_rot = self.source_transform.rotation
             self.spawn_points = [Transform(spwn_loc,spwn_rot)]
+        elif self.config["scenarios"] == "straight_random_overtake": 
+            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            self.config["num_episodes"] = 25
+            if random.random() > 0.5: # Add obstacle vehicle with 0.5 probability
+                frac = random.random() * 0.5 + 0.25
+                spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
+                spwn_rot = self.source_transform.rotation
+                self.spawn_points = [Transform(spwn_loc,spwn_rot)]
+                self.stationary_obstacle_vehicle = True
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
             self.config["num_episodes"] = 2
@@ -1303,6 +1316,9 @@ class CarlaEnv(gym.Env):
             agent.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
             agent.curr_ep_num_steps = 0
 
+            # Reward breakup logger
+            agent.episode_reward_breakup = {"progress":0,"motion":0,"steer":0,"d2t":0,"light":0,"lane_invasion":0,"obs_collision":0,"static":0}
+
             agent.episode_measurements = copy.deepcopy(self.config['episode_measurements'])
             agent.previous_measurements = None
 
@@ -1375,6 +1391,8 @@ class CarlaEnv(gym.Env):
                 "bev":self._world.spawn_actor(bev_camera, bev_camera_transform, attach_to=agent.vehicle_actor),
                 "front":self._world.spawn_actor(front_camera, front_camera_transform, attach_to=agent.vehicle_actor),
             }
+
+            agent.camera_images_array = {k : [] for k in agent.camera_actors}
 
             agent.camera_queues = [] 
             for k in agent.camera_actors.keys():
@@ -1696,7 +1714,7 @@ class CarlaEnv(gym.Env):
         for idx in range(len(cameras)):
             image = self._read_data(agent.camera_queues[idx], self.world_frame)
             agent.camera_images[cameras[idx]] = image
-        obs['camera_images'] = agent.camera_images
+        agent.episode_measurements['camera_images'] = agent.camera_images
 
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30
@@ -2012,6 +2030,9 @@ class CarlaEnv(gym.Env):
 
             if self.config["scenarios"] == "straight_overtake":
                 self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
+            elif self.config["scenarios"] == "straight_random_overtake":
+                if stationary_obstacle_vehicle:
+                    self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
             # TODO: uncomment below to enable autopilot
             elif not self.config["scenarios"] == "straight_dynamic":
                 vehicle.set_autopilot(True, tm_port)
@@ -2077,6 +2098,7 @@ class CarlaEnv(gym.Env):
         runover_light = agent.episode_measurements["runover_light"]
         maxStepsTaken = agent.episode_measurements["num_steps"] > self.config['max_steps']
         offlane = False
+        offroad = False
 
         # Conditions to check there is obstacle or red light ahead for last 2 timesteps
         obstacle_ahead = agent.episode_measurements['obstacle_dist'] != -1 and agent.prev_measurement['obstacle_dist'] != -1
@@ -2089,8 +2111,9 @@ class CarlaEnv(gym.Env):
         if self.config["disable_traffic_light"] or not self.config["terminate_on_light"]:
             runover_light = False
         if self.config['enable_lane_invasion_termination']:
-            offlane = agent.episode_measurements['unlawful_lane_change'] or \
-                agent.episode_measurements['out_of_road']
+            offlane = agent.episode_measurements['unlawful_lane_change']
+        if self.config['enable_off_road_termination']:
+            offroad = agent.episode_measurements['out_of_road']
 
 
         # Do not want to terminate on reaching goal
@@ -2105,7 +2128,7 @@ class CarlaEnv(gym.Env):
             else:
                 termination_state = 'unexpected_collision'
                 termination_state_code = 4
-        elif agent.episode_measurements['out_of_road']: # and self.config['enable_lane_invasion_termination']
+        elif offroad and self.config['enable_off_road_termination']:
             termination_state = 'out_of_road'
             termination_state_code = 2
         elif agent.episode_measurements['unlawful_lane_change'] and self.config['enable_lane_invasion_termination']:
@@ -2142,7 +2165,7 @@ class CarlaEnv(gym.Env):
         agent.episode_measurements['termination_state'] = termination_state
         agent.episode_measurements['termination_state_code'] = termination_state_code
 
-        done = success or collision or runover_light or offlane or static or maxStepsTaken
+        done = success or collision or runover_light or offlane or offroad or static or maxStepsTaken
         return done
 
     def close(self):

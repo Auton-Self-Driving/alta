@@ -230,7 +230,6 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
             current["speed"] > config["zero_speed_threshold"] and \
             prev['initial_dist_to_red_light'] > config['min_dist_from_red_light']:
             current["runover_light"] = True
-            # print('runover_light')
             light_reward = -1 * (config["const_light_penalty"] + config["light_penalty_speed_coeff"] * current["speed"])
             if config['verbose']: print('-' * 60 + '[light reward {}]'.format(light_reward))
         else:
@@ -243,17 +242,19 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
     obs_collision = (current["num_collisions"] - prev["num_collisions"]) > 0
     is_collision = obs_collision
 
-    # count out_of_road also as a collision
     if config["disable_lane_invasion_sensor"] == False:
-        is_collision = obs_collision or current["out_of_road"]
+        is_offroad = current["out_of_road"] # Check if offroad
 
-        if config["enable_lane_invasion_penalty"] == True:
+        if config["enable_lane_invasion_penalty"] == True: # Check for lane invasion (onroad)
             unlawful_lane_change = current['unlawful_lane_change'] > 0
 
     current['obs_collision'] = obs_collision
     current["is_collision"] = is_collision
 
     lane_invasion_reward = -1 * int(unlawful_lane_change) * config["const_lane_invasion_penalty"] 
+    # Offroad penalty computed using collision constants
+    offroad_reward = -1 * int(is_offroad) * config["const_collision_penalty"]
+    # offroad_reward = -1 * int(is_offroad) * (config["const_collision_penalty"] + config["collision_penalty_speed_coeff"] * prev["speed"])
 
     # Collision damage
     if is_collision:
@@ -265,14 +266,19 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
         collision_reward = 0
     current["collision_reward"] = collision_reward
 
-    print(current["num_steps"],":",obs_collision,current["out_of_road"],current["is_collision"],end=" -- ")
+    if verbose:
+        print("[smpl2]",current["num_steps"],":",obs_collision,is_offroad,unlawful_lane_change,end=" -- ")
 
     # static penalty
     static_reward = 0
     if config['enable_static_termination'] and current['static_steps'] > config['max_static_steps']:
         static_reward = -1 * config['static_penalty']
 
-    reward = dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + lane_invasion_reward + light_reward + static_reward
+    # Progress towards goal reward
+    goal_progress_reward = prev['distance_to_goal_trajec'] - current['distance_to_goal_trajec']
+    
+
+    reward = goal_progress_reward + dist_to_trajectory_reward + speed_reward + steer_reward + collision_reward + lane_invasion_reward + offroad_reward + light_reward + static_reward
 
     # Adding constant positive reward to make dist_to_trajectory_reward positive
     reward += config["constant_positive_reward"]
@@ -296,14 +302,20 @@ def _compute_reward_simple2(prev, current, config=None, verbose=False):
 
     current["step_reward"] = clipped_reward
 
-    # if verbose:
-    if collision_reward + lane_invasion_reward < 0:
-        print()
-        # print("collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward")
-        # print(collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward)
-        print("collision_reward, lane_invasion_reward, clipped_reward")
-        print(collision_reward, lane_invasion_reward, clipped_reward)
-    
+    if verbose:
+        if collision_reward + lane_invasion_reward < 0:
+            print()
+            # print("collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward")
+            # print(collision_reward, lane_invasion_reward, dist_to_trajectory_reward, speed_reward, acceleration_reward, light_reward, steer_reward, reward, clipped_reward)
+            print("collision_reward, lane_invasion_reward, offroad_reward, clipped_reward")
+            print(collision_reward, lane_invasion_reward, offroad_reward, clipped_reward)
+        else:
+            print("[reward]",clipped_reward,end=" : ")
+
+    current["reward_breakup"] = {"progress":goal_progress_reward,"motion":speed_reward+acceleration_reward,"steer":steer_reward,"d2t":dist_to_trajectory_reward,"light":light_reward,"lane_invasion":lane_invasion_reward+offroad_reward,"obs_collision":collision_reward,"static":static_reward}
+    for k in current["reward_breakup"]:
+        current["reward_breakup"][k] /= config["reward_normalize_factor"]
+
     return clipped_reward
 
 def _compute_reward_simple2_modified(prev, current, config=None, verbose=False):

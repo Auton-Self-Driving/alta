@@ -1922,7 +1922,7 @@ def get_straight_path(unseen=False, town="Town01", index=0):
             return random.choice(benchmark_paths_straight_Town02())
     else:
         if town == "Town01":
-            return benchmark_paths_straight_Town01()[index]
+            return benchmark_paths_straight_Town01()[24-index]
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
 
@@ -2165,39 +2165,6 @@ def get_leaderboard_route(unseen=False, curr_town=None, index=0, max_idx=None, a
     # print(2149, curr_town, _town)
     return _src, _dst, _wp_list, _town
 
-# def get_leaderboard_route(unseen=False, town="Town01", index=0, mode='train'):
-#     xml_file = {
-#             'train': '../../leaderboard/data/routes_training.xml',
-#             'test': '../../leaderboard/data/routes_testing.xml'
-#         }[mode]
-
-#     _route_tree = ET.parse(xml_file)
-#     _routes = _route_tree.findall('route')
-#     _route_in_this_town = []
-#     for _r in _routes:
-#         if _r.attrib['town'] == town:
-#             _route_in_this_town.append(_r)
-
-#     if not unseen:
-#         _route = random.choice(_route_in_this_town)
-#     else:
-#         _route = _route_in_this_town[index % len(_route_in_this_town)]
-#     _wps = _route.findall('waypoint')
-#     # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
-#     _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
-#         Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
-#     _wp_list = [_src.location]
-#     for _wp in _wps[1:-1]:
-#         _wp_loc = Transform(Location(x=float(_wp.attrib['x']), y=float(_wp.attrib['y']), z=float(_wp.attrib['z']) + .5))
-#         _wp_list.append(_wp_loc.location)
-#     _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5))
-#     _wp_list.append(_dst.location)
-#     # _src = Transform(Location(x=float(_wps[0].attrib['x']), y=float(_wps[0].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
-#     #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[0].attrib['roll'])))
-#     # _dst = Transform(Location(x=float(_wps[-1].attrib['x']), y=float(_wps[-1].attrib['y']), z=float(_wps[0].attrib['z']) + .5),
-#     #     Rotation(pitch=float(_wps[0].attrib['pitch']), yaw=float(_wps[0].attrib['yaw']), roll=float(_wps[-1].attrib['roll'])))
-#     # print(_src, _dst)
-#     return _src, _dst, _wp_list
 
 '''
 # Deprecated Helper functions

@@ -40,7 +40,7 @@ class Recorder:
             'mean': _MeanRec, 'plain': _PlainRec,
             }[_mode]
         self._record[_group][key] = _recorder(_win_size)
-#         print(self._record[_group][key])
+
 
     def register_key(self, key, window_size=None, mode='plain', group='default'):
         """
@@ -70,12 +70,6 @@ class Recorder:
         yield
         self._record[group][key].record_value(time.time() - _tick)
         
-#     @contextmanager
-#     def register_time(self, key, window_size=None, mode='plain', group='default'):
-#         self.register_key(key, window_size, mode, group)
-#         _tick = time.time()
-#         yield
-#         self._record[group][key] = time.time() - _tick
 
     def summary(self, key, group='default'):
         if group not in self._record:
@@ -222,13 +216,25 @@ GlobalRecorder.register_key('num_collisions', window_size='inf', mode='plain', g
 GlobalRecorder.register_key('dist_to_target', window_size='inf', mode='plain', group='train')
 GlobalRecorder.register_key('success_rate', window_size='inf', mode='mean', group='train')
 GlobalRecorder.register_key('collision_rate', window_size='inf', mode='mean', group='train')
+GlobalRecorder.register_key('offroad_rate', window_size='inf', mode='mean', group='train')
 GlobalRecorder.register_key('entropy_temp', window_size=1, mode='plain', group='train')
 GlobalRecorder.register_key('dist_to_target', window_size=1, mode='plain', group='episode')
+
+GlobalRecorder.register_key('reward_motion', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_steer', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_progress', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_d2t', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_light', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_static', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_lane_invasion', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('reward_obs_collision', window_size=100, mode='mean', group='recent')
+
 GlobalRecorder.register_key('avg_reward', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('max_reward', window_size=100, mode='max', group='recent')
 GlobalRecorder.register_key('min_reward', window_size=100, mode='min', group='recent')
 GlobalRecorder.register_key('success_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('collision_rate', window_size=100, mode='mean', group='recent')
+GlobalRecorder.register_key('offroad_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('avg_dist_to_trgt', window_size=100, mode='mean', group='recent')
 
 ProfilerRecorder = Recorder()

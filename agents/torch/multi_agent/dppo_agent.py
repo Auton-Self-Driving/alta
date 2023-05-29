@@ -1,11 +1,13 @@
 import os
 import time
+import math
 import pickle
 import copy
 import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 import numpy as np
+import imageio
 import dist_utils as dist
 
 from threading import Thread, Lock
@@ -215,7 +217,7 @@ class DPPO_Server_Agent(object):
 
             self.vprint('server', self.rank, 'QUERY', sender,
                 num_steps_added, 'buffer_len', buffer_len, signal)
-            
+
             if signal == SIG.GRAD_PUSH:
                 total_len = (self.N_S + self.N_A + 3) * buffer_len
 
@@ -353,7 +355,7 @@ class DPPO_Server_Agent(object):
                 # Finding the ratio (pi_theta / pi_theta__old): prob of cur_action / old_action as per policy
                 ratios = torch.exp(logprobs - old_logprobs[idx:idx + batch_size].detach())
 
-                # Copmute Loss:
+                # Compute Loss:
                 advantages = rewards[idx:idx + batch_size] - state_values.detach()
                 if self.focal_loss:
                     _al, _ga = self.focal_loss # assume a [alpha, gamma] list
@@ -582,7 +584,7 @@ class DPPO_Worker_Agent(object):
 
         return glb_stats
 
-    def _record_stats(self, agent, success_int, obs_collision_int):
+    def _record_stats(self, agent, success_int, obs_collision_int, out_of_road_int):
 
         # record statistics
         self.recorder['train']['reward'].record_value(
@@ -599,6 +601,8 @@ class DPPO_Worker_Agent(object):
             success_int)
         self.recorder['train']['collision_rate'].record_value(
             obs_collision_int)
+        self.recorder['train']['offroad_rate'].record_value(
+            out_of_road_int)
         self.recorder['episode']['dist_to_target'].record_value(
             agent.episode_measurements['distance_to_goal_trajec'])
         self.recorder['recent']['avg_reward'].record_value(
@@ -613,8 +617,25 @@ class DPPO_Worker_Agent(object):
             success_int)
         self.recorder['recent']['collision_rate'].record_value(
             obs_collision_int)
+        self.recorder['recent']['offroad_rate'].record_value(
+            out_of_road_int)
 
-        # tensorboard'
+        self.recorder['recent']['reward_steer'].record_value(
+            agent.episode_reward_breakup["steer"])
+        self.recorder['recent']['reward_progress'].record_value(
+            agent.episode_reward_breakup["progress"])
+        self.recorder['recent']['reward_motion'].record_value(
+            agent.episode_reward_breakup["motion"])
+        self.recorder['recent']['reward_d2t'].record_value(
+            agent.episode_reward_breakup["d2t"])
+        self.recorder['recent']['reward_light'].record_value(
+            agent.episode_reward_breakup["light"])
+        self.recorder['recent']['reward_lane_invasion'].record_value(
+            agent.episode_reward_breakup["lane_invasion"])
+        self.recorder['recent']['reward_obs_collision'].record_value(
+            agent.episode_reward_breakup["obs_collision"])
+        self.recorder['recent']['reward_static'].record_value(
+            agent.episode_reward_breakup["static"])
 
         # Episode Stats
         self.tbwriter.add_scalar('rank_{}/episode/reward'.format(self.rank),
@@ -630,6 +651,9 @@ class DPPO_Worker_Agent(object):
             self.glb_num_episodes)
         self.tbwriter.add_scalar('rank_{}/episode/collision_rate'.format(self.rank),
             self.recorder['train']['collision_rate'].summary(),
+            self.glb_num_episodes)
+        self.tbwriter.add_scalar('rank_{}/episode/offroad_rate'.format(self.rank),
+            self.recorder['train']['offroad_rate'].summary(),
             self.glb_num_episodes)
         self.tbwriter.add_scalar('rank_{}/episode/avg_reward'.format(self.rank),
             self.recorder['train']['avg_reward'].summary(),
@@ -660,6 +684,21 @@ class DPPO_Worker_Agent(object):
         self.tbwriter.add_scalar('rank_{}/recent/collision_rate'.format(self.rank),
             self.recorder['recent']['collision_rate'].summary(),
             self.glb_num_episodes)
+        self.tbwriter.add_scalar('rank_{}/recent/offroad_rate'.format(self.rank),
+            self.recorder['recent']['offroad_rate'].summary(),
+            self.glb_num_episodes)
+        self.tbwriter.add_scalars('rank_{}/recent/avg_reward_breakup'.format(self.rank),
+            {
+                'steer':self.recorder['recent']['reward_steer'].summary(),
+                'progress2goal':self.recorder['recent']['reward_progress'].summary(),
+                'motion':self.recorder['recent']['reward_motion'].summary(),
+                'd2t':self.recorder['recent']['reward_d2t'].summary(),
+                'ln_inv':self.recorder['recent']['reward_lane_invasion'].summary(),
+                'obs_collision':self.recorder['recent']['reward_obs_collision'].summary(),
+                'static':self.recorder['recent']['reward_static'].summary(),
+                'light':self.recorder['recent']['reward_light'].summary(),
+            },
+            self.glb_num_episodes)
 
         # Stepwise stats
         self.tbwriter.add_scalar('rank_{}/step/success_rate'.format(self.rank),
@@ -668,12 +707,51 @@ class DPPO_Worker_Agent(object):
         self.tbwriter.add_scalar('rank_{}/step/collision_rate'.format(self.rank),
             self.recorder['recent']['collision_rate'].summary(),
             self.glb_num_steps)
+        self.tbwriter.add_scalar('rank_{}/step/offroad_rate'.format(self.rank),
+            self.recorder['recent']['offroad_rate'].summary(),
+            self.glb_num_steps)
         self.tbwriter.add_scalar('rank_{}/step/avg_reward'.format(self.rank),
             self.recorder['recent']['avg_reward'].summary(),
             self.glb_num_steps)
         self.tbwriter.add_scalar('rank_{}/step/avg_dist_to_target'.format(self.rank),
             self.recorder['recent']['avg_dist_to_trgt'].summary(),
             self.glb_num_steps)
+        self.tbwriter.add_scalars('rank_{}/step/avg_reward_breakup'.format(self.rank),
+            {
+                'steer':self.recorder['recent']['reward_steer'].summary(),
+                'progress2goal':self.recorder['recent']['reward_progress'].summary(),
+                'motion':self.recorder['recent']['reward_motion'].summary(),
+                'd2t':self.recorder['recent']['reward_d2t'].summary(),
+                'ln_inv':self.recorder['recent']['reward_lane_invasion'].summary(),
+                'obs_collision':self.recorder['recent']['reward_obs_collision'].summary(),
+                'static':self.recorder['recent']['reward_static'].summary(),
+                'light':self.recorder['recent']['reward_light'].summary(),
+            },
+            self.glb_num_steps)
+
+        # Videowriter
+        if self.rank == 1: # Firsts worker logs video output
+            if (self.glb_num_episodes) % 10 == 1: 
+                for c in ['bev','front']:
+                    n_frames = len(agent.camera_images_array[c])
+                    # ln = 50
+                    # if n_frames > ln:
+                    #     step = n_frames / float(ln-1)
+                    #     agent.camera_images_array[c] = [agent.camera_images_array[c][int(idx*step)] for idx in range(0,ln-1)] + \
+                    #                                     [agent.camera_images_array[c][-1]]
+                    # imageio.mimsave(os.path.join(self.tb_log_dir,'train_clips',f"{self.glb_num_episodes}-{c}.gif"),agent.camera_images_array[c],'GIF',fps=15)
+                    img_batch = np.stack(agent.camera_images_array[c],axis=0)
+                    video = torch.from_numpy(img_batch).permute(0, 3, 1, 2).unsqueeze(0)
+                    # print(n_frames,video.shape)
+                    # self.tbwriter.add_images('rank_{}/episode/{}'.format(self.rank,c),
+                    #     img_batch,
+                    #     self.glb_num_episodes,
+                    #     'NHWC'
+                    #     )
+                    self.tbwriter.add_video('rank_{}/episode/{}'.format(self.rank,c),
+                        video,
+                        self.glb_num_episodes,
+                        fps=5)
 
 
     def learn(self):
@@ -687,10 +765,12 @@ class DPPO_Worker_Agent(object):
             self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
                 filename_suffix='_{}'.format(self.run_name),)
+        # os.makedirs(os.path.join(self.tb_log_dir,'train_clips'),exist_ok=True)
+
 
         # Initialize local environment
         self.local_env.reset(rank_list=self.rank_list) # Ranklist = [0,1,...,num_agents-1]
-        self.local_env.spawn_npc_vehicles(51 - self.num_agents)
+        self.local_env.spawn_npc_vehicles() # 51 - self.num_agents
         # Add agents to local env that are controllable by the policy network
         self.agent_list = [_DPPO_Individual_Agent( 
             self.local_env.ego_vehicle_list[i], timestamp=0,
@@ -753,11 +833,16 @@ class DPPO_Worker_Agent(object):
 
                 # Send trajectory to server if max rollout length achieved
                 if not self.push_grad and len(agent.memory['done']) >= self.grad_update_freq:
-                    self._update_buffer(agent)
+                    # self._update_buffer(agent)
+                    agent.done = True
+                    agent.memory['done'][-1] = True
+                    agent.termination_state = 'max_steps'
+                    agent.termination_state_code = 10
 
                 if agent.done:  # done and print information
 
-                    print('[{}]'.format(self.time()) + \
+                    print(f"[{self.save_suffix}]" + \
+                        '[{}]'.format(self.time()) + \
                         '[rank {}]'.format(self.rank) + \
                         '[local ep {}][local step {}][agent {}] done({})'
                         ', ep reward [{:.4f}]'.format(
@@ -769,7 +854,10 @@ class DPPO_Worker_Agent(object):
 
                     success_int = int('success' == agent.termination_state)
                     obs_collision_int = int('obs_collision' == agent.termination_state)
-                    self._record_stats(agent, success_int, obs_collision_int)
+                    out_of_road_int = int('out_of_road' == agent.termination_state)
+
+                    if rk == 0: # Record only first agent in each worker
+                        self._record_stats(agent, success_int, obs_collision_int, out_of_road_int)
                     self.local_num_episodes += 1
                     self.num_eps_since_update += 1
 

@@ -130,7 +130,6 @@ def launch_server(rank, resources):
 
     server_agent.learn()
 
-
 def launch_worker(rank, resources):
 
     os.environ['RANK'] = str(rank)
@@ -162,7 +161,6 @@ def launch_worker(rank, resources):
         log_time=resources['log_time'],
         verbose=resources["env_cfg"]['verbose'],
     )
-
     worker_agent.learn()
 
     env.close()
