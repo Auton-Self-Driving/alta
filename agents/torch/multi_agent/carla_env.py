@@ -268,8 +268,17 @@ class CarlaEnv(gym.Env):
 
         time.sleep(20)
 
-        self.tm_port = random.randint(10000, 60000)
-        self.tm = self.client.get_trafficmanager(self.tm_port)
+        tmport_retries = 0
+        while True:
+            try:
+                self.tm_port = random.randint(10000, 60000)
+                self.tm = self.client.get_trafficmanager(self.tm_port)
+                break
+            except Exception as e:
+                tmport_retries += 1
+                if tmport_retries > 5:
+                    self.close()
+                    exit()
         self.tm.set_synchronous_mode(True)
 
         CarlaDataProvider.set_client(self.client)
@@ -380,6 +389,22 @@ class CarlaEnv(gym.Env):
                 agent.vehicle_actor.apply_control(control)
                 agent.curr_ep_num_steps += 1
         
+                # ### NOTE
+                # if agent.episode_measurements['num_steps'] is None or agent.episode_measurements['num_steps'] % 8 == 0:
+                #     print(agent.episode_measurements['num_steps'],
+                #     self.curr_town,
+                #     self.config["scenarios"],
+                #     f"Sp:{agent.episode_measurements['speed']:.2f}", 
+                #     f"D2G:{agent.episode_measurements['distance_to_goal_trajec']:.2f}",
+                #     f"[S:({self.source_transform.location.x:.2f},{self.source_transform.location.y:.2f}),D:({self.destination_transform.location.x:.2f},{self.destination_transform.location.y:.2f})]",
+                #     f"[Spawn:({self.spawn_points[0].location.x:.2f},{self.spawn_points[0].location.y:.2f})]",
+                #     f"Agent:({agent.vehicle_actor.get_transform().location.x:.2f},{agent.vehicle_actor.get_transform().location.y:.2f})",
+                #     f"NPC:({self.actor_list[0].get_transform().location.x:.2f},{self.actor_list[0].get_transform().location.y:.2f})",
+                #     f"cos:{env_util.cosine_between_velocities(self.actor_list[0].get_transform().get_forward_vector(),agent.vehicle_actor.get_transform().get_forward_vector()):.2f}",
+                #     [agent.episode_measurements['obstacle_speed'],agent.episode_measurements['obstacle_speed_front_left'],agent.episode_measurements['obstacle_speed_front_right'],agent.episode_measurements['obstacle_speed_back_left'],agent.episode_measurements['obstacle_speed_back_right']],
+                #     [agent.episode_measurements['obstacle_dist'],agent.episode_measurements['obstacle_dist_front_left'],agent.episode_measurements['obstacle_dist_front_right'],agent.episode_measurements['obstacle_dist_back_left'],agent.episode_measurements['obstacle_dist_back_right']] ) 
+                
+
             ########################################################################################
             CarlaDataProvider.on_carla_tick()
             self.world_frame = self._world.tick()
@@ -1018,6 +1043,7 @@ class CarlaEnv(gym.Env):
         sensor_readings = {}
         obstacle_set = set()
         for suffix in agent.obstacle_sensor:
+
             #for idx, k in enumerate(self.sensor_names):
             if(not 'obstacle_sensor' in sensor_readings):
 
@@ -1058,7 +1084,8 @@ class CarlaEnv(gym.Env):
 
 
                     # Compute relative velocity
-                    relative_velocity = ego_inverse_matrix[0:3,0:3] @ (other_velocity - ego_velocity)
+                    # relative_velocity = ego_inverse_matrix[0:3,0:3] @ (other_velocity - ego_velocity)
+                    relative_velocity = ego_inverse_matrix[0:3,0:3] @ (other_velocity) ### NOTE # Not relative just transformed velocity
                     vel_x = relative_velocity[0]
                     vel_y = relative_velocity[1]
 
@@ -1136,9 +1163,9 @@ class CarlaEnv(gym.Env):
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
         elif self.config["scenarios"] == "straight_overtake": 
-            self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
+            self.source_transform, self.destination_transform = scenarios.get_short_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
-            frac = random.random() * 0.5 + 0.25
+            frac = random.random() * 0.60 + 0.2
             spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
             spwn_rot = self.source_transform.rotation
             self.spawn_points = [Transform(spwn_loc,spwn_rot)]
@@ -1151,6 +1178,8 @@ class CarlaEnv(gym.Env):
                 spwn_rot = self.source_transform.rotation
                 self.spawn_points = [Transform(spwn_loc,spwn_rot)]
                 self.stationary_obstacle_vehicle = True
+            else:
+                self.stationary_obstacle_vehicle = False
         elif self.config["scenarios"] == "long_straight":
             self.source_transform, self.destination_transform = scenarios.get_long_straight_path(unseen, town)
             self.config["num_episodes"] = 2
@@ -2021,21 +2050,25 @@ class CarlaEnv(gym.Env):
             blueprint.set_attribute('color', color)
 
         # TODO: uncomment below to enable autopilot
-        if not self.config["scenarios"] == "straight_dynamic":
+        if self.config["scenarios"] not in ["straight_dynamic","straight_overtake"]:
             blueprint.set_attribute('role_name', 'autopilot')
         vehicle = self._world.try_spawn_actor(blueprint, transform)
         tm_port = self.tm.get_port()
+
+        # print("[carla_env/try_spawn_random_vehicle_at]",dir(vehicle))
+
         if vehicle is not None:
-            self.actor_list.append(vehicle)
 
             if self.config["scenarios"] == "straight_overtake":
-                self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
+                vehicle.set_target_velocity(carla.Vector3D(0, 0, 0))
             elif self.config["scenarios"] == "straight_random_overtake":
-                if stationary_obstacle_vehicle:
-                    self.actor_list[-1].set_target_velocity(carla.Vector3D(0, 0, 0))
+                if self.stationary_obstacle_vehicle:
+                    vehicle.set_target_velocity(carla.Vector3D(0, 0, 0))
             # TODO: uncomment below to enable autopilot
             elif not self.config["scenarios"] == "straight_dynamic":
                 vehicle.set_autopilot(True, tm_port)
+
+            self.actor_list.append(vehicle)
 
             if self.config["verbose"]:
                 print('spawned %r at %s' % (vehicle.type_id, transform.location.x))

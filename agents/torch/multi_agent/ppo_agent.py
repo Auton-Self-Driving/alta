@@ -692,7 +692,8 @@ class PPO_Collective_Agent(object):
         N_S = self.glb_env.obs_manager.observation_space.shape[-1]
         stats_logger = StatsLogger("side_obs_sensors" if  N_S >= 14  else "no_side")
 
-        self.glb_env.config['max_steps'] = 500
+        self.glb_env.config['max_steps'] = 200
+        # self.glb_env.config['frame_skip'] = 12
 
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)
@@ -755,7 +756,7 @@ class PPO_Collective_Agent(object):
                             agent.throttles_array,
                             agent.steers_array,
                             agent.brakes_array,
-                            agent.obstacle_dist_array,
+                            agent.obstacle_dist_array, # Front Obs Dist
                             agent.obstacle_speed_array,
                             agent.step_reward_array,
                             agent.collision_reward_array,
@@ -765,7 +766,8 @@ class PPO_Collective_Agent(object):
                             agent.red_light_dist_array,
                             agent.wp_orientation_array,
                             stats_logger.retrieve_stats_in_numpy(),
-                            self.glb_num_episodes)
+                            self.glb_num_episodes,
+                            self.glb_env.config['frame_skip'])
 
                         sub_folders=['ep{}rk{}_{}'.format(self.glb_num_episodes, rk, k) for k in camera_folders]
                         combined_folder = viz.create_combined_image(sub_folders,self.glb_num_episodes)
@@ -787,6 +789,7 @@ class PPO_Collective_Agent(object):
                         self.num_successes / self.glb_num_test_episodes,
                         self.glb_num_steps, rk,
                         agent.termination_state, agent.episode_reward))
+                    print(agent.episode_reward_breakup)
                     self.agent_reward_list[rk].append(agent.episode_reward)
                     self.glb_ep_reward_list.append(agent.episode_reward)
                     self.glb_num_episodes += 1

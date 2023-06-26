@@ -171,9 +171,18 @@ def construct_config_update(args):
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light' # 7dim
 
                 if "5dof" in ckpt:
-                    config_list[-1]['action_type'] = 'cubic_bezier_5dof'
+                    if "steer_only" in ckpt:
+                        pass
+                    else:
+                        config_list[-1]['action_type'] = 'cubic_bezier_5dof'
                 elif "wp" in ckpt:
-                    config_list[-1]['action_type'] = 'speed_wp'
+                    if "steer_only" in ckpt:
+                        pass
+                    else:
+                        config_list[-1]['action_type'] = 'speed_wp'
+                elif "str_steer_only" in ckpt:
+                    config_list[-1]['action_type'] = 'steer_only'
+                
 
     return config_list
                     
@@ -223,7 +232,8 @@ if __name__ == '__main__':
 # python test_run.py --ckpt sp_str_24dim_st_frameskip_4 --ckpt_iters 60137 90249 120421 150458 302682 --test_towns Town01 --scenarios straight --threads 5 --device 1
 
 
-# python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_1 --ckpt_iters 151831 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_1 --ckpt_iters 2283542 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_4 --ckpt_iters 631242 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
 
 
 

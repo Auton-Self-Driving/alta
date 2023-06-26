@@ -75,6 +75,8 @@ def get_state_action_dims(config):
         N_A = 6
     elif config['action_type'] == 'speed_wp':
         N_A = 3
+    elif config['action_type'] == 'steer_only':
+        N_A = 3
     else:
         N_A = 2
 

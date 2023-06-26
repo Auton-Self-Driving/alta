@@ -1913,8 +1913,16 @@ def get_curved_town03_npcs(num_npcs):
     # return npc_list[:num_npcs]
     return npc_list
 
+
+def get_short_straight_path(unseen=False, town="Town01", index=0):
+    " Returns a list of [start_transform, target_transform]"
+
+    return benchmark_paths_straight_Town01()[0]
+
+
 def get_straight_path(unseen=False, town="Town01", index=0):
     " Returns a list of [start_transform, target_transform]"
+
     if not unseen:
         if town == "Town01":
             return random.choice(benchmark_paths_straight_Town01())
@@ -1922,7 +1930,7 @@ def get_straight_path(unseen=False, town="Town01", index=0):
             return random.choice(benchmark_paths_straight_Town02())
     else:
         if town == "Town01":
-            return benchmark_paths_straight_Town01()[24-index]
+            return benchmark_paths_straight_Town01()[index] # 24-index
         elif town == "Town02":
             return benchmark_paths_straight_Town02()[index]
 

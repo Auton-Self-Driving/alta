@@ -19,44 +19,48 @@ EXP_CONFIGS = {
             }
         },
     
+
+    "test_ovrtk":{
+        "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight_overtake',
+                'num_npc' : 1,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_stovrtk_fs_4_test', 
+                'save_freq': 30000,
+                'num_workers': 1, #15,
+                'device_list': ['cuda:1'] #['cuda:1','cuda:2','cuda:3','cuda:0'],
+            }
+    },
+
+
     "360deg_str_st_fs_1":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
                 'action_type': 'merged_speed_scaled_tanh', 
                 'scenarios' : 'straight',
-                'num_npc' : 0,
                 'frame_skip': 1,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_npc' : 0,
+                'num_agents':1,
             },
             "agent":{
                 'save_suffix': '360deg_str_st_fs_1', 
                 'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'], 
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_1_242142_May150844AM31.pth'
-            }
-        },
-    "360deg_str_stovrtk_fs_1":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_str_stovrtk_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:3'], 
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_1_761842_May170849PM24.pth'
+                'num_workers': 6,
+                'device_list': ['cuda:0'], 
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_1_242142_May150844AM31.pth'
             }
         },
     "360deg_str_st_fs_4":{
@@ -68,35 +72,16 @@ EXP_CONFIGS = {
                 'frame_skip': 4,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_agents':1,
             },
             "agent":{
                 'save_suffix': '360deg_str_st_fs_4', 
                 'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'], 
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_4_30145_May161009AM07.pth'
-            }
-        },
-    "360deg_str_stovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_str_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
+                'num_workers': 6,
                 'device_list': ['cuda:0'], 
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_4_30145_May161009AM07.pth'
             }
         },
     "360deg_str_st_fs_8":{
@@ -117,6 +102,51 @@ EXP_CONFIGS = {
                 'device_list': ['cuda:1'], 
             }
         },
+    
+    "360deg_str_stovrtk_fs_1":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'merged_speed_scaled_tanh', 
+                'scenarios' : 'straight_overtake',
+                'num_npc': 1,
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':5000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_str_stovrtk_fs_1', 
+                'save_freq': 30000,
+                'num_workers': 14,
+                'device_list': ['cuda:0','cuda:1'], 
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_1_761842_May170849PM24.pth'
+            }
+        },
+    "360deg_str_stovrtk_fs_4":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'merged_speed_scaled_tanh', 
+                    'scenarios' : 'straight_overtake',
+                    'num_npc': 1,
+                    'frame_skip': 4,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':5000000,
+                    'num_agents':1,
+                    'npc_reset_freq':1
+                },
+                "agent":{
+                    'save_suffix': '360deg_str_stovrtk_fs_4', 
+                    'save_freq': 30000,
+                    'num_workers': 14,
+                    'device_list': ['cuda:2','cuda:3'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
     "360deg_str_stovrtk_fs_8":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -126,49 +156,43 @@ EXP_CONFIGS = {
                 'frame_skip': 8,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                "num_agents":1,
+                'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_str_stovrtk_fs_8', 
                 'save_freq': 30000,
-                'num_workers': 1,
+                'num_workers': 6,
                 'device_list': ['cuda:1'],
             }
         },
-    "360deg_str_st_fs_15":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 15,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_str_st_fs_15', 
-                'save_freq': 30000,
-            }
-        },
-    "360deg_str_stovrtk_fs_15":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 15,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_str_stovrtk_fs_15', 
-                'save_freq': 30000,
-            }
-        },
 
-    
+
+    "360deg_str_steer_only_stovrtk_fs_4":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'steer_only', 
+                    'scenarios' : 'straight_overtake',
+                    'num_npc': 1,
+                    'frame_skip': 4,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':5000000,
+                    'num_agents':1,
+                    'npc_reset_freq':1
+                },
+                "agent":{
+                    'save_suffix': '360deg_str_steer_only_stovrtk_fs_4', 
+                    'save_freq': 30000,
+                    'num_workers': 6, 
+                    'device_list': ['cuda:2','cuda:3'],#'cuda:2','cuda:3'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
+
+
     "360deg_5dof_st_fs_1":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -187,26 +211,6 @@ EXP_CONFIGS = {
                 'device_list': ['cuda:2'],
             }
         },
-    "360deg_5dof_stovrtk_fs_1":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:3'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
-            }
-        },
     "360deg_5dof_st_fs_4":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -216,55 +220,16 @@ EXP_CONFIGS = {
                 'frame_skip': 4,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_agents':1,
             },
             "agent":{
                 'save_suffix': '360deg_5dof_st_fs_4', 
                 'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_4_120701_May160911AM57.pth'
-            }
-        },
-    "360deg_5dof_stovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:3'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
-            }
-        },
-    "360deg_5dof_strandovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_random_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:3'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+                'num_workers': 6,
+                'device_list': ['cuda:3'], 
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_4_120701_May160911AM57.pth'
             }
         },
     "360deg_5dof_st_fs_8":{
@@ -287,6 +252,51 @@ EXP_CONFIGS = {
                 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_8_30011_May150929AM10.pth'
             }
         },
+    
+    "360deg_5dof_stovrtk_fs_1":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'straight_overtake',
+                'num_npc': 1,
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':5000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_5dof_stovrtk_fs_1', 
+                'save_freq': 30000,
+                'num_workers': 14,
+                'device_list': ['cuda:0','cuda:1'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
+            }
+        },
+    "360deg_5dof_stovrtk_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'straight_overtake',
+                'num_npc': 1,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':5000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_5dof_stovrtk_fs_4', 
+                'save_freq': 30000,
+                'num_workers': 14,
+                'device_list': ['cuda:2','cuda:3'], 
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
     "360deg_5dof_stovrtk_fs_8":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -296,48 +306,194 @@ EXP_CONFIGS = {
                 'frame_skip': 8,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_5dof_stovrtk_fs_8', 
                 'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'],
+                'num_workers': 6,
+                'device_list': ['cuda:2'],
             }
         },
-    "360deg_5dof_st_fs_15":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 15,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_15', 
-                'save_freq': 30000,
-            }
-        },
-    "360deg_5dof_stovrtk_fs_15":{
+    "360deg_5dof_stovrtk_fs_12_gamma_50":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
                 'action_type': 'cubic_bezier_5dof', 
                 'scenarios' : 'straight_overtake',
                 'num_npc': 1,
-                'frame_skip': 15,
+                'frame_skip': 12,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':5000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_5dof_stovrtk_fs_12_gamma_50', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:2','cuda:3'], # ['cuda:0','cuda:1','cuda:2','cuda:3'],
+                'gamma':0.5,
+                'ckpt_mode':'resume',
+                'checkpoint':'ckptDPPO1x26x1_360deg_5dof_stovrtk_fs_12_gamma_50_870253_Jun251201AM35.pth' 
+            }
+        },
+
+
+    "360deg_wp_st_fs_1":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight',
+                'num_npc' : 0,
+                'frame_skip': 1,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
                 'max_num_steps':1000000
             },
             "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_15', 
+                'save_suffix': '360deg_wp_st_fs_1', 
                 'save_freq': 30000,
+                'num_workers': 1,
+                'device_list': ['cuda:1'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_4_120701_May160911AM57.pth'
             }
         },
+    "360deg_wp_st_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight',
+                'num_npc' : 0,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_agents':1,
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_st_fs_4', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:2'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_st_fs_4_60244_May300916AM52.pth'
+            }
+        },
+    "360deg_wp_st_fs_8":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight',
+                'num_npc' : 0,
+                'frame_skip': 8,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_st_fs_8', 
+                'save_freq': 30000,
+                'num_workers': 1,
+                'device_list': ['cuda:1'],
+                'ckpt_mode':'resume',
+                'checkpoint':'ckptDPPO1x1x1_360deg_wp_st_fs_8_30168_May300711AM50.pth'
+            }
+        },
+   
+    "360deg_wp_stovrtk_fs_1":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight_overtake',
+                'num_npc' : 1,
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_stovrtk_fs_1', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:2'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_4_60244_May300916AM52.pth'
+            }
+        },
+    "360deg_wp_stovrtk_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight_overtake',
+                'num_npc' : 1,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_stovrtk_fs_4', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_4_60244_May300916AM52.pth'
+            }
+        },
+    "360deg_wp_stovrtk_fs_8":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'speed_wp', 
+                'scenarios' : 'straight_overtake',
+                'num_npc' : 1,
+                'frame_skip': 8,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                "num_agents":1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_wp_stovrtk_fs_8', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_8_30168_May300711AM50.pth'
+            }
+        },
+   
 
+    "360deg_5dof_stovrtkrnd_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'straight_random_overtake',
+                'num_npc': 1,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
+            },
+            "agent":{
+                'save_suffix': '360deg_5dof_stovrtkrnd_fs_4', 
+                'save_freq': 30000,
+                'num_workers': 6,
+                'device_list': ['cuda:0','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
     "360deg_5dof_stovrtk_sa_4":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -347,7 +503,9 @@ EXP_CONFIGS = {
                 'frame_skip': 1,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 4,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_5dof_stovrtk_sa_4', 
@@ -356,128 +514,6 @@ EXP_CONFIGS = {
                 'device_list': ['cuda:0'],
             }
         },
-
-    "360deg_5dof_st_fs_1_4x8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents': 8,
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_1_4x8', 
-                'save_freq': 30000,
-                'num_workers': 4,
-                'device_list': ['cuda:3'],
-            }
-        },
-    "360deg_5dof_st_fs_4_4x8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents': 8,
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_4_4x8', 
-                'save_freq': 30000,
-                'num_workers': 4,
-                'device_list': ['cuda:3'],
-            }
-        },
-
-    "360deg_5dof_st_fs_1_8x8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents': 8,
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_1_8x8', 
-                'save_freq': 30000,
-                'num_workers': 8,
-                'device_list': ['cuda:0','cuda:1'],
-            }
-        },
-    "360deg_5dof_st_fs_4_8x8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents': 8,
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_4_8x8', 
-                'save_freq': 30000,
-                'num_workers': 8,
-                'device_list': ['cuda:0','cuda:1'],
-            }
-        },
-
-
-
-    "7dim_5dof_stovrtk_fs_1":{
-            "env":{
-                'input_type': 'wp_obs_info_speed_steer_ldist_light',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '7dim_5dof_stovrtk_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:2'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'.pth'
-            }
-        },
-    "7dim_5dof_stovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_obs_info_speed_steer_ldist_light',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '7dim_5dof_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:2'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_7dim_5dof_stovrtk_fs_4_30012_May181002AM46.pth'
-            }
-        },
-
     "7dim_5dof_strandovrtk_fs_4":{
             "env":{
                 'input_type': 'wp_obs_info_speed_steer_ldist_light',
@@ -487,7 +523,9 @@ EXP_CONFIGS = {
                 'frame_skip': 4,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
+                'max_num_steps':1000000,
+                'num_agents':1,
+                'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '7dim_5dof_stovrtk_fs_4', 
@@ -498,6 +536,70 @@ EXP_CONFIGS = {
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
             }
         },
+
+
+##### Self-play Ablations ####
+
+#### Num Agents
+
+    "360deg_str_st_fs_1_ag_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'merged_speed_scaled_tanh', 
+                'scenarios' : 'straight',
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_npc' : 0,
+                'num_agents':4,
+            },
+            "agent":{
+                'save_suffix': '360deg_str_st_fs_1_ag_4', 
+                'save_freq': 30000,
+                'num_workers': 1,
+                'device_list': ['cuda:1'], 
+            }
+        },
+    "360deg_str_st_fs_1_ag_8":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'merged_speed_scaled_tanh', 
+                'scenarios' : 'straight',
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_npc' : 0,
+                'num_agents':8,
+            },
+            "agent":{
+                'save_suffix': '360deg_str_st_fs_1_ag_8', 
+                'save_freq': 30000,
+                'num_workers': 1,
+                'device_list': ['cuda:1'], 
+            }
+        },
+    "360deg_str_st_fs_1_ag_16":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'merged_speed_scaled_tanh', 
+                'scenarios' : 'straight',
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':1000000,
+                'num_npc' : 0,
+                'num_agents':16,
+            },
+            "agent":{
+                'save_suffix': '360deg_str_st_fs_1_ag_16', 
+                'save_freq': 30000,
+                'num_workers': 1,
+                'device_list': ['cuda:1'], 
+            }
+        },
+
 
 }
 
@@ -510,7 +612,7 @@ DEFAULT_CONFIGS = {
         'sensor_x_res':'256',
         'sensor_y_res':'256',
         'sensor_tick':'0.0',
-        'num_agents': 1, #8,
+        'num_agents': 1,
         'verbose': False,
     }
 
@@ -565,37 +667,43 @@ def override_configs(exp_name,env_cfg,agent_cfg):
 """
 tensorboard --logdir=360deg_5dof_st_fs_4_8x8:DPPO1x8x8_360deg_5dof_st_fs_4_8x8,360deg_str_st_fs_1:DPPO1x1x1_360deg_str_st_fs_1,360deg_str_st_fs_4:DPPO1x1x1_360deg_str_st_fs_4,360deg_str_st_fs_8:DPPO1x1x1_360deg_str_st_fs_8,360deg_5dof_st_fs_1:DPPO1x1x1_360deg_5dof_st_fs_1,360deg_5dof_st_fs_4:DPPO1x1x1_360deg_5dof_st_fs_4,360deg_5dof_st_fs_8:DPPO1x1x1_360deg_5dof_st_fs_8,360deg_5dof_st_fs_1_4x8:DPPO1x4x8_360deg_5dof_st_fs_1_4x8,360deg_5dof_st_fs_4_4x8:DPPO1x4x8_360deg_5dof_st_fs_4_4x8 --port=6008
 
-tensorboard --logdir=7dim_5dof_stovrtk_fs_1:DPPO1x1x1_7dim_5dof_stovrtk_fs_1,7dim_5dof_stovrtk_fs_4:DPPO1x1x1_7dim_5dof_stovrtk_fs_4,360deg_str_stovrtk_fs_1:DPPO1x1x1_360deg_str_stovrtk_fs_1,360deg_str_stovrtk_fs_4:DPPO1x1x1_360deg_str_stovrtk_fs_4,360deg_str_stovrtk_fs_8:DPPO1x1x1_360deg_str_stovrtk_fs_8,360deg_5dof_stovrtk_fs_1:DPPO1x1x1_360deg_5dof_stovrtk_fs_1,360deg_5dof_stovrtk_fs_4:DPPO1x1x1_360deg_5dof_stovrtk_fs_4,360deg_5dof_stovrtk_fs_8:DPPO1x1x1_360deg_5dof_stovrtk_fs_8,360deg_5dof_stovrtk_sa_4:DPPO1x1x1_360deg_5dof_stovrtk_sa_4 --port=6007
+# Self-play
+tensorboard --logdir=ag1:<> ,ag4:DPPO1x1x4_360deg_str_st_fs_1_ag_4,ag8:DPPO1x1x8_360deg_str_st_fs_1_ag_8 --port=6006
 
-"""
+tensorboard --logdir=bez4:DPPO1x6x1_360deg_5dof_stovrtk_fs_4,bez1:DPPO1x6x1_360deg_5dof_stovrtk_fs_1,steer4:DPPO1x6x1_360deg_str_stovrtk_fs_4,steer1:DPPO1x6x1_360deg_str_stovrtk_fs_1 --port=6006
 
-"""
+tensorboard --logdir=bez4:DPPO1x6x1_360deg_5dof_st_fs_4,steer4:DPPO1x6x1_360deg_str_st_fs_4,steer1:DPPO1x6x1_360deg_str_st_fs_1 --port=6006
+
 Log - 
 
-360deg_str_st_fs_1 - 760K - DONE 
-360deg_str_st_fs_4 - 38K - Continue @ 30K
-360deg_str_st_fs_8 - TODO
+360deg_str_st_fs_1 - 1M DONE
+360deg_str_st_fs_4 - 1M DONE
+360deg_str_st_fs_8 -
 
-360deg_str_stovrtk_fs_1 - 760K - DONE 
-360deg_str_stovrtk_fs_4 - 270K - DONE 
-360deg_str_stovrtk_fs_8 - TODO
+360deg_str_stovrtk_fs_1 - v3
+360deg_str_stovrtk_fs_4 - v4 
+360deg_str_stovrtk_fs_8 - 
 
-360deg_5dof_st_fs_1 - 240K - DONE
-360deg_5dof_st_fs_4 - 137K - Continue @ 120K 
-360deg_5dof_st_fs_8 - 72K - Continue @ 60K -
+360deg_5dof_st_fs_1 - 
+360deg_5dof_st_fs_4 - 690K DONE
+360deg_5dof_st_fs_8 - 
 
-360deg_5dof_stovrtk_fs_1 - 730K - DONE
-360deg_5dof_stovrtk_fs_4 - 200K - Continue @ 180K
-360deg_5dof_stovrtk_fs_8 - TODO
+360deg_5dof_stovrtk_fs_1 - v5
+360deg_5dof_stovrtk_fs_4 - v2
+360deg_5dof_stovrtk_fs_8 - 
 
-360deg_5dof_strandovrtk_fs_4 - Restart - v2
+360deg_wp_st_fs_1 - 
+360deg_wp_st_fs_4 - 390K DONE
+360deg_wp_st_fs_8 - 
 
-360deg_5dof_stovrtk_sa_4 - 500K - DONE 
+360deg_wp_stovrtk_fs_1 -
+360deg_wp_stovrtk_fs_4 - s2
+360deg_wp_stovrtk_fs_8 - 
 
-360deg_5dof_st_fs_1_4x8 - TODO
-360deg_5dof_st_fs_4_8x8 - ? @ 690K - v1
+360deg_5dof_stovrtkrnd_fs_4 -  
 
-7dim_5dof_stovrtk_fs_1 - ? @ 515K - v3
-7dim_5dof_stovrtk_fs_4 - Continue @ 30K - v4
-7dim_5dof_strandovrtk_fs_4 - Restart - v5
+360deg_str_st_fs_1_ag_4 - 1M 
+360deg_str_st_fs_1_ag_8 - 390K
+360deg_str_st_fs_1_ag_16 - 
+
 """

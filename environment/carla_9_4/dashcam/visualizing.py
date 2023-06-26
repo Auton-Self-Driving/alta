@@ -394,7 +394,8 @@ class Visualizer:
                 red_light_dist_array,
                 wp_orientation_array,
                 side_obs_dict,
-                episode_num):
+                episode_num,
+                frame_skip=1):
 
         # Override path
         path = self.video_path
@@ -504,6 +505,9 @@ class Visualizer:
         axs[6, 1].set_ylabel('Waypoint Orientation')
 
         if len(list(side_obs_dict.keys())) > 0:
+
+            observations = [el for idx, el in enumerate(observations) if idx % frame_skip == 0]
+
             axs[7, 0].plot(observations, side_obs_dict["obstacle_dist_front_right"], color='#bd83ce', linestyle='-', linewidth=2, markersize=8)
             axs[7, 0].set_xlabel('Timesteps')
             axs[7, 0].set_ylabel('Front Right Obstacle Distance')

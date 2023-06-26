@@ -237,6 +237,11 @@ GlobalRecorder.register_key('collision_rate', window_size=100, mode='mean', grou
 GlobalRecorder.register_key('offroad_rate', window_size=100, mode='mean', group='recent')
 GlobalRecorder.register_key('avg_dist_to_trgt', window_size=100, mode='mean', group='recent')
 
+GlobalRecorder.register_key('front_obst', window_size=1, mode='mean', group='recent')
+GlobalRecorder.register_key('speed', window_size=1, mode='mean', group='recent')
+GlobalRecorder.register_key('throttle', window_size=1, mode='mean', group='recent')
+GlobalRecorder.register_key('light', window_size=1, mode='mean', group='recent')
+
 ProfilerRecorder = Recorder()
 ProfilerRecorder.register_key('avg_action_step', window_size='inf', mode='mean', group='worker')
 ProfilerRecorder.register_key('avg_sync_param', window_size='inf', mode='mean', group='worker')

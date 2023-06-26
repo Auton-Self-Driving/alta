@@ -637,6 +637,7 @@ class DPPO_Worker_Agent(object):
         self.recorder['recent']['reward_static'].record_value(
             agent.episode_reward_breakup["static"])
 
+
         # Episode Stats
         self.tbwriter.add_scalar('rank_{}/episode/reward'.format(self.rank),
             agent.episode_reward, self.glb_num_episodes)
@@ -729,30 +730,44 @@ class DPPO_Worker_Agent(object):
             },
             self.glb_num_steps)
 
-        # Videowriter
-        if self.rank == 1: # Firsts worker logs video output
-            if (self.glb_num_episodes) % 10 == 1: 
-                for c in ['bev','front']:
-                    n_frames = len(agent.camera_images_array[c])
-                    # ln = 50
-                    # if n_frames > ln:
-                    #     step = n_frames / float(ln-1)
-                    #     agent.camera_images_array[c] = [agent.camera_images_array[c][int(idx*step)] for idx in range(0,ln-1)] + \
-                    #                                     [agent.camera_images_array[c][-1]]
-                    # imageio.mimsave(os.path.join(self.tb_log_dir,'train_clips',f"{self.glb_num_episodes}-{c}.gif"),agent.camera_images_array[c],'GIF',fps=15)
-                    img_batch = np.stack(agent.camera_images_array[c],axis=0)
-                    video = torch.from_numpy(img_batch).permute(0, 3, 1, 2).unsqueeze(0)
-                    # print(n_frames,video.shape)
-                    # self.tbwriter.add_images('rank_{}/episode/{}'.format(self.rank,c),
-                    #     img_batch,
-                    #     self.glb_num_episodes,
-                    #     'NHWC'
-                    #     )
-                    self.tbwriter.add_video('rank_{}/episode/{}'.format(self.rank,c),
-                        video,
-                        self.glb_num_episodes,
-                        fps=5)
+        # for ep_stps in range(len(agent.obstacle_dist_array)):
 
+        #     self.tbwriter.add_scalars('rank_{}/step/agent_state'.format(self.rank),
+        #     {
+        #         'speed':agent.speeds_array[ep_stps] * 3.6,
+        #         'light':agent.red_light_dist_array[ep_stps],
+        #         'front_obst':50 if agent.speeds_array[ep_stps] == 10000 else agent.speeds_array[ep_stps],
+        #         'front_obst_sp':agent.obstacle_speed_array[ep_stps]
+        #     },
+        #     self.glb_num_steps + ep_stps)
+
+        #     self.tbwriter.add_scalar('rank_{}/step/throttle'.format(self.rank),
+        #         agent.throttles_array[ep_stps],
+        #         self.glb_num_steps + ep_stps)        
+
+        # Videowriter
+        # if self.rank == 1: # Firsts worker logs video output
+        #     if (self.glb_num_episodes) % 10 == 1: 
+        #         for c in ['bev','front']:
+        #             n_frames = len(agent.camera_images_array[c])
+        #             # ln = 50
+        #             # if n_frames > ln:
+        #             #     step = n_frames / float(ln-1)
+        #             #     agent.camera_images_array[c] = [agent.camera_images_array[c][int(idx*step)] for idx in range(0,ln-1)] + \
+        #             #                                     [agent.camera_images_array[c][-1]]
+        #             # imageio.mimsave(os.path.join(self.tb_log_dir,'train_clips',f"{self.glb_num_episodes}-{c}.gif"),agent.camera_images_array[c],'GIF',fps=15)
+        #             img_batch = np.stack(agent.camera_images_array[c],axis=0)
+        #             video = torch.from_numpy(img_batch).permute(0, 3, 1, 2).unsqueeze(0)
+        #             # print(n_frames,video.shape)
+        #             # self.tbwriter.add_images('rank_{}/episode/{}'.format(self.rank,c),
+        #             #     img_batch,
+        #             #     self.glb_num_episodes,
+        #             #     'NHWC'
+        #             #     )
+        #             self.tbwriter.add_video('rank_{}/episode/{}'.format(self.rank,c),
+        #                 video,
+        #                 self.glb_num_episodes,
+        #                 fps=5)
 
     def learn(self):
 
@@ -764,7 +779,8 @@ class DPPO_Worker_Agent(object):
         if self.tbwriter is None:
             self.tbwriter = TensorboardWriter(
                 log_dir=self.tb_log_dir,
-                filename_suffix='_{}'.format(self.run_name),)
+                filename_suffix='_{}'.format(self.run_name),
+                flush_secs=10)
         # os.makedirs(os.path.join(self.tb_log_dir,'train_clips'),exist_ok=True)
 
 
@@ -867,6 +883,17 @@ class DPPO_Worker_Agent(object):
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
 
+
+                # self.tbwriter.add_scalars('rank_{}/step/agent_state'.format(self.rank),
+                # {
+                #     'speed':agent.speeds_array[-1] * 3.6,
+                #     'light':agent.red_light_dist_array[-1],
+                #     'front_obst':50 if agent.speeds_array[-1] == 10000 else agent.speeds_array[-1],
+                #     'front_obst_sp':agent.obstacle_speed_array[-1]
+                # }, self.local_num_episodes*100 + agent.num_total_steps)
+
+                # self.tbwriter.add_scalar('rank_{}/step/throttle'.format(self.rank),
+                #     agent.throttles_array[-1], self.local_num_episodes*100 + agent.num_total_steps)
 
             # Identify dead agents
             respawn_rank_list = []

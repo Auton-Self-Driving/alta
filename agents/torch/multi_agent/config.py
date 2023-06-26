@@ -205,7 +205,7 @@ TEST_CONFIG = {
 }
 
 ENV_CONFIG = {
-    'num_agents': 8,#1,# DONE: c
+    'num_agents': 1,# DONE: c
     'max_num_steps': 25000000, # DONE: mc
     'num_episodes' : 1, # sc
     'max_steps' : 10000, # sc
@@ -229,7 +229,7 @@ ENV_CONFIG = {
     # 'input_type': 'wp_obs_info_speed_steer_ldist_light', # 7-dim
     # 'input_type': 'wp_obs_more_info_steer_ldist_light', # 14-dim # oc
     # 'input_type': 'wp_obs_more_info_speed_steer_ldist_light', # 15-dim 
-    'input_type': 'wp_360_obstacle_speed_steer', # 15-dim 
+    'input_type': 'wp_360_obstacle_speed_steer', # 24-dim 
     # 'input_type': 'wp_2avg_obs_more_info_speed_steer_ldist_light', # 16-dim 
     # 'input_type': 'wp_list_obs_more_info_steer_ldist_light', # >=14-dim 
     # 'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
