@@ -791,7 +791,7 @@ class DPPO_Worker_Agent(object):
         self.agent_list = [_DPPO_Individual_Agent( 
             self.local_env.ego_vehicle_list[i], timestamp=0,
             glb_policy=self.local_policy, rank=i) for i in self.rank_list]
-        self.local_env.reset_vehicle_agent(self.agent_list, transfuser=False)
+        self.local_env.reset_vehicle_agent(self.agent_list)
         self.curr_town = self.local_env.curr_town
         self.local_env.step()
 
@@ -920,7 +920,7 @@ class DPPO_Worker_Agent(object):
                             rank=rk, memory=None)
 
                     self.local_env.reset_vehicle_agent(
-                        [self.agent_list[rk] for rk in self.rank_list], transfuser=False)
+                        [self.agent_list[rk] for rk in self.rank_list])
                     self.local_env.scenario_index = 0
 
                 else:
@@ -934,7 +934,7 @@ class DPPO_Worker_Agent(object):
                     
                     # Reset vehicle of dead agent in environment
                     self.local_env.reset_vehicle_agent(
-                        [self.agent_list[rk] for rk in respawn_rank_list],  transfuser=False)
+                        [self.agent_list[rk] for rk in respawn_rank_list])
 
                 # QUESTION - why step?
                 self.local_env.step()

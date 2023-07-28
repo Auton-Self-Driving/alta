@@ -43,6 +43,7 @@ from environment.carla_9_4.agents.navigation.agent import Agent
 
 # transfuser autopilot
 from transfuser_autopilot import AutoPilot
+from network import PPOActorCritic_Continuous
 
 
 try:
@@ -604,6 +605,7 @@ class CarlaEnv(gym.Env):
 
             target_speed = (action[1] * 1.5) + 1
             target_speed = float(np.clip(target_speed * self.target_speed / 2, 0, self.target_speed))
+            # target_speed = float(20.0) ### NOTE 
 
             ##################################
             # if use autopilot
@@ -724,7 +726,7 @@ class CarlaEnv(gym.Env):
             steer = agent.steer_controller.pid_control(
                     target_waypoint, agent.vehicle_actor.get_transform())
             steer = np.clip(steer, -1., 1.)
-        elif self.config["action_type"] == "cubic_bezier_5dof":
+        elif self.config["action_type"] in ["cubic_bezier_5dof","cubic_bezier_5dof_disc_thrt"]:
 
             # TODO improve ctrl pt computation code. Make it depend on self.action_space bounds
 
@@ -735,6 +737,18 @@ class CarlaEnv(gym.Env):
             car_length_offset = 3.5
 
             time_on_curve = time_delay  +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
+
+            if config['autopilot_type'] == "PPO_speed":
+                tate_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                autopilot_action, _ = autopilot.act(state_tensor,deterministic=True)
+                action[4] = autopilot_action[4]
+            elif config['autopilot_type'] == "PPO_steer":
+                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                autopilot_action, _ = autopilot.act(state_tensor,deterministic=True)
+                action[:4] = autopilot_action[:4]
+            elif config['autopilot_type'] == "const_speed":
+                action[4] = 0.0 # 0 = 25kmph, -1/7.5 = 20kmph
+                
 
             if agent.frame_skip_itr == 0:
                 # Setting up vehicle centric coordinate space
@@ -772,13 +786,15 @@ class CarlaEnv(gym.Env):
             # if agent.frame_skip_itr == 0:
             env_util.plot_trajectory(time_on_curve, self._world, self.traj_manager)
 
-            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
-            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
             current_speed = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity()) * 3.6
 
             # self._world.debug.draw_point(
             #     carla.Location(x=target_waypoint.transform.location.x,y=target_waypoint.transform.location.y,z=5),
             #     size=4, color=(255,0,0), life_time=0.3)
+
+            # target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(agent)
+            target_speed, target_waypoint = self.traj_manager.get_target_speed_waypoint(time_on_curve)
+            # target_speed = float(20.0) ### NOTE 
 
             gas = agent.controller.pid_control(target_speed, current_speed, enable_brake=self.config["enable_brake"])
             if gas < 0:
@@ -788,9 +804,16 @@ class CarlaEnv(gym.Env):
                 throttle = gas
                 brake = 0.0
 
+            if self.config["action_type"] == "cubic_bezier_5dof_disc_thrt":
+                throttle = self.config['discrete_throttles'][int(action[-1])]
+                brake = 0.0 if throttle > 0 else 1.0
+
             steer = agent.steer_controller.pid_control(
                     target_waypoint, agent.vehicle_actor.get_transform())
             steer = np.clip(steer, -1., 1.)
+
+
+
         elif self.config["action_type"] == "speed_wp":
 
             time_delay = 0.1
@@ -855,7 +878,7 @@ class CarlaEnv(gym.Env):
             steer = agent.steer_controller.pid_control(
                     target_waypoint, agent.vehicle_actor.get_transform())
             steer = np.clip(steer, -1., 1.)                
-        
+
         agent.episode_measurements["target_speed"] = target_speed
 
         control = carla.VehicleControl(
@@ -1317,7 +1340,7 @@ class CarlaEnv(gym.Env):
 
             return camera, camera_transform
 
-    def reset_vehicle_agent(self, agent_list, transfuser=False): # Resets vehicle agents and their sensors.
+    def reset_vehicle_agent(self, agent_list): # Resets vehicle agents and their sensors.
 
         # bind new agent
         for agent in agent_list:
@@ -1645,11 +1668,23 @@ class CarlaEnv(gym.Env):
             # Difference between on trajectory yaw and last action location yaw
             agent.trajectory_yaw_drift = 0
 
-            # add transfuser
-            if transfuser:
+            # Add autopilot
+            if config['autopilot_type'] == "transfuser":
                 agent.transfuser_agent = AutoPilot()
                 agent.transfuser_agent.set_global_plan(self.gps_route, self.gps_route)
                 agent.transfuser_agent._init(agent.vehicle_actor)
+            elif config['autopilot_type'] in ["PPO_speed","PPO_steer"]:
+                agent.autopilot = PPOActorCritic_Continuous(agent.glb_policy.N_S, 
+                        agent.glb_policy.N_A,
+                        use_transformer=agent.glb_policy.use_transformer, 
+                        squash=agent.glb_policy.squash).to(agent.device) 
+                ckpt = torch.load(
+                    os.path.join('./checkpoints', 
+                        self.config["autopilot_ckpt"]
+                       ), 
+                    map_location='cpu')
+                agent.autopilot.load_state_dict(ckpt['local_policy'])
+
 
         # Ticking for 15 frames to handle car initialization in air
         # time.sleep(.04)

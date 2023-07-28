@@ -36,7 +36,9 @@ def get_discrete_actions():
     action_space[n+1] = [20, 0.5]
     return action_space
 
-DISCRETE_ACTIONS = get_discrete_actions()
+DISCRETE_ACTIONS = get_discrete_actions() 
+
+DISCRETE_THROTTLES = {0:0.0,1:0.5,2:1.0}
 
 EPISODE_MEASUREMENTS = {
     'episode_id': None,
@@ -234,6 +236,7 @@ ENV_CONFIG = {
     # 'input_type': 'wp_list_obs_more_info_steer_ldist_light', # >=14-dim 
     # 'input_type': 'wp_list_obs_more_info_speed_steer_ldist_light', # >=15-dim 
     'action_type': 'merged_speed_scaled_tanh', #'speed_wp', #'cubic_bezier_5dof', #  ac
+    'discrete_spd_lvls': 3,
     'enable_brake': True, # ac
     'target_speed': 50, # ac, ##### REDUCED FOR AN ABLATION | DEFAULT = 50
     'steering_scale': 0.5, # ac
@@ -241,12 +244,18 @@ ENV_CONFIG = {
     'noise_dim' : 1, # oc      
     'use_pid_in_frame_skip' : True, # ac
     'discrete_actions': DISCRETE_ACTIONS, # ac
+    'discrete_throttles': DISCRETE_THROTTLES, # ac
     'episode_measurements': EPISODE_MEASUREMENTS, # c TODO rework since outside class
     'frame_stack_size' : 1, # oc
 
     'frame_skip': 1, #1 # ac # TODO: monitor this
     'traj_frame_horizon':30, #30, #TODO add somewhere. Must be more than frameskip
     'sticky_temporal_action_frames': 1, #12 # TODO: add somewhere. Performs frame skip but also commits (S,A,R,S) at each frame
+
+
+    'autopilot_type': None, # Options - None, PPO_steer, PPO_speed, fixed_speed
+    'autopilot_ckpt' : None, 
+
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 

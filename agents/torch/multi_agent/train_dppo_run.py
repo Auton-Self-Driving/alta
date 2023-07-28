@@ -34,7 +34,7 @@ from threading import Thread
 import matplotlib.pyplot as plt
 import dist_utils as dist
 
-from network import PPOActorCritic_Continuous
+from network import PPOActorCritic_Continuous, PPOActorCritic_Mixed
 from carla_env import CarlaEnv
 from config import ENV_CONFIG, DPPO_CONFIG
 from config_exp import override_configs
@@ -73,10 +73,14 @@ def get_state_action_dims(config):
         N_A = 4
     elif config['action_type'] == 'cubic_bezier_5dof':
         N_A = 6
+    elif config['action_type'] == 'cubic_bezier_5dof_disc_thrt':
+        N_A = 6
     elif config['action_type'] == 'speed_wp':
         N_A = 3
     elif config['action_type'] == 'steer_only':
         N_A = 3
+    elif config['action_type'] == 'merged_disc_thrt':
+        N_A = 2
     else:
         N_A = 2
 
@@ -93,8 +97,12 @@ def launch_server(rank, resources):
     
     N_S, N_A = get_state_action_dims(resources["env_cfg"])
     
-    glb_policy = PPOActorCritic_Continuous(N_S, N_A,
-        use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
+    if "disc_thrt" in resources["env_cfg"]["action_type"]:
+        glb_policy = PPOActorCritic_Mixed(N_S, N_A, resources["env_cfg"]['discrete_spd_lvls'],
+            use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
+    else:
+        glb_policy = PPOActorCritic_Continuous(N_S, N_A,
+            use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
 
     glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
         lr=resources["agent_cfg"]['policy_lr'], betas=(0.92, 0.999))
@@ -145,8 +153,12 @@ def launch_worker(rank, resources):
     N_S = env.obs_manager.observation_space.shape[-1]
     N_A = env.obs_manager.action_space.shape[-1]
 
-    local_policy = PPOActorCritic_Continuous(N_S, N_A,
-        use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
+    if "disc_thrt" in resources["env_cfg"]["action_type"]:
+        local_policy = PPOActorCritic_Mixed(N_S, N_A, resources["env_cfg"]['discrete_spd_lvls'],
+            use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
+    else:
+        local_policy = PPOActorCritic_Continuous(N_S, N_A,
+            use_transformer=resources["env_cfg"]['input_type']=='transformer', squash=resources["agent_cfg"]['squash']).to(device) # global network
 
 
     worker_agent = DPPO_Worker_Agent(env, local_policy,

@@ -39,6 +39,9 @@ class ObservationsManager:
             elif self.config["action_type"] == "cubic_bezier_5dof":
                 self.action_space = Box(low=np.array([1.0, -4.0, 0.0,-4.0,-4.0,-1.0]), 
                                         high=np.array([4.0, 4.0, 4.0,4.0,4.0,1.0]), dtype=np.float32)
+            elif self.config["action_type"] == "cubic_bezier_5dof_disc_thrt":
+                self.action_space = Box(low=np.array([1.0, -4.0, 0.0,-4.0,-4.0,-1.0]), 
+                                        high=np.array([4.0, 4.0, 4.0,4.0,4.0,1.0]), dtype=np.float32)
             elif self.config["action_type"] == "speed_wp":
                 self.action_space = Box(low=np.array([0,-6.0,-1.0]), 
                                         high=np.array([6,6.0,1.0]), dtype=np.float32)

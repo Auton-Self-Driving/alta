@@ -52,7 +52,6 @@ class Basic_Discrete(nn.Module):
         total_loss = (c_loss + a_loss).mean()
         return total_loss
 
-
 class PPOActorCritic_Continuous(nn.Module):
     def __init__(self, state_dim, action_dim, action_std=.5, use_transformer=False, squash=False):
         super(PPOActorCritic_Continuous, self).__init__()
@@ -124,6 +123,135 @@ class PPOActorCritic_Continuous(nn.Module):
         action_logprobs = get_action_log_prob(dist,self.squash,action.to(torch.device('cpu')))
 
         dist_entropy = dist.entropy()
+        dist_entropy = dist_entropy.to(device)
+        action_logprobs = action_logprobs.to(device)
+
+        state_value = self.critic(state)
+
+        return action_logprobs, torch.squeeze(state_value), dist_entropy.view(-1)
+
+    def __str__(self):
+        device = next(self.actor.parameters()).device
+        return 'PPOActorCritic_Continuous:\n ' + \
+            'device: {}\n actor: {}\n critic: {}\n'.format(device,
+            self.actor, self.critic)
+
+class printer(nn.Module):
+
+    def __init__(self):
+        super(printer, self).__init__()
+
+    def forward(self,x):
+        print(x[...,:,:10])
+        return x
+
+class PPOActorCritic_Mixed(nn.Module):
+    def __init__(self, state_dim, action_dim, discrete_actions, action_std=.5, use_transformer=False, squash=False):
+        super(PPOActorCritic_Mixed, self).__init__()
+        # action mean range -1 to 1
+        self.N_S = state_dim
+        self.N_A = action_dim
+        self.discrete_actions = discrete_actions
+        self.use_transformer = use_transformer
+        if self.use_transformer:
+            self.N_S = 800
+            state_dim = 128
+            # state_dim = 800
+            self.transformer = TransformerAgent(state_dim)
+            # self.transformer = TransformerAgent(128)
+        self.squash = squash
+        
+        # First action_dim - 1 outputs are continuous 
+        # Last discrete_actions outputs make a categorical distribution
+        self.actor = nn.Sequential(
+                nn.Linear(state_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, 256),
+                nn.ReLU(),
+                nn.Linear(256, action_dim + discrete_actions - 1),
+            )
+
+        self.actor_continuous_head = nn.Sequential(
+            nn.Tanh()
+        )
+        self.actor_discrete_dist = Categorical
+
+        # critic
+        self.critic = nn.Sequential(
+                nn.Linear(state_dim, 256),
+                nn.ReLU(),
+                nn.Linear(256, 256),
+                nn.ReLU(),
+                nn.Linear(256, 1)
+            )
+        self.action_var = torch.full(
+            (action_dim-1,) , action_std * action_std)
+
+    def forward(self):
+        raise NotImplementedError('please use act and eval instead')
+
+    def act(self, state, deterministic=False):
+        device = next(self.actor.parameters()).device
+
+        if self.use_transformer:
+            state = self.transformer(state.to(device))
+
+        raw_action = self.actor(state.to(device))
+
+        prob = F.softmax(raw_action[...,self.N_A-1:], dim=1).detach()
+        m = self.actor_discrete_dist(prob.cpu())
+        # print(prob, raw_action)
+        if deterministic:
+            discrete_action =  torch.argmax(prob).cpu()
+            if len(list(discrete_action.shape)) == 0:
+                discrete_action = discrete_action.reshape((1,))
+        else:
+            discrete_action = m.sample().cpu() #.numpy()[0]
+
+        discrete_logprobs = m.log_prob(discrete_action).cpu().numpy()
+        discrete_action = discrete_action.cpu().numpy()
+
+        action_mean = self.actor_continuous_head(raw_action[...,:self.N_A-1])
+        cov_mat = torch.diag(self.action_var).to(device)
+        dist = MultivariateNormal(action_mean.to(torch.device('cpu')), cov_mat.to(torch.device('cpu')))
+
+        action = dist.mean if deterministic else dist.sample()
+
+        if self.squash:
+            action = torch.tanh(action)
+        action_logprobs = get_action_log_prob(dist,self.squash,action)
+
+        action = action.detach().cpu().numpy()
+        action_logprobs = action_logprobs.detach().cpu().numpy() 
+
+        action_logprobs += discrete_logprobs # Summation of logs is multiplation of probs
+        action = np.concatenate((action, discrete_action[...,np.newaxis]),axis=-1)
+
+        return action, action_logprobs
+
+    def evaluate(self, state, action):
+        device = next(self.actor.parameters()).device
+        if self.use_transformer:
+            state = self.transformer(state.to(device))
+
+
+        raw_action = self.actor(state.to(device))
+
+        prob = F.softmax(raw_action[...,self.N_A-1:], dim=1).detach()
+        disc_dist = self.actor_discrete_dist(prob.cpu())
+        discrete_logprobs = disc_dist.log_prob(action[:,-1].cpu()).cpu()
+
+        action_mean = self.actor_continuous_head(raw_action[...,:self.N_A-1])
+        action_var = self.action_var.expand_as(action_mean)
+        cov_mat = torch.diag_embed(action_var).to(device)
+        
+        dist = MultivariateNormal(action_mean.to(torch.device('cpu')), cov_mat.to(torch.device('cpu')))
+
+        action_logprobs = get_action_log_prob(dist,self.squash,action[...,:self.N_A-1].to(torch.device('cpu')))
+
+        action_logprobs += discrete_logprobs # Summation of logs is multiplation of probs
+
+        dist_entropy = dist.entropy() + disc_dist.entropy() ### NOTE :  is addition the right thing to do
         dist_entropy = dist_entropy.to(device)
         action_logprobs = action_logprobs.to(device)
 

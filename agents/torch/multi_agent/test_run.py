@@ -27,7 +27,7 @@ import argparse
 import copy
 from multiprocessing import Pool
 
-from network import PPOActorCritic_Continuous, PolicyNetwork, SoftQNetwork
+from network import PPOActorCritic_Continuous, PolicyNetwork, SoftQNetwork, PPOActorCritic_Mixed
 from carla_env import CarlaEnv
 from config import ENV_CONFIG, TEST_CONFIG
 from sac_agent import SAC_Collective_Agent, VanillaReplayBuffer
@@ -50,8 +50,12 @@ def test_policy(test_config):
     print('testing config:\n{}'.format(test_config))
 
     if test_config['PPO']:
-
-        glb_policy = PPOActorCritic_Continuous(N_S, N_A,
+        if "disc_thrt" in test_config["action_type"]:
+            glb_policy = PPOActorCritic_Mixed(N_S, N_A, ENV_CONFIG['discrete_spd_lvls'],
+                use_transformer=ENV_CONFIG['input_type']=='transformer'
+                ).to(ENV_CONFIG['device'])
+        else:
+            glb_policy = PPOActorCritic_Continuous(N_S, N_A,
             use_transformer=ENV_CONFIG['input_type']=='transformer'
             ).to(ENV_CONFIG['device'])
         glb_optimizer = torch.optim.Adam(glb_policy.parameters(),
@@ -112,8 +116,6 @@ def test_policy(test_config):
 
     env.close()
 
-    print('testing config:\n{}'.format(test_config))
-
 
 def construct_config_update(args):
 
@@ -171,8 +173,8 @@ def construct_config_update(args):
                     config_list[-1]['input_type'] = 'wp_obs_info_speed_steer_ldist_light' # 7dim
 
                 if "5dof" in ckpt:
-                    if "steer_only" in ckpt:
-                        pass
+                    if "disc_thrt" in ckpt:
+                        config_list[-1]['action_type'] = 'cubic_bezier_5dof_disc_thrt'
                     else:
                         config_list[-1]['action_type'] = 'cubic_bezier_5dof'
                 elif "wp" in ckpt:
@@ -180,9 +182,12 @@ def construct_config_update(args):
                         pass
                     else:
                         config_list[-1]['action_type'] = 'speed_wp'
-                elif "str_steer_only" in ckpt:
-                    config_list[-1]['action_type'] = 'steer_only'
+                # elif "str_steer_only" in ckpt:
+                #     config_list[-1]['action_type'] = 'steer_only'
                 
+
+    print(config_list)
+    print("---------------------")
 
     return config_list
                     
@@ -212,13 +217,9 @@ if __name__ == '__main__':
        p.map(test_policy, config_list)
 
 # python test_run.py --ckpt 7dim_nocrach_dense_no_lane --ckpt_iters 4807135 6009340 7210465 8415674 --test_towns Town02 --scenarios no_crash_dense --num_eps 25 --threads 4 --device 2 
-
 # python test_run.py --ckpt 15dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 9624106 10829321 --test_towns Town02 --scenarios no_crash_dense --threads 2 --device 2
-
 # python test_run.py --ckpt 14dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 17424400 --test_towns Town01 --scenarios curved t_junction left_right_curved right_curved straight_crowded --threads 5 --device 1
-
 # python test_run.py --ckpt 16dim_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 17424400 --test_towns Town02 --scenarios no_crash_dense --threads 8 --device 1
-
 # python test_run.py --ckpt 24dim_10wp_nocrach_dense_no_lane_term_tanh_squashed --ckpt_iters 24057987 22254420 20750512 18642090 16839270 15034713 --test_towns Town02 --scenarios no_crash_dense --threads 4 --device 3
 
 # python test_run.py --ckpt cubic_bezier3dof_long_straight --ckpt_iters 50005  --test_towns Town01 --scenarios straight --threads 1 --device 2
@@ -234,6 +235,10 @@ if __name__ == '__main__':
 
 # python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_1 --ckpt_iters 2283542 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
 # python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_4 --ckpt_iters 631242 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
+# python test_run.py --num_eps 1 --ckpt 360deg_str_steer_only_stovrtk_fs_4 --ckpt_iters 810414 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_steer_only_stovrtk_fs_4 --ckpt_iters 1080654 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_12_gamma_50 --ckpt_iters 1110310 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0
+# python test_run.py --num_eps 1 --ckpt 360deg_5dof_disc_thrt_stovrtk_fs_4 --ckpt_iters 960846 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0
 
 
 
