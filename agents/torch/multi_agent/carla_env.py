@@ -4,7 +4,7 @@ import gym
 from gym.spaces import Box, Discrete, Tuple
 
 from datetime import datetime
-import os, sys
+import os, sys, torch
 
 import traceback
 import random
@@ -738,16 +738,24 @@ class CarlaEnv(gym.Env):
 
             time_on_curve = time_delay  +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
 
-            if config['autopilot_type'] == "PPO_speed":
+            if self.config['autopilot_type'] == "PPO_speed":
                 tate_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = autopilot.act(state_tensor,deterministic=True)
-                action[4] = autopilot_action[4]
-            elif config['autopilot_type'] == "PPO_steer":
+                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                action[5] = autopilot_action[0,5]
+            elif self.config['autopilot_type'] == "PPO_steer":
                 state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = autopilot.act(state_tensor,deterministic=True)
-                action[:4] = autopilot_action[:4]
-            elif config['autopilot_type'] == "const_speed":
-                action[4] = 0.0 # 0 = 25kmph, -1/7.5 = 20kmph
+                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                action[:5] = autopilot_action[0,:5]
+            elif self.config['autopilot_type'] == "PPO_part_steer_final":
+                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                action[4] = autopilot_action[0,4]
+            elif self.config['autopilot_type'] == "PPO_part_steer_intermediate":
+                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                action[:4] = autopilot_action[0,:4]
+            elif self.config['autopilot_type'] == "const_speed":
+                action[5] = -1/7.5 # 0 = 25kmph, -1/7.5 = 20kmph
                 
 
             if agent.frame_skip_itr == 0:
@@ -1669,11 +1677,11 @@ class CarlaEnv(gym.Env):
             agent.trajectory_yaw_drift = 0
 
             # Add autopilot
-            if config['autopilot_type'] == "transfuser":
+            if self.config['autopilot_type'] == "transfuser":
                 agent.transfuser_agent = AutoPilot()
                 agent.transfuser_agent.set_global_plan(self.gps_route, self.gps_route)
                 agent.transfuser_agent._init(agent.vehicle_actor)
-            elif config['autopilot_type'] in ["PPO_speed","PPO_steer"]:
+            elif self.config['autopilot_type'] in ["PPO_speed","PPO_steer","PPO_part_steer_final","PPO_part_steer_intermediate"]:
                 agent.autopilot = PPOActorCritic_Continuous(agent.glb_policy.N_S, 
                         agent.glb_policy.N_A,
                         use_transformer=agent.glb_policy.use_transformer, 
@@ -1683,7 +1691,7 @@ class CarlaEnv(gym.Env):
                         self.config["autopilot_ckpt"]
                        ), 
                     map_location='cpu')
-                agent.autopilot.load_state_dict(ckpt['local_policy'])
+                agent.autopilot.load_state_dict(ckpt['glb_policy'])
 
 
         # Ticking for 15 frames to handle car initialization in air
