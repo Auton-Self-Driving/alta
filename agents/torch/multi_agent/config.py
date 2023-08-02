@@ -253,9 +253,9 @@ ENV_CONFIG = {
     'sticky_temporal_action_frames': 1, #12 # TODO: add somewhere. Performs frame skip but also commits (S,A,R,S) at each frame
 
 
-    'autopilot_type': None, # Options - None, PPO_steer, PPO_speed, fixed_speed
-    'autopilot_ckpt' : None, 
-
+    'autopilot_type': None, # Options - None, PPO_steer, PPO_speed, const_speed
+    'autopilot_ckpt' : '360deg_5dof_steer_only_stovrtk_fs_4/ckptDPPO1x14x1_360deg_5dof_steer_only_stovrtk_fs_4_1260731_Jun300846AM45.pth', 
+    'autopilot_const_spd': 20,
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 

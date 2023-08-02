@@ -131,10 +131,11 @@ def construct_config_update(args):
 
                 # Skip if evaluations already exist
                 eval_folder = '{}/{}/{}/{}/{}/'.format('./tests/evals',scn,twn,args.ckpt,ckpt.split('_')[-2])
+
                 # TODO: Comment out
                 if os.path.exists(eval_folder):
                     shutil.rmtree(eval_folder) 
-                if os.path.exists(os.path.join(eval_folder,'25.png')):
+                if os.path.exists(os.path.join(eval_folder,'1.png')):
                     continue
 
                 config_list.append({})
@@ -149,7 +150,7 @@ def construct_config_update(args):
                     config_list[-1]['num_npc'] = 70
                 elif scn == "no_crash_empty":
                     config_list[-1]['num_npc'] = 0
-                elif scn == "straight_overtake":
+                elif scn in ["straight_overtake","straight_overtake_closeby"]:
                     config_list[-1]['num_npc'] = 1
                     config_list[-1]['enable_off_road_termination'] = False
                     config_list[-1]['enable_lane_invasion_termination'] = False
@@ -184,6 +185,11 @@ def construct_config_update(args):
                         config_list[-1]['action_type'] = 'speed_wp'
                 # elif "str_steer_only" in ckpt:
                 #     config_list[-1]['action_type'] = 'steer_only'
+
+                if args.autopilot is not None:
+                    config_list[-1]['autopilot_type'] = args.autopilot
+
+
                 
 
     print(config_list)
@@ -197,6 +203,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="No Crash Test Launcher")
     parser.add_argument("--ckpt", default=argparse.SUPPRESS)
     parser.add_argument("--ckpt_iters", nargs='*', default=argparse.SUPPRESS)
+    parser.add_argument("--autopilot", default=argparse.SUPPRESS)
     parser.add_argument("--eval_suffix", default=argparse.SUPPRESS)
     parser.add_argument("--test_towns", nargs='*', default=argparse.SUPPRESS)
     parser.add_argument("--scenarios", nargs='*', default=argparse.SUPPRESS)
@@ -240,5 +247,10 @@ if __name__ == '__main__':
 # python test_run.py --num_eps 1 --ckpt 360deg_5dof_stovrtk_fs_12_gamma_50 --ckpt_iters 1110310 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0
 # python test_run.py --num_eps 1 --ckpt 360deg_5dof_disc_thrt_stovrtk_fs_4 --ckpt_iters 960846 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0
 
+# python test_run.py --num_eps 10 --ckpt 360deg_5dof_steer_only_stovrtk_fs_4 --ckpt_iters 1260731 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
+# python test_run.py --num_eps 10 --ckpt 360deg_5dof_ppo_part_steer_final_stovrtk_fs_4 --ckpt_iters 1080676 --autopilot PPO_part_steer_final --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
+# python test_run.py --num_eps 10 --ckpt 360deg_5dof_ppo_part_steer_interm_stovrtk_fs_4 --ckpt_iters 1051014 --autopilot PPO_part_steer_interm --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
+
+# python test_run.py --num_eps 10 --ckpt 360deg_5dof_20_spd_stovrtk_fs_16 --ckpt_iters 120004 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake_closeby --threads 1 --device 0
 
 

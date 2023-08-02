@@ -20,89 +20,8 @@ EXP_CONFIGS = {
         },
     
 
-    "test_ovrtk":{
-        "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight_overtake',
-                'num_npc' : 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_stovrtk_fs_4_test', 
-                'save_freq': 30000,
-                'num_workers': 1, #15,
-                'device_list': ['cuda:1'] #['cuda:1','cuda:2','cuda:3','cuda:0'],
-            }
-    },
+    ### Full Action Space Variable Frame skip
 
-
-    "360deg_str_st_fs_1":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight',
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_npc' : 0,
-                'num_agents':1,
-            },
-            "agent":{
-                'save_suffix': '360deg_str_st_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:0'], 
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_1_242142_May150844AM31.pth'
-            }
-        },
-    "360deg_str_st_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-            },
-            "agent":{
-                'save_suffix': '360deg_str_st_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:0'], 
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_str_st_fs_4_30145_May161009AM07.pth'
-            }
-        },
-    "360deg_str_st_fs_8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'merged_speed_scaled_tanh', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 8,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_str_st_fs_8', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'], 
-            }
-        },
-    
     "360deg_str_stovrtk_fs_1":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -112,15 +31,15 @@ EXP_CONFIGS = {
                 'frame_skip': 1,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':5000000,
+                'max_num_steps':1500000,
                 'num_agents':1,
                 'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_str_stovrtk_fs_1', 
                 'save_freq': 30000,
-                'num_workers': 14,
-                'device_list': ['cuda:0','cuda:1'], 
+                'num_workers': 7,
+                'device_list': ['cuda:3'], 
                 # 'ckpt_mode':'resume',
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_1_761842_May170849PM24.pth'
             }
@@ -134,125 +53,41 @@ EXP_CONFIGS = {
                     'frame_skip': 4,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
+                    'max_num_steps':700000,
                     'num_agents':1,
                     'npc_reset_freq':1
                 },
                 "agent":{
                     'save_suffix': '360deg_str_stovrtk_fs_4', 
                     'save_freq': 30000,
-                    'num_workers': 14,
-                    'device_list': ['cuda:2','cuda:3'], 
+                    'num_workers': 7,
+                    'device_list': ['cuda:2'], 
                     # 'ckpt_mode':'resume',
                     # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
                 }
             },
-    "360deg_str_stovrtk_fs_8":{
+    "360deg_str_stovrtk_fs_16":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
                 'action_type': 'merged_speed_scaled_tanh', 
                 'scenarios' : 'straight_overtake',
                 'num_npc': 1,
-                'frame_skip': 8,
+                'frame_skip': 16,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
+                'max_num_steps':300000,
                 "num_agents":1,
                 'npc_reset_freq':1
             },
             "agent":{
-                'save_suffix': '360deg_str_stovrtk_fs_8', 
+                'save_suffix': '360deg_str_stovrtk_fs_16', 
                 'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:1'],
+                'num_workers': 14,
+                'device_list': ['cuda:0','cuda:1'],
             }
         },
 
 
-    "360deg_str_steer_only_stovrtk_fs_4":{
-                "env":{
-                    'input_type': 'wp_360_obstacle_speed_steer',
-                    'action_type': 'merged_speed_scaled_tanh', 
-                    'scenarios' : 'straight_overtake',
-                    'num_npc': 1,
-                    'frame_skip': 4,
-                    'traj_frame_horizon':30, 
-                    'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
-                    'num_agents':1,
-                    'npc_reset_freq':1
-                },
-                "agent":{
-                    'save_suffix': '360deg_str_steer_only_stovrtk_fs_4', 
-                    'save_freq': 30000,
-                    'num_workers': 14, 
-                    'device_list': ['cuda:2','cuda:3'],#'cuda:2','cuda:3'], 
-                    # 'ckpt_mode':'resume',
-                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
-                }
-            },
-
-
-    "360deg_5dof_st_fs_1":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:2'],
-            }
-        },
-    "360deg_5dof_st_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:3'], 
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_4_120701_May160911AM57.pth'
-            }
-        },
-    "360deg_5dof_st_fs_8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 8,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_st_fs_8', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_8_30011_May150929AM10.pth'
-            }
-        },
-    
     "360deg_5dof_stovrtk_fs_1":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -262,15 +97,15 @@ EXP_CONFIGS = {
                 'frame_skip': 1,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':5000000,
+                'max_num_steps':1500000,
                 'num_agents':1,
                 'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_5dof_stovrtk_fs_1', 
                 'save_freq': 30000,
-                'num_workers': 14,
-                'device_list': ['cuda:0','cuda:1'],
+                'num_workers': 7,
+                'device_list': ['cuda:0'],
                 # 'ckpt_mode':'resume',
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
             }
@@ -284,64 +119,43 @@ EXP_CONFIGS = {
                 'frame_skip': 4,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':5000000,
+                'max_num_steps':700000,
                 'num_agents':1,
                 'npc_reset_freq':1
             },
             "agent":{
                 'save_suffix': '360deg_5dof_stovrtk_fs_4', 
                 'save_freq': 30000,
-                'num_workers': 14,
-                'device_list': ['cuda:2','cuda:3'], 
+                'num_workers': 7,
+                'device_list': ['cuda:1'], 
                 # 'ckpt_mode':'resume',
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
             }
         },
-    "360deg_5dof_stovrtk_fs_8":{
+    "360deg_5dof_stovrtk_fs_16":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
                 'action_type': 'cubic_bezier_5dof', 
                 'scenarios' : 'straight_overtake',
                 'num_npc': 1,
-                'frame_skip': 8,
+                'frame_skip': 16,
                 'traj_frame_horizon':30, 
                 'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
+                'max_num_steps':300000,
                 'num_agents':1,
                 'npc_reset_freq':1
             },
             "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_8', 
+                'save_suffix': '360deg_5dof_stovrtk_fs_16', 
                 'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:2'],
-            }
-        },
-    "360deg_5dof_stovrtk_fs_12_gamma_50":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 12,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':5000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_fs_12_gamma_50', 
-                'save_freq': 30000,
-                'num_workers': 13,
-                'device_list': ['cuda:0','cuda:1'], # ['cuda:0','cuda:1','cuda:2','cuda:3'],
-                'gamma':0.5,
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x26x1_360deg_5dof_stovrtk_fs_12_gamma_50_870253_Jun251201AM35.pth' 
+                'num_workers': 14,
+                'device_list': ['cuda:2','cuda:3'],
             }
         },
 
-    "360deg_5dof_steer_only_stovrtk_fs_4":{
+    ### Contant Speed Autopilot
+
+    "360deg_5dof_20_spd_stovrtk_fs_4":{
                 "env":{
                     'input_type': 'wp_360_obstacle_speed_steer',
                     'action_type': 'cubic_bezier_5dof', 
@@ -350,19 +164,124 @@ EXP_CONFIGS = {
                     'frame_skip': 4,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
+                    'max_num_steps':700000,
                     'num_agents':1,
-                    'npc_reset_freq':1
+                    'npc_reset_freq':1,
+                    'autopilot_type' : 'const_speed',
+                    'autopilot_const_speed':20.0,
                 },
                 "agent":{
-                    'save_suffix': '360deg_5dof_steer_only_stovrtk_fs_4', 
+                    'save_suffix': '360deg_5dof_20_spd_stovrtk_fs_4', 
                     'save_freq': 30000,
                     'num_workers': 14, 
-                    'device_list': ['cuda:0','cuda:1'],#'cuda:2','cuda:3'], 
+                    'device_list': ['cuda:0','cuda:1'], 
                     # 'ckpt_mode':'resume',
                     # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
                 }
             },
+    "360deg_5dof_20_spd_stovrtk_fs_16":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'cubic_bezier_5dof', 
+                    'scenarios' : 'straight_overtake',
+                    'num_npc': 1,
+                    'frame_skip': 16,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':300000,
+                    'num_agents':1,
+                    'npc_reset_freq':1,
+                    'autopilot_type' : 'const_speed',
+                    'autopilot_const_speed':20.0,
+
+                },
+                "agent":{
+                    'save_suffix': '360deg_5dof_20_spd_stovrtk_fs_16', 
+                    'save_freq': 30000,
+                    'num_workers': 14, 
+                    'device_list': ['cuda:2','cuda:3'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
+
+    "360deg_str_20_spd_stovrtk_fs_4":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'merged_speed_scaled_tanh', 
+                    'scenarios' : 'straight_overtake',
+                    'num_npc': 1,
+                    'frame_skip': 4,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':700000,
+                    'num_agents':1,
+                    'npc_reset_freq':1,
+                    'autopilot_type' : 'const_speed',
+                    'autopilot_const_speed':20.0,
+
+                },
+                "agent":{
+                    'save_suffix': '360deg_str_20_spd_stovrtk_fs_4', 
+                    'save_freq': 30000,
+                    'num_workers': 14, 
+                    'device_list': ['cuda:0','cuda:1'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
+    "360deg_str_20_spd_stovrtk_fs_16":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'merged_speed_scaled_tanh', 
+                    'scenarios' : 'straight_overtake',
+                    'num_npc': 1,
+                    'frame_skip': 16,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':300000,
+                    'num_agents':1,
+                    'npc_reset_freq':1,
+                    'autopilot_type' : 'const_speed',
+                    'autopilot_const_speed':20.0,
+                },
+                "agent":{
+                    'save_suffix': '360deg_str_20_spd_stovrtk_fs_16', 
+                    'save_freq': 30000,
+                    'num_workers': 14, 
+                    'device_list': ['cuda:2','cuda:3'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
+
+    ### MDP Connectivity Hypothesis
+    "360deg_5dof_20_spd_stovrtkcls_fs_4":{
+                "env":{
+                    'input_type': 'wp_360_obstacle_speed_steer',
+                    'action_type': 'cubic_bezier_5dof', 
+                    'scenarios' : 'straight_overtake_closeby',
+                    'num_npc': 1,
+                    'frame_skip': 4,
+                    'traj_frame_horizon':30, 
+                    'sticky_temporal_action_frames': 1,
+                    'max_num_steps':700000,
+                    'num_agents':1,
+                    'npc_reset_freq':1,
+                    'autopilot_type' : 'const_speed',
+                    'autopilot_const_speed':20.0,
+                },
+                "agent":{
+                    'save_suffix': '360deg_5dof_20_spd_stovrtk_fs_4', 
+                    'save_freq': 30000,
+                    'num_workers': 14, 
+                    'device_list': ['cuda:0','cuda:1'], 
+                    # 'ckpt_mode':'resume',
+                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
+                }
+            },
+
+    ### Steer autopilots
     "360deg_5dof_ppo_steer_stovrtk_fs_4":{
                 "env":{
                     'input_type': 'wp_360_obstacle_speed_steer',
@@ -372,7 +291,7 @@ EXP_CONFIGS = {
                     'frame_skip': 4,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
+                    'max_num_steps':700000,
                     'num_agents':1,
                     'npc_reset_freq':1,
                     'autopilot_type' : 'PPO_steer',
@@ -396,7 +315,7 @@ EXP_CONFIGS = {
                     'frame_skip': 4,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
+                    'max_num_steps':700000,
                     'num_agents':1,
                     'npc_reset_freq':1,
                     'autopilot_type' : 'PPO_part_steer_final',
@@ -420,7 +339,7 @@ EXP_CONFIGS = {
                     'frame_skip': 4,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
+                    'max_num_steps':700000,
                     'num_agents':1,
                     'npc_reset_freq':1,
                     'autopilot_type' : 'PPO_part_steer_intermediate',
@@ -436,33 +355,11 @@ EXP_CONFIGS = {
                 }
             },
     
+    # TODO: Perform this for FS = 16
 
-    "360deg_5dof_20_spd_stovrtk_fs_4":{
-                "env":{
-                    'input_type': 'wp_360_obstacle_speed_steer',
-                    'action_type': 'cubic_bezier_5dof', 
-                    'scenarios' : 'straight_overtake',
-                    'num_npc': 1,
-                    'frame_skip': 16,
-                    'traj_frame_horizon':30, 
-                    'sticky_temporal_action_frames': 1,
-                    'max_num_steps':5000000,
-                    'num_agents':1,
-                    'npc_reset_freq':1,
-                    'autopilot_type' : 'const_speed',
+    ### TODO: Increase traj_frame_horizon and test with steer autopilots
 
-                },
-                "agent":{
-                    'save_suffix': '360deg_5dof_20_spd_stovrtk_fs_4', 
-                    'save_freq': 30000,
-                    'num_workers': 20, 
-                    'device_list': ['cuda:1''cuda:2','cuda:3'], 
-                    # 'ckpt_mode':'resume',
-                    # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
-                }
-            },
-
-
+    ### Disrete Throttle
     "360deg_5dof_disc_thrt_stovrtk_fs_4":{
                 "env":{
                     'input_type': 'wp_360_obstacle_speed_steer',
@@ -486,68 +383,7 @@ EXP_CONFIGS = {
                 }
             },
 
-    "360deg_wp_st_fs_1":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_st_fs_1', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_st_fs_4_120701_May160911AM57.pth'
-            }
-        },
-    "360deg_wp_st_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_st_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:2'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_st_fs_4_60244_May300916AM52.pth'
-            }
-        },
-    "360deg_wp_st_fs_8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight',
-                'num_npc' : 0,
-                'frame_skip': 8,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_st_fs_8', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:1'],
-                'ckpt_mode':'resume',
-                'checkpoint':'ckptDPPO1x1x1_360deg_wp_st_fs_8_30168_May300711AM50.pth'
-            }
-        },
-   
+    ### Single waypoint action space
     "360deg_wp_stovrtk_fs_1":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
@@ -570,122 +406,9 @@ EXP_CONFIGS = {
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_4_60244_May300916AM52.pth'
             }
         },
-    "360deg_wp_stovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight_overtake',
-                'num_npc' : 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_4_60244_May300916AM52.pth'
-            }
-        },
-    "360deg_wp_stovrtk_fs_8":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'speed_wp', 
-                'scenarios' : 'straight_overtake',
-                'num_npc' : 1,
-                'frame_skip': 8,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                "num_agents":1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_wp_stovrtk_fs_8', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:3'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_wp_stovrtk_fs_8_30168_May300711AM50.pth'
-            }
-        },
-   
 
-    "360deg_5dof_stovrtkrnd_fs_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_random_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtkrnd_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 6,
-                'device_list': ['cuda:0','cuda:2','cuda:3'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
-            }
-        },
-    "360deg_5dof_stovrtk_sa_4":{
-            "env":{
-                'input_type': 'wp_360_obstacle_speed_steer',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_overtake',
-                'num_npc': 1,
-                'frame_skip': 1,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 4,
-                'max_num_steps':1000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '360deg_5dof_stovrtk_sa_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:0'],
-            }
-        },
-    "7dim_5dof_strandovrtk_fs_4":{
-            "env":{
-                'input_type': 'wp_obs_info_speed_steer_ldist_light',
-                'action_type': 'cubic_bezier_5dof', 
-                'scenarios' : 'straight_random_overtake',
-                'num_npc': 1,
-                'frame_skip': 4,
-                'traj_frame_horizon':30, 
-                'sticky_temporal_action_frames': 1,
-                'max_num_steps':1000000,
-                'num_agents':1,
-                'npc_reset_freq':1
-            },
-            "agent":{
-                'save_suffix': '7dim_5dof_stovrtk_fs_4', 
-                'save_freq': 30000,
-                'num_workers': 1,
-                'device_list': ['cuda:2'],
-                # 'ckpt_mode':'resume',
-                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
-            }
-        },
-
-
-##### Self-play Ablations ####
-
-#### Num Agents
-
+    ##### Self-play Ablations ####
+    #### Num Agents
     "360deg_str_st_fs_1_ag_4":{
             "env":{
                 'input_type': 'wp_360_obstacle_speed_steer',
