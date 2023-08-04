@@ -143,13 +143,11 @@ AdelaiDet_model/*
 # debug
 **/*debug*.*
 # logs
-# **/tensorboard_logs
 **/video_logs
 **/saved_ckpts
 **/saved_logs
 **/*.json
 # tensorboard logs
-# **/tensorboard_logs
 
 # misc
 source_py35
@@ -164,3 +162,4 @@ agents/torch/multi_agent/tests
 agents/torch/multi_agent/.tests
 
 agents/torch/multi_agent/config_exp.py
+agents/torch/multi_agent/checkpoints
