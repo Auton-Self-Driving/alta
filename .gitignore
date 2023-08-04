@@ -162,3 +162,5 @@ agents/torch/multi_agent/videos
 agents/torch/multi_agent/video_logs
 agents/torch/multi_agent/tests
 agents/torch/multi_agent/.tests
+
+agents/torch/multi_agent/config_exp.py

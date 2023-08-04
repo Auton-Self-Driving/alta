@@ -60,8 +60,8 @@ EXP_CONFIGS = {
                 "agent":{
                     'save_suffix': '360deg_str_stovrtk_fs_4', 
                     'save_freq': 30000,
-                    'num_workers': 7,
-                    'device_list': ['cuda:2'], 
+                    'num_workers': 10,
+                    'device_list': ['cuda:1','cuda:3'], 
                     # 'ckpt_mode':'resume',
                     # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
                 }
@@ -104,8 +104,8 @@ EXP_CONFIGS = {
             "agent":{
                 'save_suffix': '360deg_5dof_stovrtk_fs_1', 
                 'save_freq': 30000,
-                'num_workers': 7,
-                'device_list': ['cuda:0'],
+                'num_workers': 12,
+                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
                 # 'ckpt_mode':'resume',
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_1_243520_May151132AM24.pth'
             }
@@ -127,7 +127,7 @@ EXP_CONFIGS = {
                 'save_suffix': '360deg_5dof_stovrtk_fs_4', 
                 'save_freq': 30000,
                 'num_workers': 7,
-                'device_list': ['cuda:1'], 
+                'device_list': ['cuda:0'], 
                 # 'ckpt_mode':'resume',
                 # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
             }
@@ -188,7 +188,7 @@ EXP_CONFIGS = {
                     'frame_skip': 16,
                     'traj_frame_horizon':30, 
                     'sticky_temporal_action_frames': 1,
-                    'max_num_steps':300000,
+                    'max_num_steps':400000,
                     'num_agents':1,
                     'npc_reset_freq':1,
                     'autopilot_type' : 'const_speed',
@@ -199,7 +199,7 @@ EXP_CONFIGS = {
                     'save_suffix': '360deg_5dof_20_spd_stovrtk_fs_16', 
                     'save_freq': 30000,
                     'num_workers': 14, 
-                    'device_list': ['cuda:2','cuda:3'], 
+                    'device_list': ['cuda:0','cuda:1'], 
                     # 'ckpt_mode':'resume',
                     # 'checkpoint':'ckptDPPO1x1x1_360deg_str_stovrtk_fs_4_60334_May151137PM15.pth'
                 }

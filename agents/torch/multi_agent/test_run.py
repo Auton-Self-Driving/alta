@@ -251,6 +251,6 @@ if __name__ == '__main__':
 # python test_run.py --num_eps 10 --ckpt 360deg_5dof_ppo_part_steer_final_stovrtk_fs_4 --ckpt_iters 1080676 --autopilot PPO_part_steer_final --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
 # python test_run.py --num_eps 10 --ckpt 360deg_5dof_ppo_part_steer_interm_stovrtk_fs_4 --ckpt_iters 1051014 --autopilot PPO_part_steer_interm --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
 
-# python test_run.py --num_eps 10 --ckpt 360deg_5dof_20_spd_stovrtk_fs_16 --ckpt_iters 120004 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake_closeby --threads 1 --device 0
+# python test_run.py --num_eps 10 --ckpt 360deg_5dof_20_spd_stovrtk_fs_16 --ckpt_iters 180025 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
 
 
