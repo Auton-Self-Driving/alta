@@ -1,6 +1,8 @@
 import os
+import cv2
 import time
 import math
+import shutil
 import pickle
 import copy
 import torch
@@ -8,6 +10,7 @@ import torch.multiprocessing as mp
 import torch.nn.functional as F
 import numpy as np
 import imageio
+from PIL import Image
 import dist_utils as dist
 
 from threading import Thread, Lock
@@ -92,7 +95,8 @@ class DPPO_Server_Agent(object):
         glb_update_freq=1000, glb_adaptive_freq=False, num_agents=1,
         max_glb_num_steps=1000000, gamma=.99, eps_clip=.2, grad_clip=None,
         optim_epochs=100, push_grad=True, focal_loss=False, log_time='TEST',
-        save_freq=100000, save_suffix='', verbose=False):
+        save_freq=100000, save_suffix='', verbose=False,
+        visualization_freq = 500, visualization_root=None):
         """An asynchronous DPPO agent.
         Args:
             glb_policy: network shared by all PPO agents
@@ -110,6 +114,8 @@ class DPPO_Server_Agent(object):
             save_suffix: checkpoint saving suffix
             deterministic: evaluation mode (deterministic action)
             verbose: if print some debug information
+            visualization_root: path to training visualization scratch 
+            visualization_freq: episodic frequency of logging training visualizations 
         """
         self.glb_policy = glb_policy
         self.N_S = self.glb_policy.N_S
@@ -140,18 +146,38 @@ class DPPO_Server_Agent(object):
         self.num_threads = num_threads
         self.vprint(comm_vars)
      
-        # Variables used in determining checkpoint name 
+        ### Variables used in determining checkpoint name 
         self.save_suffix = '_' + save_suffix if save_suffix else ''
         self.run_name = 'DPPO{}x{}x{}{}'.format(self.num_servers,
             self.num_workers, self.num_agents, self.save_suffix)
         self.time = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
 
-        # Tensorboard logging specifications
+        ### Tensorboard logging specifications
         self.tb_log_dir = '{}/{}'.format('./tensorboard_logs',
             self.run_name)
         self.tbwriter = None
 
+        ### Train Video Specifications
+        viz_root = visualization_root if visualization_root else 'train_visualizations'
+        
+        # Path to temporary storage of frames
+        scratch_pth = os.path.join(viz_root,'scratch', save_suffix)
+        # Path to permanent storage of videos
+        vault_pth = os.path.join(viz_root,'vault', save_suffix)
+
+        if os.path.exists(scratch_pth):
+            shutil.rmtree(scratch_pth)
+
+        os.makedirs(scratch_pth)
+        os.makedirs(vault_pth, exist_ok=True)
+
+        # Create individual scratch directories for each worker agent
+        for rk in range(1,self.num_agents+1):
+            os.makedirs(os.path.join(scratch_pth, str(rk)))
+        self.visualization_freq = visualization_freq
+
+        ### Misc
         self.recv_info_len = 5
         self.glb_ep_reward_list = []
         self.glb_update_freq = glb_update_freq
@@ -168,7 +194,8 @@ class DPPO_Server_Agent(object):
        
         self.resumed = False
         self.reset_memory()
-        # for Hessian
+
+        ### for Hessian
         self.old_policy_dict = OrderedDict()
         self.timestamp_counter = Counter()
 
@@ -261,9 +288,10 @@ class DPPO_Server_Agent(object):
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
                 with self.server_lock:
+                    visualize_training = int((self.glb_num_episodes-1) % self.visualization_freq == 0)
                     dist.isend(
                         [self.glb_num_steps, self.glb_num_episodes,
-                        self.glb_policy_timestamp],
+                        self.glb_policy_timestamp, visualize_training],
                         self.glb_policy.parameters(),
                         dst=sender, tag=SIG.PARAM
                     ).wait()                
@@ -448,7 +476,7 @@ class DPPO_Worker_Agent(object):
         num_agents=1, max_glb_num_steps=1000000, gamma=.99, eps_clip=.2,
         grad_update_freq=1000, optim_epochs=100, focal_loss=False,
         standard=True, push_grad=True, grad_clip=None, save_freq=100000,
-        save_suffix='', verbose=False):
+        save_suffix='', visualization_root=None, verbose=False):
         """An synchronous DPPO Worker agent.
         Args:
             local_env: the global environment
@@ -499,7 +527,7 @@ class DPPO_Worker_Agent(object):
         self.num_workers = len(self.worker_list)
         self.server_rank = (self.rank - self.num_servers) % self.num_servers
         self.vprint(comm_vars, self.server_rank)
-        self.recv_info_len = 3
+        self.recv_info_len = 4 #3
         self.grad_clip = grad_clip
         self.device = next(local_policy.parameters()).device
 
@@ -511,6 +539,10 @@ class DPPO_Worker_Agent(object):
         self.savetime = lambda: time.strftime('%b%d%I%M%p%S')
         self.tb_log_dir = '{}/{}'.format('./tensorboard_logs',
             self.run_name)
+
+        self.visualize_training = False
+        self.visualization_scratch = os.path.join(visualization_root,'scratch', save_suffix, str(self.rank))
+        self.visualization_vault = os.path.join(visualization_root,'vault', save_suffix)
 
         self.glb_num_episodes = 1
         self.glb_num_steps = 0
@@ -560,7 +592,8 @@ class DPPO_Worker_Agent(object):
 
         # Updating local policy with latest parameters from server
         self.glb_num_steps, self.glb_num_episodes, \
-            self.local_policy_timestamp = self.update_parameters()
+            self.local_policy_timestamp, \
+            self.visualize_training = self.update_parameters()
 
     def update_parameters(self):
         """ Get latest parameters from server
@@ -730,50 +763,26 @@ class DPPO_Worker_Agent(object):
             },
             self.glb_num_steps)
 
-        # for ep_stps in range(len(agent.obstacle_dist_array)):
-
-        #     self.tbwriter.add_scalars('rank_{}/step/agent_state'.format(self.rank),
-        #     {
-        #         'speed':agent.speeds_array[ep_stps] * 3.6,
-        #         'light':agent.red_light_dist_array[ep_stps],
-        #         'front_obst':50 if agent.speeds_array[ep_stps] == 10000 else agent.speeds_array[ep_stps],
-        #         'front_obst_sp':agent.obstacle_speed_array[ep_stps]
-        #     },
-        #     self.glb_num_steps + ep_stps)
-
-        #     self.tbwriter.add_scalar('rank_{}/step/throttle'.format(self.rank),
-        #         agent.throttles_array[ep_stps],
-        #         self.glb_num_steps + ep_stps)        
-
         # Videowriter
-        # if self.rank == 1: # Firsts worker logs video output
-        #     if (self.glb_num_episodes) % 10 == 1: 
-        #         for c in ['bev','front']:
-        #             n_frames = len(agent.camera_images_array[c])
-        #             # ln = 50
-        #             # if n_frames > ln:
-        #             #     step = n_frames / float(ln-1)
-        #             #     agent.camera_images_array[c] = [agent.camera_images_array[c][int(idx*step)] for idx in range(0,ln-1)] + \
-        #             #                                     [agent.camera_images_array[c][-1]]
-        #             # imageio.mimsave(os.path.join(self.tb_log_dir,'train_clips',f"{self.glb_num_episodes}-{c}.gif"),agent.camera_images_array[c],'GIF',fps=15)
-        #             img_batch = np.stack(agent.camera_images_array[c],axis=0)
-        #             video = torch.from_numpy(img_batch).permute(0, 3, 1, 2).unsqueeze(0)
-        #             # print(n_frames,video.shape)
-        #             # self.tbwriter.add_images('rank_{}/episode/{}'.format(self.rank,c),
-        #             #     img_batch,
-        #             #     self.glb_num_episodes,
-        #             #     'NHWC'
-        #             #     )
-        #             self.tbwriter.add_video('rank_{}/episode/{}'.format(self.rank,c),
-        #                 video,
-        #                 self.glb_num_episodes,
-        #                 fps=5)
+        if self.visualize_training:
+            for c in agent.camera_actors:
+                
+                folder = os.path.join(self.visualization_scratch,c)
+                im_list = [Image.open((os.path.join(folder,f_n))) for f_n in sorted(os.listdir(folder))]
+                vid_path = os.path.join(
+                    self.visualization_vault,
+                    f"{self.glb_num_episodes}_{c}_{agent.termination_state}_{self.glb_num_steps}.mp4" 
+                )
+                imageio.mimsave(vid_path,im_list)
+                shutil.rmtree(folder)
+
 
     def learn(self):
 
         # get initial parameters from server
         self.glb_num_steps, self.glb_num_episodes, \
-            self.local_policy_timestamp = self.update_parameters()
+            self.local_policy_timestamp, \
+            self.visualize_training = self.update_parameters()
 
         # Initialize tensorboard instance of worker
         if self.tbwriter is None:
@@ -883,17 +892,15 @@ class DPPO_Worker_Agent(object):
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
 
-
-                # self.tbwriter.add_scalars('rank_{}/step/agent_state'.format(self.rank),
-                # {
-                #     'speed':agent.speeds_array[-1] * 3.6,
-                #     'light':agent.red_light_dist_array[-1],
-                #     'front_obst':50 if agent.speeds_array[-1] == 10000 else agent.speeds_array[-1],
-                #     'front_obst_sp':agent.obstacle_speed_array[-1]
-                # }, self.local_num_episodes*100 + agent.num_total_steps)
-
-                # self.tbwriter.add_scalar('rank_{}/step/throttle'.format(self.rank),
-                #     agent.throttles_array[-1], self.local_num_episodes*100 + agent.num_total_steps)
+                if self.visualize_training:
+                    os.makedirs(self.visualization_scratch,exist_ok=True)
+                    os.makedirs(self.visualization_vault,exist_ok=True)
+                    for cam in agent.camera_actors:
+                        folder = os.path.join(self.visualization_scratch,cam)
+                        os.makedirs(folder,exist_ok=True)
+                        zeros = (6 - len(str(self.local_num_steps)))*"0"
+                        im = Image.fromarray(agent.episode_measurements['camera_images'][cam])
+                        im.save(os.path.join(folder,f"{zeros}{self.local_num_steps}.jpg"))
 
             # Identify dead agents
             respawn_rank_list = []

@@ -407,10 +407,14 @@ class CarlaEnv(gym.Env):
             self.world_frame = self._world.tick()
             ########################################################################################
 
+            
+
             for idx, agent in enumerate(self.ego_agent_list):
+                
                 if agent.done or agent.action is None: continue
                 if 'challenge' in self.config['scenarios']:
                     agent.running.scenario.scenario_tree.tick_once()
+                
                 
                 agent.episode_measurements['num_steps'] = agent.curr_ep_num_steps
                 # Set state variables for reward calculation
@@ -418,6 +422,7 @@ class CarlaEnv(gym.Env):
                 agent.episode_measurements['collision_actor_id'] = agent.collision_sensor.actor_id
                 agent.episode_measurements['collision_actor_type'] = agent.collision_sensor.actor_type
 
+                
                 if self.config['enable_lane_invasion_termination']:
                     if not self.config["disable_lane_invasion_sensor"]:
         
@@ -459,7 +464,7 @@ class CarlaEnv(gym.Env):
                 if agent.episode_measurements['min_distance_to_goal'] >= agent.location.distance(agent.destination_transform.location):
                     agent.episode_measurements['min_distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
                 agent.episode_measurements['speed'] = env_util.get_speed_from_velocity(agent.vehicle_actor.get_velocity())
-
+                
                 self._get_ego_input(agent) # Agent observations and ep measurements constructed here
 
                 agent.step_reward = compute_reward(name=self.config['reward_function'],
@@ -488,7 +493,7 @@ class CarlaEnv(gym.Env):
                 if (agent.episode_measurements['is_collision'] or agent.episode_measurements['runover_light']) and self.config["verbose"]:
                     print("Collisions Total: {}, Vehicle: {}, Static: {}".format(self.total_collisions, self.vehicle_collisions, self.static_collisions))
                     print("Traffic Light Violations: {}".format(self.traffic_light_violations))
-
+                
                 done = self._compute_done_condition(agent)
                 agent.episode_measurements['done'] = done
                 agent.done = bool(done)
@@ -513,10 +518,7 @@ class CarlaEnv(gym.Env):
                 for k in agent.episode_reward_breakup:
                     agent.episode_reward_breakup[k] += agent.episode_measurements['reward_breakup'][k]
                 agent.episode_measurements['reward'] = agent.curr_reward
-                agent.episode_measurements['total_reward'] = agent.episode_reward
-
-                for k in agent.camera_images_array:
-                    agent.camera_images_array[k].append(agent.episode_measurements['camera_images'][k])
+                agent.episode_measurements['total_reward'] = agent.episode_reward 
 
         for rk, agent in enumerate(self.ego_agent_list):
             if agent.action is None:
@@ -774,16 +776,16 @@ class CarlaEnv(gym.Env):
                 # agent.action, start_pt = self.traj_manager.get_subsegment_parameters(agent)
 
                 ### FOR DEBUGGING ###
-                debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
-                debug_traj_manager.current_basis = self.traj_manager.current_basis
-                debug_traj_manager.reference_basis = self.traj_manager.current_basis
-                debug_traj_manager.yaw_drift = 0
-                debug_traj_manager.origin = self.traj_manager.origin 
-                cur_pos_ref = start_pt
-                debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
-                debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"] 
-                debug_traj_manager.populate_trajectory(agent.action)
-                env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
+                # debug_traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
+                # debug_traj_manager.current_basis = self.traj_manager.current_basis
+                # debug_traj_manager.reference_basis = self.traj_manager.current_basis
+                # debug_traj_manager.yaw_drift = 0
+                # debug_traj_manager.origin = self.traj_manager.origin 
+                # cur_pos_ref = start_pt
+                # debug_traj_manager.origin += cur_pos_ref[0]*self.traj_manager.reference_basis["heading"] 
+                # debug_traj_manager.origin += cur_pos_ref[1]*self.traj_manager.reference_basis["right"] 
+                # debug_traj_manager.populate_trajectory(agent.action)
+                # env_util.plot_trajectory(time_delay, self._world, debug_traj_manager, col_scheme="non_std")
 
             agent.trajectory_yaw_drift = self.traj_manager.yaw_drift
 
@@ -1451,7 +1453,7 @@ class CarlaEnv(gym.Env):
 
             agent.camera_actors = {
                 "bev":self._world.spawn_actor(bev_camera, bev_camera_transform, attach_to=agent.vehicle_actor),
-                "front":self._world.spawn_actor(front_camera, front_camera_transform, attach_to=agent.vehicle_actor),
+                # "front":self._world.spawn_actor(front_camera, front_camera_transform, attach_to=agent.vehicle_actor),
             }
 
             agent.camera_images_array = {k : [] for k in agent.camera_actors}
@@ -1788,6 +1790,7 @@ class CarlaEnv(gym.Env):
         for idx in range(len(cameras)):
             image = self._read_data(agent.camera_queues[idx], self.world_frame)
             agent.camera_images[cameras[idx]] = image
+            # agent.camera_images_array[cameras[idx]].append(image)
         agent.episode_measurements['camera_images'] = agent.camera_images
 
 

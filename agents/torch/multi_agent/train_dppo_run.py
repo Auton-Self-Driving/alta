@@ -121,6 +121,8 @@ def launch_server(rank, resources):
         gamma=resources["agent_cfg"]['gamma'],
         num_threads=resources["agent_cfg"]['num_threads_per_server'],
         save_suffix=resources["agent_cfg"]['save_suffix'],
+        visualization_root=resources["agent_cfg"]['train_vis_root'],
+        visualization_freq=resources["agent_cfg"]['train_vis_ep_freq'],
         save_freq=resources["agent_cfg"]['save_freq'],
         log_time=resources['log_time'],
         verbose=resources["env_cfg"]['verbose'],
@@ -172,6 +174,7 @@ def launch_worker(rank, resources):
         standard=resources["agent_cfg"]['standard'],
         push_grad=resources["agent_cfg"]['push_grad'],
         save_suffix=resources["agent_cfg"]['save_suffix'],
+        visualization_root=resources["agent_cfg"]['train_vis_root'],
         log_time=resources['log_time'],
         verbose=resources["env_cfg"]['verbose'],
     )

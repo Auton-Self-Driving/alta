@@ -139,7 +139,9 @@ DPPO_CONFIG = {
     'worker_optim_epochs': 10,
     'server_glb_update_freq': 100,
     'server_adaptive_freq': True,
-    'save_freq': 30000,#10000 #   
+    'save_freq': 30000,#10000, #  
+    'train_vis_ep_freq': 200,
+    'train_vis_root' : 'train_visualizations',  
 }
 
 PPO_CONFIG = {
@@ -254,8 +256,9 @@ ENV_CONFIG = {
 
 
     'autopilot_type': None, # Options - None, PPO_steer, PPO_speed, const_speed
-    'autopilot_ckpt' : '360deg_5dof_steer_only_stovrtk_fs_4/ckptDPPO1x14x1_360deg_5dof_steer_only_stovrtk_fs_4_1260731_Jun300846AM45.pth', 
-    'autopilot_const_spd': 20,
+    # 'autopilot_ckpt' : '360deg_5dof_steer_only_stovrtk_fs_4/ckptDPPO1x14x1_360deg_5dof_steer_only_stovrtk_fs_4_1260731_Jun300846AM45.pth', 
+    'autopilot_ckpt' : '360deg_5dof_stovrtk_fs_1/ckptDPPO1x12x1_360deg_5dof_stovrtk_fs_1_1472372_Aug031203AM37.pth',
+    'autopilot_const_speed': 20,
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 
@@ -336,7 +339,7 @@ ENV_CONFIG = {
     'log_measurements_to_file': False, # c
     # 'log_freq': 1, # c
 
-    'dist_for_success' : 10.0, # sc
+    'dist_for_success' : 4.0, # 10.0, # sc # NOTE
     'max_offlane_steps' : 0, # sc
     'max_static_steps' : 200, # sc
     'zero_speed_threshold': 0.05, # sc
@@ -400,4 +403,5 @@ ENV_CONFIG = {
     ############### TEST SETTINGS ###############
     
     'testing': False, # c
+    
 }
