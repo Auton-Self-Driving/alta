@@ -207,6 +207,13 @@ class GlobalPlanner():
                                         vehicle_transform,
                                         self.second_last_waypoint,
                                         self.last_waypoint)
+                dist_to_waypoint = distance_vehicle(self.last_waypoint, vehicle_transform)
+                dot, angle, w_vec = self.get_dot_product_and_angle(vehicle_transform, self.last_waypoint)
+                next_waypoints = [self.last_waypoint]
+                next_road_opts = [RoadOption.LANEFOLLOW]
+                dist_to_goal = self._hop_resolution
+                next_waypoints_vectors = [w_vec]
+                next_waypoints_angles = [angle]
             else:
                 self.dist_to_trajectory = 0
 
