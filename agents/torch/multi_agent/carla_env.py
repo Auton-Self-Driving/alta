@@ -14,6 +14,7 @@ import copy
 import queue
 import time
 import matplotlib.pyplot as plt
+from PIL import Image
 from collections import deque
 
 import environment.carla_9_4.scenarios as scenarios
@@ -296,8 +297,14 @@ class CarlaEnv(gym.Env):
 
         self.traj_manager = env_util.get_trajectory_manager(self.config["action_type"], self.config)
 
+        self.viz_config = {"visualize":False}
+
+
         if self.config["disable_two_wheeler"]:
             self.vehicle_blueprints = [x for x in self.vehicle_blueprints if int(x.get_attribute('number_of_wheels')) == 4]
+
+    def update_visualization_settings(self, settings):
+        self.viz_config = settings
 
     def _spawn_client(self, hostname='localhost', port_number=None):
         port_number = self.CarlaServer.server_port
@@ -1792,6 +1799,15 @@ class CarlaEnv(gym.Env):
             agent.camera_images[cameras[idx]] = image
             # agent.camera_images_array[cameras[idx]].append(image)
         agent.episode_measurements['camera_images'] = agent.camera_images
+
+        # Visualize training
+        if self.viz_config["visualize"]:
+            for cam in agent.camera_actors:
+                folder = os.path.join(self.viz_config["scratch"],cam)
+                os.makedirs(folder,exist_ok=True)
+                zeros = (8 - len(str(self.world_frame)))*"0"
+                im = Image.fromarray(agent.episode_measurements['camera_images'][cam])
+                im.save(os.path.join(folder,f"{zeros}{self.world_frame}.jpg"))
 
 
         obs['speed'] = np.expand_dims(np.array([agent.episode_measurements['speed']]), axis=0) # * 3.6 / 30

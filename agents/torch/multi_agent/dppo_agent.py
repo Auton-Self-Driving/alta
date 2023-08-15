@@ -807,6 +807,15 @@ class DPPO_Worker_Agent(object):
         avg_t_action, avg_t_step  = [], []
 
         while self.glb_num_steps < self.max_glb_num_steps + 1:
+
+            # Setup for visualizing training run
+            if self.visualize_training:
+                os.makedirs(self.visualization_scratch,exist_ok=True)
+            
+            self.local_env.update_visualization_settings({
+                "visualize":self.visualize_training,
+                "scratch":self.visualization_scratch
+            })
                     
             # Used to compute time taken to take action
             ts_action = time.time() 
@@ -892,15 +901,6 @@ class DPPO_Worker_Agent(object):
                         self.num_steps_since_update = 0
                         self.num_eps_since_update = 0
 
-                if self.visualize_training:
-                    os.makedirs(self.visualization_scratch,exist_ok=True)
-                    os.makedirs(self.visualization_vault,exist_ok=True)
-                    for cam in agent.camera_actors:
-                        folder = os.path.join(self.visualization_scratch,cam)
-                        os.makedirs(folder,exist_ok=True)
-                        zeros = (6 - len(str(self.local_num_steps)))*"0"
-                        im = Image.fromarray(agent.episode_measurements['camera_images'][cam])
-                        im.save(os.path.join(folder,f"{zeros}{self.local_num_steps}.jpg"))
 
             # Identify dead agents
             respawn_rank_list = []
