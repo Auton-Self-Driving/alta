@@ -288,7 +288,9 @@ class DPPO_Server_Agent(object):
                 self.vprint('server', self.rank, 'send param', sender,
                     num_steps_added, signal)
                 with self.server_lock:
-                    visualize_training = int((self.glb_num_episodes-1) % self.visualization_freq == 0)
+                    visualize_training = int(
+                        (self.glb_num_episodes-1) % self.visualization_freq in [0,1,2,3] 
+                    )
                     dist.isend(
                         [self.glb_num_steps, self.glb_num_episodes,
                         self.glb_policy_timestamp, visualize_training],

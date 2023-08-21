@@ -669,6 +669,12 @@ class CubicBezierManager(TrajectoryManager):
                 1:{'x':[1,6],'y':[-3,3]},
                 2:{'x':[0,8],'y':[-3,3]},
                 3:{'x':[13,13],'y':[-3,3]}}
+
+        # self.pt_range = { # For traj length 60
+        #         0:{'x':[0,0],'y':[0,0]},
+        #         1:{'x':[1,8],'y':[-5,5]},
+        #         2:{'x':[0,12],'y':[-5,5]},
+        #         3:{'x':[20,20],'y':[-3,3]}}
         self.point_action_scaling = 1.0
 
     def populate_trajectory(self, action):
