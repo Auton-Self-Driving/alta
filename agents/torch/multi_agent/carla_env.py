@@ -1220,7 +1220,10 @@ class CarlaEnv(gym.Env):
         elif self.config["scenarios"] == "straight_overtake_closeby": 
             self.source_transform, self.destination_transform = scenarios.get_short_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
-            frac = random.random() * 0.15 + 0.7
+            if unseen: # For deterministic testing
+                frac = 0.7 + (index * 0.15) / self.config["num_episodes"] 
+            else:
+                frac = random.random() * 0.15 + 0.7
             spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
             spwn_rot = self.source_transform.rotation
             self.spawn_points = [Transform(spwn_loc,spwn_rot)]
