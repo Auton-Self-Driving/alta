@@ -813,6 +813,9 @@ class DPPO_Worker_Agent(object):
             # Setup for visualizing training run
             if self.visualize_training:
                 os.makedirs(self.visualization_scratch,exist_ok=True)
+
+            # Set total env steps since its used to turn on and off autopilot
+            self.local_env.num_steps = self.glb_num_steps
             
             self.local_env.update_visualization_settings({
                 "visualize":self.visualize_training,

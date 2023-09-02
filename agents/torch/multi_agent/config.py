@@ -259,6 +259,7 @@ ENV_CONFIG = {
     # 'autopilot_ckpt' : '360deg_5dof_steer_only_stovrtk_fs_4/ckptDPPO1x14x1_360deg_5dof_steer_only_stovrtk_fs_4_1260731_Jun300846AM45.pth', 
     'autopilot_ckpt' : '360deg_5dof_stovrtk_fs_1/ckptDPPO1x12x1_360deg_5dof_stovrtk_fs_1_1472372_Aug031203AM37.pth',
     'autopilot_const_speed': 20,
+    'autopilot_steps': 100000000, # Number of steps after which to turn off autopilot (if used)
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 

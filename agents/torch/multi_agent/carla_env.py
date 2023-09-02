@@ -754,25 +754,28 @@ class CarlaEnv(gym.Env):
 
             time_on_curve = time_delay  +  agent.frame_skip_itr / float(self.config['traj_frame_horizon'])
 
-            if self.config['autopilot_type'] == "PPO_speed":
-                tate_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
-                action[5] = autopilot_action[0,5]
-            elif self.config['autopilot_type'] == "PPO_steer":
-                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
-                action[:5] = autopilot_action[0,:5]
-            elif self.config['autopilot_type'] == "PPO_part_steer_final":
-                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
-                action[4] = autopilot_action[0,4]
-            elif self.config['autopilot_type'] == "PPO_part_steer_intermediate":
-                state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
-                autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
-                action[:4] = autopilot_action[0,:4]
-            elif self.config['autopilot_type'] == "const_speed":
-                action[5] = float(np.clip( (2.0/3.0)*(self.config['autopilot_const_speed'] / (self.config['target_speed']/2.0) - 1), -1, 1)) # 0 = 25kmph, -1/7.5 = 20kmph
-                
+            if self.config['autopilot_type'] is not None and \
+                self.num_steps < self.config['autopilot_steps']:
+
+                if self.config['autopilot_type'] == "PPO_speed":
+                    tate_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                    autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                    action[5] = autopilot_action[0,5]
+                elif self.config['autopilot_type'] == "PPO_steer":
+                    state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                    autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                    action[:5] = autopilot_action[0,:5]
+                elif self.config['autopilot_type'] == "PPO_part_steer_final":
+                    state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                    autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                    action[4] = autopilot_action[0,4]
+                elif self.config['autopilot_type'] == "PPO_part_steer_intermediate":
+                    state_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
+                    autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
+                    action[:4] = autopilot_action[0,:4]
+                elif self.config['autopilot_type'] == "const_speed":
+                    action[5] = float(np.clip( (2.0/3.0)*(self.config['autopilot_const_speed'] / (self.config['target_speed']/2.0) - 1), -1, 1)) # 0 = 25kmph, -1/7.5 = 20kmph
+                    
 
             if agent.frame_skip_itr == 0:
                 # Setting up vehicle centric coordinate space
