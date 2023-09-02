@@ -412,9 +412,7 @@ class CarlaEnv(gym.Env):
             ########################################################################################
             CarlaDataProvider.on_carla_tick()
             self.world_frame = self._world.tick()
-            ########################################################################################
-
-            
+            ########################################################################################           
 
             for idx, agent in enumerate(self.ego_agent_list):
                 
@@ -465,6 +463,18 @@ class CarlaEnv(gym.Env):
                             continue
                         
                         agent.episode_measurements['unlawful_lane_change'] = False
+
+
+                # When the OPENDRIVE layout and visualized map differ in Carla, this 
+                # works as a heuristic to ensure that out_of_road termination isn't 
+                # triggered in the middle of road.
+                if agent.episode_measurements['out_of_road']:
+
+                    if agent.episode_measurements['dist_to_trajectory'] > -3.7 and \
+                                            agent.episode_measurements['dist_to_trajectory'] < 0:
+
+                        agent.episode_measurements['out_of_road'] = False
+
 
                 agent.location = agent.vehicle_actor.get_location()
                 agent.episode_measurements['distance_to_goal'] = agent.location.distance(agent.destination_transform.location)
@@ -1197,10 +1207,13 @@ class CarlaEnv(gym.Env):
         if self.config["scenarios"] == "straight": 
             self.source_transform, self.destination_transform = scenarios.get_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
-        elif self.config["scenarios"] == "straight_overtake": 
+        elif self.config["scenarios"] == "straight_overtake":
             self.source_transform, self.destination_transform = scenarios.get_short_straight_path(unseen, town, index)
             self.config["num_episodes"] = 25
-            frac = random.random() * 0.60 + 0.2
+            if unseen: # For deterministic testing
+                frac = 0.2 + (index * 0.6) / self.config["num_episodes"] 
+            else:
+                frac = random.random() * 0.60 + 0.2
             spwn_loc = frac*self.source_transform.location + (1-frac)*self.destination_transform.location
             spwn_rot = self.source_transform.rotation
             self.spawn_points = [Transform(spwn_loc,spwn_rot)]
