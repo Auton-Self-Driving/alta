@@ -692,8 +692,8 @@ class PPO_Collective_Agent(object):
         N_S = self.glb_env.obs_manager.observation_space.shape[-1]
         stats_logger = StatsLogger("side_obs_sensors" if  N_S >= 14  else "no_side")
 
-        self.glb_env.config['max_steps'] = 200
-        # self.glb_env.config['frame_skip'] = 6
+        self.glb_env.config['max_steps'] = 1000
+        # self.glb_env.config['frame_skip'] = 4
 
         if videos: viz = Visualizer(images_path=self.vid_log_dir,
             video_path=self.vid_log_dir)

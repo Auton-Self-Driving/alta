@@ -260,6 +260,7 @@ ENV_CONFIG = {
     'autopilot_ckpt' : '360deg_5dof_stovrtk_fs_1/ckptDPPO1x12x1_360deg_5dof_stovrtk_fs_1_1472372_Aug031203AM37.pth',
     'autopilot_const_speed': 20,
     'autopilot_steps': 100000000, # Number of steps after which to turn off autopilot (if used)
+    'slow_no_light_autopilot': False,
 
     ############### ENVIRONMENT HYPERPARAMETERS ###############
 
@@ -393,6 +394,7 @@ ENV_CONFIG = {
     'disable_lane_invasion_sensor' : False, # sc TODO [RED]  
     'enable_lane_invasion_termination' : False, #DISABLED [AMAN] # rc
     'enable_off_road_termination' : True, # TODO rc
+    'custom_offroad_check' : True, # Incases when there is an issue with the opendrive format
 
     'terminate_on_light' : False, # sc
     'enable_static_termination': False, # DISABLED [AMAN] # sc disable_static TODO fix code

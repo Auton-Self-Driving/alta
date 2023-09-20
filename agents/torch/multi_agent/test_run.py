@@ -188,6 +188,8 @@ def construct_config_update(args):
 
                 if args.autopilot is not None:
                     config_list[-1]['autopilot_type'] = args.autopilot
+                if args.autopilot_ckpt is not None:
+                    config_list[-1]['autopilot_ckpt'] = args.autopilot_ckpt
 
 
                 
@@ -204,6 +206,7 @@ if __name__ == '__main__':
     parser.add_argument("--ckpt", default=argparse.SUPPRESS)
     parser.add_argument("--ckpt_iters", nargs='*', default=argparse.SUPPRESS)
     parser.add_argument("--autopilot", default=None)
+    parser.add_argument("--autopilot_ckpt", default=None)
     parser.add_argument("--eval_suffix", default=argparse.SUPPRESS)
     parser.add_argument("--test_towns", nargs='*', default=argparse.SUPPRESS)
     parser.add_argument("--scenarios", nargs='*', default=argparse.SUPPRESS)
@@ -253,16 +256,22 @@ if __name__ == '__main__':
 
 # python test_run.py --num_eps 10 --ckpt 360deg_5dof_20_spd_stovrtk_fs_16 --ckpt_iters 180025 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake --threads 1 --device 1
 
-###### New Experiments
+###### Older New Experiments - w/ Opendrive bug
 
 # python test_run.py --ckpt 360deg_5dof_stovrtk_fs_1 --ckpt_iters 1472372 1352179 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 0
+# python test_run.py --ckpt 360deg_5dof_stovrtk_fs_1_seed_2 --ckpt_iters 1472620 1412510 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 2
+# python test_run.py --ckpt 360deg_5dof_stovrtk_fs_1_seed_3 --ckpt_iters 1502296 1832640 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 2
 # python test_run.py --ckpt 360deg_str_stovrtk_fs_1 --ckpt_iters 1479489 1419166 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 0
 # python test_run.py --ckpt 360deg_5dof_stovrtk_fs_4 --ckpt_iters 691413 631343 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 0
 # python test_run.py --ckpt 360deg_str_stovrtk_fs_4 --ckpt_iters 691135 630995 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 0
 
 # python test_run.py --ckpt 360deg_str_20_spd_stovrtk_fs_4 --autopilot const_speed --ckpt_iters 690213 630199 --test_towns Town01 --scenarios straight_overtake --threads 2 --device 0
 # python test_run.py --ckpt 360deg_5dof_20_spd_stovrtk_fs_16 --autopilot const_speed --ckpt_iters 240034 210028 180025 --test_towns Town01 --scenarios straight_overtake --threads 3 --device 3
-
 # python test_run.py --ckpt 360deg_5dof_20_spd_stovrtkcls_fs_4 --autopilot const_speed --ckpt_iters 330151 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
-
 # python test_run.py --ckpt 360deg_5dof_ppo_part_steer_interm_stovrtk_fs_4 --ckpt_iters 630257 --autopilot PPO_part_steer_interm --test_towns Town01 --scenarios straight_overtake --threads 1 --device 3
+
+###### New experiments w/o opendrive bug (well almost)
+# python test_run.py --ckpt 360deg_5dof_20_spd_stovrtk_fs_4_seed_2 --ckpt_iters 2221342 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0 --num_eps 3
+# python test_run.py --ckpt 360deg_5dof_20_spd_stovrtk_fs_4_seed_2 --ckpt_iters 180112 --autopilot const_speed --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0 --num_eps 3
+# python test_run.py --ckpt 360deg_5dof_stovrtk_fs_4_seed_2 --ckpt_iters 2161353 --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0 --num_eps 3
+# python test_run.py --ckpt 360deg_5dof_ppo_steer_stovrtk_fs_4_60_autopilot --ckpt_iters 600356 --autopilot PPO_steer --test_towns Town01 --scenarios straight_overtake --threads 1 --device 0 --num_eps 3 --autopilot_ckpt 360deg_5dof_20_spd_stovrtk_fs_4_seed_2/ckptDPPO1x20x1_360deg_5dof_20_spd_stovrtk_fs_4_seed_2_180112_Aug251023PM42.pth

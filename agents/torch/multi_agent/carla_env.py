@@ -468,7 +468,7 @@ class CarlaEnv(gym.Env):
                 # When the OPENDRIVE layout and visualized map differ in Carla, this 
                 # works as a heuristic to ensure that out_of_road termination isn't 
                 # triggered in the middle of road.
-                if agent.episode_measurements['out_of_road']:
+                if agent.episode_measurements['out_of_road'] and self.config['custom_offroad_check']:
 
                     if agent.episode_measurements['dist_to_trajectory'] > -3.7 and \
                                             agent.episode_measurements['dist_to_trajectory'] < 0:
@@ -756,7 +756,6 @@ class CarlaEnv(gym.Env):
 
             if self.config['autopilot_type'] is not None and \
                 self.num_steps < self.config['autopilot_steps']:
-
                 if self.config['autopilot_type'] == "PPO_speed":
                     tate_tensor = torch.from_numpy(agent.observation).to(torch.float).to(agent.device)
                     autopilot_action, _ = agent.autopilot.act(state_tensor,deterministic=True)
@@ -776,7 +775,6 @@ class CarlaEnv(gym.Env):
                 elif self.config['autopilot_type'] == "const_speed":
                     action[5] = float(np.clip( (2.0/3.0)*(self.config['autopilot_const_speed'] / (self.config['target_speed']/2.0) - 1), -1, 1)) # 0 = 25kmph, -1/7.5 = 20kmph
                     
-
             if agent.frame_skip_itr == 0:
                 # Setting up vehicle centric coordinate space
                 self.traj_manager.set_coordinate_system(
@@ -2151,6 +2149,10 @@ class CarlaEnv(gym.Env):
             # TODO: uncomment below to enable autopilot
             elif not self.config["scenarios"] == "straight_dynamic":
                 vehicle.set_autopilot(True, tm_port)
+
+            if self.config['slow_no_light_autopilot']:
+                self.tm.ignore_lights_percentage(vehicle,100)
+                self.tm.global_percentage_speed_difference(80)
 
             self.actor_list.append(vehicle)
 
