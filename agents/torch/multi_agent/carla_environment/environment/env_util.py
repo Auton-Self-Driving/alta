@@ -664,11 +664,17 @@ class CubicBezierManager(TrajectoryManager):
             self.time_slices**3
         ]).T
         self.ctrl_points = None
-        self.pt_range = {
+        # self.pt_range = {
+        #         0:{'x':[0,0],'y':[0,0]},
+        #         1:{'x':[1,6],'y':[-3,3]},
+        #         2:{'x':[0,8],'y':[-3,3]},
+        #         3:{'x':[13,13],'y':[-3,3]}}
+
+        self.pt_range = { # For no crash to facilitate turning
                 0:{'x':[0,0],'y':[0,0]},
-                1:{'x':[1,6],'y':[-3,3]},
-                2:{'x':[0,8],'y':[-3,3]},
-                3:{'x':[13,13],'y':[-3,3]}}
+                1:{'x':[1,4],'y':[-5,5]},
+                2:{'x':[0,6],'y':[-5,5]},
+                3:{'x':[10,10],'y':[-8,8]}}
 
         # self.pt_range = { # For traj length 60
         #         0:{'x':[0,0],'y':[0,0]},

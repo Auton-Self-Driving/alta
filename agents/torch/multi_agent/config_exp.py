@@ -799,6 +799,118 @@ EXP_CONFIGS = {
         },
 
 
+    # No crash Experiments
+
+    # No Crash Empty - FS 4 - Spd 20
+    "no_crash_empty_360deg_5dof_20_spd_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'no_crash_empty',
+                'num_npc': 0,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':10000000,
+                'num_npc':0,
+                'terminate_on_light':False,
+                'npc_reset_freq':10000000,
+                'autopilot_type' : 'const_speed',
+                'autopilot_const_speed':20.0,
+                'custom_offroad_check':False
+            },
+            "agent":{
+                'save_suffix': 'no_crash_empty_360deg_5dof_20_spd_fs_4', 
+                'save_freq': 50000,
+                'num_workers': 24,
+                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
+    "no_crash_empty_360deg_nospd_5dof_10_spd_fs_4":{
+            "env":{
+                'input_type': 'wp_360_obstacle_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'no_crash_empty',
+                'num_npc': 0,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':10000000,
+                'num_npc':0,
+                'terminate_on_light':False,
+                'npc_reset_freq':10000000,
+                'autopilot_type' : 'const_speed',
+                'autopilot_const_speed':10.0,
+                'custom_offroad_check':False
+            },
+            "agent":{
+                'save_suffix': 'no_crash_empty_360deg_nospd_5dof_10_spd_fs_4', 
+                'save_freq': 50000,
+                'num_workers': 24,
+                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
+    "no_crash_empty_360deg_nospdstr_5dof_10_spd_fs_4":{ # Resume from 870K
+            "env":{
+                'input_type': 'wp_360_obstacle',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'no_crash_empty',
+                'num_npc': 0,
+                'frame_skip': 4,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':10000000,
+                'num_npc':0,
+                'terminate_on_light':False,
+                'npc_reset_freq':10000000,
+                'autopilot_type' : 'const_speed',
+                'autopilot_const_speed':10.0,
+                'custom_offroad_check':False
+            },
+            "agent":{
+                'save_suffix': 'no_crash_empty_360deg_nospdstr_5dof_10_spd_fs_4', 
+                'save_freq': 50000,
+                'num_workers': 24,
+                'device_list': ['cuda:0','cuda:1','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
+
+        "test":{
+            "env":{
+                'input_type': 'wp_360_obstacle_speed_steer',
+                'action_type': 'cubic_bezier_5dof', 
+                'scenarios' : 'no_crash_empty',
+                'num_npc': 0,
+                'frame_skip': 1,
+                'traj_frame_horizon':30, 
+                'sticky_temporal_action_frames': 1,
+                'max_num_steps':10000000,
+                'num_npc':0,
+                'terminate_on_light':False,
+                'npc_reset_freq':1,
+                'autopilot_type' : 'const_speed',
+                'autopilot_const_speed':20.0,
+                'custom_offroad_check':False
+            },
+            "agent":{
+                'save_suffix': 'test', 
+                'save_freq': 50000,
+                'num_workers': 15,
+                'device_list': ['cuda:1','cuda:2','cuda:3'],
+                # 'ckpt_mode':'resume',
+                # 'checkpoint':'ckptDPPO1x1x1_360deg_5dof_stovrtk_fs_4_60172_May151043AM25.pth'
+            }
+        },
+
+
+
+
 }
 
 DEFAULT_CONFIGS = {

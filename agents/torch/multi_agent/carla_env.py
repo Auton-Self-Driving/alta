@@ -928,7 +928,7 @@ class CarlaEnv(gym.Env):
         if not self.config['disable_obstacle_info']:
             if self.config['input_type'] == 'wp_obs_info_side_obs_info_speed_steer_ldist_light':
                 self._update_obs_detector_via_privilege(agent)
-            elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+            elif self.config['input_type'] in ['wp_360_obstacle_speed_steer','wp_360_obstacle_steer','wp_360_obstacle']:
                 self._update_obs_detector_via_all_sensor(agent)
             elif self.config['enable_obstacle_sensor']:
                 self._update_obs_detector_via_sensor(agent)
@@ -1524,7 +1524,7 @@ class CarlaEnv(gym.Env):
                             transform=carla.Transform(rotation=carla.Rotation(yaw=315.))),
                     }
 
-                elif self.config['input_type'] == 'wp_360_obstacle_speed_steer':
+                elif self.config['input_type'] in ['wp_360_obstacle_speed_steer','wp_360_obstacle_steer','wp_360_obstacle']:
                     obs_sensors = {
                         'obstacle_sensor_0': sensors.ObstacleSensor(agent.vehicle_actor,
                             distance=self.config['all_obs_proximity_threshold'],
@@ -1865,7 +1865,7 @@ class CarlaEnv(gym.Env):
                                         'wp_2avg_obs_more_info_speed_steer_ldist_light',
                                         'wp_list_obs_more_info_steer_ldist_light',
                                         'wp_list_obs_more_info_speed_steer_ldist_light',
-                                        'wp_360_obstacle_speed_steer']:
+                                        'wp_360_obstacle_speed_steer','wp_360_obstacle_steer','wp_360_obstacle']:
             observation = np.expand_dims(obs['observation'], axis = 0)
             agent.observation = observation
         elif self.config['input_type'] == 'transformer':

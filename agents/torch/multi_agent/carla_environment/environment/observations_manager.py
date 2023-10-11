@@ -132,6 +132,14 @@ class ObservationsManager:
                 self.observation_space = Box(low=np.array([[-4.0, 0.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
                                 high=np.array([[4.0, 1.0, 0.5, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
                                 dtype=np.float32)
+            elif self.config["input_type"] == 'wp_360_obstacle_steer':
+                self.observation_space = Box(low=np.array([[-4.0, -0.5, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
+                                high=np.array([[4.0, 0.5, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
+                                dtype=np.float32)
+            elif self.config["input_type"] == 'wp_360_obstacle':
+                self.observation_space = Box(low=np.array([[-4.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]]),
+                                high=np.array([[4.0, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]]),
+                                dtype=np.float32)
             elif self.config["input_type"] == 'wp_vae_obs_info_speed_steer_ldist_goal_light':
                 self.observation_space = Box(low=np.finfo(np.float32).min,
                                         high=np.finfo(np.float32).max,
@@ -792,6 +800,246 @@ class ObservationsManager:
                     )
                 )
             
+            elif self.config['input_type'] == 'wp_360_obstacle_steer':
+                speed = agent.episode_measurements['speed'] / 10
+                steer = agent.episode_measurements['control_steer']
+                ldist = agent.episode_measurements['dist_to_trajectory']
+                light = agent.episode_measurements['red_light_dist']
+
+                if light != -1:
+                    light /= self.config['traffic_light_proximity_threshold']
+                else:
+                    light = self.config['default_obs_traffic_val']
+
+                front_obs_vec = np.array([1.5, 1.5])
+                front_obs_vel = np.array([1.5, 1.5])
+                front_min_dist = 10000
+
+                front_right_obs_vec = np.array([1.5, 1.5])
+                front_right_obs_vel = np.array([1.5, 1.5])
+                front_right_min_dist = 10000
+
+                front_left_obs_vec = np.array([1.5, 1.5])
+                front_left_obs_vel = np.array([1.5, 1.5])
+                front_left_min_dist = 10000
+
+                back_right_obs_vec = np.array([1.5, 1.5])
+                back_right_obs_vel = np.array([1.5, 1.5])
+                back_right_min_dist = 10000
+
+                back_left_obs_vec = np.array([1.5, 1.5])
+                back_left_obs_vel = np.array([1.5, 1.5])
+                back_left_min_dist = 10000
+
+
+                for id, obstacle_data in agent.episode_measurements['obstacle_sensor']['state'].items():
+                    # Compute dot product of obstacle vector with car vector
+                    normalized_obstacle_vector = obstacle_data['position'] / np.linalg.norm(obstacle_data['position'])
+                    # Dot product is simply the first element of the normalized vector
+                    dot_product = normalized_obstacle_vector[0]
+
+                    # Obstacle is in front of vehicle
+                    if dot_product > 0.995 and obstacle_data['distance'] < front_min_dist:
+                        front_min_dist = obstacle_data['distance']
+                        front_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                        front_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in front right
+                    elif dot_product > 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < front_right_min_dist:
+                        front_right_min_dist = obstacle_data['distance']
+                        front_right_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                        front_right_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in front left
+                    elif dot_product > 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < front_left_min_dist:
+                        front_left_min_dist = obstacle_data['distance']
+                        front_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        front_left_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in back right
+                    elif dot_product <= 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < back_right_min_dist:
+                        back_right_min_dist = obstacle_data['distance']
+                        back_right_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        back_right_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in back left
+                    elif dot_product <= 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < back_left_min_dist:
+                        back_left_min_dist = obstacle_data['distance']
+                        back_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        back_left_obs_vel = obstacle_data['velocity'] / 20
+
+                if(light != self.config['default_obs_traffic_val']):
+                    unnorm_obs_dist = front_obs_vec[0] * self.config['vehicle_proximity_threshold']
+                    unnorm_light = light * 20
+
+                    # If the light is further do nothing
+                    if(front_obs_vec[0] != self.config['default_obs_traffic_val'] and unnorm_light > unnorm_obs_dist):
+                        pass
+                    else:
+                        front_obs_vec = np.array([light, 0]) / 20.0
+                        front_obs_vel = np.array([0,0])
+
+
+                # For visualization
+                agent.episode_measurements['obstacle_dist'] = front_min_dist
+                agent.episode_measurements['obstacle_speed'] = np.mean(np.square(front_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_right'] = front_right_min_dist
+                agent.episode_measurements['obstacle_speed_front_right'] = np.mean(np.square(front_right_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_left'] = front_left_min_dist
+                agent.episode_measurements['obstacle_speed_front_left'] = np.mean(np.square(front_left_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_right'] = back_right_min_dist
+                agent.episode_measurements['obstacle_speed_back_right'] = np.mean(np.square(back_right_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_left'] = back_left_min_dist
+                agent.episode_measurements['obstacle_speed_back_left'] = np.mean(np.square(back_left_obs_vel * 20))**0.5 
+
+                obs['observation'] = np.concatenate(
+                    (
+                        np.array([agent.episode_measurements['next_orientation']]),
+                        np.array([steer]),
+                        np.array([ldist]),
+                        np.array([front_obs_vec[0]]),
+                        np.array([front_obs_vec[1]]),
+                        np.array([front_obs_vel[0]]),
+                        np.array([front_obs_vel[1]]),
+                        np.array([front_right_obs_vec[0]]),
+                        np.array([front_right_obs_vec[1]]),
+                        np.array([front_right_obs_vel[0]]),
+                        np.array([front_right_obs_vel[1]]),
+                        np.array([front_left_obs_vec[0]]),
+                        np.array([front_left_obs_vec[1]]),
+                        np.array([front_left_obs_vel[0]]),
+                        np.array([front_left_obs_vel[1]]),
+                        np.array([back_right_obs_vec[0]]),
+                        np.array([back_right_obs_vec[1]]),
+                        np.array([back_right_obs_vel[0]]),
+                        np.array([back_right_obs_vel[1]]),
+                        np.array([back_left_obs_vec[0]]),
+                        np.array([back_left_obs_vec[1]]),
+                        np.array([back_left_obs_vel[0]]),
+                        np.array([back_left_obs_vel[1]]),
+                    )
+                )
+            
+            elif self.config['input_type'] == 'wp_360_obstacle':
+                speed = agent.episode_measurements['speed'] / 10
+                steer = agent.episode_measurements['control_steer']
+                ldist = agent.episode_measurements['dist_to_trajectory']
+                light = agent.episode_measurements['red_light_dist']
+
+                if light != -1:
+                    light /= self.config['traffic_light_proximity_threshold']
+                else:
+                    light = self.config['default_obs_traffic_val']
+
+                front_obs_vec = np.array([1.5, 1.5])
+                front_obs_vel = np.array([1.5, 1.5])
+                front_min_dist = 10000
+
+                front_right_obs_vec = np.array([1.5, 1.5])
+                front_right_obs_vel = np.array([1.5, 1.5])
+                front_right_min_dist = 10000
+
+                front_left_obs_vec = np.array([1.5, 1.5])
+                front_left_obs_vel = np.array([1.5, 1.5])
+                front_left_min_dist = 10000
+
+                back_right_obs_vec = np.array([1.5, 1.5])
+                back_right_obs_vel = np.array([1.5, 1.5])
+                back_right_min_dist = 10000
+
+                back_left_obs_vec = np.array([1.5, 1.5])
+                back_left_obs_vel = np.array([1.5, 1.5])
+                back_left_min_dist = 10000
+
+
+                for id, obstacle_data in agent.episode_measurements['obstacle_sensor']['state'].items():
+                    # Compute dot product of obstacle vector with car vector
+                    normalized_obstacle_vector = obstacle_data['position'] / np.linalg.norm(obstacle_data['position'])
+                    # Dot product is simply the first element of the normalized vector
+                    dot_product = normalized_obstacle_vector[0]
+
+                    # Obstacle is in front of vehicle
+                    if dot_product > 0.995 and obstacle_data['distance'] < front_min_dist:
+                        front_min_dist = obstacle_data['distance']
+                        front_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                        front_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in front right
+                    elif dot_product > 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < front_right_min_dist:
+                        front_right_min_dist = obstacle_data['distance']
+                        front_right_obs_vec = obstacle_data['position'] / self.config['vehicle_proximity_threshold']
+                        front_right_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in front left
+                    elif dot_product > 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < front_left_min_dist:
+                        front_left_min_dist = obstacle_data['distance']
+                        front_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        front_left_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in back right
+                    elif dot_product <= 0 and obstacle_data['position'][1] > 0 and obstacle_data['distance'] < back_right_min_dist:
+                        back_right_min_dist = obstacle_data['distance']
+                        back_right_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        back_right_obs_vel = obstacle_data['velocity'] / 20
+
+                    # Obstacle is in back left
+                    elif dot_product <= 0 and obstacle_data['position'][1] < 0 and obstacle_data['distance'] < back_left_min_dist:
+                        back_left_min_dist = obstacle_data['distance']
+                        back_left_obs_vec = obstacle_data['position']  / self.config['vehicle_proximity_threshold']
+                        back_left_obs_vel = obstacle_data['velocity'] / 20
+
+                if(light != self.config['default_obs_traffic_val']):
+                    unnorm_obs_dist = front_obs_vec[0] * self.config['vehicle_proximity_threshold']
+                    unnorm_light = light * 20
+
+                    # If the light is further do nothing
+                    if(front_obs_vec[0] != self.config['default_obs_traffic_val'] and unnorm_light > unnorm_obs_dist):
+                        pass
+                    else:
+                        front_obs_vec = np.array([light, 0]) / 20.0
+                        front_obs_vel = np.array([0,0])
+
+
+                # For visualization
+                agent.episode_measurements['obstacle_dist'] = front_min_dist
+                agent.episode_measurements['obstacle_speed'] = np.mean(np.square(front_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_right'] = front_right_min_dist
+                agent.episode_measurements['obstacle_speed_front_right'] = np.mean(np.square(front_right_obs_vel * 20))**0.5 
+                agent.episode_measurements['obstacle_dist_front_left'] = front_left_min_dist
+                agent.episode_measurements['obstacle_speed_front_left'] = np.mean(np.square(front_left_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_right'] = back_right_min_dist
+                agent.episode_measurements['obstacle_speed_back_right'] = np.mean(np.square(back_right_obs_vel * 20))**0.5
+                agent.episode_measurements['obstacle_dist_back_left'] = back_left_min_dist
+                agent.episode_measurements['obstacle_speed_back_left'] = np.mean(np.square(back_left_obs_vel * 20))**0.5 
+
+                obs['observation'] = np.concatenate(
+                    (
+                        np.array([agent.episode_measurements['next_orientation']]),
+                        np.array([ldist]),
+                        np.array([front_obs_vec[0]]),
+                        np.array([front_obs_vec[1]]),
+                        np.array([front_obs_vel[0]]),
+                        np.array([front_obs_vel[1]]),
+                        np.array([front_right_obs_vec[0]]),
+                        np.array([front_right_obs_vec[1]]),
+                        np.array([front_right_obs_vel[0]]),
+                        np.array([front_right_obs_vel[1]]),
+                        np.array([front_left_obs_vec[0]]),
+                        np.array([front_left_obs_vec[1]]),
+                        np.array([front_left_obs_vel[0]]),
+                        np.array([front_left_obs_vel[1]]),
+                        np.array([back_right_obs_vec[0]]),
+                        np.array([back_right_obs_vec[1]]),
+                        np.array([back_right_obs_vel[0]]),
+                        np.array([back_right_obs_vel[1]]),
+                        np.array([back_left_obs_vec[0]]),
+                        np.array([back_left_obs_vec[1]]),
+                        np.array([back_left_obs_vel[0]]),
+                        np.array([back_left_obs_vel[1]]),
+                    )
+                )
+            
+
     def fetch_symbolic_dict(self, ego_agent):
             # get ego kinematics
             ego_actor = ego_agent.vehicle_actor
